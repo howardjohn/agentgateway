@@ -1,14 +1,17 @@
-use crate::*;
-use ::http::request::Parts;
-use bytes::Bytes;
-use futures_util::FutureExt;
 use std::fmt::Debug;
 use std::future::Future;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+use ::http::request::Parts;
+use agent_core::drain::DrainWatcher;
+use bytes::Bytes;
+use futures_util::FutureExt;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::{oneshot, watch};
 use tracing::{Instrument, debug};
+
+use crate::*;
 
 pub struct H2Request {
 	request: Parts,
@@ -82,14 +85,14 @@ pub async fn serve_connection<F, IO, Ctx, Fut>(
 	cfg: Arc<Config>,
 	s: IO,
 	ctx: Ctx,
-	drain: agent_core::drain::DrainWatcher,
+	drain: DrainWatcher,
 	mut force_shutdown: watch::Receiver<()>,
 	handler: F,
 ) -> anyhow::Result<()>
 where
 	Ctx: Clone,
 	IO: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-	F: Fn(H2Request, Ctx) -> Fut,
+	F: Fn(H2Request, Ctx, DrainWatcher) -> Fut,
 	Fut: Future<Output = ()> + Send + 'static,
 {
 	let mut builder = ::h2::server::Builder::new();
@@ -119,11 +122,11 @@ where
 		ping_drop_tx,
 		dropped.clone(),
 	));
-
-	let handler = |req, ext| handler(req, ext).map(|_| ());
+	let handler = |req, ext, drain| handler(req, ext, drain).map(|_| ());
 
 	loop {
-		let drain = drain.clone();
+		let drain_send = drain.clone();
+		let drain_shutdown = drain.clone();
 		tokio::select! {
 			request = conn.accept() => {
 				let Some(request) = request else {
@@ -139,7 +142,7 @@ where
 					recv,
 					send,
 				};
-				let handle = handler(req, ctx.clone());
+				let handle = handler(req, ctx.clone(), drain_send);
 				// Serve the stream in a new task
 				tokio::task::spawn(handle.in_current_span());
 			}
@@ -152,8 +155,9 @@ where
 				conn.abrupt_shutdown(h2::Reason::NO_ERROR);
 				break
 			}
-			_shutdown = drain.wait_for_drain() => {
+			_shutdown = drain_shutdown.wait_for_drain() => {
 				debug!("starting graceful drain...");
+				// Drain the HBONE layer itself
 				conn.graceful_shutdown();
 				break;
 			}
@@ -163,10 +167,10 @@ where
 	dropped.store(true, Ordering::Relaxed);
 	let poll_closed = futures_util::future::poll_fn(move |cx| conn.poll_closed(cx));
 	tokio::select! {
-		_ = force_shutdown.changed() => {
-			anyhow::bail!("drain timeout");
-		}
-		_ = poll_closed => {}
+			_ = force_shutdown.changed() => {
+					anyhow::bail!("drain timeout");
+			}
+			_ = poll_closed => {}
 	}
 	// Mark we are done with the connection
 	drop(drain);

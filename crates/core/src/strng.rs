@@ -19,8 +19,7 @@ pub fn new<A: AsRef<str>>(s: A) -> Strng {
 	Strng::from(s.as_ref())
 }
 
-pub use arcstr::format;
-pub use arcstr::literal;
+pub use arcstr::{format, literal};
 
 /// RichStrng wraps Strng to let us implement arbitrary methods. How annoying.
 #[derive(Clone, Hash, Default, Debug, PartialEq, Eq)]

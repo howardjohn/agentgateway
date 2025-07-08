@@ -1,7 +1,8 @@
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::fmt::Display;
 use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 // JSON RPC serde inspired by https://github.com/4t145/rmcp/
 #[allow(dead_code)]

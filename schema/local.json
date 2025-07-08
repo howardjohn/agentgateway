@@ -1,0 +1,2333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LocalConfig",
+  "type": "object",
+  "properties": {
+    "binds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "listeners": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "gatewayName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "hostname": {
+                  "description": "Can be a wildcard",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "protocol": {
+                  "type": "string",
+                  "enum": [
+                    "HTTP",
+                    "HTTPS",
+                    "TLS",
+                    "TCP",
+                    "HBONE"
+                  ],
+                  "default": "HTTP"
+                },
+                "tls": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "cert": {
+                      "type": "string"
+                    },
+                    "key": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "cert",
+                    "key"
+                  ]
+                },
+                "routes": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "ruleName": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "hostnames": {
+                        "description": "Can be a wildcard",
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "matches": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "headers": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "exact": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "exact"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "regex": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "regex"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "value"
+                                ]
+                              }
+                            },
+                            "path": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "exact": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "exact"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "pathPrefix": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "pathPrefix"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "regex": {
+                                      "type": "array",
+                                      "prefixItems": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "integer",
+                                          "format": "uint",
+                                          "minimum": 0
+                                        }
+                                      ],
+                                      "minItems": 2,
+                                      "maxItems": 2
+                                    }
+                                  },
+                                  "required": [
+                                    "regex"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "method": {
+                              "type": [
+                                "object",
+                                "null"
+                              ],
+                              "properties": {
+                                "method": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "method"
+                              ]
+                            },
+                            "query": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "exact": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "exact"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "regex": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "regex"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "value"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "path"
+                          ]
+                        },
+                        "default": [
+                          {
+                            "path": {
+                              "pathPrefix": "/"
+                            }
+                          }
+                        ]
+                      },
+                      "policies": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "requestHeaderModifier": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "add": {
+                                "type": "array",
+                                "items": {
+                                  "type": "array",
+                                  "prefixItems": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "minItems": 2,
+                                  "maxItems": 2
+                                }
+                              },
+                              "set": {
+                                "type": "array",
+                                "items": {
+                                  "type": "array",
+                                  "prefixItems": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "minItems": 2,
+                                  "maxItems": 2
+                                }
+                              },
+                              "remove": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "responseHeaderModifier": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "add": {
+                                "type": "array",
+                                "items": {
+                                  "type": "array",
+                                  "prefixItems": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "minItems": 2,
+                                  "maxItems": 2
+                                }
+                              },
+                              "set": {
+                                "type": "array",
+                                "items": {
+                                  "type": "array",
+                                  "prefixItems": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "minItems": 2,
+                                  "maxItems": 2
+                                }
+                              },
+                              "remove": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "requestRedirect": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "scheme": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "authority": {
+                                "anyOf": [
+                                  {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "full": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "full"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "host": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "host"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "port": {
+                                            "type": "integer",
+                                            "format": "uint16",
+                                            "minimum": 1,
+                                            "maximum": 65535
+                                          }
+                                        },
+                                        "required": [
+                                          "port"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "path": {
+                                "anyOf": [
+                                  {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "full": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "full"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "prefix": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "prefix"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "status": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "format": "uint16",
+                                "minimum": 1,
+                                "maximum": 65535
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "urlRewrite": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "authority": {
+                                "anyOf": [
+                                  {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "full": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "full"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "host": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "host"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "port": {
+                                            "type": "integer",
+                                            "format": "uint16",
+                                            "minimum": 1,
+                                            "maximum": 65535
+                                          }
+                                        },
+                                        "required": [
+                                          "port"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "path": {
+                                "anyOf": [
+                                  {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "full": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "full"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "prefix": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "prefix"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "requestMirror": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "backend": {
+                                "oneOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "invalid"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "service": {
+                                        "type": "object",
+                                        "properties": {
+                                          "name": {
+                                            "type": "object",
+                                            "properties": {
+                                              "namespace": {
+                                                "type": "string"
+                                              },
+                                              "hostname": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "namespace",
+                                              "hostname"
+                                            ]
+                                          },
+                                          "port": {
+                                            "type": "integer",
+                                            "format": "uint16",
+                                            "minimum": 0,
+                                            "maximum": 65535
+                                          }
+                                        },
+                                        "required": [
+                                          "name",
+                                          "port"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "service"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "host": {
+                                        "oneOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "Address": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "Address"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "Hostname": {
+                                                "type": "array",
+                                                "prefixItems": [
+                                                  {
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "integer",
+                                                    "format": "uint16",
+                                                    "minimum": 0,
+                                                    "maximum": 65535
+                                                  }
+                                                ],
+                                                "minItems": 2,
+                                                "maxItems": 2
+                                              }
+                                            },
+                                            "required": [
+                                              "Hostname"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "host"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              },
+                              "percentage": {
+                                "type": "number",
+                                "format": "double"
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "backend",
+                              "percentage"
+                            ]
+                          },
+                          "directResponse": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "body": {
+                                "type": [
+                                  "array",
+                                  "string"
+                                ],
+                                "items": {
+                                  "type": "integer",
+                                  "format": "uint8",
+                                  "minimum": 0,
+                                  "maximum": 255
+                                }
+                              },
+                              "status": {
+                                "type": "integer",
+                                "format": "uint16",
+                                "minimum": 1,
+                                "maximum": 65535
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "body",
+                              "status"
+                            ]
+                          },
+                          "cors": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "allowCredentials": {
+                                "type": "boolean",
+                                "default": false
+                              },
+                              "allowHeaders": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "default": []
+                              },
+                              "allowMethods": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "default": []
+                              },
+                              "allowOrigins": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "default": []
+                              },
+                              "exposeHeaders": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "default": []
+                              },
+                              "maxAge": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "default": null
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "mcpAuthorization": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "rules": true
+                            },
+                            "required": [
+                              "rules"
+                            ]
+                          },
+                          "mcpAuthentication": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "issuer": {
+                                "type": "string"
+                              },
+                              "scopes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "provider": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "auth0": {
+                                        "type": "object",
+                                        "properties": {
+                                          "audience": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "auth0"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "issuer",
+                              "scopes",
+                              "provider"
+                            ]
+                          },
+                          "a2a": {
+                            "type": [
+                              "object",
+                              "null"
+                            ]
+                          },
+                          "ai": true,
+                          "backendTLS": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "cert": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "key": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "root": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "insecure": {
+                                "type": "boolean",
+                                "default": false
+                              },
+                              "insecureHost": {
+                                "type": "boolean",
+                                "default": false
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "backendAuth": {
+                            "anyOf": [
+                              {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "passthrough": {
+                                        "type": "object"
+                                      }
+                                    },
+                                    "required": [
+                                      "passthrough"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "file": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "file"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "key"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "gcp": {
+                                        "type": "object"
+                                      }
+                                    },
+                                    "required": [
+                                      "gcp"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "aws": {
+                                        "type": "object"
+                                      }
+                                    },
+                                    "required": [
+                                      "aws"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "localRateLimit": true,
+                          "remoteRateLimit": true,
+                          "jwtAuth": {
+                            "type": "object",
+                            "properties": {
+                              "issuer": {
+                                "type": "string"
+                              },
+                              "audiences": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "jwks": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "file": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "file"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "issuer",
+                              "audiences",
+                              "jwks"
+                            ]
+                          },
+                          "extAuthz": true,
+                          "timeout": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "requestTimeout": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "backendRequestTimeout": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "retry": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "attempts": {
+                                "type": "integer",
+                                "format": "uint8",
+                                "minimum": 1,
+                                "maximum": 255,
+                                "default": 1
+                              },
+                              "backoff": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "codes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "integer",
+                                  "format": "uint8",
+                                  "minimum": 1,
+                                  "maximum": 255
+                                }
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "codes"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "backends": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "weight": {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0,
+                              "default": 1
+                            },
+                            "filters": {
+                              "type": "array",
+                              "items": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "requestHeaderModifier": {
+                                        "type": "object",
+                                        "properties": {
+                                          "add": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "array",
+                                              "prefixItems": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "string"
+                                                }
+                                              ],
+                                              "minItems": 2,
+                                              "maxItems": 2
+                                            }
+                                          },
+                                          "set": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "array",
+                                              "prefixItems": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "string"
+                                                }
+                                              ],
+                                              "minItems": 2,
+                                              "maxItems": 2
+                                            }
+                                          },
+                                          "remove": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "requestHeaderModifier"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "responseHeaderModifier": {
+                                        "type": "object",
+                                        "properties": {
+                                          "add": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "array",
+                                              "prefixItems": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "string"
+                                                }
+                                              ],
+                                              "minItems": 2,
+                                              "maxItems": 2
+                                            }
+                                          },
+                                          "set": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "array",
+                                              "prefixItems": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "string"
+                                                }
+                                              ],
+                                              "minItems": 2,
+                                              "maxItems": 2
+                                            }
+                                          },
+                                          "remove": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "responseHeaderModifier"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "requestRedirect": {
+                                        "type": "object",
+                                        "properties": {
+                                          "scheme": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "authority": {
+                                            "anyOf": [
+                                              {
+                                                "oneOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "full": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "full"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "host": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "host"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "port": {
+                                                        "type": "integer",
+                                                        "format": "uint16",
+                                                        "minimum": 1,
+                                                        "maximum": 65535
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "port"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "path": {
+                                            "anyOf": [
+                                              {
+                                                "oneOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "full": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "full"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "prefix": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "prefix"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "status": {
+                                            "type": [
+                                              "integer",
+                                              "null"
+                                            ],
+                                            "format": "uint16",
+                                            "minimum": 1,
+                                            "maximum": 65535
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "requestRedirect"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "urlRewrite": {
+                                        "type": "object",
+                                        "properties": {
+                                          "authority": {
+                                            "anyOf": [
+                                              {
+                                                "oneOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "full": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "full"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "host": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "host"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "port": {
+                                                        "type": "integer",
+                                                        "format": "uint16",
+                                                        "minimum": 1,
+                                                        "maximum": 65535
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "port"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "path": {
+                                            "anyOf": [
+                                              {
+                                                "oneOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "full": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "full"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "prefix": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "prefix"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "urlRewrite"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "requestMirror": {
+                                        "type": "object",
+                                        "properties": {
+                                          "backend": {
+                                            "oneOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "invalid"
+                                                ]
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "service": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "name": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "namespace": {
+                                                            "type": "string"
+                                                          },
+                                                          "hostname": {
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "namespace",
+                                                          "hostname"
+                                                        ]
+                                                      },
+                                                      "port": {
+                                                        "type": "integer",
+                                                        "format": "uint16",
+                                                        "minimum": 0,
+                                                        "maximum": 65535
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "name",
+                                                      "port"
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "service"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "host": {
+                                                    "oneOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "Address": {
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "Address"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      },
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "Hostname": {
+                                                            "type": "array",
+                                                            "prefixItems": [
+                                                              {
+                                                                "type": "string"
+                                                              },
+                                                              {
+                                                                "type": "integer",
+                                                                "format": "uint16",
+                                                                "minimum": 0,
+                                                                "maximum": 65535
+                                                              }
+                                                            ],
+                                                            "minItems": 2,
+                                                            "maxItems": 2
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "Hostname"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "host"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            ]
+                                          },
+                                          "percentage": {
+                                            "type": "number",
+                                            "format": "double"
+                                          }
+                                        },
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "backend",
+                                          "percentage"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "requestMirror"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "directResponse": {
+                                        "type": "object",
+                                        "properties": {
+                                          "body": {
+                                            "type": [
+                                              "array",
+                                              "string"
+                                            ],
+                                            "items": {
+                                              "type": "integer",
+                                              "format": "uint8",
+                                              "minimum": 0,
+                                              "maximum": 255
+                                            }
+                                          },
+                                          "status": {
+                                            "type": "integer",
+                                            "format": "uint16",
+                                            "minimum": 1,
+                                            "maximum": 65535
+                                          }
+                                        },
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "body",
+                                          "status"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "directResponse"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "cors": {
+                                        "type": "object",
+                                        "properties": {
+                                          "allowCredentials": {
+                                            "type": "boolean",
+                                            "default": false
+                                          },
+                                          "allowHeaders": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "default": []
+                                          },
+                                          "allowMethods": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "default": []
+                                          },
+                                          "allowOrigins": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "default": []
+                                          },
+                                          "exposeHeaders": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "default": []
+                                          },
+                                          "maxAge": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ],
+                                            "default": null
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "cors"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "invalid"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "object",
+                                      "properties": {
+                                        "namespace": {
+                                          "type": "string"
+                                        },
+                                        "hostname": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "namespace",
+                                        "hostname"
+                                      ]
+                                    },
+                                    "port": {
+                                      "type": "integer",
+                                      "format": "uint16",
+                                      "minimum": 0,
+                                      "maximum": 65535
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "port"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "host": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "Address": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "Address"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "Hostname": {
+                                          "type": "array",
+                                          "prefixItems": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "integer",
+                                              "format": "uint16",
+                                              "minimum": 0,
+                                              "maximum": 65535
+                                            }
+                                          ],
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        }
+                                      },
+                                      "required": [
+                                        "Hostname"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "host"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "dynamic": {
+                                  "type": "object"
+                                }
+                              },
+                              "required": [
+                                "dynamic"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "mcp": {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "targets": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "filters": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "matcher": {
+                                                  "oneOf": [
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "Equals": {
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "Equals"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "Prefix": {
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "Prefix"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "Suffix": {
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "Suffix"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "Contains": {
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "Contains"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "Regex": {
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "Regex"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    }
+                                                  ]
+                                                },
+                                                "resource_type": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "matcher",
+                                                "resource_type"
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "name"
+                                        ],
+                                        "oneOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "sse": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "host": {
+                                                    "type": "string"
+                                                  },
+                                                  "port": {
+                                                    "type": "integer",
+                                                    "format": "uint32",
+                                                    "minimum": 0
+                                                  },
+                                                  "path": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "host",
+                                                  "port",
+                                                  "path"
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "sse"
+                                            ]
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "mcp": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "host": {
+                                                    "type": "string"
+                                                  },
+                                                  "port": {
+                                                    "type": "integer",
+                                                    "format": "uint32",
+                                                    "minimum": 0
+                                                  },
+                                                  "path": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "host",
+                                                  "port",
+                                                  "path"
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "mcp"
+                                            ]
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "stdio": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "cmd": {
+                                                    "type": "string"
+                                                  },
+                                                  "args": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "env": {
+                                                    "type": "object",
+                                                    "additionalProperties": {
+                                                      "type": "string"
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "cmd"
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "stdio"
+                                            ]
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "openapi": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "host": {
+                                                    "type": "string"
+                                                  },
+                                                  "port": {
+                                                    "type": "integer",
+                                                    "format": "uint32",
+                                                    "minimum": 0
+                                                  },
+                                                  "schema": true
+                                                },
+                                                "required": [
+                                                  "host",
+                                                  "port",
+                                                  "schema"
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "openapi"
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "targets"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "mcp"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "ai": {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "provider": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "openAI": {
+                                              "type": "object",
+                                              "properties": {
+                                                "model": {
+                                                  "type": [
+                                                    "string",
+                                                    "null"
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "openAI"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "gemini": {
+                                              "type": "object",
+                                              "properties": {
+                                                "model": {
+                                                  "type": [
+                                                    "string",
+                                                    "null"
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "gemini"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "vertex": {
+                                              "type": "object",
+                                              "properties": {
+                                                "model": {
+                                                  "type": [
+                                                    "string",
+                                                    "null"
+                                                  ]
+                                                },
+                                                "region": {
+                                                  "type": [
+                                                    "string",
+                                                    "null"
+                                                  ]
+                                                },
+                                                "projectId": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "projectId"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "vertex"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "anthropic": {
+                                              "type": "object",
+                                              "properties": {
+                                                "model": {
+                                                  "type": [
+                                                    "string",
+                                                    "null"
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "anthropic"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "bedrock": {
+                                              "type": "object",
+                                              "properties": {
+                                                "model": {
+                                                  "type": "string"
+                                                },
+                                                "region": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "model",
+                                                "region"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "bedrock"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "hostOverride": {
+                                      "anyOf": [
+                                        {
+                                          "oneOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "Address": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "Address"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "Hostname": {
+                                                  "type": "array",
+                                                  "prefixItems": [
+                                                    {
+                                                      "type": "string"
+                                                    },
+                                                    {
+                                                      "type": "integer",
+                                                      "format": "uint16",
+                                                      "minimum": 0,
+                                                      "maximum": 65535
+                                                    }
+                                                  ],
+                                                  "minItems": 2,
+                                                  "maxItems": 2
+                                                }
+                                              },
+                                              "required": [
+                                                "Hostname"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "provider"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "ai"
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "tcpRoutes": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "ruleName": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "hostnames": {
+                        "description": "Can be a wildcard",
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "policies": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "backendTls": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "cert": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "key": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "root": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "insecure": {
+                                "type": "boolean",
+                                "default": false
+                              },
+                              "insecureHost": {
+                                "type": "boolean",
+                                "default": false
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "backends": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "weight": {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0,
+                              "default": 1
+                            },
+                            "backend": {
+                              "oneOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "invalid"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "service": {
+                                      "type": "object",
+                                      "properties": {
+                                        "name": {
+                                          "type": "object",
+                                          "properties": {
+                                            "namespace": {
+                                              "type": "string"
+                                            },
+                                            "hostname": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "namespace",
+                                            "hostname"
+                                          ]
+                                        },
+                                        "port": {
+                                          "type": "integer",
+                                          "format": "uint16",
+                                          "minimum": 0,
+                                          "maximum": 65535
+                                        }
+                                      },
+                                      "required": [
+                                        "name",
+                                        "port"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "service"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "host": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "Address": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "Address"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "Hostname": {
+                                              "type": "array",
+                                              "prefixItems": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "integer",
+                                                  "format": "uint16",
+                                                  "minimum": 0,
+                                                  "maximum": 65535
+                                                }
+                                              ],
+                                              "minItems": 2,
+                                              "maxItems": 2
+                                            }
+                                          },
+                                          "required": [
+                                            "Hostname"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "host"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "backend"
+                          ]
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "port",
+          "listeners"
+        ]
+      },
+      "default": []
+    },
+    "workloads": {
+      "default": []
+    },
+    "services": {
+      "default": []
+    }
+  }
+}

@@ -3,7 +3,7 @@ import { Target, Listener, ListenerProtocol } from "./types";
 const API_URL = "http://localhost:19000";
 
 /**
- * Updates a single target on the MCP proxy server
+ * Updates a single target on the MCP agentgateway server
  */
 export async function updateTarget(target: Target): Promise<void> {
   try {
@@ -51,7 +51,7 @@ export async function updateTarget(target: Target): Promise<void> {
 }
 
 /**
- * Fetches the listener configuration from the MCP proxy server
+ * Fetches the listener configuration from the MCP agentgateway server
  */
 export async function fetchListeners(): Promise<Listener[]> {
   try {
@@ -91,7 +91,7 @@ export async function fetchListeners(): Promise<Listener[]> {
 }
 
 /**
- * Fetches all MCP targets from the proxy server
+ * Fetches all MCP targets from the agentgateway server
  */
 export async function fetchMcpTargets(): Promise<any[]> {
   try {
@@ -110,7 +110,7 @@ export async function fetchMcpTargets(): Promise<any[]> {
 }
 
 /**
- * Creates or updates an MCP target on the proxy server
+ * Creates or updates an MCP target on the agentgateway server
  */
 export async function createMcpTarget(target: Target): Promise<void> {
   try {
@@ -171,7 +171,7 @@ export async function deleteMcpTarget(name: string): Promise<void> {
 }
 
 /**
- * Fetches all A2A targets from the proxy server
+ * Fetches all A2A targets from the agentgateway server
  */
 export async function fetchA2aTargets(): Promise<any[]> {
   try {
@@ -190,7 +190,7 @@ export async function fetchA2aTargets(): Promise<any[]> {
 }
 
 /**
- * Creates or updates an A2A target on the proxy server
+ * Creates or updates an A2A target on the agentgateway server
  */
 export async function createA2aTarget(target: Target): Promise<void> {
   try {
@@ -301,7 +301,7 @@ export async function getListener(name: string): Promise<Listener> {
 }
 
 /**
- * Creates or updates a listener on the proxy server
+ * Creates or updates a listener on the agentgateway server
  */
 export async function createListener(listener: Listener): Promise<void> {
   try {
@@ -322,7 +322,7 @@ export async function createListener(listener: Listener): Promise<void> {
 }
 
 /**
- * Creates a new listener on the MCP proxy server
+ * Creates a new listener on the MCP agentgateway server
  */
 export async function addListener(listener: Listener): Promise<void> {
   try {
@@ -365,7 +365,7 @@ export async function addListener(listener: Listener): Promise<void> {
 }
 
 /**
- * Deletes a listener from the MCP proxy server
+ * Deletes a listener from the MCP agentgateway server
  */
 export async function deleteListener(listener: Listener): Promise<void> {
   try {

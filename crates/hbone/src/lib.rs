@@ -1,7 +1,3 @@
-use agent_core::copy;
-use agent_core::prelude::*;
-use bytes::{BufMut, Bytes};
-use h2::Reason;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use std::io::Error;
@@ -11,6 +7,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::task::{Context, Poll};
 use std::time::Duration;
+
+use agent_core::copy;
+use agent_core::prelude::*;
+use bytes::{BufMut, Bytes};
+use h2::Reason;
 use tokio::sync::oneshot;
 use tracing::trace;
 

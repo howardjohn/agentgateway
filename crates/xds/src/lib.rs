@@ -1,11 +1,13 @@
-use self::service::discovery::v3::DeltaDiscoveryRequest;
-pub use client::*;
-pub use metrics::*;
 use std::error::Error as StdErr;
 use std::fmt;
 use std::fmt::Formatter;
+
+pub use client::*;
+pub use metrics::*;
 use tokio::sync::mpsc;
 pub use types::*;
+
+use self::service::discovery::v3::DeltaDiscoveryRequest;
 
 mod client;
 pub mod metrics;

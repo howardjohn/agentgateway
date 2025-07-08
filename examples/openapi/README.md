@@ -9,38 +9,22 @@ This example will show you how to proxy the [Swagger Petstore](https://petstore3
 ### Running the example
 
 ```bash
-cargo run -- -f examples/openapi/config.json
+cargo run -- -f examples/openapi/config.yaml
 ```
 
-Let's look at the config to understand what's going on. First off we have a listener, which tells the gateway how to listen for incoming requests/connections. In this case we're using the `sse` listener, which is a simple HTTP listener that listens on port 3000.
-```json
-  "listeners": [
-    {
-      "sse": {
-        "address": "0.0.0.0",
-        "port": 3000
-      }
-    }
-  ],
+In addition to the [basic](../basic) setup, we have added a new target of type `openapi`:
+
+```yaml
+name: openapi
+openapi:
+  schema:
+    file: ./examples/openapi/openapi.json
+  host: localhost
+  port: 8080
 ```
 
-Next we have a targets section, which tells the gateway how to proxy the incoming requests to the target. In this case we're proxying to the [Swagger Petstore](https://petstore3.swagger.io). In the future we will also support remote OpenAPI specs via URL.
-```json
-  "targets": {
-    "mcp": [
-      {
-        "name": "petstore",
-        "openapi": {
-          "host": "petstore3.swagger.io",
-          "port": 443,
-          "schema": {
-            "file_path": "examples/openapi/openapi.json"
-          }
-        }
-      }
-    ]
-  }
-```
+This will expose each method in the openapi specification as MCP tools, and proxy them to the petstore application (on `localhost:8080`).
+
 
 Now that we have the gateway running, we can use the [mcpinspector](https://github.com/modelcontextprotocol/inspector) to try it out.
 ```bash

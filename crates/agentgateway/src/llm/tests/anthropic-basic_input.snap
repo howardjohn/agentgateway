@@ -1,0 +1,27 @@
+---
+source: crates/agentgateway/src/llm/tests.rs
+description: "anthropic: basic_input"
+info:
+  messages:
+    - content: You are a helpful assistant.
+      role: system
+    - content: What is the name of the LLM provider?
+      role: user
+  model: replaceme
+---
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "What is the name of the LLM provider?"
+        }
+      ]
+    }
+  ],
+  "system": "You are a helpful assistant.",
+  "model": "replaceme",
+  "max_tokens": 4096
+}

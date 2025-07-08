@@ -1,5 +1,3 @@
-use bytes::{Buf, BufMut, Bytes, BytesMut};
-use pin_project_lite::pin_project;
 use std::future::Future;
 use std::io::{Error, IoSlice};
 use std::marker::PhantomPinned;
@@ -7,6 +5,9 @@ use std::mem::MaybeUninit;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::task::{Context, Poll, ready};
+
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+use pin_project_lite::pin_project;
 use tokio::io;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpStream;
@@ -167,10 +168,10 @@ pub struct ConnectionResult {}
 
 impl ConnectionResult {
 	pub fn increment_recv(&self, _: u64) {
-		todo!()
+		// TODO
 	}
 	pub fn increment_send(&self, _: u64) {
-		todo!()
+		// TODO
 	}
 }
 

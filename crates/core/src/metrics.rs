@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::fmt::{Display, Write};
 use std::mem;
 
 use prometheus_client::encoding::{EncodeLabelValue, LabelValueEncoder};
@@ -157,6 +157,12 @@ impl From<Option<Strng>> for DefaultedUnknown<RichStrng> {
 	}
 }
 
+impl From<&Option<Strng>> for DefaultedUnknown<RichStrng> {
+	fn from(t: &Option<Strng>) -> Self {
+		DefaultedUnknown(t.as_ref().map(RichStrng::from))
+	}
+}
+
 impl<T> From<Option<T>> for DefaultedUnknown<T> {
 	fn from(t: Option<T>) -> Self {
 		DefaultedUnknown(t)
@@ -175,5 +181,27 @@ impl<T: EncodeLabelValue> EncodeLabelValue for DefaultedUnknown<T> {
 			DefaultedUnknown(Some(i)) => i.encode(writer),
 			DefaultedUnknown(None) => writer.write_str("unknown"),
 		}
+	}
+}
+
+#[derive(Hash, PartialEq, Eq, Clone, Debug)]
+// EncodeDisplay is a wrapper around a type that will be encoded with display
+pub struct EncodeDisplay<T>(T);
+
+impl<T: Display> EncodeLabelValue for EncodeDisplay<T> {
+	fn encode(&self, writer: &mut LabelValueEncoder) -> Result<(), std::fmt::Error> {
+		writer.write_str(&self.0.to_string())
+	}
+}
+
+impl<T: Display> From<T> for EncodeDisplay<T> {
+	fn from(value: T) -> Self {
+		EncodeDisplay(value)
+	}
+}
+
+impl<T: Display> From<Option<T>> for DefaultedUnknown<EncodeDisplay<T>> {
+	fn from(t: Option<T>) -> Self {
+		DefaultedUnknown(t.map(EncodeDisplay::from))
 	}
 }

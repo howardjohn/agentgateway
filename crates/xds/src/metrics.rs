@@ -1,9 +1,8 @@
+use agent_core::metrics::Recorder;
 use prometheus_client::encoding::{EncodeLabelSet, EncodeLabelValue};
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
 use prometheus_client::registry::{Registry, Unit};
-
-use agent_core::metrics::Recorder;
 
 use super::service::discovery::v3::DeltaDiscoveryResponse;
 

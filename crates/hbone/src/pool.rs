@@ -1,23 +1,23 @@
-use super::{Config, Key};
-use crate::H2Stream;
-use crate::client::H2ConnectClient;
-use anyhow::anyhow;
-use flurry;
-use pingora_pool;
-use rustls::pki_types::ServerName;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::Debug;
 use std::hash::Hasher;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
+
+use anyhow::anyhow;
+use rustls::pki_types::ServerName;
 use tokio::io;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
-use tokio::sync::Mutex;
-use tokio::sync::watch;
+use tokio::sync::{Mutex, watch};
 use tonic::async_trait;
 use tracing::{Instrument, debug, trace};
+use {flurry, pingora_pool};
+
+use super::{Config, Key};
+use crate::H2Stream;
+use crate::client::H2ConnectClient;
 
 #[async_trait]
 pub trait CertificateFetcher<K>: Send + Sync {
@@ -46,8 +46,8 @@ impl<K> Debug for WorkloadHBONEPool<K> {
 
 // PoolState is effectively the gnarly inner state stuff that needs thread/task sync, and should be wrapped in a Mutex.
 struct PoolState<K> {
-	pool_notifier: watch::Sender<bool>, // This is already impl clone? rustc complains that it isn't, tho
-	timeout_tx: watch::Sender<bool>, // This is already impl clone? rustc complains that it isn't, tho
+	pool_notifier: watch::Sender<bool>, /* This is already impl clone? rustc complains that it isn't, tho */
+	timeout_tx: watch::Sender<bool>, /* This is already impl clone? rustc complains that it isn't, tho */
 	// this is effectively just a convenience data type - a rwlocked hashmap with keying and LRU drops
 	// and has no actual hyper/http/connection logic.
 	connected_pool: Arc<pingora_pool::ConnectionPool<H2ConnectClient<K>>>,

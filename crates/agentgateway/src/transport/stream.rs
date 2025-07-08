@@ -1,0 +1,338 @@
+use std::fmt::Display;
+use std::io::{Error, IoSlice};
+use std::net::SocketAddr;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::task::{Context, Poll};
+use std::time::Instant;
+
+use agent_hbone::RWStream;
+use hyper_util::client::legacy::connect::{Connected, Connection};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::net::TcpStream;
+use tokio_rustls::TlsStream;
+
+#[derive(Debug, Clone)]
+pub struct TCPConnectionInfo {
+	pub peer_addr: SocketAddr,
+	pub local_addr: SocketAddr,
+	pub start: Instant,
+}
+
+#[derive(Debug, Clone)]
+pub struct Identity {}
+
+impl Display for Identity {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str("{}")
+	}
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Copy)]
+pub enum Alpn {
+	Http11,
+	H2,
+	Other,
+}
+
+impl From<&[u8]> for Alpn {
+	fn from(value: &[u8]) -> Self {
+		if value == b"h2" {
+			Alpn::H2
+		} else if value == b"http/1.1" {
+			Alpn::Http11
+		} else {
+			Alpn::Other
+		}
+	}
+}
+
+#[derive(Debug, Clone)]
+pub struct TLSConnectionInfo {
+	pub src_identity: Option<Identity>,
+	pub server_name: Option<String>,
+	pub negotiated_alpn: Option<Alpn>,
+}
+
+#[derive(Debug, Clone)]
+pub struct HBONEConnectionInfo {
+	pub hbone_address: SocketAddr,
+}
+
+pub struct Socket {
+	ext: Extension,
+	inner: SocketType,
+}
+
+impl Connection for Socket {
+	fn connected(&self) -> Connected {
+		Connected::new()
+	}
+}
+
+impl hyper_util_fork::client::legacy::connect::Connection for Socket {
+	fn connected(&self) -> hyper_util_fork::client::legacy::connect::Connected {
+		let mut con = hyper_util_fork::client::legacy::connect::Connected::new();
+		if self
+			.ext
+			.get::<TLSConnectionInfo>()
+			.and_then(|c| c.negotiated_alpn)
+			== Some(Alpn::H2)
+		{
+			con = con.negotiated_h2()
+		}
+		con
+	}
+}
+
+impl Socket {
+	pub fn into_parts(self) -> (Extension, SocketType) {
+		(self.ext, self.inner)
+	}
+
+	pub fn from_tcp(stream: TcpStream) -> anyhow::Result<Self> {
+		let mut ext = Extension::new();
+		stream.set_nodelay(true)?;
+		ext.insert(TCPConnectionInfo {
+			peer_addr: to_canonical(stream.peer_addr()?),
+			local_addr: to_canonical(stream.local_addr()?),
+			start: Instant::now(),
+		});
+		Ok(Socket {
+			ext,
+			inner: SocketType::Tcp(stream),
+		})
+	}
+
+	pub fn from_tls(mut ext: Extension, tls: TlsStream<Box<SocketType>>) -> anyhow::Result<Self> {
+		let info = {
+			let server_name = match &tls {
+				TlsStream::Server(s) => {
+					let (_, ssl) = s.get_ref();
+					ssl.server_name().map(|s| s.to_string())
+				},
+				_ => None,
+			};
+			let (_, ssl) = tls.get_ref();
+			// TODO: derive some useful info from the cert
+			TLSConnectionInfo {
+				src_identity: None, // TODO
+				negotiated_alpn: ssl.alpn_protocol().map(Alpn::from),
+				server_name,
+			}
+		};
+		ext.insert(info);
+		Ok(Socket {
+			ext,
+			inner: SocketType::Tls(tls),
+		})
+	}
+
+	pub fn from_hbone(ext: Arc<Extension>, hbone_address: SocketAddr, hbone: RWStream) -> Self {
+		let mut ext = Extension::wrap(ext);
+		ext.insert(HBONEConnectionInfo { hbone_address });
+
+		Socket {
+			ext,
+			inner: SocketType::Hbone(hbone),
+		}
+	}
+
+	pub fn get_ext(&self) -> Extension {
+		self.ext.clone()
+	}
+
+	pub fn ext<T: Send + Sync + 'static>(&self) -> Option<&T> {
+		self.ext.get::<T>()
+	}
+
+	pub fn must_ext<T: Send + Sync + 'static>(&self) -> &T {
+		self.ext().expect("expected required extension")
+	}
+
+	pub fn tcp(&self) -> &TCPConnectionInfo {
+		self.ext.get::<TCPConnectionInfo>().unwrap()
+	}
+	/// target_address returns the HBONE destination or the L4 destination
+	pub fn target_address(&self) -> SocketAddr {
+		if let Some(hci) = self.ext.get::<HBONEConnectionInfo>() {
+			hci.hbone_address
+		} else {
+			self.tcp().local_addr
+		}
+	}
+
+	pub async fn dial(target: SocketAddr) -> anyhow::Result<Socket> {
+		// TODO: settings like timeout, etc from hyper
+		let res = TcpStream::connect(target).await?;
+		Socket::from_tcp(res)
+	}
+}
+
+pub enum SocketType {
+	Tcp(TcpStream),
+	Tls(TlsStream<Box<SocketType>>),
+	Hbone(RWStream),
+	Boxed(Box<SocketType>),
+}
+
+impl AsyncRead for SocketType {
+	fn poll_read(
+		self: Pin<&mut Self>,
+		cx: &mut Context<'_>,
+		buf: &mut ReadBuf<'_>,
+	) -> Poll<std::io::Result<()>> {
+		match self.get_mut() {
+			SocketType::Tcp(inner) => Pin::new(inner).poll_read(cx, buf),
+			SocketType::Tls(inner) => Pin::new(inner).poll_read(cx, buf),
+			SocketType::Hbone(inner) => Pin::new(inner).poll_read(cx, buf),
+			SocketType::Boxed(inner) => Pin::new(inner).poll_read(cx, buf),
+		}
+	}
+}
+impl AsyncWrite for SocketType {
+	fn poll_write(
+		self: Pin<&mut Self>,
+		cx: &mut Context<'_>,
+		buf: &[u8],
+	) -> Poll<Result<usize, std::io::Error>> {
+		match self.get_mut() {
+			SocketType::Tcp(inner) => Pin::new(inner).poll_write(cx, buf),
+			SocketType::Tls(inner) => Pin::new(inner).poll_write(cx, buf),
+			SocketType::Hbone(inner) => Pin::new(inner).poll_write(cx, buf),
+			SocketType::Boxed(inner) => Pin::new(inner).poll_write(cx, buf),
+		}
+	}
+
+	fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), std::io::Error>> {
+		match self.get_mut() {
+			SocketType::Tcp(inner) => Pin::new(inner).poll_flush(cx),
+			SocketType::Tls(inner) => Pin::new(inner).poll_flush(cx),
+			SocketType::Hbone(inner) => Pin::new(inner).poll_flush(cx),
+			SocketType::Boxed(inner) => Pin::new(inner).poll_flush(cx),
+		}
+	}
+
+	fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), std::io::Error>> {
+		match self.get_mut() {
+			SocketType::Tcp(inner) => Pin::new(inner).poll_shutdown(cx),
+			SocketType::Tls(inner) => Pin::new(inner).poll_shutdown(cx),
+			SocketType::Hbone(inner) => Pin::new(inner).poll_shutdown(cx),
+			SocketType::Boxed(inner) => Pin::new(inner).poll_shutdown(cx),
+		}
+	}
+
+	fn poll_write_vectored(
+		self: Pin<&mut Self>,
+		cx: &mut Context<'_>,
+		bufs: &[IoSlice<'_>],
+	) -> Poll<Result<usize, std::io::Error>> {
+		match self.get_mut() {
+			SocketType::Tcp(inner) => Pin::new(inner).poll_write_vectored(cx, bufs),
+			SocketType::Tls(inner) => Pin::new(inner).poll_write_vectored(cx, bufs),
+			SocketType::Hbone(inner) => Pin::new(inner).poll_write_vectored(cx, bufs),
+			SocketType::Boxed(inner) => Pin::new(inner).poll_write_vectored(cx, bufs),
+		}
+	}
+
+	fn is_write_vectored(&self) -> bool {
+		match &self {
+			SocketType::Tcp(inner) => inner.is_write_vectored(),
+			SocketType::Tls(inner) => inner.is_write_vectored(),
+			SocketType::Hbone(inner) => inner.is_write_vectored(),
+			SocketType::Boxed(inner) => inner.is_write_vectored(),
+		}
+	}
+}
+
+impl AsyncRead for Socket {
+	fn poll_read(
+		mut self: Pin<&mut Self>,
+		cx: &mut Context<'_>,
+		buf: &mut ReadBuf<'_>,
+	) -> Poll<std::io::Result<()>> {
+		Pin::new(&mut self.inner).poll_read(cx, buf)
+	}
+}
+impl AsyncWrite for Socket {
+	fn poll_write(
+		mut self: Pin<&mut Self>,
+		cx: &mut Context<'_>,
+		buf: &[u8],
+	) -> Poll<Result<usize, Error>> {
+		Pin::new(&mut self.inner).poll_write(cx, buf)
+	}
+
+	fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
+		Pin::new(&mut self.inner).poll_flush(cx)
+	}
+
+	fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
+		Pin::new(&mut self.inner).poll_shutdown(cx)
+	}
+
+	fn poll_write_vectored(
+		mut self: Pin<&mut Self>,
+		cx: &mut Context<'_>,
+		bufs: &[IoSlice<'_>],
+	) -> Poll<Result<usize, Error>> {
+		Pin::new(&mut self.inner).poll_write_vectored(cx, bufs)
+	}
+
+	fn is_write_vectored(&self) -> bool {
+		self.inner.is_write_vectored()
+	}
+}
+
+#[derive(Debug, Clone)]
+pub enum Extension {
+	Single(http::Extensions),
+	Wrapped(http::Extensions, Arc<Extension>),
+}
+
+impl Default for Extension {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+impl Extension {
+	pub fn new() -> Self {
+		Extension::Single(http::Extensions::new())
+	}
+	fn wrap(ext: Arc<Extension>) -> Self {
+		Extension::Wrapped(http::Extensions::new(), ext)
+	}
+
+	pub fn insert<T: Clone + Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
+		match self {
+			Extension::Single(extensions) => extensions.insert(val),
+			Extension::Wrapped(extensions, _) => extensions.insert(val),
+		}
+	}
+
+	pub fn get<T: Send + Sync + 'static>(&self) -> Option<&T> {
+		match self {
+			Extension::Single(extensions) => extensions.get::<T>(),
+			Extension::Wrapped(extensions, inner) => {
+				if let Some(got) = extensions.get::<T>() {
+					Some(got)
+				} else {
+					inner.get::<T>()
+				}
+			},
+		}
+	}
+
+	pub fn copy<T: Send + Clone + Sync + 'static>(&self, ext: &mut http::Extensions) {
+		if let Some(got) = self.get::<T>() {
+			ext.insert(got.clone());
+		}
+	}
+}
+
+fn to_canonical(addr: SocketAddr) -> SocketAddr {
+	// another match has to be used for IPv4 and IPv6 support
+	let ip = addr.ip().to_canonical();
+	SocketAddr::from((ip, addr.port()))
+}

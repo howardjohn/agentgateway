@@ -1,50 +1,31 @@
 ## TLS Example
 
-This example shows how to use the agentgateway to proxy requests to the `everything` tool.
+This example shows how expose agentgateway on an HTTPS listener.
 
 ### Running the example
 
 ```bash
-cargo run -- -f examples/tls/config.json
+cargo run -- -f examples/tls/config.yaml
 ```
 
-Let's look at the config to understand what's going on. First off we have a listener, which tells the gateway how to listen for incoming requests/connections. In this case we're using the `sse` listener, and then we are specifying our local self-signed certificate and key.
+Beyond the [basic](../basic) configuration, we have changed our listener to be of protocol `HTTPS` and add `tls` information, using an example key and certificate.
 
-```json
-  "listeners": [
-    {
-      "sse": {
-        "address": "0.0.0.0",
-        "port": 3000,
-        "tls": {
-          "cert_pem": {
-            "file_path": "examples/tls/certs/cert.pem"
-          },
-          "key_pem": {
-            "file_path": "examples/tls/certs/key.pem"
-          }
-        }
-      }
-    }
-  ],
-```
-
-Next we have a targets section, which tells the gateway how to proxy the incoming requests. In this case we're using the `everything` tool, which is a tool that can do everything.
-
-```json
-  "targets": {
-    "mcp": [
-      {
-        "name": "everything",
-        "stdio": {
-          "cmd": "npx",
-          "args": [
-            "@modelcontextprotocol/server-everything"
-          ]
-        }
-      }
-    ]
-  }
+```yaml
+listeners:
+- name: default
+  protocol: HTTPS
+  tls:
+    cert: examples/tls/certs/cert.pem
+    key: examples/tls/certs/key.pem
 ```
 
 This example currently won't work with the `mcpinspector` as it doesn't support unverified TLS certificates.
+However, we can use `curl` to send a request to verify the TLS is working properly:
+
+```bash
+$ curl https://localhost:3000 -k
+Not Acceptable: Client must accept text/event-stream
+```
+
+Note the `-k` to disable TLS verification, as the example certificate is self-signed.
+The request fails as we did not pass a valid MCP request, but this shows the TLS was handled properly.

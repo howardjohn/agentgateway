@@ -1,18 +1,13 @@
-use std::env;
-
 // This build script is used to generate the rust source files that
 // we need for XDS GRPC communication.
 fn main() -> Result<(), anyhow::Error> {
-	// Fuzzing uses custom cfg (https://rust-fuzz.github.io/book/cargo-fuzz/guide.html)
-	// Tell cargo to expect this (https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html).
-	println!("cargo::rustc-check-cfg=cfg(fuzzing)");
 	let proto_files = [
-		"proto/a2a/target.proto",
-		"proto/mcp/target.proto",
-		"proto/xds.proto",
-		"proto/common.proto",
-		"proto/listener.proto",
-		"proto/rbac.proto",
+		"proto/ext_proc.proto",
+		"proto/ext_authz.proto",
+		"proto/rls.proto",
+		"proto/resource.proto",
+		"proto/workload.proto",
+		"proto/citadel.proto",
 	]
 	.iter()
 	.map(|name| std::env::current_dir().unwrap().join(name))
@@ -24,17 +19,17 @@ fn main() -> Result<(), anyhow::Error> {
 	let config = {
 		let mut c = prost_build::Config::new();
 		c.disable_comments(Some("."));
+		c.bytes([
+			".agentgateway.dev.workload.Workload",
+			".agentgateway.dev.workload.Service",
+			".agentgateway.dev.workload.GatewayAddress",
+			".agentgateway.dev.workload.Address",
+			".agentgateway.dev.workload.Address",
+		]);
 		c
 	};
-
-	let out_dir = env::var("OUT_DIR").unwrap();
-	let descriptor_path = std::path::PathBuf::from(out_dir.clone()).join("proto_descriptor.bin");
-
 	tonic_build::configure()
 		.build_server(true)
-		.file_descriptor_set_path(descriptor_path.clone())
-		.compile_well_known_types(true)
-		.extern_path(".google.protobuf", "::pbjson_types")
 		.compile_protos_with_config(
 			config,
 			&proto_files
@@ -52,18 +47,5 @@ fn main() -> Result<(), anyhow::Error> {
 	for path in [proto_files, include_dirs].concat() {
 		println!("cargo:rerun-if-changed={}", path.to_str().unwrap());
 	}
-	let descriptor_set = std::fs::read(descriptor_path).expect("descriptors not present");
-	pbjson_build::Builder::new()
-		.register_descriptors(&descriptor_set)?
-		.preserve_proto_field_names()
-		.emit_fields()
-		.build(&[
-			".agentgateway.dev.a2a.target",
-			".agentgateway.dev.mcp.target",
-			".agentgateway.dev.common",
-			".agentgateway.dev.listener",
-			".agentgateway.dev.rbac",
-		])?;
-
 	Ok(())
 }

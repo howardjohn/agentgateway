@@ -1,0 +1,42 @@
+use std::time::Instant;
+
+use once_cell::sync::Lazy;
+use tracing::warn;
+
+use crate::llm::pii::email_recognizer::EmailRecognizer;
+use crate::llm::pii::phone_recognizer::PhoneRecognizer;
+use crate::llm::pii::recognizer::Recognizer;
+
+mod credit_card_recognizer;
+mod email_recognizer;
+mod pattern_recognizer;
+mod phone_recognizer;
+mod recognizer;
+mod recognizer_result;
+mod url_recognizer;
+mod us_ssn_recognizer;
+
+pub static URL: Lazy<Box<dyn Recognizer + Sync + Send + 'static>> =
+	Lazy::new(|| Box::new(url_recognizer::UrlRecognizer::new()));
+
+pub static EMAIL: Lazy<Box<dyn Recognizer + Sync + Send + 'static>> =
+	Lazy::new(|| Box::new(EmailRecognizer::new()));
+
+pub static PHONE: Lazy<Box<dyn Recognizer + Sync + Send + 'static>> =
+	Lazy::new(|| Box::new(PhoneRecognizer::new()));
+
+pub static CC: Lazy<Box<dyn Recognizer + Sync + Send + 'static>> =
+	Lazy::new(|| Box::new(credit_card_recognizer::CreditCardRecognizer::new()));
+
+pub static SSN: Lazy<Box<dyn Recognizer + Sync + Send + 'static>> =
+	Lazy::new(|| Box::new(us_ssn_recognizer::UsSsnRecognizer::new()));
+
+#[allow(clippy::borrowed_box)]
+pub fn recognizer(r: &Box<dyn Recognizer + Sync + Send + 'static>, text: &str) {
+	let results = r.recognize(text);
+	// TODO: actually return!
+}
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;

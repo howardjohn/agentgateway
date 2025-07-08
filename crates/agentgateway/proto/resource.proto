@@ -1,0 +1,163 @@
+
+syntax = "proto3";
+
+package agentgateway.dev.resource;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/agentgateway/agentgateway/go/api;api";
+
+message Resource {
+  oneof kind {
+    Bind bind = 1;
+    Listener listener = 2;
+    Route route = 3;
+  }
+}
+
+message Bind {
+  string key = 1;
+  uint32 port = 2;
+}
+
+message Listener {
+  // Unique key
+  string key = 1;
+  // User facing name; may not be unique
+  string name = 2;
+  string bind_key = 3;
+  // User facing Gateway name
+  string gateway_name = 4;
+  string hostname = 5;
+  Protocol protocol = 6;
+  TLSConfig tls = 7;
+}
+
+message TLSConfig {
+  bytes cert = 1;
+  bytes private_key = 2;
+}
+
+enum Protocol {
+  UNKNOWN = 0;
+  HTTP = 1;
+  HTTPS = 2;
+  TLS = 3;
+  TCP = 4;
+  HBONE = 5;
+}
+message Route {
+  // Unique key
+  string key = 1;
+  string listener_key = 2;
+  // User facing rule name. May not be unique.
+  string rule_name = 3;
+  // User facing route name May not be unique.
+  string route_name = 4;
+  repeated string hostnames = 5;
+  repeated RouteMatch matches = 6;
+  repeated RouteFilter filters = 7;
+  repeated RouteBackend backends = 8;
+  TrafficPolicy traffic_policy = 9;
+}
+
+message TrafficPolicy {
+  google.protobuf.Duration backend_request_timeout = 1;
+  google.protobuf.Duration request_timeout = 2;
+}
+
+message RouteMatch {
+  PathMatch path = 1;
+  repeated HeaderMatch headers = 2;
+  MethodMatch method = 3;
+  repeated QueryMatch query_params = 4;
+}
+
+message PathMatch {
+  oneof kind {
+    string exact = 1;
+    string path_prefix = 2;
+    string regex = 3;
+  }
+}
+
+message QueryMatch {
+  string name = 1;
+  oneof value {
+    string exact = 2;
+    string regex = 3;
+  }
+}
+
+message MethodMatch {
+  string exact = 1;
+}
+
+message HeaderMatch {
+  string name = 1;
+
+  oneof value {
+    string exact = 2;
+    string regex = 3;
+  }
+}
+
+message RouteFilter {
+  oneof kind {
+    HeaderModifier request_header_modifier = 1;
+    HeaderModifier response_header_modifier = 2;
+    RequestRedirect request_redirect = 3;
+    UrlRewrite url_rewrite = 4;
+    RequestMirror request_mirror = 5;
+  }
+}
+
+message HeaderModifier {
+  repeated Header add = 1;
+  repeated Header set = 2;
+  repeated string remove = 3;
+}
+
+message RequestMirror {
+  oneof kind {
+    string service = 1;
+  }
+  // 0-100
+  double percentage = 2;
+  int32 port = 3;
+}
+
+message RequestRedirect {
+  string scheme = 1;
+  string host = 2;
+  oneof path {
+    string full = 3;
+    string prefix = 4;
+  }
+  uint32 port = 5;
+  uint32 status = 6;
+}
+
+message UrlRewrite {
+  string host = 1;
+  oneof path {
+    string full = 2;
+    string prefix = 3;
+  }
+}
+
+message Header {
+  string name = 1;
+  string value = 2;
+}
+
+message RouteBackend {
+  oneof kind {
+    string service = 1;
+  }
+  int32 weight = 2;
+  int32 port = 3;
+  repeated RouteFilter filters = 4;
+}

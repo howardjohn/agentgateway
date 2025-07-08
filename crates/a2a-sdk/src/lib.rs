@@ -5,12 +5,11 @@
 
 mod jsonrpc;
 
+use std::borrow::Cow;
+use std::fmt::{Debug, Display, Formatter};
+
 use crate::jsonrpc::*;
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
-use std::fmt::Debug;
-use std::fmt::Display;
-use std::fmt::Formatter;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
@@ -59,13 +58,23 @@ pub struct ErrorData {
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 #[serde(untagged)]
 pub enum A2aRequest {
+	// Legacy request types (deprecated but kept for backward compatibility)
 	SendTaskRequest(SendTaskRequest),
-	GetTaskRequest(GetTaskRequest),
-	CancelTaskRequest(CancelTaskRequest),
 	SendSubscribeTaskRequest(SendSubscribeTaskRequest),
 	TaskPushNotificationGetRequest(TaskPushNotificationGetRequest),
 	TaskPushNotificationSetRequest(TaskPushNotificationSetRequest),
 	TaskResubscribeRequest(TaskResubscribeRequest),
+
+	// New request types (current version)
+	SendMessageRequest(SendMessageRequest),
+	SendStreamingMessageRequest(SendStreamingMessageRequest),
+	GetTaskRequest(GetTaskRequest),
+	CancelTaskRequest(CancelTaskRequest),
+	SetTaskPushNotificationConfigRequest(SetTaskPushNotificationConfigRequest),
+	GetTaskPushNotificationConfigRequest(GetTaskPushNotificationConfigRequest),
+	TaskResubscriptionRequest(TaskResubscriptionRequest),
+	ListTaskPushNotificationConfigRequest(ListTaskPushNotificationConfigRequest),
+	DeleteTaskPushNotificationConfigRequest(DeleteTaskPushNotificationConfigRequest),
 }
 
 impl A2aRequest {
@@ -78,28 +87,13 @@ impl A2aRequest {
 			A2aRequest::TaskPushNotificationGetRequest(i) => i.method.as_string(),
 			A2aRequest::TaskPushNotificationSetRequest(i) => i.method.as_string(),
 			A2aRequest::TaskResubscribeRequest(i) => i.method.as_string(),
-		}
-	}
-	pub fn id(&self) -> String {
-		match self {
-			A2aRequest::SendTaskRequest(i) => i.params.id.clone(),
-			A2aRequest::SendSubscribeTaskRequest(i) => i.params.id.clone(),
-			A2aRequest::GetTaskRequest(i) => i.params.id.clone(),
-			A2aRequest::CancelTaskRequest(i) => i.params.id.clone(),
-			A2aRequest::TaskPushNotificationGetRequest(i) => i.params.id.clone(),
-			A2aRequest::TaskPushNotificationSetRequest(i) => i.params.id.clone(),
-			A2aRequest::TaskResubscribeRequest(i) => i.params.id.clone(),
-		}
-	}
-	pub fn session_id(&self) -> Option<String> {
-		match self {
-			A2aRequest::SendTaskRequest(i) => i.params.session_id.clone(),
-			A2aRequest::SendSubscribeTaskRequest(i) => i.params.session_id.clone(),
-			A2aRequest::GetTaskRequest(_) => None,
-			A2aRequest::CancelTaskRequest(_) => None,
-			A2aRequest::TaskPushNotificationGetRequest(_) => None,
-			A2aRequest::TaskPushNotificationSetRequest(_) => None,
-			A2aRequest::TaskResubscribeRequest(_) => None,
+			A2aRequest::SendMessageRequest(i) => i.method.as_string(),
+			A2aRequest::SendStreamingMessageRequest(i) => i.method.as_string(),
+			A2aRequest::SetTaskPushNotificationConfigRequest(i) => i.method.as_string(),
+			A2aRequest::GetTaskPushNotificationConfigRequest(i) => i.method.as_string(),
+			A2aRequest::TaskResubscriptionRequest(i) => i.method.as_string(),
+			A2aRequest::ListTaskPushNotificationConfigRequest(i) => i.method.as_string(),
+			A2aRequest::DeleteTaskPushNotificationConfigRequest(i) => i.method.as_string(),
 		}
 	}
 }
@@ -108,8 +102,20 @@ impl A2aRequest {
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 #[serde(untagged)]
 pub enum A2aResponse {
+	// Legacy response types (deprecated but kept for backward compatibility)
 	SendTaskResponse(Option<Task>),
 	SendTaskUpdateResponse(SendTaskStreamingResponseResult),
+
+	// New response types (current version)
+	SendMessageResponse(SendMessageResponse),
+	SendStreamingMessageResponse(SendStreamingMessageResponse),
+	GetTaskResponse(GetTaskResponse),
+	CancelTaskResponse(CancelTaskResponse),
+	SetTaskPushNotificationConfigResponse(SetTaskPushNotificationConfigResponse),
+	GetTaskPushNotificationConfigResponse(GetTaskPushNotificationConfigResponse),
+	TaskResubscriptionResponse(TaskResubscriptionResponse),
+	ListTaskPushNotificationConfigResponse(ListTaskPushNotificationConfigResponse),
+	DeleteTaskPushNotificationConfigResponse(DeleteTaskPushNotificationConfigResponse),
 }
 
 impl A2aResponse {
@@ -123,39 +129,18 @@ impl A2aResponse {
 				Some(i.id.clone())
 			},
 			A2aResponse::SendTaskUpdateResponse(SendTaskStreamingResponseResult::None) => None,
+			A2aResponse::SendMessageResponse(i) => Some(i.id.to_string()),
+			A2aResponse::SendStreamingMessageResponse(i) => Some(i.id.to_string()),
+			A2aResponse::GetTaskResponse(i) => Some(i.id.to_string()),
+			A2aResponse::CancelTaskResponse(i) => Some(i.id.to_string()),
+			A2aResponse::SetTaskPushNotificationConfigResponse(i) => Some(i.id.to_string()),
+			A2aResponse::GetTaskPushNotificationConfigResponse(i) => Some(i.id.to_string()),
+			A2aResponse::TaskResubscriptionResponse(i) => Some(i.id.to_string()),
+			A2aResponse::ListTaskPushNotificationConfigResponse(i) => Some(i.id.to_string()),
+			A2aResponse::DeleteTaskPushNotificationConfigResponse(i) => Some(i.id.to_string()),
 		}
 	}
 }
-impl From<SendTaskRequest> for A2aRequest {
-	fn from(value: SendTaskRequest) -> Self {
-		Self::SendTaskRequest(value)
-	}
-}
-impl From<GetTaskRequest> for A2aRequest {
-	fn from(value: GetTaskRequest) -> Self {
-		Self::GetTaskRequest(value)
-	}
-}
-// impl From<CancelTaskRequest> for A2aRequest {
-// 	fn from(value: CancelTaskRequest) -> Self {
-// 		Self::CancelTaskRequest(value)
-// 	}
-// }
-// impl From<SetTaskPushNotificationRequest> for A2aRequest {
-// 	fn from(value: SetTaskPushNotificationRequest) -> Self {
-// 		Self::SetTaskPushNotificationRequest(value)
-// 	}
-// }
-// impl From<GetTaskPushNotificationRequest> for A2aRequest {
-// 	fn from(value: GetTaskPushNotificationRequest) -> Self {
-// 		Self::GetTaskPushNotificationRequest(value)
-// 	}
-// }
-// impl From<TaskResubscriptionRequest> for A2aRequest {
-// 	fn from(value: TaskResubscriptionRequest) -> Self {
-// 		Self::TaskResubscriptionRequest(value)
-// 	}
-// }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct AgentAuthentication {
@@ -163,119 +148,273 @@ pub struct AgentAuthentication {
 	pub credentials: Option<String>,
 	pub schemes: Vec<String>,
 }
-impl From<&AgentAuthentication> for AgentAuthentication {
-	fn from(value: &AgentAuthentication) -> Self {
-		value.clone()
-	}
-}
+
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug, Default)]
 pub struct AgentCapabilities {
-	#[serde(rename = "pushNotifications", default)]
-	pub push_notifications: bool,
-	#[serde(rename = "stateTransitionHistory", default)]
-	pub state_transition_history: bool,
-	#[serde(default)]
-	pub streaming: bool,
+	#[serde(
+		rename = "pushNotifications",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub push_notifications: Option<bool>,
+	#[serde(
+		rename = "stateTransitionHistory",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub state_transition_history: Option<bool>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub streaming: Option<bool>,
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub extensions: Vec<AgentExtension>,
 }
-impl From<&AgentCapabilities> for AgentCapabilities {
-	fn from(value: &AgentCapabilities) -> Self {
-		value.clone()
-	}
-}
+
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct AgentCard {
+	// Legacy fields (deprecated but kept for backward compatibility)
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub authentication: Option<AgentAuthentication>,
+
+	// Current fields
+	#[serde(
+		rename = "additionalInterfaces",
+		default,
+		skip_serializing_if = "Vec::is_empty"
+	)]
+	pub additional_interfaces: Vec<AgentInterface>,
 	pub capabilities: AgentCapabilities,
-	#[serde(
-		rename = "defaultInputModes",
-		default = "defaults::agent_card_default_input_modes"
-	)]
+	#[serde(rename = "defaultInputModes")]
 	pub default_input_modes: Vec<String>,
-	#[serde(
-		rename = "defaultOutputModes",
-		default = "defaults::agent_card_default_output_modes"
-	)]
+	#[serde(rename = "defaultOutputModes")]
 	pub default_output_modes: Vec<String>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub description: Option<String>,
+	pub description: String,
 	#[serde(
 		rename = "documentationUrl",
 		default,
 		skip_serializing_if = "Option::is_none"
 	)]
 	pub documentation_url: Option<String>,
+	#[serde(rename = "iconUrl", default, skip_serializing_if = "Option::is_none")]
+	pub icon_url: Option<String>,
 	pub name: String,
+	#[serde(
+		rename = "preferredTransport",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub preferred_transport: Option<String>,
+	#[serde(rename = "protocolVersion")]
+	pub protocol_version: String,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub provider: Option<AgentProvider>,
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub security: Vec<std::collections::HashMap<String, Vec<String>>>,
+	#[serde(
+		rename = "securitySchemes",
+		default,
+		skip_serializing_if = "std::collections::HashMap::is_empty"
+	)]
+	pub security_schemes: std::collections::HashMap<String, SecurityScheme>,
 	pub skills: Vec<AgentSkill>,
+	#[serde(
+		rename = "supportsAuthenticatedExtendedCard",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub supports_authenticated_extended_card: Option<bool>,
 	pub url: String,
 	pub version: String,
 }
-impl From<&AgentCard> for AgentCard {
-	fn from(value: &AgentCard) -> Self {
-		value.clone()
-	}
-}
+
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct AgentProvider {
 	pub organization: String,
+	pub url: String,
+}
+
+// New types for current schema
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct AgentInterface {
+	pub transport: String,
+	pub url: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct AgentExtension {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub url: Option<String>,
+	pub description: Option<String>,
+	#[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+	pub params: serde_json::Map<String, serde_json::Value>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub required: Option<bool>,
+	pub uri: String,
 }
-impl From<&AgentProvider> for AgentProvider {
-	fn from(value: &AgentProvider) -> Self {
-		value.clone()
-	}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+#[serde(tag = "type")]
+pub enum SecurityScheme {
+	#[serde(rename = "apiKey")]
+	ApiKey(ApiKeySecurityScheme),
+	#[serde(rename = "http")]
+	HttpAuth(HttpAuthSecurityScheme),
+	#[serde(rename = "oauth2")]
+	OAuth2(Box<OAuth2SecurityScheme>),
+	#[serde(rename = "openIdConnect")]
+	OpenIdConnect(OpenIdConnectSecurityScheme),
 }
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct ApiKeySecurityScheme {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub description: Option<String>,
+	#[serde(rename = "in")]
+	pub in_: ApiKeySecuritySchemeIn,
+	pub name: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub enum ApiKeySecuritySchemeIn {
+	#[serde(rename = "cookie")]
+	Cookie,
+	#[serde(rename = "header")]
+	Header,
+	#[serde(rename = "query")]
+	Query,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct HttpAuthSecurityScheme {
+	#[serde(
+		rename = "bearerFormat",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub bearer_format: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub description: Option<String>,
+	pub scheme: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct OAuth2SecurityScheme {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub description: Option<String>,
+	pub flows: OAuthFlows,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct OAuthFlows {
+	#[serde(
+		rename = "authorizationCode",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub authorization_code: Option<AuthorizationCodeOAuthFlow>,
+	#[serde(
+		rename = "clientCredentials",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub client_credentials: Option<ClientCredentialsOAuthFlow>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub implicit: Option<ImplicitOAuthFlow>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub password: Option<PasswordOAuthFlow>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct AuthorizationCodeOAuthFlow {
+	#[serde(rename = "authorizationUrl")]
+	pub authorization_url: String,
+	#[serde(
+		rename = "refreshUrl",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub refresh_url: Option<String>,
+	pub scopes: std::collections::HashMap<String, String>,
+	#[serde(rename = "tokenUrl")]
+	pub token_url: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct ClientCredentialsOAuthFlow {
+	#[serde(
+		rename = "refreshUrl",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub refresh_url: Option<String>,
+	pub scopes: std::collections::HashMap<String, String>,
+	#[serde(rename = "tokenUrl")]
+	pub token_url: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct ImplicitOAuthFlow {
+	#[serde(rename = "authorizationUrl")]
+	pub authorization_url: String,
+	#[serde(
+		rename = "refreshUrl",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub refresh_url: Option<String>,
+	pub scopes: std::collections::HashMap<String, String>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct PasswordOAuthFlow {
+	#[serde(
+		rename = "refreshUrl",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub refresh_url: Option<String>,
+	pub scopes: std::collections::HashMap<String, String>,
+	#[serde(rename = "tokenUrl")]
+	pub token_url: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct OpenIdConnectSecurityScheme {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub description: Option<String>,
+	#[serde(rename = "openIdConnectUrl")]
+	pub open_id_connect_url: String,
+	#[serde(rename = "type")]
+	pub type_: String,
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct AgentSkill {
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub description: Option<String>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub examples: Option<Vec<String>>,
+	// Current fields (new schema)
 	pub id: String,
-	#[serde(
-		rename = "inputModes",
-		default,
-		skip_serializing_if = "Option::is_none"
-	)]
-	pub input_modes: Option<Vec<String>>,
 	pub name: String,
-	#[serde(
-		rename = "outputModes",
-		default,
-		skip_serializing_if = "Option::is_none"
-	)]
-	pub output_modes: Option<Vec<String>>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub tags: Option<Vec<String>>,
+	#[serde(default, skip_serializing_if = "String::is_empty")]
+	pub description: String, // Now required in new schema
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub examples: Vec<String>,
+	#[serde(rename = "inputModes", default, skip_serializing_if = "Vec::is_empty")]
+	pub input_modes: Vec<String>,
+	#[serde(rename = "outputModes", default, skip_serializing_if = "Vec::is_empty")]
+	pub output_modes: Vec<String>,
+	pub tags: Vec<String>,
 }
-impl From<&AgentSkill> for AgentSkill {
-	fn from(value: &AgentSkill) -> Self {
-		value.clone()
-	}
-}
+
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct Artifact {
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub append: Option<bool>,
+	#[serde(rename = "artifactId")]
+	pub artifact_id: String,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub description: Option<String>,
-	#[serde(default)]
-	pub index: i64,
-	#[serde(rename = "lastChunk", default, skip_serializing_if = "Option::is_none")]
-	pub last_chunk: Option<bool>,
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub extensions: Vec<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub metadata: Option<::serde_json::Map<String, ::serde_json::Value>>,
+	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub name: Option<String>,
 	pub parts: Vec<Part>,
-}
-impl From<&Artifact> for Artifact {
-	fn from(value: &Artifact) -> Self {
-		value.clone()
-	}
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct AuthenticationInfo {
@@ -283,20 +422,10 @@ pub struct AuthenticationInfo {
 	pub credentials: Option<String>,
 	pub schemes: Vec<String>,
 }
-impl From<&AuthenticationInfo> for AuthenticationInfo {
-	fn from(value: &AuthenticationInfo) -> Self {
-		value.clone()
-	}
-}
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct DataPart {
-	pub data: ::serde_json::Map<String, ::serde_json::Value>,
-}
-impl From<&DataPart> for DataPart {
-	fn from(value: &DataPart) -> Self {
-		value.clone()
-	}
+	pub data: serde_json::Map<String, serde_json::Value>,
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug, Default)]
 pub struct FileContent {
@@ -309,19 +438,9 @@ pub struct FileContent {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub uri: Option<String>,
 }
-impl From<&FileContent> for FileContent {
-	fn from(value: &FileContent) -> Self {
-		value.clone()
-	}
-}
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct FilePart {
 	pub file: FileContent,
-}
-impl From<&FilePart> for FilePart {
-	fn from(value: &FilePart) -> Self {
-		value.clone()
-	}
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
@@ -330,11 +449,6 @@ pub enum Id {
 	Variant0(i64),
 	Variant1(String),
 	Variant2,
-}
-impl From<&Self> for Id {
-	fn from(value: &Id) -> Self {
-		value.clone()
-	}
 }
 impl From<i64> for Id {
 	fn from(value: i64) -> Self {
@@ -345,84 +459,57 @@ impl From<i64> for Id {
 pub struct InternalError {
 	pub code: i64,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub data: Option<::serde_json::Value>,
+	pub data: Option<serde_json::Value>,
 	pub message: String,
-}
-impl From<&InternalError> for InternalError {
-	fn from(value: &InternalError) -> Self {
-		value.clone()
-	}
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct InvalidParamsError {
 	pub code: i64,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub data: Option<::serde_json::Value>,
+	pub data: Option<serde_json::Value>,
 	pub message: String,
-}
-impl From<&InvalidParamsError> for InvalidParamsError {
-	fn from(value: &InvalidParamsError) -> Self {
-		value.clone()
-	}
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct InvalidRequestError {
 	pub code: i64,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub data: Option<::serde_json::Value>,
+	pub data: Option<serde_json::Value>,
 	pub message: String,
-}
-impl From<&InvalidRequestError> for InvalidRequestError {
-	fn from(value: &InvalidRequestError) -> Self {
-		value.clone()
-	}
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct Message {
+	// Legacy fields (deprecated but kept for backward compatibility)
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub metadata: Option<::serde_json::Map<String, ::serde_json::Value>>,
-	pub parts: Vec<Part>,
-	pub role: Role,
-}
-impl From<&Message> for Message {
-	fn from(value: &Message) -> Self {
-		value.clone()
-	}
+	pub content_legacy: Option<Vec<Part>>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub role_legacy: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub timestamp_legacy: Option<chrono::NaiveDateTime>,
+
+	// Current fields (new schema)
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub content: Vec<Part>,
+	#[serde(default, skip_serializing_if = "String::is_empty")]
+	pub role: String,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub timestamp: Option<String>, // Changed from chrono::NaiveDateTime to String in new schema
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct MethodNotFoundError {
 	pub code: i64,
-	pub data: ::serde_json::Value,
+	pub data: serde_json::Value,
 	pub message: String,
-}
-impl From<&MethodNotFoundError> for MethodNotFoundError {
-	fn from(value: &MethodNotFoundError) -> Self {
-		value.clone()
-	}
-}
-#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
-pub struct Part {
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub metadata: Option<::serde_json::Map<String, ::serde_json::Value>>,
-	#[serde(flatten)]
-	pub r#type: PartType,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
-#[serde(tag = "type")]
-pub enum PartType {
-	#[serde(rename = "text")]
-	TextPart(TextPart),
-	#[serde(rename = "file")]
-	FilePart(FilePart),
-	#[serde(rename = "data")]
-	DataPart(DataPart),
-}
-impl From<&Self> for Part {
-	fn from(value: &Part) -> Self {
-		value.clone()
-	}
+#[serde(tag = "kind")]
+pub enum Part {
+	Text(TextPart),
+	File(FilePart),
+	Data(DataPart),
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
@@ -433,21 +520,11 @@ pub struct PushNotificationConfig {
 	pub token: Option<String>,
 	pub url: String,
 }
-impl From<&PushNotificationConfig> for PushNotificationConfig {
-	fn from(value: &PushNotificationConfig) -> Self {
-		value.clone()
-	}
-}
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct PushNotificationNotSupportedError {
 	pub code: i64,
-	pub data: ::serde_json::Value,
+	pub data: serde_json::Value,
 	pub message: String,
-}
-impl From<&PushNotificationNotSupportedError> for PushNotificationNotSupportedError {
-	fn from(value: &PushNotificationNotSupportedError) -> Self {
-		value.clone()
-	}
 }
 #[derive(
 	serde::Deserialize, serde::Serialize, Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd,
@@ -457,11 +534,6 @@ pub enum Role {
 	User,
 	#[serde(rename = "agent")]
 	Agent,
-}
-impl From<&Self> for Role {
-	fn from(value: &Role) -> Self {
-		value.clone()
-	}
 }
 impl Display for Role {
 	fn fmt(&self, f: &mut Formatter<'_>) -> ::std::fmt::Result {
@@ -523,6 +595,35 @@ const_string!(TaskPushNotificationSetRequestMethod = "tasks/pushNotification/set
 pub type TaskPushNotificationSetRequest =
 	Request<TaskPushNotificationSetRequestMethod, TaskPushNotificationConfig>;
 
+// New request types (current version)
+const_string!(SendMessageRequestMethod = "message/send");
+pub type SendMessageRequest = Request<SendMessageRequestMethod, MessageSendParams>;
+
+const_string!(SendStreamingMessageRequestMethod = "message/stream");
+pub type SendStreamingMessageRequest =
+	Request<SendStreamingMessageRequestMethod, MessageSendParams>;
+
+const_string!(SetTaskPushNotificationConfigRequestMethod = "tasks/pushNotificationConfig/set");
+pub type SetTaskPushNotificationConfigRequest =
+	Request<SetTaskPushNotificationConfigRequestMethod, TaskPushNotificationConfig>;
+
+const_string!(GetTaskPushNotificationConfigRequestMethod = "tasks/pushNotificationConfig/get");
+pub type GetTaskPushNotificationConfigRequest =
+	Request<GetTaskPushNotificationConfigRequestMethod, TaskIdParams>;
+
+const_string!(TaskResubscriptionRequestMethod = "tasks/resubscribe");
+pub type TaskResubscriptionRequest = Request<TaskResubscriptionRequestMethod, TaskIdParams>;
+
+const_string!(ListTaskPushNotificationConfigRequestMethod = "tasks/pushNotificationConfig/list");
+pub type ListTaskPushNotificationConfigRequest =
+	Request<ListTaskPushNotificationConfigRequestMethod, TaskIdParams>;
+
+const_string!(
+	DeleteTaskPushNotificationConfigRequestMethod = "tasks/pushNotificationConfig/delete"
+);
+pub type DeleteTaskPushNotificationConfigRequest =
+	Request<DeleteTaskPushNotificationConfigRequestMethod, TaskIdParams>;
+
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 #[serde(untagged)]
 #[derive(Default)]
@@ -535,77 +636,59 @@ pub enum SendTaskStreamingResponseResult {
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct Task {
+	// Legacy fields (deprecated but kept for backward compatibility)
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub artifacts: Option<Vec<Artifact>>,
-	pub id: String,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub metadata: Option<::serde_json::Map<String, ::serde_json::Value>>,
+	pub artifacts_legacy: Option<Vec<Artifact>>,
 	#[serde(rename = "sessionId", default, skip_serializing_if = "Option::is_none")]
 	pub session_id: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub history_legacy: Option<Vec<Message>>,
+
+	// Current fields (new schema)
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub artifacts: Vec<Artifact>,
+	#[serde(rename = "contextId")]
+	pub context_id: String,
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub history: Vec<Message>,
+	pub id: String,
+	#[serde(default, skip_serializing_if = "String::is_empty")]
+	pub kind: String,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
 	pub status: TaskStatus,
-	pub history: Option<Vec<Message>>,
 }
 
-impl From<&Task> for Task {
-	fn from(value: &Task) -> Self {
-		value.clone()
-	}
-}
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct TaskArtifactUpdateEvent {
 	pub artifact: Artifact,
 	pub id: String,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub metadata: Option<::serde_json::Map<String, ::serde_json::Value>>,
-}
-impl From<&TaskArtifactUpdateEvent> for TaskArtifactUpdateEvent {
-	fn from(value: &TaskArtifactUpdateEvent) -> Self {
-		value.clone()
-	}
+	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct TaskIdParams {
 	pub id: String,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub metadata: Option<::serde_json::Map<String, ::serde_json::Value>>,
-}
-impl From<&TaskIdParams> for TaskIdParams {
-	fn from(value: &TaskIdParams) -> Self {
-		value.clone()
-	}
+	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct TaskNotCancelableError {
 	pub code: i64,
-	pub data: ::serde_json::Value,
+	pub data: serde_json::Value,
 	pub message: String,
-}
-impl From<&TaskNotCancelableError> for TaskNotCancelableError {
-	fn from(value: &TaskNotCancelableError) -> Self {
-		value.clone()
-	}
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct TaskNotFoundError {
 	pub code: i64,
-	pub data: ::serde_json::Value,
+	pub data: serde_json::Value,
 	pub message: String,
-}
-impl From<&TaskNotFoundError> for TaskNotFoundError {
-	fn from(value: &TaskNotFoundError) -> Self {
-		value.clone()
-	}
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct TaskPushNotificationConfig {
 	pub id: String,
 	#[serde(rename = "pushNotificationConfig")]
 	pub push_notification_config: PushNotificationConfig,
-}
-impl From<&TaskPushNotificationConfig> for TaskPushNotificationConfig {
-	fn from(value: &TaskPushNotificationConfig) -> Self {
-		value.clone()
-	}
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct TaskQueryParams {
@@ -617,12 +700,7 @@ pub struct TaskQueryParams {
 	pub history_length: Option<i64>,
 	pub id: String,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub metadata: Option<::serde_json::Map<String, ::serde_json::Value>>,
-}
-impl From<&TaskQueryParams> for TaskQueryParams {
-	fn from(value: &TaskQueryParams) -> Self {
-		value.clone()
-	}
+	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
@@ -636,7 +714,7 @@ pub struct TaskSendParams {
 	pub id: String,
 	pub message: Message,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub metadata: Option<::serde_json::Map<String, ::serde_json::Value>>,
+	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
 	#[serde(
 		rename = "pushNotification",
 		default,
@@ -646,11 +724,36 @@ pub struct TaskSendParams {
 	#[serde(rename = "sessionId", default, skip_serializing_if = "Option::is_none")]
 	pub session_id: Option<String>,
 }
-impl From<&TaskSendParams> for TaskSendParams {
-	fn from(value: &TaskSendParams) -> Self {
-		value.clone()
-	}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct MessageSendParams {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub configuration: Option<MessageSendConfiguration>,
+	pub message: Message,
+	#[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+	pub metadata: serde_json::Map<String, serde_json::Value>,
 }
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct MessageSendConfiguration {
+	#[serde(rename = "acceptedOutputModes")]
+	pub accepted_output_modes: Vec<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub blocking: Option<bool>,
+	#[serde(
+		rename = "historyLength",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub history_length: Option<i64>,
+	#[serde(
+		rename = "pushNotificationConfig",
+		default,
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub push_notification_config: Option<PushNotificationConfig>,
+}
+
 #[derive(
 	serde::Deserialize, serde::Serialize, Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd,
 )]
@@ -669,11 +772,11 @@ pub enum TaskState {
 	Failed,
 	#[serde(rename = "unknown")]
 	Unknown,
-}
-impl From<&Self> for TaskState {
-	fn from(value: &TaskState) -> Self {
-		value.clone()
-	}
+	// New states from current schema
+	#[serde(rename = "rejected")]
+	Rejected,
+	#[serde(rename = "auth-required")]
+	AuthRequired,
 }
 impl Display for TaskState {
 	fn fmt(&self, f: &mut Formatter<'_>) -> ::std::fmt::Result {
@@ -685,6 +788,8 @@ impl Display for TaskState {
 			Self::Canceled => write!(f, "canceled"),
 			Self::Failed => write!(f, "failed"),
 			Self::Unknown => write!(f, "unknown"),
+			Self::Rejected => write!(f, "rejected"),
+			Self::AuthRequired => write!(f, "auth-required"),
 		}
 	}
 }
@@ -699,6 +804,8 @@ impl ::std::str::FromStr for TaskState {
 			"canceled" => Ok(Self::Canceled),
 			"failed" => Ok(Self::Failed),
 			"unknown" => Ok(Self::Unknown),
+			"rejected" => Ok(Self::Rejected),
+			"auth-required" => Ok(Self::AuthRequired),
 			_ => Err("invalid value".into()),
 		}
 	}
@@ -727,12 +834,7 @@ pub struct TaskStatus {
 	pub message: Option<Message>,
 	pub state: TaskState,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub timestamp: Option<chrono::NaiveDateTime>,
-}
-impl From<&TaskStatus> for TaskStatus {
-	fn from(value: &TaskStatus) -> Self {
-		value.clone()
-	}
+	pub timestamp: Option<String>,
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct TaskStatusUpdateEvent {
@@ -740,7 +842,7 @@ pub struct TaskStatusUpdateEvent {
 	pub final_: bool,
 	pub id: String,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub metadata: Option<::serde_json::Map<String, ::serde_json::Value>>,
+	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
 	pub status: TaskStatus,
 }
 
@@ -748,34 +850,15 @@ pub struct TaskStatusUpdateEvent {
 pub struct TextPart {
 	pub text: String,
 }
-impl From<&TextPart> for TextPart {
-	fn from(value: &TextPart) -> Self {
-		value.clone()
-	}
-}
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct UnsupportedOperationError {
 	pub code: i64,
-	pub data: ::serde_json::Value,
+	pub data: serde_json::Value,
 	pub message: String,
-}
-impl From<&UnsupportedOperationError> for UnsupportedOperationError {
-	fn from(value: &UnsupportedOperationError) -> Self {
-		value.clone()
-	}
-}
-pub mod defaults {
-	pub(super) fn agent_card_default_input_modes() -> Vec<String> {
-		vec!["text".to_string()]
-	}
-	pub(super) fn agent_card_default_output_modes() -> Vec<String> {
-		vec!["text".to_string()]
-	}
 }
 
 pub mod error {
-	use std::fmt::Display;
-	use std::fmt::{Debug, Formatter};
+	use std::fmt::{Debug, Display, Formatter};
 	pub struct ConversionError(::std::borrow::Cow<'static, str>);
 	impl ::std::error::Error for ConversionError {}
 	impl Display for ConversionError {
@@ -830,4 +913,100 @@ mod tests {
 		};
 		let _: crate::JsonRpcMessage = serde_json::from_value(js).unwrap();
 	}
+}
+
+// New response types (current version)
+pub type SendMessageResponse = JsonRpcResponse<SendMessageSuccessResponse>;
+pub type SendStreamingMessageResponse = JsonRpcResponse<SendStreamingMessageSuccessResponse>;
+pub type GetTaskResponse = JsonRpcResponse<GetTaskSuccessResponse>;
+pub type CancelTaskResponse = JsonRpcResponse<CancelTaskSuccessResponse>;
+pub type SetTaskPushNotificationConfigResponse =
+	JsonRpcResponse<SetTaskPushNotificationConfigSuccessResponse>;
+pub type GetTaskPushNotificationConfigResponse =
+	JsonRpcResponse<GetTaskPushNotificationConfigSuccessResponse>;
+pub type TaskResubscriptionResponse = JsonRpcResponse<TaskResubscriptionSuccessResponse>;
+pub type ListTaskPushNotificationConfigResponse =
+	JsonRpcResponse<ListTaskPushNotificationConfigSuccessResponse>;
+pub type DeleteTaskPushNotificationConfigResponse =
+	JsonRpcResponse<DeleteTaskPushNotificationConfigSuccessResponse>;
+
+// Success response types
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct SendMessageSuccessResponse {
+	pub id: NumberOrString,
+	pub jsonrpc: String,
+	pub result: SendMessageSuccessResponseResult,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct SendStreamingMessageSuccessResponse {
+	pub id: NumberOrString,
+	pub jsonrpc: String,
+	pub result: SendStreamingMessageSuccessResponseResult,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct GetTaskSuccessResponse {
+	pub id: NumberOrString,
+	pub jsonrpc: String,
+	pub result: Task,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct CancelTaskSuccessResponse {
+	pub id: NumberOrString,
+	pub jsonrpc: String,
+	pub result: Task,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct SetTaskPushNotificationConfigSuccessResponse {
+	pub id: NumberOrString,
+	pub jsonrpc: String,
+	pub result: TaskPushNotificationConfig,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct GetTaskPushNotificationConfigSuccessResponse {
+	pub id: NumberOrString,
+	pub jsonrpc: String,
+	pub result: TaskPushNotificationConfig,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct TaskResubscriptionSuccessResponse {
+	pub id: NumberOrString,
+	pub jsonrpc: String,
+	pub result: (),
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct ListTaskPushNotificationConfigSuccessResponse {
+	pub id: NumberOrString,
+	pub jsonrpc: String,
+	pub result: Vec<TaskPushNotificationConfig>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct DeleteTaskPushNotificationConfigSuccessResponse {
+	pub id: NumberOrString,
+	pub jsonrpc: String,
+	pub result: (),
+}
+
+// Result types for success responses
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum SendMessageSuccessResponseResult {
+	Task(Box<Task>),
+	Message(Message),
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum SendStreamingMessageSuccessResponseResult {
+	Task(Task),
+	Message(Message),
+	TaskStatusUpdateEvent(TaskStatusUpdateEvent),
+	TaskArtifactUpdateEvent(TaskArtifactUpdateEvent),
 }

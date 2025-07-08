@@ -3,24 +3,21 @@ use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use std::{fmt, mem};
 
+use agent_core::metrics::{IncrementRecorder, Recorder};
+use agent_core::strng;
+use agent_core::strng::Strng;
 use prost::{DecodeError, EncodeError};
 use prost_types::value::Kind;
 use prost_types::{Struct, Value};
 use split_iter::Splittable;
 use thiserror::Error;
-use tokio::sync::mpsc;
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use tracing::{Instrument, debug, error, info, info_span, warn};
 
-use crate::metrics::{ConnectionTerminationReason, Metrics};
-use crate::service::discovery::v3::Resource as ProtoResource;
-use crate::service::discovery::v3::aggregated_discovery_service_client::AggregatedDiscoveryServiceClient;
-use crate::service::discovery::v3::*;
-use agent_core::metrics::{IncrementRecorder, Recorder};
-use agent_core::strng;
-use agent_core::strng::Strng;
-
 use super::Error;
+use crate::metrics::{ConnectionTerminationReason, Metrics};
+use crate::service::discovery::v3::aggregated_discovery_service_client::AggregatedDiscoveryServiceClient;
+use crate::service::discovery::v3::{Resource as ProtoResource, *};
 
 const INSTANCE_IP: &str = "INSTANCE_IP";
 const INSTANCE_IPS: &str = "INSTANCE_IPS";
@@ -31,6 +28,7 @@ const NODE_NAME: &str = "NODE_NAME";
 const NAME: &str = "NAME";
 const NAMESPACE: &str = "NAMESPACE";
 const EMPTY_STR: &str = "";
+const ROLE: &str = "role";
 
 #[derive(Eq, Hash, PartialEq, Debug, Clone)]
 pub struct ResourceKey {
@@ -140,7 +138,7 @@ impl<T: 'static + prost::Message + Default> RawHandler for HandlerWrapper<T> {
 			.map(XdsUpdate::Update)
 			.chain(removes.iter().cloned().map(|s| XdsUpdate::Remove(s.into())));
 
-		// First, call handlers that update the proxy state.
+		// First, call handlers that update the agentgateway state.
 		// other wise on-demand notifications might observe a cache without their resource
 		let updates: Box<&mut dyn Iterator<Item = XdsUpdate<T>>> = Box::new(&mut updates);
 		let result = self.h.handle(updates);
@@ -151,8 +149,8 @@ impl<T: 'static + prost::Message + Default> RawHandler for HandlerWrapper<T> {
 			.map(|r| r.expect_err("must be err"))
 			.collect();
 
-		// after we update the proxy cache, we can update our xds cache. it's important that we do this after
-		// as we make on demand notifications here, so the proxy cache must be updated first.
+		// after we update the agentgateway cache, we can update our xds cache. it's important that we do this after
+		// as we make on demand notifications here, so the agentgateway cache must be updated first.
 		for name in res.removed_resources {
 			let k = ResourceKey {
 				name: name.into(),
@@ -195,9 +193,33 @@ pub struct Config {
 	handlers: HashMap<Strng, Box<dyn RawHandler>>,
 	initial_requests: Vec<DeltaDiscoveryRequest>,
 	on_demand: bool,
+	// Environment variables
+	instance_ip: String,
+	pod_name: String,
+	pod_namespace: String,
+	node_name: String,
 	// alt_hostname provides an alternative accepted SAN for the control plane TLS verification
 	// alt_hostname: Option<String>,
 	// xds_headers: Vec<(AsciiMetadataKey, AsciiMetadataValue)>,
+}
+
+impl Config {
+	pub fn new(address: String, gateway_name: String, namespace: String) -> Self {
+		Self {
+			address,
+			handlers: HashMap::new(),
+			initial_requests: Vec::new(),
+			on_demand: false,
+			proxy_metadata: HashMap::from([
+				("GATEWAY_NAME".to_string(), gateway_name),
+				("NAMESPACE".to_string(), namespace),
+			]),
+			instance_ip: std::env::var(INSTANCE_IP).unwrap_or_else(|_| DEFAULT_IP.to_string()),
+			pod_name: std::env::var(POD_NAME).unwrap_or_else(|_| EMPTY_STR.to_string()),
+			pod_namespace: std::env::var(POD_NAMESPACE).unwrap_or_else(|_| EMPTY_STR.to_string()),
+			node_name: std::env::var(NODE_NAME).unwrap_or_else(|_| EMPTY_STR.to_string()),
+		}
+	}
 }
 
 pub struct State {
@@ -269,26 +291,30 @@ impl Config {
 	}
 
 	fn node(&self) -> Node {
-		let ip = std::env::var(INSTANCE_IP);
-		let ip = ip.as_deref().unwrap_or(DEFAULT_IP);
-		let pod_name = std::env::var(POD_NAME);
-		let pod_name = pod_name.as_deref().unwrap_or(EMPTY_STR);
-		let ns = std::env::var(POD_NAMESPACE);
-		let ns = ns.as_deref().unwrap_or(EMPTY_STR);
-		let node_name = std::env::var(NODE_NAME);
-		let node_name = node_name.as_deref().unwrap_or(EMPTY_STR);
+		let empty_gw_name = EMPTY_STR.to_string();
+		let gw_name = self
+			.proxy_metadata
+			.get("GATEWAY_NAME")
+			.unwrap_or(&empty_gw_name);
+		let role = format!("{ns}~{name}", ns = &self.pod_namespace, name = gw_name);
 		let mut metadata = Self::build_struct([
-			(NAME, pod_name),
-			(NAMESPACE, ns),
-			(INSTANCE_IPS, ip),
-			(NODE_NAME, node_name),
+			(NAME, self.pod_name.as_str()),
+			(NAMESPACE, self.pod_namespace.as_str()),
+			(INSTANCE_IPS, self.instance_ip.as_str()),
+			(NODE_NAME, self.node_name.as_str()),
+			(ROLE, &role),
 		]);
 		metadata
 			.fields
 			.append(&mut Self::build_struct(self.proxy_metadata.clone()).fields);
 
 		Node {
-			id: format!("ztunnel~{ip}~{pod_name}.{ns}~{ns}.svc.cluster.local"),
+			id: format!(
+				"agentgateway~{ip}~{pod_name}.{ns}~{ns}.svc.cluster.local",
+				ip = self.instance_ip,
+				pod_name = self.pod_name,
+				ns = self.pod_namespace
+			),
 			metadata: Some(metadata),
 			..Default::default()
 		}
@@ -424,6 +450,11 @@ impl AdsClient {
 		}
 	}
 
+	/// Get a reference to the XDS configuration
+	pub fn config(&self) -> &Config {
+		&self.config
+	}
+
 	/// demander returns a Demander instance which can be used to request resources on-demand
 	pub fn demander(&self) -> Option<Demander> {
 		if self.config.on_demand {
@@ -450,10 +481,22 @@ impl AdsClient {
 				tokio::time::sleep(backoff).await;
 				backoff
 			},
+			Err(e @ Error::Transport(_)) => {
+				// For connection errors, we add backoff
+				let backoff = std::cmp::min(MAX_BACKOFF, backoff * 2);
+				warn!(
+					"XDS client connection error: {:?}, retrying in {:?}",
+					e, backoff
+				);
+				self
+					.metrics
+					.increment(&ConnectionTerminationReason::ConnectionError);
+				tokio::time::sleep(backoff).await;
+				backoff
+			},
 			Err(ref e @ Error::GrpcStatus(ref status)) => {
 				let err_detail = e.to_string();
-				let backoff = if status.code() == tonic::Code::Unknown
-					|| status.code() == tonic::Code::Cancelled
+				let backoff = if status.code() == tonic::Code::Cancelled
 					|| status.code() == tonic::Code::DeadlineExceeded
 					|| (status.code() == tonic::Code::Unavailable
 						&& status.message().contains("transport is closing"))
@@ -470,7 +513,7 @@ impl AdsClient {
 					INITIAL_BACKOFF
 				} else {
 					warn!(
-						"XDS client error: {e:?} {status:?}, retrying in {:?} x",
+						"XDS client error: {e:?} {status:?}, retrying in {:?}",
 						backoff
 					);
 					self.metrics.increment(&ConnectionTerminationReason::Error);
@@ -537,7 +580,15 @@ impl AdsClient {
 
 		let outbound = async_stream::stream! {
 			for initial in initial_requests {
-				debug!(resources=initial.initial_resource_versions.len(), type_url=initial.type_url, "sending initial request");
+				debug!(
+					resources=initial.initial_resource_versions.len(),
+					type_url=initial.type_url,
+					subscribed_resources=?initial.resource_names_subscribe,
+					unsubscribed_resources=?initial.resource_names_unsubscribe,
+					node_id=?initial.node.as_ref().map(|n| &n.id),
+					node_metadata=?initial.node.as_ref().and_then(|n| n.metadata.as_ref()),
+					"sending initial request"
+				);
 				yield initial;
 			}
 			while let Some(message) = discovery_req_rx.recv().await {

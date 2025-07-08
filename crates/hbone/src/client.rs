@@ -1,16 +1,18 @@
-use crate::Key;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
+use std::task::{Context, Poll};
+
 use anyhow::anyhow;
 use bytes::{Buf, Bytes};
 use h2::SendStream;
 use h2::client::{Connection, SendRequest};
 use http::Request;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
-use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::oneshot;
 use tokio::sync::watch::Receiver;
 use tracing::{Instrument, debug, error, trace, warn};
+
+use crate::Key;
 
 #[derive(Debug, Clone)]
 // H2ConnectClient is a wrapper abstracting h2

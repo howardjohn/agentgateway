@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=../../schema/local.json
+binds:
+- port: 3000
+  listeners:
+  - routes:
+    - policies:
+        jwtAuth:
+          issuer: agentgateway.dev
+          audiences: [test.agentgateway.dev]
+          jwks:
+            # Relative to the folder the binary runs from, not the config file
+            file: ./manifests/jwt/pub-key
+        mcpAuthorization:
+          rules:
+          # Allow anyone to call 'echo'
+          - 'permit(principal, action == Action::"call_tool", resource == Tool::"echo");'
+          # Only the test-user can call 'add'
+          - 'permit(principal == User::"test-user", action == Action::"call_tool", resource == Tool::"add");'
+          # Any authenticated user with the claim `nested.key == value` can access 'printEnv'
+          - |
+            permit(principal is User, action == Action::"call_tool", resource == Tool::"printEnv") when 
+            { context.claims.nested.key == "value" };
+      backends:
+      - mcp:
+          name: default
+          targets:
+          - name: everything
+            stdio:
+              cmd: npx
+              args: ["@modelcontextprotocol/server-everything"]

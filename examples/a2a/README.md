@@ -5,56 +5,56 @@ This example shows how to use the agentgateway to proxy A2A requests.
 ### Running the example
 
 ```bash
-cargo run -- -f examples/a2a/config.json
+cargo run -- -f examples/a2a/config.yaml
 ```
 
-Let's look at the config to understand what's going on. First off we have a listener, which tells the gateway how to listen for incoming requests/connections. In this case we're using the `a2a` listener, which is a simple HTTP listener that listens on port 3000.
+Let's look at the config to understand what's going on. Like in the [basic](../basic) setup, we define a `bind` and `listener`.
+This time, our backend will not be of type `mcp` and will just be a plain `host`.
+The `a2a` policy indicates this traffic is A2A and will be processed accordingly
 
-```json
-  "listeners": [
-    {
-      "name": "google-adk",
-      "protocol": "A2A",
-      "sse": {
-        "address": "0.0.0.0",
-        "port": 3000
-      }
-    }
-  ],
+```yaml
+policies:
+  # Mark this route as a2a traffic
+  a2a: {}
+backends:
+- host: localhost:9999
 ```
 
-In addition, we have a tracing section, which tells the gateway how to trace the incoming requests. In this case we're using the `otlp` tracer, which is a simple HTTP tracer that listens on port 4317.
+To test this, we will run a sample `a2a` agent and client.
 
-```json
-  "tracing": {
-    "tracer": {
-      "otlp": {
-        "endpoint": "http://localhost:4317"
-      }
-    }
-  },
+First, run the server:
+```bash
+$ git clone https://github.com/a2aproject/a2a-samples
+$ cd a2a-samples/samples/python
+$ uv run agents/helloworld
 ```
 
-Next we have a targets section, which tells the gateway how to proxy the incoming requests.
-In this case, we are proxying to an agent we have named `google_adk`, listening on port 10002.
-To run this yourself, follow the [sample documentation](https://github.com/google/A2A/tree/main/samples/python/agents/google_adk).
-
-```json
-  "targets": {
-    "a2a": [
-      {
-        "name": "google_adk",
-        "host": "127.0.0.1",
-        "port": "10002"
-      }
-    ]
-  }
-```
-
-To test this, we can run the sample [`a2a` CLI](https://github.com/google/A2A/tree/main/samples/python/hosts/cli)
+In another terminal, run the client and send a few messages.
 
 ```bash
-uv run hosts/cli --agent http://localhost:3000/google-adk
+$ uv run hosts/cli --agent http://localhost:3000
 ```
 
-From here, you can send requests through the CLI and view them being proxied.
+Agentgateway will proxy the requests and do a few things.
+
+First, we can directly send a request to agentgateway to the [agent card](https://www.agentcard.net/) endpoint.
+The agent will typically do this automatically, but we will use `curl` to manually look at the card.
+
+```bash
+$ curl localhost:3000/.well-known/agent.json | jq
+{
+  "description": "Just a hello world agent",
+  "url": "http://localhost:3000",
+}
+```
+
+You can see the `url` has been rewritten to point back to agentgateway, ensuring future requests do not bypass the gateway.
+
+Additionally, as we send requests we can see A2A specific information in the logs:
+
+```plain
+2025-07-03T16:56:34.379262Z     info    request gateway=bind/3000 listener=listener0 
+    route=route0 endpoint=localhost:9999 src.addr=127.0.0.1:57408 
+    http.method=POST http.host=localhost http.path=/ http.version=HTTP/1.1 http.status=200 
+    a2a.method=message/stream duration=2ms
+```
