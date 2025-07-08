@@ -373,7 +373,7 @@ async fn convert_route(
 	let mut tgt = |p: Policy| {
 		pol += 1;
 		TargetedPolicy {
-			name: format!("{}/{}", key, pol).into(),
+			name: format!("{key}/{pol}").into(),
 			target: RouteRule(key.clone()),
 			policy: p,
 		}
@@ -399,7 +399,7 @@ async fn convert_route(
 		};
 		be_pol += 1;
 		Ok(TargetedPolicy {
-			name: format!("{}/backend-{}", key, be_pol).into(),
+			name: format!("{key}/backend-{be_pol}").into(),
 			target: tgt,
 			policy: p,
 		})
@@ -532,7 +532,7 @@ async fn convert_tcp_route(
 	let mut tgt = |p: Policy| {
 		pol += 1;
 		TargetedPolicy {
-			name: format!("{}/{}", key, pol).into(),
+			name: format!("{key}/{pol}").into(),
 			target: RouteRule(key.clone()),
 			policy: p,
 		}
@@ -552,7 +552,7 @@ async fn convert_tcp_route(
 		};
 		be_pol += 1;
 		Ok(TargetedPolicy {
-			name: format!("{}/backend-{}", key, be_pol).into(),
+			name: format!("{key}/backend-{be_pol}").into(),
 			target: tgt,
 			policy: p,
 		})

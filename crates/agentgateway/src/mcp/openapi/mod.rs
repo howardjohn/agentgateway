@@ -286,8 +286,7 @@ pub(crate) fn parse_openapi_schema(
 								.operation_id
 								.clone()
 								.ok_or(ParseError::InformationRequired(format!(
-									"operation_id is required for {}",
-									path
+									"operation_id is required for {path}"
 								)))?;
 
 							// Build the schema
@@ -471,8 +470,7 @@ fn build_schema_property(
 		},
 		openapiv3::ParameterSchemaOrContent::Content(content) => {
 			return Err(ParseError::UnsupportedReference(format!(
-				"content is not supported for parameters: {:?}",
-				content
+				"content is not supported for parameters: {content:?}"
 			)));
 		},
 	};
@@ -567,10 +565,10 @@ impl Handler {
 		for (key, value) in &path_params {
 			match value {
 				Value::String(s_val) => {
-					path = path.replace(&format!("{{{}}}", key), s_val);
+					path = path.replace(&format!("{{{key}}}"), s_val);
 				},
 				Value::Number(n_val) => {
-					path = path.replace(&format!("{{{}}}", key), n_val.to_string().as_str());
+					path = path.replace(&format!("{{{key}}}"), n_val.to_string().as_str());
 				},
 				_ => {
 					tracing::warn!(
@@ -603,7 +601,7 @@ impl Handler {
 			let mut pairs = Vec::new();
 			for (k, v) in query_params.iter() {
 				if let Some(s) = v.as_str() {
-					pairs.push(format!("{}={}", k, s));
+					pairs.push(format!("{k}={s}"));
 				} else {
 					tracing::warn!(
 						"Query parameter '{}' for tool '{}' is not a string (value: {:?}), skipping",
@@ -622,7 +620,7 @@ impl Handler {
 			String::new()
 		};
 
-		let uri = format!("{}{}", base_url, query_string);
+		let uri = format!("{base_url}{query_string}");
 		let mut headers = HeaderMap::new();
 		let mut rb = http::Request::builder().method(method).uri(uri);
 

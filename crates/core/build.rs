@@ -16,7 +16,7 @@ fn main() {
 				if let Some((key, value)) = line.split_once('=') {
 					#[allow(clippy::double_ended_iterator_last)]
 					let key = key.split('.').last().unwrap();
-					println!("cargo:rustc-env=MCPGW_BUILD_{key}={value}");
+					println!("cargo:rustc-env=AGENTGATEWAY_BUILD_{key}={value}");
 				} else {
 					println!("cargo:warning=invalid build output {line}");
 				}
@@ -27,8 +27,8 @@ fn main() {
 		},
 	};
 	println!(
-		"cargo:rustc-env=MCPGW_BUILD_RUSTC_VERSION={}",
+		"cargo:rustc-env=AGENTGATEWAY_BUILD_RUSTC_VERSION={}",
 		rustc_version::version().unwrap()
 	);
-	println!("cargo:rustc-env=MCPGW_BUILD_PROFILE_NAME={}", profile_name);
+	println!("cargo:rustc-env=AGENTGATEWAY_BUILD_PROFILE_NAME={profile_name}");
 }

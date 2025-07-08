@@ -1062,8 +1062,8 @@ impl Display for Target {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let str = match self {
 			Target::Address(addr) => addr.to_string(),
-			Target::Hostname(hostname, port) => format!("{}:{}", hostname, port),
+			Target::Hostname(hostname, port) => format!("{hostname}:{port}"),
 		};
-		write!(f, "{}", str)
+		write!(f, "{str}")
 	}
 }

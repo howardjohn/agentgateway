@@ -43,7 +43,7 @@ impl From<UpstreamError> for ErrorData {
 			UpstreamError::ServiceError(e) => match e {
 				rmcp::ServiceError::McpError(e) => e,
 				rmcp::ServiceError::Timeout { timeout } => {
-					ErrorData::internal_error(format!("request timed out after {:?}", timeout), None)
+					ErrorData::internal_error(format!("request timed out after {timeout:?}"), None)
 				},
 				rmcp::ServiceError::Cancelled { reason } => match reason {
 					Some(reason) => ErrorData::internal_error(reason.clone(), None),
@@ -113,7 +113,7 @@ pub(crate) struct UpstreamTarget {
 }
 pub(crate) enum UpstreamTargetSpec {
 	Mcp(RunningService<RoleClient, crate::mcp::relay::pool::PeerClientHandler>),
-	OpenAPI(crate::mcp::openapi::Handler),
+	OpenAPI(Box<crate::mcp::openapi::Handler>),
 }
 
 impl UpstreamTarget {

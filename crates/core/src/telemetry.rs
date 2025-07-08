@@ -1,16 +1,4 @@
-// Copyright Istio Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Originally derived from https://github.com/istio/ztunnel (Apache 2.0 licensed)
 
 use std::fmt::Debug;
 use std::str::FromStr;
@@ -167,7 +155,7 @@ impl Visitor<'_> {
 		} else {
 			" "
 		};
-		write!(self.writer, "{}{:?}", padding, value)
+		write!(self.writer, "{padding}{value:?}")
 	}
 }
 
@@ -185,7 +173,7 @@ impl field::Visit for Visitor<'_> {
 			// Skip fields that are actually log metadata that have already been handled
 			name if name.starts_with("log.") => Ok(()),
 			// For the message, write out the message and a tab to separate the future fields
-			"message" => write!(self.writer, "{:?}\t", val),
+			"message" => write!(self.writer, "{val:?}\t"),
 			// For the rest, k=v.
 			_ => self.write_padded(&format_args!("{}={:?}", field.name(), val)),
 		}
@@ -231,7 +219,7 @@ where
 		let target = meta.target();
 		// No need to prefix everything
 		let target = target.strip_prefix("agentgateway::").unwrap_or(target);
-		write!(writer, "{}", target)?;
+		write!(writer, "{target}")?;
 
 		// Write out span fields. Istio logging outside of Rust doesn't really have this concept
 		if let Some(scope) = ctx.event_scope() {
@@ -240,7 +228,7 @@ where
 				let ext = span.extensions();
 				if let Some(fields) = &ext.get::<FormattedFields<N>>() {
 					if !fields.is_empty() {
-						write!(writer, "{{{}}}", fields)?;
+						write!(writer, "{{{fields}}}")?;
 					}
 				}
 			}
@@ -282,7 +270,7 @@ impl<S: SerializeMap> Visit for JsonVisitory<S> {
 		if self.state.is_ok() {
 			self.state = self
 				.serializer
-				.serialize_entry(field.name(), &format_args!("{:?}", value))
+				.serialize_entry(field.name(), &format_args!("{value:?}"))
 		}
 	}
 
@@ -322,10 +310,7 @@ impl io::Write for WriteAdaptor<'_> {
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		let s = std::str::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-		self
-			.fmt_write
-			.write_str(s)
-			.map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+		self.fmt_write.write_str(s).map_err(io::Error::other)?;
 
 		Ok(s.len())
 	}

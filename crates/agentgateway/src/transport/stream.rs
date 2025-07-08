@@ -124,7 +124,7 @@ impl Socket {
 		ext.insert(info);
 		Ok(Socket {
 			ext,
-			inner: SocketType::Tls(tls),
+			inner: SocketType::Tls(Box::new(tls)),
 		})
 	}
 
@@ -171,7 +171,7 @@ impl Socket {
 
 pub enum SocketType {
 	Tcp(TcpStream),
-	Tls(TlsStream<Box<SocketType>>),
+	Tls(Box<TlsStream<Box<SocketType>>>),
 	Hbone(RWStream),
 	Boxed(Box<SocketType>),
 }

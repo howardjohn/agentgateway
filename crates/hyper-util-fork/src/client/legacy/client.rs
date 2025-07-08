@@ -89,6 +89,7 @@ macro_rules! e {
 // We might change this... :shrug:
 type DefaultPoolKey = (http::uri::Scheme, http::uri::Authority);
 
+#[allow(clippy::large_enum_variant)]
 enum TrySendError<B> {
 	Retryable {
 		error: Error,

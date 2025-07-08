@@ -119,6 +119,7 @@ impl CacheEntry {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 enum Resolver {
 	Real(TokioResolver),
 	#[cfg(test)]

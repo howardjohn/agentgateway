@@ -106,7 +106,7 @@ impl Policy {
 									return Ok(Some(response.as_response()));
 								}
 								let mut new_content = content.clone();
-								new_content.replace_range(m.range(), &format!("<{}>", name));
+								new_content.replace_range(m.range(), &format!("<{name}>"));
 								msg.content = Content::Text(new_content);
 							}
 						},

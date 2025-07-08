@@ -190,7 +190,6 @@ fn test_multiple_recognizers() {
 	// Should find multiple types of PII
 	assert!(
 		total_results >= 5,
-		"Expected at least 5 total matches, got {}",
-		total_results
+		"Expected at least 5 total matches, got {total_results}"
 	);
 }

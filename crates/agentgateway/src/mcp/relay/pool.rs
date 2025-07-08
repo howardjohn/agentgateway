@@ -59,7 +59,7 @@ impl ConnectionPool {
 		}
 		let target = self.by_name.get(name);
 		Ok(target.ok_or(McpError::invalid_request(
-			format!("Service {} not found", name),
+			format!("Service {name} not found"),
 			None,
 		))?)
 	}
@@ -248,14 +248,14 @@ impl ConnectionPool {
 
 				upstream::UpstreamTarget {
 					filters: target.filters.clone(), // From the outer 'target' variable
-					spec: upstream::UpstreamTargetSpec::OpenAPI(crate::mcp::openapi::Handler {
+					spec: upstream::UpstreamTargetSpec::OpenAPI(Box::new(crate::mcp::openapi::Handler {
 						host: open.host.clone(),
 						client: self.client.clone(),
 						policies: target.backend_policies.clone(),
 						tools,  // From parse_openapi_schema
 						prefix, // From get_server_prefix
 						port: open.port,
-					}),
+					})),
 				}
 			},
 		};

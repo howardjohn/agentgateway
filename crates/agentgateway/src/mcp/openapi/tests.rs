@@ -128,7 +128,7 @@ async fn test_call_tool_get_simple_success() {
 	let expected_response = json!({ "id": user_id, "name": "Test User" });
 
 	Mock::given(method("GET"))
-		.and(path(format!("/users/{}", user_id)))
+		.and(path(format!("/users/{user_id}")))
 		.respond_with(ResponseTemplate::new(200).set_body_json(&expected_response))
 		.mount(&server)
 		.await;
@@ -152,7 +152,7 @@ async fn test_call_tool_get_with_query() {
 		json!({ "id": user_id, "name": "Test User", "details": "Verbose details" });
 
 	Mock::given(method("GET"))
-		.and(path(format!("/users/{}", user_id)))
+		.and(path(format!("/users/{user_id}")))
 		.and(query_param("verbose", verbose_flag))
 		.respond_with(ResponseTemplate::new(200).set_body_json(&expected_response))
 		.mount(&server)
@@ -176,7 +176,7 @@ async fn test_call_tool_get_with_header() {
 	let expected_response = json!({ "id": user_id, "name": "Another User" });
 
 	Mock::given(method("GET"))
-		.and(path(format!("/users/{}", user_id)))
+		.and(path(format!("/users/{user_id}")))
 		.and(header("X-Request-ID", request_id))
 		.respond_with(ResponseTemplate::new(200).set_body_json(&expected_response))
 		.mount(&server)
@@ -271,7 +271,7 @@ async fn test_call_tool_upstream_error() {
 	let error_response = json!({ "error": "User not found" });
 
 	Mock::given(method("GET"))
-		.and(path(format!("/users/{}", user_id)))
+		.and(path(format!("/users/{user_id}")))
 		.respond_with(ResponseTemplate::new(404).set_body_json(&error_response))
 		.mount(&server)
 		.await;
@@ -294,7 +294,7 @@ async fn test_call_tool_invalid_header_value() {
 	let user_id = "header-issue";
 	// Mock is set up but won't be hit because header construction fails client-side
 	Mock::given(method("GET"))
-		.and(path(format!("/users/{}", user_id)))
+		.and(path(format!("/users/{user_id}")))
 		.respond_with(ResponseTemplate::new(200).set_body_json(json!({ "id": user_id })))
 		.mount(&server)
 		.await;
@@ -322,7 +322,7 @@ async fn test_call_tool_invalid_query_param_value() {
 	let user_id = "query-issue";
 	// Mock is set up but won't be hit with the invalid query param
 	Mock::given(method("GET"))
-		.and(path(format!("/users/{}", user_id)))
+		.and(path(format!("/users/{user_id}")))
 		// IMPORTANT: We don't .and(query_param(...)) here because the invalid param is skipped
 		.respond_with(ResponseTemplate::new(200).set_body_json(json!({ "id": user_id })))
 		.mount(&server)

@@ -176,7 +176,7 @@ fn rewrite_host(
 					.port_u16()
 					.and_then(|p| port_respecting_default(new_scheme, p));
 				match new_port {
-					Some(p) => Ok(format!("{}:{}", h, p).try_into()?),
+					Some(p) => Ok(format!("{h}:{p}").try_into()?),
 					None => Ok(h.as_str().try_into()?),
 				}
 			}

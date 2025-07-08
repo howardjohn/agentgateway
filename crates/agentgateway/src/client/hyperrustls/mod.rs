@@ -52,7 +52,7 @@ impl Service<Uri> for HttpsConnector {
 			let tls = TlsConnector::from(cfg)
 				.connect(hostname, Box::new(tcp))
 				.await
-				.map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+				.map_err(io::Error::other)?;
 			let socket = Socket::from_tls(stream::Extension::new(), tls.into())?;
 			Ok(socket)
 		})

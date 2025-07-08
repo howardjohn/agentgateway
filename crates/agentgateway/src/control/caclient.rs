@@ -37,7 +37,7 @@ use crate::http::backendtls::BackendTLS;
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum Error {
 	#[error("CA client error: {0}")]
-	CaClient(#[from] tonic::Status),
+	CaClient(#[from] Box<tonic::Status>),
 	#[error("CA client creation: {0}")]
 	CaClientCreation(Arc<anyhow::Error>),
 	#[error("Empty certificate response")]
@@ -459,7 +459,7 @@ impl CaClient {
 		let response = client
 			.create_certificate(request.into_request())
 			.await
-			.map_err(Error::CaClient)?;
+			.map_err(|e| Error::CaClient(Box::new(e)))?;
 
 		let response = response.into_inner();
 

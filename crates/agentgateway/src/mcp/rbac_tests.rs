@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 fn create_policy_set(policies: Vec<&str>) -> PolicySet {
 	let mut policy_set = PolicySet::new();
 	for (idx, policy_str) in policies.into_iter().enumerate() {
-		let policy = Policy::parse(Some(PolicyId::new(format!("policy{}", idx))), policy_str)
+		let policy = Policy::parse(Some(PolicyId::new(format!("policy{idx}"))), policy_str)
 			.expect("Failed to parse policy");
 		policy_set.add(policy).expect("Failed to add policy to set");
 	}

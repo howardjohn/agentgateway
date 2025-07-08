@@ -12,7 +12,7 @@ fn test_response<T: DeserializeOwned>(
 	let test_dir = Path::new("src/llm/tests");
 
 	// Read input JSON
-	let input_path = test_dir.join(format!("{}.json", test_name));
+	let input_path = test_dir.join(format!("{test_name}.json"));
 	let provider_str = &fs::read_to_string(&input_path).expect("Failed to read input file");
 	let provider_raw: Value =
 		serde_json::from_str(provider_str).expect("Failed to parse provider json");
@@ -43,7 +43,7 @@ fn test_request<T: Serialize>(
 	let test_dir = Path::new("src/llm/tests");
 
 	// Read input JSON
-	let input_path = test_dir.join(format!("{}.json", test_name));
+	let input_path = test_dir.join(format!("{test_name}.json"));
 	let openai_str = &fs::read_to_string(&input_path).expect("Failed to read input file");
 	let openai_raw: Value = serde_json::from_str(openai_str).expect("Failed to parse openai json");
 	let openai: universal::ChatCompletionRequest =

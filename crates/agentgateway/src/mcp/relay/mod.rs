@@ -105,7 +105,7 @@ impl Relay {
 
 	fn resource_name(&self, target: &str, name: &str) -> String {
 		if self.default_target_name.is_none() {
-			format!("{}{}{}", target, DELIMITER, name)
+			format!("{target}{DELIMITER}{name}")
 		} else {
 			name.to_string()
 		}
@@ -201,7 +201,7 @@ impl ServerHandler for Relay {
 		let connections = pool
 			.initialize(rq_ctx, &context.peer, request)
 			.await
-			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {}", e), None))?;
+			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {e}"), None))?;
 
 		// Return static server info about ourselves
 		// TODO: we should actually perform an intersection of what the downstream and we support. The problem
@@ -221,7 +221,7 @@ impl ServerHandler for Relay {
 		let connections = pool
 			.list()
 			.await
-			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {}", e), None))?;
+			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {e}"), None))?;
 		let all = connections.into_iter().map(|(_name, svc)| {
 			let request = request.clone();
 			async move {
@@ -256,7 +256,7 @@ impl ServerHandler for Relay {
 		let connections = pool
 			.list()
 			.await
-			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {}", e), None))?;
+			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {e}"), None))?;
 		let all = connections.into_iter().map(|(_name, svc)| {
 			let request = request.clone();
 			async move {
@@ -298,7 +298,7 @@ impl ServerHandler for Relay {
 		let connections = pool
 			.list()
 			.await
-			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {}", e), None))?;
+			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {e}"), None))?;
 
 		let all = connections.into_iter().map(|(_name, svc)| {
 			let request = request.clone();
@@ -367,9 +367,7 @@ impl ServerHandler for Relay {
 		let service_arc = pool
 			.get(rq_ctx, &context.peer, service_name)
 			.await
-			.map_err(|_e| {
-				McpError::invalid_request(format!("Service {} not found", service_name), None)
-			})?;
+			.map_err(|_e| McpError::invalid_request(format!("Service {service_name} not found"), None))?;
 		let req = ReadResourceRequestParam {
 			uri: resource.to_string(),
 		};
@@ -417,9 +415,7 @@ impl ServerHandler for Relay {
 		let svc = pool
 			.get(rq_ctx, &context.peer, service_name)
 			.await
-			.map_err(|_e| {
-				McpError::invalid_request(format!("Service {} not found", service_name), None)
-			})?;
+			.map_err(|_e| McpError::invalid_request(format!("Service {service_name} not found"), None))?;
 		let req = GetPromptRequestParam {
 			name: prompt.to_string(),
 			arguments: request.arguments,
@@ -450,7 +446,7 @@ impl ServerHandler for Relay {
 		let connections = pool
 			.list()
 			.await
-			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {}", e), None))?;
+			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {e}"), None))?;
 		let multi = connections.len() > 1;
 		let all = connections.into_iter().map(|(_name, svc_arc)| {
 			let request = request.clone();
@@ -528,9 +524,7 @@ impl ServerHandler for Relay {
 		let svc = pool
 			.get(rq_ctx, &context.peer, service_name)
 			.await
-			.map_err(|_e| {
-				McpError::invalid_request(format!("Service {} not found", service_name), None)
-			})?;
+			.map_err(|_e| McpError::invalid_request(format!("Service {service_name} not found"), None))?;
 		let req = CallToolRequestParam {
 			name: Cow::Owned(tool.to_string()),
 			arguments: request.arguments,

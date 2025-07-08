@@ -47,7 +47,7 @@ fn setup_listener(routes: &[(&str, Vec<&str>, Vec<RouteMatch>)]) -> Arc<Listener
 		policies: None,
 	};
 
-	let listener = Arc::new(Listener {
+	Arc::new(Listener {
 		key: Default::default(),
 		name: Default::default(),
 		gateway_name: Default::default(),
@@ -63,8 +63,7 @@ fn setup_listener(routes: &[(&str, Vec<&str>, Vec<RouteMatch>)]) -> Arc<Listener
 				})
 				.collect(),
 		),
-	});
-	listener
+	})
 }
 
 #[test]
@@ -705,7 +704,7 @@ fn bench(b: Bencher, (host, route): (u64, u64)) {
 				query: vec![],
 			}];
 			routes.push((
-				format!("{}-{}", host, path),
+				format!("{host}-{path}"),
 				vec![format!("{}", host)],
 				basic_match.clone(),
 			));

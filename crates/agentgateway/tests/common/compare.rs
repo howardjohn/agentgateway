@@ -193,7 +193,7 @@ binds:
 		headers: Option<HashMap<String, String>>,
 		body: Option<&str>,
 	) -> Result<ProxyResponse> {
-		let url = format!("http://localhost:{}{}", port, path);
+		let url = format!("http://localhost:{port}{path}");
 		let mut request_builder = match method.to_uppercase().as_str() {
 			"GET" => client.get(&url),
 			"POST" => client.post(&url),
@@ -301,8 +301,7 @@ impl ProxyComparison {
 
 		assert_eq!(
 			agentgateway_headers, envoy_headers,
-			"Headers differ:\nagentgateway: {:?}\nenvoy: {:?}",
-			agentgateway_headers, envoy_headers
+			"Headers differ:\nagentgateway: {agentgateway_headers:?}\nenvoy: {envoy_headers:?}"
 		);
 		Ok(())
 	}
@@ -331,7 +330,7 @@ async fn wait_for_port(port: u16) -> Result<()> {
 	let start = std::time::Instant::now();
 
 	while start.elapsed() < timeout_duration {
-		if tokio::net::TcpStream::connect(format!("127.0.0.1:{}", port))
+		if tokio::net::TcpStream::connect(format!("127.0.0.1:{port}"))
 			.await
 			.is_ok()
 		{

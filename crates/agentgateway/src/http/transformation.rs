@@ -14,7 +14,7 @@ fn build(transforms: HashMap<HeaderName, String>) -> anyhow::Result<Transformati
 	let mut env: Environment<'static> = Environment::new();
 	let mut res = HashMap::new();
 	for (k, t) in transforms.into_iter() {
-		let name = format!("request_header_{}", k);
+		let name = format!("request_header_{k}");
 		env.add_template_owned(name.clone(), t)?;
 		env.add_function("request_header", functions::request_header);
 		// }

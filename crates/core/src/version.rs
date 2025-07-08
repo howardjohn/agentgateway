@@ -2,12 +2,12 @@ use std::fmt::{Display, Formatter};
 use std::string::String;
 use std::{env, fmt};
 
-const BUILD_VERSION: &str = env!("MCPGW_BUILD_buildVersion");
-const BUILD_GIT_REVISION: &str = env!("MCPGW_BUILD_buildGitRevision");
-const BUILD_STATUS: &str = env!("MCPGW_BUILD_buildStatus");
-const BUILD_TAG: &str = env!("MCPGW_BUILD_buildTag");
-const BUILD_RUST_VERSION: &str = env!("MCPGW_BUILD_RUSTC_VERSION");
-const BUILD_RUST_PROFILE: &str = env!("MCPGW_BUILD_PROFILE_NAME");
+const BUILD_VERSION: &str = env!("AGENTGATEWAY_BUILD_buildVersion");
+const BUILD_GIT_REVISION: &str = env!("AGENTGATEWAY_BUILD_buildGitRevision");
+const BUILD_STATUS: &str = env!("AGENTGATEWAY_BUILD_buildStatus");
+const BUILD_TAG: &str = env!("AGENTGATEWAY_BUILD_buildTag");
+const BUILD_RUST_VERSION: &str = env!("AGENTGATEWAY_BUILD_RUSTC_VERSION");
+const BUILD_RUST_PROFILE: &str = env!("AGENTGATEWAY_BUILD_PROFILE_NAME");
 
 #[derive(serde::Serialize, Clone, Debug, Default)]
 pub struct BuildInfo {

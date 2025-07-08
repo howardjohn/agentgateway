@@ -224,12 +224,12 @@ impl App {
 			.get::<filters::OriginalUrl>()
 			.map(|u| u.0.clone())
 			.unwrap_or_else(|| req.uri().clone());
-		let new_uri = uri
+
+		uri
 			.path()
 			.strip_suffix(strip_base)
 			.map(|p| uri.to_string().replace(uri.path(), p))
-			.unwrap_or(uri.to_string());
-		new_uri
+			.unwrap_or(uri.to_string())
 	}
 
 	async fn authorization_server_metadata(

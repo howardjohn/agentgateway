@@ -479,7 +479,7 @@ fn redirection_test() {
 				code: resp.status(),
 			})
 			.ok();
-		assert_eq!(got, want, "{}", name);
+		assert_eq!(got, want, "{name}");
 	}
 }
 
@@ -789,6 +789,6 @@ fn rewrite_test() {
 				uri: req.uri().to_string(),
 			})
 			.ok();
-		assert_eq!(got, want, "{}", name);
+		assert_eq!(got, want, "{name}");
 	}
 }
