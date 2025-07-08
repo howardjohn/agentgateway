@@ -461,8 +461,13 @@ pub mod testing {
 		static GLOBAL_BUF: OnceLock<Mutex<Vec<u8>>> = OnceLock::new();
 		GLOBAL_BUF.get_or_init(|| Mutex::new(vec![]))
 	}
+	static TRACING: Lazy<()> = Lazy::new(setup_test_logging_internal);
 
 	pub fn setup_test_logging() {
+		Lazy::force(&TRACING);
+	}
+
+	pub fn setup_test_logging_internal() {
 		Lazy::force(&APPLICATION_START_TIME);
 		let mock_writer = MockWriter::new(global_buf());
 		let (non_blocking, _guard) = tracing_appender::non_blocking::NonBlockingBuilder::default()
