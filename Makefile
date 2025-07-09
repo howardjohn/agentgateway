@@ -12,7 +12,7 @@ KIND_CLUSTER_NAME ?= agentgateway
 # docker
 .PHONY: docker
 docker:
-	$(DOCKER_BUILDER) build $(DOCKER_BUILD_ARGS) -t $(IMAGE_FULL_NAME) .
+	$(DOCKER_BUILDER) build $(DOCKER_BUILD_ARGS) -t $(IMAGE_FULL_NAME) . --progress=plain
 
 .PHONY: docker-ext
 docker-ext:

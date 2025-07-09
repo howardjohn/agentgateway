@@ -10,7 +10,7 @@ use reqwest::Client;
 use tempfile::TempDir;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
-use tracing::info;
+use tracing::{info, warn};
 use wiremock::MockServer;
 
 /// Test framework for comparing agentgateway against Envoy
@@ -25,6 +25,14 @@ pub struct ProxyComparisonTest {
 }
 
 impl ProxyComparisonTest {
+	pub fn should_run() -> bool {
+		if which::which("envoy").is_ok() {
+			true
+		} else {
+			warn!("skipping test, 'envoy' not found");
+			false
+		}
+	}
 	pub async fn new() -> anyhow::Result<Self> {
 		let backend_server = MockServer::start().await;
 		let backend_port = backend_server.address().port();

@@ -15,7 +15,7 @@ use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use tower_serve_static::ServeDir;
 
-use build_script_build::admin::admin::{AdminFallback, AdminResponse, ConfigDumpHandler};
+use crate::management::admin::{AdminFallback, AdminResponse, ConfigDumpHandler};
 pub struct UiHandler {
 	router: Router,
 }

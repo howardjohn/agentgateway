@@ -170,6 +170,7 @@ tracing-subscriber = { version = "0.3", features = [
 url = "2.5"
 wiremock = "0.6.3"
 x509-parser = "0.17"
+which = "8.0.0"
 
 # Release optimized but without as many dependencies, suitable for incremental development
 [profile.quick-release]

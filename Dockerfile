@@ -8,7 +8,7 @@ RUN npm install
 
 RUN npm run build
 
-FROM docker.io/library/rust:1.86.0-slim-bookworm AS builder 
+FROM docker.io/library/rust:1.88.0-slim-bookworm AS builder
 
 ARG TARGETARCH
 
@@ -23,16 +23,16 @@ COPY crates ./crates
 COPY common ./common
 COPY --from=node /app/out ./ui/out
 RUN --mount=type=cache,id=cargo,target=/usr/local/cargo/registry cargo fetch --locked
-RUN --mount=type=cache,id=cargo,target=/usr/local/cargo/registry make build
-
-RUN strip target/release/agentgateway
+RUN --mount=type=cache,target=/app/target --mount=type=cache,id=cargo,target=/usr/local/cargo/registry make build &&  \
+   mkdir /out && \
+    mv /app/target/release/agentgateway /out
 
 FROM gcr.io/distroless/cc-debian12 AS runner 
 
 ARG TARGETARCH
 WORKDIR /app
 
-COPY --from=builder /app/target/release/agentgateway /app/agentgateway
+COPY --from=builder /out/agentgateway /app/agentgateway
 
 LABEL org.opencontainers.image.source=https://github.com/agentgateway/agentgateway
 LABEL org.opencontainers.image.description="Agent Gateway is an agentic network gateway."

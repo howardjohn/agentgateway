@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
 					let contents = fs_err::read_to_string(&file)?;
 					(contents, Some(file))
 				},
-				(None, None) => ("".to_string(), None),
+				(None, None) => ("{}".to_string(), None),
 			};
 			let config = agentgateway::config::parse_config(contents, filename)?;
 			proxy(Arc::new(config)).await

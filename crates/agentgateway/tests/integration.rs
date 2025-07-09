@@ -6,6 +6,9 @@ mod common;
 async fn test_basic_proxy_comparison() -> anyhow::Result<()> {
 	use common::compare::*;
 	agent_core::telemetry::testing::setup_test_logging();
+	if !ProxyComparisonTest::should_run() {
+		return Ok(());
+	}
 	// Set up the test framework
 	let test = ProxyComparisonTest::new().await?;
 	// Configure the backend to return a simple response
