@@ -515,7 +515,6 @@ impl HTTPProxy {
 			Some(TrafficPolicy { timeout, .. }) => timeout.effective_timeout(),
 			_ => None,
 		};
-		let timeout: Option<Duration> = None;
 
 		// Setup timeout
 		let (call, body_timeout) = if let Some(timeout) = timeout {
