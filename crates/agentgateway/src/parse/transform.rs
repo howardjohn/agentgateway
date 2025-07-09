@@ -3,6 +3,8 @@ use std::fmt::Debug;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use crate::*;
+use ::http::HeaderMap;
 use axum_core::Error;
 use bytes::{Buf, Bytes, BytesMut};
 use futures::{Stream, StreamExt, TryStreamExt};
@@ -13,14 +15,13 @@ use serde::de::DeserializeOwned;
 use tokio_util::codec::{Decoder, Encoder, FramedRead};
 use tokio_util::io::StreamReader;
 
-use crate::*;
-
 pin_project! {
 	pub struct TransformedBody<D, E, F, T> {
 		#[pin]
 		body: http::Body,
 		decoder: D,
 		decode_buffer: BytesMut,
+		buffered_trailers: Option<HeaderMap>,
 		encoder: E,
 		handler: F,
 		finished: bool,
@@ -42,6 +43,7 @@ where
 		decoder,
 		handler,
 		decode_buffer: BytesMut::new(),
+		buffered_trailers: None,
 		encoder,
 		finished: false,
 		_phantom: std::marker::PhantomData,
@@ -66,6 +68,10 @@ where
 		let mut this = self.project();
 		// If we're finished and have no more data, we're done
 		if *this.finished {
+			if let Some(trailer) = std::mem::take(this.buffered_trailers) {
+				// If there is no more data, send any trailers
+				return Poll::Ready(Some(Ok(http_body::Frame::trailers(trailer))));
+			}
 			return Poll::Ready(None);
 		}
 
@@ -127,6 +133,9 @@ where
 				if let Some(data) = frame.data_ref() {
 					this.decode_buffer.extend_from_slice(data);
 				}
+				if let Ok(trailer) = frame.into_trailers() {
+					*this.buffered_trailers = Some(trailer);
+				}
 				// Continue processing - don't pass through the original frame
 				cx.waker().wake_by_ref();
 				Poll::Pending
@@ -145,9 +154,14 @@ where
 				) {
 					Ok(_) => {
 						if !encode_buffer.is_empty() {
+							// If there is more data to encode, send it
 							let data = encode_buffer.split_to(encode_buffer.len());
 							Poll::Ready(Some(Ok(http_body::Frame::data(data.freeze()))))
+						} else if let Some(trailer) = std::mem::take(this.buffered_trailers) {
+							// If there is no more data, send any trailers
+							Poll::Ready(Some(Ok(http_body::Frame::trailers(trailer))))
 						} else {
+							// Else return we are done.
 							Poll::Ready(None)
 						}
 					},

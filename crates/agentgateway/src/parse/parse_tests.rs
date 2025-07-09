@@ -1,19 +1,30 @@
-use http_body::Body;
-use http_body_util::{BodyExt, Full};
-use tokio_sse_codec::{Event, Frame, SseDecoder};
-use tokio_util::codec::{BytesCodec, LinesCodec};
-
 use super::*;
 use crate::*;
+use ::http::HeaderMap;
+use http_body::Body;
+use http_body_util::{BodyExt, Full};
+use itertools::Itertools;
+use std::collections::HashMap;
+use std::convert::Infallible;
+use tokio_sse_codec::{Event, Frame, SseDecoder};
+use tokio_util::codec::{BytesCodec, LinesCodec};
 
 #[tokio::test]
 async fn test_parser() {
 	let msg1 = "data: msg1\n\n";
 	let msg2 = "data: msg2\n\n";
-	let body = http::Body::from_stream(futures_util::stream::iter(vec![
-		Ok::<_, std::io::Error>(Bytes::copy_from_slice(msg1.as_bytes())),
-		Ok::<_, std::io::Error>(Bytes::copy_from_slice(msg2.as_bytes())),
-	]));
+	let trailers = HeaderMap::try_from(&HashMap::from([("k".to_string(), "v".to_string())])).unwrap();
+	let body = http::Body::new(http_body_util::StreamBody::new(futures_util::stream::iter(
+		vec![
+			Ok::<_, Infallible>(http_body::Frame::data(Bytes::copy_from_slice(
+				msg1.as_bytes(),
+			))),
+			Ok::<_, Infallible>(http_body::Frame::data(Bytes::copy_from_slice(
+				msg2.as_bytes(),
+			))),
+			Ok::<_, Infallible>(http_body::Frame::trailers(trailers.clone())),
+		],
+	)));
 	let decoder = SseDecoder::<Bytes>::new();
 
 	let mut events = Arc::new(Mutex::new(vec![]));
@@ -25,7 +36,9 @@ async fn test_parser() {
 		},
 		Frame::Retry(_) => {},
 	});
-	let got = body.collect().await.map(|col| col.to_bytes()).unwrap();
+	let got = body.collect().await.unwrap();
+	assert_eq!(Some(&trailers), got.trailers());
+	let got = got.to_bytes();
 	assert_eq!(
 		got,
 		Bytes::copy_from_slice(format!("{msg1}{msg2}").as_bytes())
@@ -79,11 +92,21 @@ async fn test_sse_json_transform() {
 	let msg1 = "data: {\"msg\": 1, \"type\": \"input\"}\n\n";
 	let msg2 = "data: {\"msg\": 2, \"type\": \"input\"}\n\n";
 	let msg3 = "data: [DONE]\n\n";
-	let body = http::Body::from_stream(futures_util::stream::iter(vec![
-		Ok::<_, std::io::Error>(Bytes::copy_from_slice(msg1.as_bytes())),
-		Ok::<_, std::io::Error>(Bytes::copy_from_slice(msg2.as_bytes())),
-		Ok::<_, std::io::Error>(Bytes::copy_from_slice(msg3.as_bytes())),
-	]));
+	let trailers = HeaderMap::try_from(&HashMap::from([("k".to_string(), "v".to_string())])).unwrap();
+	let body = http::Body::new(http_body_util::StreamBody::new(futures_util::stream::iter(
+		vec![
+			Ok::<_, std::io::Error>(http_body::Frame::data(Bytes::copy_from_slice(
+				msg1.as_bytes(),
+			))),
+			Ok::<_, std::io::Error>(http_body::Frame::data(Bytes::copy_from_slice(
+				msg2.as_bytes(),
+			))),
+			Ok::<_, std::io::Error>(http_body::Frame::data(Bytes::copy_from_slice(
+				msg3.as_bytes(),
+			))),
+			Ok::<_, std::io::Error>(http_body::Frame::trailers(trailers.clone())),
+		],
+	)));
 
 	#[derive(Deserialize)]
 	struct Input {
@@ -112,14 +135,11 @@ async fn test_sse_json_transform() {
 		}),
 	});
 
-	let result = transformed_body
-		.collect()
-		.await
-		.map(|col| col.to_bytes())
-		.unwrap();
+	let result = transformed_body.collect().await.unwrap();
+	assert_eq!(Some(&trailers), result.trailers());
 
 	// The result should contain the transformed SSE data
-	let result_str = String::from_utf8_lossy(&result).to_string();
+	let result_str = String::from_utf8_lossy(&result.to_bytes()).to_string();
 	// TODO: fork or modify the library to not write empty events
 	assert_eq!(
 		result_str,
