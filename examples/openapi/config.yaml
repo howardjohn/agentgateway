@@ -7,7 +7,9 @@ binds:
       - mcp:
           name: default
           targets:
-          - name: everything
-            stdio:
-              cmd: npx
-              args: ["@modelcontextprotocol/server-everything"]
+          - name: openapi
+            openapi:
+              schema:
+                file: ./examples/openapi/openapi.json
+              host: localhost
+              port: 8080

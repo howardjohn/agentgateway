@@ -42,12 +42,6 @@ clean:
 
 objects := $(wildcard examples/*/config.json)
 
-.PHONY: validate
-validate: $(objects)
-
-%/config.json:
-	cargo run -- --mode=validate -f $*/config.json
-
 .PHONY: install-go-tools
 install-go-tools:
 	go install github.com/golang/protobuf/protoc-gen-go

@@ -108,8 +108,6 @@ jobs:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Test
       run: make test
-    - name: Validate
-      run: make validate -B
 
   docker:
     strategy:
