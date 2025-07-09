@@ -6,17 +6,20 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use ::http::HeaderMap;
+use ::http::header;
 use ::http::uri::PathAndQuery;
-use agent_core::drain;
 use agent_core::drain::{DrainMode, DrainUpgrader, DrainWatcher, new};
+use agent_core::{copy, drain};
 use anyhow::anyhow;
 use crossbeam::atomic::AtomicCell;
 use futures::pin_mut;
 use futures_util::{FutureExt, TryFutureExt};
+use headers::HeaderMapExt;
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use hyper::Error;
 use hyper::body::Incoming;
+use hyper::upgrade::OnUpgrade;
 use hyper_util::rt::TokioIo;
 use hyper_util::server::conn::auto;
 use hyper_util::server::graceful::{GracefulConnection, GracefulShutdown};
@@ -280,6 +283,7 @@ impl HTTPProxy {
 
 		normalize_uri(&connection, &mut req).map_err(ProxyError::Processing)?;
 		sensitive_headers(&mut req);
+		let mut req_upgrade = hop_by_hop_headers(&mut req);
 
 		const ALWAYS_TRACE: bool = false; // todo configurable percentage
 		if let Some(tp) = trc::TraceParent::from_request(&req) {
@@ -421,6 +425,7 @@ impl HTTPProxy {
 				return self
 					.attempt_upstream(
 						log,
+						&mut req_upgrade,
 						late_route_policies,
 						upstream,
 						&selected_backend,
@@ -460,6 +465,7 @@ impl HTTPProxy {
 			let res = self
 				.attempt_upstream(
 					log,
+					&mut req_upgrade,
 					late_route_policies.clone(),
 					upstream.clone(),
 					&selected_backend,
@@ -488,6 +494,7 @@ impl HTTPProxy {
 	async fn attempt_upstream(
 		&self,
 		log: &mut RequestLog,
+		req_upgrade: &mut Option<RequestUpgrade>,
 		route_policies: Arc<store::LLMRoutePolicies>,
 		upstream: Client,
 		selected_backend: &RouteBackend,
@@ -536,6 +543,10 @@ impl HTTPProxy {
 				return Err(ProxyError::RequestTimeout);
 			},
 		};
+		if resp.status() == StatusCode::SWITCHING_PROTOCOLS {
+			return handle_upgrade(req_upgrade, resp).await;
+		}
+
 		maybe_inference.mutate_response(&mut resp).await?;
 
 		// Handle response filters
@@ -567,6 +578,49 @@ impl HTTPProxy {
 		}
 	}
 }
+
+async fn handle_upgrade(
+	req_upgrade_type: &mut Option<RequestUpgrade>,
+	mut resp: Response,
+) -> Result<Response, ProxyError> {
+	let Some(RequestUpgrade {
+		upgade_type,
+		upgrade,
+	}) = std::mem::take(req_upgrade_type)
+	else {
+		return Err(ProxyError::UpgradeFailed(None, None));
+	};
+	let resp_upgrade_type = upgrade_type(resp.headers());
+	if Some(&upgade_type) != resp_upgrade_type.as_ref() {
+		return Err(ProxyError::UpgradeFailed(
+			Some(upgade_type),
+			resp_upgrade_type,
+		));
+	}
+	let mut response_upgraded = resp
+		.extensions_mut()
+		.remove::<OnUpgrade>()
+		.ok_or_else(|| ProxyError::ProcessingString("no upgrade".to_string()))?
+		.await
+		.map_err(|e| ProxyError::ProcessingString(format!("upgrade failed: {e:?}")))?;
+	tokio::task::spawn(async move {
+		let req = match upgrade.await {
+			Ok(u) => u,
+			Err(e) => {
+				error!("upgrade error: {e}");
+				return;
+			},
+		};
+		let _ = agent_core::copy::copy_bidirectional(
+			&mut TokioIo::new(req),
+			&mut TokioIo::new(response_upgraded),
+			&agent_core::copy::ConnectionResult {},
+		)
+		.await;
+	});
+	Ok(resp)
+}
+
 async fn build_transport(
 	inputs: &ProxyInputs,
 	backend_call: &BackendCall,
@@ -814,6 +868,77 @@ async fn send_mirror(
 	req.headers_mut().remove(http::header::CONTENT_LENGTH);
 	let _ = upstream.call(req, mirror.backend).await?;
 	Ok(())
+}
+
+// Hop-by-hop headers. These are removed when sent to the backend.
+// As of RFC 7230, hop-by-hop headers are required to appear in the
+// Connection header field. These are the headers defined by the
+// obsoleted RFC 2616 (section 13.5.1) and are used for backward
+// compatibility.
+static HOP_HEADERS: [HeaderName; 9] = [
+	header::CONNECTION,
+	// non-standard but still sent by libcurl and rejected by e.g. google
+	HeaderName::from_static("proxy-connection"),
+	HeaderName::from_static("keep-alive"),
+	header::PROXY_AUTHENTICATE,
+	header::PROXY_AUTHORIZATION,
+	header::TE,
+	header::TRAILER,
+	header::TRANSFER_ENCODING,
+	header::UPGRADE,
+];
+
+struct RequestUpgrade {
+	upgade_type: HeaderValue,
+	upgrade: OnUpgrade,
+}
+
+fn hop_by_hop_headers(req: &mut Request) -> Option<RequestUpgrade> {
+	let trailers = req
+		.headers()
+		.get(header::TE)
+		.and_then(|h| h.to_str().ok())
+		.map(|s| s.contains("trailers"))
+		.unwrap_or(false);
+	let upgrade_type = upgrade_type(req.headers());
+	for h in HOP_HEADERS.iter() {
+		req.headers_mut().remove(h);
+	}
+	// If the incoming request supports trailers, the downstream one will as well
+	if trailers {
+		req.headers_mut().typed_insert(headers::Te::trailers());
+	}
+	// After stripping all the hop-by-hop connection headers above, add back any
+	// necessary for protocol upgrades, such as for websockets.
+	if let Some(upgrade_type) = upgrade_type.clone() {
+		req
+			.headers_mut()
+			.typed_insert(headers::Connection::upgrade());
+		req.headers_mut().insert(header::UPGRADE, upgrade_type);
+	}
+	let on_upgrade = req.extensions_mut().remove::<OnUpgrade>();
+	if let Some(t) = upgrade_type
+		&& let Some(u) = on_upgrade
+	{
+		Some(RequestUpgrade {
+			upgade_type: t,
+			upgrade: u,
+		})
+	} else {
+		None
+	}
+}
+
+fn upgrade_type(headers: &HeaderMap) -> Option<HeaderValue> {
+	if let Some(con) = headers.typed_get::<headers::Connection>() {
+		if con.contains(http::header::UPGRADE) {
+			headers.get(http::header::UPGRADE).cloned()
+		} else {
+			None
+		}
+	} else {
+		None
+	}
 }
 
 fn sensitive_headers(req: &mut Request) {

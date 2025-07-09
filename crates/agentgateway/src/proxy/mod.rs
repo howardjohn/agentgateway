@@ -2,12 +2,12 @@ mod gateway;
 pub mod httpproxy;
 pub mod tcpproxy;
 
-pub use gateway::Gateway;
-
 use crate::http::Body;
+use crate::http::HeaderValue;
 use crate::http::Response;
 use crate::http::StatusCode;
 use crate::*;
+pub use gateway::Gateway;
 use hyper_util_fork::client::legacy::Error as HyperError;
 
 #[derive(thiserror::Error, Debug)]
@@ -52,6 +52,8 @@ pub enum ProxyError {
 	RateLimitFailed,
 	#[error("invalid request")]
 	InvalidRequest,
+	#[error("request upgrade failed, backend tried {1:?} but {0:?} was requested")]
+	UpgradeFailed(Option<HeaderValue>, Option<HeaderValue>),
 }
 
 impl ProxyError {
@@ -74,6 +76,8 @@ impl ProxyError {
 			ProxyError::BackendUnsupportedMirror => StatusCode::INTERNAL_SERVER_ERROR,
 			ProxyError::ServiceNotFound => StatusCode::INTERNAL_SERVER_ERROR,
 			ProxyError::BackendAuthenticationFailed(_) => StatusCode::INTERNAL_SERVER_ERROR,
+
+			ProxyError::UpgradeFailed(_, _) => StatusCode::BAD_GATEWAY,
 
 			// Should it be 4xx?
 			ProxyError::FilterError(_) => StatusCode::INTERNAL_SERVER_ERROR,
