@@ -180,9 +180,7 @@ fn test_rbac_check_array_contains_match() {
 
 #[divan::bench]
 fn bench(b: Bencher) {
-	let policies = vec![
-		r#"mcp.tool.name == "increment" && jwt.user.role == "admin""#,
-	];
+	let policies = vec![r#"mcp.tool.name == "increment" && jwt.user.role == "admin""#];
 	let rbac = RuleSet::new(create_policy_set(policies));
 	let mut headers = Map::new();
 	let mut user_obj = Map::new();
@@ -199,9 +197,9 @@ fn bench(b: Bencher) {
 		rbac.validate_internal(
 			&ResourceType::Tool(ResourceId::new(
 				"server".to_string(),
-				"increment".to_string()
+				"increment".to_string(),
 			)),
-			&id
+			&id,
 		);
 	});
 }
