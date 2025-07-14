@@ -1,11 +1,12 @@
 // Portions of this code are heavily inspired from https://github.com/Kuadrant/wasm-shim/
 // Under Apache 2.0 license (https://github.com/Kuadrant/wasm-shim/blob/main/LICENSE)
 
+use crate::http::jwt::Claims;
 use crate::serdes::*;
 use axum_core::body::Body;
 use bytes::Bytes;
 use cel_interpreter::extractors::{Arguments, This};
-use cel_interpreter::objects::{Key, Map, ValueType};
+use cel_interpreter::objects::{Key, Map, TryIntoValue, ValueType};
 use cel_interpreter::{Context, ExecutionError, Program, ResolveResult, Value};
 use cel_parser::{Expression as CelExpression, ParseError};
 use http::Request;
@@ -24,12 +25,21 @@ pub enum Error {
 	Variable(String),
 }
 
+impl From<Box<dyn std::error::Error>> for Error {
+	fn from(value: Box<dyn std::error::Error>) -> Self {
+		Self::Variable(value.to_string())
+	}
+}
+
 const REQUEST_ATTRIBUTE: &str = "request";
 const RESPONSE_ATTRIBUTE: &str = "response";
+const JWT_ATTRIBUTE: &str = "jwt";
+const MCP_ATTRIBUTE: &str = "mcp";
 
 pub struct Expression {
 	attributes: HashSet<String>,
 	expression: CelExpression,
+	original_expression: String,
 	root_context: Context<'static>,
 }
 
@@ -38,13 +48,15 @@ impl Serialize for Expression {
 	where
 		S: Serializer,
 	{
-		serializer.serialize_none()
+		serializer.serialize_str(&self.original_expression)
 	}
 }
 
 impl Debug for Expression {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("Expression").finish()
+		f.debug_struct("Expression")
+			.field("expression", &self.original_expression)
+			.finish()
 	}
 }
 
@@ -93,6 +105,21 @@ impl ExpressionCall {
 			code: resp.status(),
 		})
 	}
+
+	pub fn with_jwt(&mut self, info: &Claims) {
+		if !self.expression.attributes.contains(JWT_ATTRIBUTE) {
+			return;
+		}
+		self.context.jwt = Some(info.clone())
+	}
+
+	pub fn with_mcp(&mut self, info: &crate::mcp::rbac::ResourceType) {
+		if !self.expression.attributes.contains(MCP_ATTRIBUTE) {
+			return;
+		}
+		self.context.mcp = Some(info.clone())
+	}
+
 	pub fn eval(&self) -> Result<Value, Error> {
 		self.expression.eval(&self.context)
 	}
@@ -105,8 +132,9 @@ impl ExpressionCall {
 }
 
 impl Expression {
-	pub fn new(expression: &str) -> Result<Self, Error> {
-		let expression = cel_parser::parse(expression)?;
+	pub fn new(original_expression: impl Into<String>) -> Result<Self, Error> {
+		let original_expression = original_expression.into();
+		let expression = cel_parser::parse(&original_expression)?;
 
 		let mut props = Vec::with_capacity(5);
 		properties(&expression, &mut props, &mut Vec::default());
@@ -120,6 +148,7 @@ impl Expression {
 		Ok(Self {
 			attributes,
 			expression,
+			original_expression,
 			root_context: Context::default(),
 		})
 	}
@@ -127,21 +156,17 @@ impl Expression {
 	fn eval(&self, ec: &ExpressionContext) -> Result<Value, Error> {
 		let mut ctx = self.root_context.new_inner_scope();
 
-		let ExpressionContext { request, response } = ec;
-		if let Some(r) = request {
-			ctx
-				.add_variable("request", r)
-				.map_err(|e| Error::Variable(e.to_string()))?;
-		} else {
-			ctx.add_variable_from_value("request", Value::Null);
-		}
-		if let Some(r) = response {
-			ctx
-				.add_variable("response", r)
-				.map_err(|e| Error::Variable(e.to_string()))?;
-		} else {
-			ctx.add_variable_from_value("response", Value::Null);
-		}
+		let ExpressionContext {
+			request,
+			response,
+			jwt,
+			mcp,
+		} = ec;
+
+		ctx.add_variable_from_value("request", opt_to_value(request)?);
+		ctx.add_variable_from_value("response", opt_to_value(response)?);
+		ctx.add_variable_from_value("jwt", opt_to_value(jwt)?);
+		ctx.add_variable_from_value("mcp", opt_to_value(mcp)?);
 
 		Ok(Value::resolve(&self.expression, &ctx)?)
 	}
@@ -151,6 +176,8 @@ impl Expression {
 struct ExpressionContext {
 	request: Option<RequestContext>,
 	response: Option<ResponseContext>,
+	jwt: Option<Claims>,
+	mcp: Option<crate::mcp::rbac::ResourceType>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -297,6 +324,14 @@ impl Path {
 	pub fn tokens(&self) -> Vec<&str> {
 		self.tokens.iter().map(String::as_str).collect()
 	}
+}
+
+fn opt_to_value<S: Serialize>(v: &Option<S>) -> Result<Value, Error> {
+	Ok(v.as_ref().map(to_value).transpose()?.unwrap_or(Value::Null))
+}
+
+fn to_value(v: impl Serialize) -> Result<Value, Error> {
+	cel_interpreter::to_value(v).map_err(|e| Error::Variable(e.to_string()))
 }
 
 #[cfg(any(test, feature = "internal_benches"))]
