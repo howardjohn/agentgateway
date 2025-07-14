@@ -1,5 +1,7 @@
 use super::*;
+#[cfg(test)]
 use assert_matches::assert_matches;
+use divan::Bencher;
 use secrecy::SecretString;
 use serde_json::{Map, Value};
 
@@ -174,4 +176,32 @@ fn test_rbac_check_array_contains_match() {
 		),
 		Ok(true)
 	);
+}
+
+#[divan::bench]
+fn bench(b: Bencher) {
+	let policies = vec![
+		r#"mcp.tool.name == "increment" && jwt.user.role == "admin""#,
+	];
+	let rbac = RuleSet::new(create_policy_set(policies));
+	let mut headers = Map::new();
+	let mut user_obj = Map::new();
+	user_obj.insert("role".to_string(), "admin".into());
+	headers.insert("user".to_string(), user_obj.into());
+	let id = Identity::new(
+		Some(Claims {
+			inner: headers,
+			jwt: SecretString::new("".into()),
+		}),
+		None,
+	);
+	b.bench(|| {
+		rbac.validate_internal(
+			&ResourceType::Tool(ResourceId::new(
+				"server".to_string(),
+				"increment".to_string()
+			)),
+			&id
+		);
+	});
 }

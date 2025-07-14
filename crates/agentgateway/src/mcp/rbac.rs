@@ -229,6 +229,6 @@ impl Identity {
 	}
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_benches"))]
 #[path = "rbac_tests.rs"]
 mod tests;
