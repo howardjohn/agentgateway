@@ -2,12 +2,15 @@
 // Under Apache 2.0 license (https://github.com/Kuadrant/wasm-shim/blob/main/LICENSE)
 
 use crate::serdes::*;
+use axum_core::body::Body;
 use bytes::Bytes;
 use cel_interpreter::extractors::{Arguments, This};
 use cel_interpreter::objects::{Key, Map, ValueType};
 use cel_interpreter::{Context, ExecutionError, Program, ResolveResult, Value};
 use cel_parser::{Expression as CelExpression, ParseError};
-use serde::{Deserialize, Serialize};
+use http::Request;
+use serde::{Deserialize, Serialize, Serializer};
+use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
@@ -18,13 +21,87 @@ pub enum Error {
 	#[error("parse: {0}")]
 	Parse(#[from] ParseError),
 	#[error("variable: {0}")]
-	Variable(Box<dyn std::error::Error>),
+	Variable(String),
 }
 
+const REQUEST_ATTRIBUTE: &str = "request";
+const RESPONSE_ATTRIBUTE: &str = "response";
+
 pub struct Expression {
-	attributes: Vec<Attribute>,
+	attributes: HashSet<String>,
 	expression: CelExpression,
 	root_context: Context<'static>,
+}
+
+impl Serialize for Expression {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
+		serializer.serialize_none()
+	}
+}
+
+impl Debug for Expression {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Expression").finish()
+	}
+}
+
+pub struct ExpressionCall {
+	expression: Arc<Expression>,
+	context: ExpressionContext,
+}
+
+impl Debug for ExpressionCall {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("ExpressionCall").finish()
+	}
+}
+impl ExpressionCall {}
+
+impl ExpressionCall {
+	pub fn new(expression: &str) -> Result<Self, Error> {
+		let exp = Expression::new(expression)?;
+		Ok(ExpressionCall {
+			expression: Arc::new(exp),
+			context: ExpressionContext::default(),
+		})
+	}
+	pub fn from_expression(expression: Arc<Expression>) -> Self {
+		ExpressionCall {
+			expression,
+			context: ExpressionContext::default(),
+		}
+	}
+	pub fn with_request(&mut self, req: &crate::http::Request) {
+		if !self.expression.attributes.contains(REQUEST_ATTRIBUTE) {
+			return;
+		}
+		self.context.request = Some(RequestContext {
+			method: req.method().clone(),
+			// TODO: split headers and the rest?
+			headers: req.headers().clone(),
+			uri: req.uri().clone(),
+		})
+	}
+	pub fn with_response(&mut self, resp: &crate::http::Response) {
+		if !self.expression.attributes.contains(RESPONSE_ATTRIBUTE) {
+			return;
+		}
+		self.context.response = Some(ResponseContext {
+			code: resp.status(),
+		})
+	}
+	pub fn eval(&self) -> Result<Value, Error> {
+		self.expression.eval(&self.context)
+	}
+	pub fn eval_bool(&self) -> bool {
+		match self.expression.eval(&self.context) {
+			Ok(Value::Bool(b)) => b,
+			_ => false,
+		}
+	}
 }
 
 impl Expression {
@@ -34,51 +111,36 @@ impl Expression {
 		let mut props = Vec::with_capacity(5);
 		properties(&expression, &mut props, &mut Vec::default());
 
-		let mut attributes: Vec<Attribute> = props
+		// For now we only look at the first level. We could be more precise
+		let mut attributes: HashSet<String> = props
 			.into_iter()
-			.map(|tokens| {
-				let path = Path::new(tokens);
-				// known_attribute_for(&path).unwrap_or(Attribute {
-				Attribute {
-					path,
-					cel_type: None,
-				}
-			})
+			.filter_map(|tokens| tokens.first().map(|s| s.to_string()))
 			.collect();
-
-		attributes.sort_by(|a, b| a.path.tokens().len().cmp(&b.path.tokens().len()));
 
 		Ok(Self {
 			attributes,
 			expression,
 			root_context: Context::default(),
-			// extended,
 		})
 	}
 
-	pub fn eval(&self, req: &crate::http::Request) -> Result<Value, Error> {
+	fn eval(&self, ec: &ExpressionContext) -> Result<Value, Error> {
 		let mut ctx = self.root_context.new_inner_scope();
 
-		// Putting the full request into the context means serializing and copying state, that may not be referenced.
-		// Instead, we will inspect what variables are referenced and only load those.
-		let mut ec = ExpressionContext::default();
-		for attribute in &self.attributes {
-			match attribute.path.tokens.first().map(|s| s.as_str()) {
-				Some("request") => {
-					ec.request = Some(RequestContext {
-						method: req.method(),
-						// TODO: split headers and the rest?
-						headers: req.headers(),
-						uri: req.uri(),
-					})
-				},
-				_ => {},
-			}
-		}
-
-		let ExpressionContext { request } = ec;
+		let ExpressionContext { request, response } = ec;
 		if let Some(r) = request {
-			ctx.add_variable("request", r).map_err(Error::Variable);
+			ctx
+				.add_variable("request", r)
+				.map_err(|e| Error::Variable(e.to_string()))?;
+		} else {
+			ctx.add_variable_from_value("request", Value::Null);
+		}
+		if let Some(r) = response {
+			ctx
+				.add_variable("response", r)
+				.map_err(|e| Error::Variable(e.to_string()))?;
+		} else {
+			ctx.add_variable_from_value("response", Value::Null);
 		}
 
 		Ok(Value::resolve(&self.expression, &ctx)?)
@@ -86,25 +148,31 @@ impl Expression {
 }
 
 #[derive(Clone, Debug, Default, Serialize)]
-struct ExpressionContext<'a> {
-	request: Option<RequestContext<'a>>,
+struct ExpressionContext {
+	request: Option<RequestContext>,
+	response: Option<ResponseContext>,
 }
 
 #[derive(Clone, Debug, Serialize)]
-struct RequestContext<'a> {
-	#[serde(serialize_with = "ser_debug")]
-	method: &'a ::http::Method,
+struct RequestContext {
+	#[serde(with = "http_serde::method")]
+	method: ::http::Method,
 
 	#[serde(with = "http_serde::uri")]
-	uri: &'a ::http::Uri,
+	uri: ::http::Uri,
 
 	#[serde(with = "http_serde::header_map")]
-	headers: &'a ::http::HeaderMap,
+	headers: ::http::HeaderMap,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ResponseContext {
+	#[serde(with = "http_serde::status_code")]
+	code: ::http::StatusCode,
 }
 
 fn create_context<'a>() -> Context<'a> {
-	let mut ctx = Context::default();
-	ctx
+	Context::default()
 }
 
 fn properties<'e>(exp: &'e CelExpression, all: &mut Vec<Vec<&'e str>>, path: &mut Vec<&'e str>) {
@@ -244,8 +312,8 @@ pub mod tests {
 
 	#[test]
 	fn expression() {
-		let expr =
-			Expression::new(r#"request.method == "GET" && request.headers["x-example"] == "value""#)
+		let mut expr =
+			ExpressionCall::new(r#"request.method == "GET" && request.headers["x-example"] == "value""#)
 				.unwrap();
 		let req = ::http::Request::builder()
 			.method(Method::GET)
@@ -253,14 +321,16 @@ pub mod tests {
 			.header("x-example", "value")
 			.body(Body::empty())
 			.unwrap();
-		assert_eq!(Value::Bool(true), expr.eval(&req).unwrap());
+		expr.with_request(&req);
+		assert_eq!(Value::Bool(true), expr.eval().unwrap());
 	}
 
 	#[divan::bench]
 	fn bench_with_request(b: Bencher) {
-		let expr =
+		let expr = Arc::new(
 			Expression::new(r#"request.method == "GET" && request.headers["x-example"] == "value""#)
-				.unwrap();
+				.unwrap(),
+		);
 		b.with_inputs(|| {
 			::http::Request::builder()
 				.method(Method::GET)
@@ -270,12 +340,15 @@ pub mod tests {
 				.unwrap()
 		})
 		.bench_refs(|r| {
-			expr.eval(r).unwrap();
+			let mut ec = ExpressionCall::from_expression(expr.clone());
+			ec.with_request(r);
+			ec.eval().unwrap();
 		});
 	}
+
 	#[divan::bench]
 	fn bench(b: Bencher) {
-		let expr = Expression::new(r#"1 + 2 == 3"#).unwrap();
+		let expr = Arc::new(Expression::new(r#"1 + 2 == 3"#).unwrap());
 		b.with_inputs(|| {
 			::http::Request::builder()
 				.method(Method::GET)
@@ -285,7 +358,9 @@ pub mod tests {
 				.unwrap()
 		})
 		.bench_refs(|r| {
-			expr.eval(r).unwrap();
+			let mut ec = ExpressionCall::from_expression(expr.clone());
+			ec.with_request(r);
+			ec.eval().unwrap();
 		});
 	}
 }

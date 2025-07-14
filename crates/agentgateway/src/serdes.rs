@@ -107,7 +107,7 @@ pub fn ser_display<S: Serializer, T: Display>(t: &T, serializer: S) -> Result<S:
 }
 
 pub fn ser_debug<S: Serializer, T: Debug>(t: &T, serializer: S) -> Result<S::Ok, S::Error> {
-	serializer.serialize_str(&format!("{:?}", t))
+	serializer.serialize_str(&format!("{t:?}"))
 }
 
 pub fn ser_redact<S: Serializer, T>(t: &T, serializer: S) -> Result<S::Ok, S::Error> {

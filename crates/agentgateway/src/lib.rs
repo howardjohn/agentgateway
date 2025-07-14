@@ -22,6 +22,7 @@ use control::caclient::CaClient;
 
 pub mod a2a;
 pub mod app;
+pub mod cel;
 pub mod client;
 pub mod config;
 pub mod control;
@@ -41,7 +42,6 @@ pub mod types;
 #[cfg(feature = "ui")]
 mod ui;
 pub mod util;
-pub mod cel;
 
 use agent_core::prelude::*;
 use control::caclient;
@@ -81,6 +81,7 @@ pub struct RawConfig {
 	worker_threads: Option<StringOrInt>,
 
 	tracing: Option<RawTracing>,
+	logging: Option<RawLogging>,
 
 	http2: Option<RawHTTP2>,
 }
@@ -99,6 +100,12 @@ pub struct RawHTTP2 {
 #[serde(rename_all = "camelCase")]
 pub struct RawTracing {
 	otlp_endpoint: String,
+}
+
+#[derive(serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RawLogging {
+	filter: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -154,6 +161,7 @@ pub struct Config {
 	pub xds: XDSConfig,
 	pub ca: Option<caclient::Config>,
 	pub tracing: trc::Config,
+	pub logging: crate::telemetry::log::Config,
 	pub dns: client::Config,
 	pub proxy_metadata: ProxyMetadata,
 }
