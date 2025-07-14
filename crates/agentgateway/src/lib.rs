@@ -41,6 +41,7 @@ pub mod types;
 #[cfg(feature = "ui")]
 mod ui;
 pub mod util;
+pub mod cel;
 
 use agent_core::prelude::*;
 use control::caclient;
