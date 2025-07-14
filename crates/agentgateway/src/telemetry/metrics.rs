@@ -1,8 +1,11 @@
 use crate::types::agent::BindProtocol;
 use agent_core::metrics::{DefaultedUnknown, EncodeDisplay};
 use agent_core::strng::RichStrng;
+use agent_core::version;
 use prometheus_client::encoding::EncodeLabelSet;
 use prometheus_client::metrics::family::Family;
+use prometheus_client::metrics::info::Info;
+use prometheus_client::registry;
 use prometheus_client::registry::Registry;
 use std::fmt::Debug;
 
@@ -30,6 +33,11 @@ pub struct TCPLabels {
 type Counter = Family<HTTPLabels, prometheus_client::metrics::counter::Counter>;
 type TCPCounter = Family<TCPLabels, prometheus_client::metrics::counter::Counter>;
 
+#[derive(Clone, Hash, Debug, PartialEq, Eq, EncodeLabelSet)]
+pub struct BuildLabel {
+	tag: String,
+}
+
 #[derive(Debug)]
 pub struct Metrics {
 	pub requests: Counter,
@@ -38,6 +46,13 @@ pub struct Metrics {
 
 impl Metrics {
 	pub fn new(registry: &mut Registry) -> Self {
+		registry.register(
+			"build",
+			"Agentgateway build information",
+			Info::new(BuildLabel {
+				tag: version::BuildInfo::new().git_tag,
+			}),
+		);
 		Metrics {
 			requests: build(
 				registry,
