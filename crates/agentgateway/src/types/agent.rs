@@ -596,8 +596,8 @@ impl ListenerSet {
 		self.inner.values().find(|l| l.hostname.is_empty()).cloned()
 	}
 
-	pub fn insert(&mut self, k: ListenerKey, v: Listener) {
-		self.inner.insert(k, Arc::new(v));
+	pub fn insert(&mut self, v: Listener) {
+		self.inner.insert(v.key.clone(), Arc::new(v));
 	}
 
 	pub fn contains(&self, key: &ListenerKey) -> bool {
