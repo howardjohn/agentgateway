@@ -486,8 +486,6 @@ pub struct McpTarget {
 	pub name: McpTargetName,
 	#[serde(flatten)]
 	pub spec: McpTargetSpec,
-	#[serde(default, skip_serializing_if = "Vec::is_empty")]
-	pub filters: Vec<mcp::relay::upstream::Filter>,
 }
 
 type McpTargetName = Strng;

@@ -279,7 +279,6 @@ impl TryFrom<&proto::agent::McpTarget> for McpTarget {
 					})
 				},
 			},
-			filters: vec![],
 		})
 	}
 }
