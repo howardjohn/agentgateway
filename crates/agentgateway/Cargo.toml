@@ -114,6 +114,7 @@ percent-encoding = "2.3.1"
 http-serde = "2.1.1"
 cel-parser = { git = "https://github.com/clarkmcc/cel-rust", rev = "5b02b08" }
 cel-interpreter = { git = "https://github.com/clarkmcc/cel-rust", rev = "5b02b08", features = ["json", "regex", "chrono"]  }
+fastrace = { version = "0.7.14", features = ["enable"] }
 
 [build-dependencies]
 anyhow.workspace = true

@@ -1,17 +1,21 @@
 // Originally derived from https://github.com/istio/ztunnel (Apache 2.0 licensed)
 
+mod msg;
+mod nonblocking;
+mod worker;
+use std::io::Write;
 use std::fmt::Debug;
 use std::str::FromStr;
 use std::time::Instant;
 use std::{env, fmt, io};
 
 use itertools::Itertools;
+use nonblocking::NonBlocking;
 use once_cell::sync::{Lazy, OnceCell};
 use serde::Serializer;
 use serde::ser::SerializeMap;
 use thiserror::Error;
 use tracing::{Event, Subscriber, error, field, info, warn};
-use tracing_appender::non_blocking::NonBlocking;
 use tracing_core::Field;
 use tracing_core::field::Visit;
 use tracing_core::span::Record;
@@ -23,16 +27,60 @@ use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields, FormattedFi
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::{Layer, Registry, filter, reload};
+use crate::strng::Strng;
 
 pub static APPLICATION_START_TIME: Lazy<Instant> = Lazy::new(Instant::now);
 static LOG_HANDLE: OnceCell<LogHandle> = OnceCell::new();
+static NON_BLOCKING: OnceCell<NonBlocking> = OnceCell::new();
 
-pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
+pub fn fast_log(kv: &[(Strng, serde_json::Value)]) -> anyhow::Result<()> {
+	let Some(nb) = NON_BLOCKING.get() else {
+		tracing::error!("howardjohn: skip");
+		return Ok(());
+	};
+	let mut buf = Vec::with_capacity(256);
+	let mut timestamp = String::with_capacity(28);
+	let mut w = Writer::new(&mut timestamp);
+	SystemTime.format_time(&mut w)?;
+
+	write!(
+		buf,
+		"{timestamp}\tinfo\trequest\t\n",
+	)?;
+
+	//
+	// // Write out span fields. Istio logging outside of Rust doesn't really have this concept
+	// if let Some(scope) = ctx.event_scope() {
+	// 	for span in scope.from_root() {
+	// 		write!(writer, ":{}", span.metadata().name())?;
+	// 		let ext = span.extensions();
+	// 		if let Some(fields) = &ext.get::<FormattedFields<N>>() {
+	// 			if !fields.is_empty() {
+	// 				write!(writer, "{{{fields}}}")?;
+	// 			}
+	// 		}
+	// 	}
+	// };
+	// // Insert tab only if there is fields
+	// if event.fields().any(|_| true) {
+	// 	write!(writer, "\t")?;
+	// }
+	//
+	// ctx.format_fields(writer.by_ref(), event)?;
+
+
+	// writeln!(writer)
+	nb.write_vec(buf)?;
+	Ok(())
+}
+
+pub fn setup_logging() -> nonblocking::WorkerGuard {
 	Lazy::force(&APPLICATION_START_TIME);
-	let (non_blocking, _guard) = tracing_appender::non_blocking::NonBlockingBuilder::default()
-		.lossy(false)
+	let (non_blocking, _guard) = nonblocking::NonBlockingBuilder::default()
+		.lossy(true)
 		.buffered_lines_limit(1000) // Buffer up to 1000 lines to avoid blocking on logs
 		.finish(std::io::stdout());
+	let _ = NON_BLOCKING.set(non_blocking.clone());
 	tracing_subscriber::registry()
 		.with(fmt_layer(non_blocking))
 		.init();
@@ -401,7 +449,7 @@ pub mod testing {
 	use tracing_subscriber::layer::SubscriberExt;
 	use tracing_subscriber::util::SubscriberInitExt;
 
-	use crate::telemetry::{APPLICATION_START_TIME, IstioJsonFormat, fmt_layer};
+	use crate::telemetry::{APPLICATION_START_TIME, IstioJsonFormat, fmt_layer, nonblocking};
 
 	/// MockWriter will store written logs
 	#[derive(Debug)]
@@ -455,7 +503,7 @@ pub mod testing {
 	pub fn setup_test_logging_internal() {
 		Lazy::force(&APPLICATION_START_TIME);
 		let mock_writer = MockWriter::new(global_buf());
-		let (non_blocking, _guard) = tracing_appender::non_blocking::NonBlockingBuilder::default()
+		let (non_blocking, _guard) = nonblocking::NonBlockingBuilder::default()
 			.lossy(false)
 			.buffered_lines_limit(1)
 			.finish(std::io::stdout());
