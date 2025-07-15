@@ -506,7 +506,7 @@ pub enum McpTargetSpec {
 pub struct SseTargetSpec {
 	// TODO: reference a service
 	pub host: String,
-	pub port: u32,
+	pub port: u16,
 	pub path: String,
 }
 
@@ -516,7 +516,7 @@ pub struct SseTargetSpec {
 pub struct StreamableHTTPTargetSpec {
 	// TODO: reference a service
 	pub host: String,
-	pub port: u32,
+	pub port: u16,
 	pub path: String,
 }
 
@@ -525,7 +525,7 @@ pub struct StreamableHTTPTargetSpec {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct OpenAPITarget {
 	pub host: String,
-	pub port: u32,
+	pub port: u16,
 	#[serde(deserialize_with = "de_openapi")]
 	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
 	pub schema: Arc<OpenAPI>,

@@ -20,7 +20,8 @@ use crate::types::agent::{
 use crate::types::discovery::{NamespacedHostname, Service, Workload};
 use crate::types::proto::agent::resource::Kind as XdsKind;
 use crate::types::proto::agent::{
-	Bind as XdsBind, Listener as XdsListener, Resource as ADPResource, Route as XdsRoute,
+	Backend as XdsBackend, Bind as XdsBind, Listener as XdsListener, Resource as ADPResource,
+	Route as XdsRoute,
 };
 use crate::*;
 
@@ -472,6 +473,7 @@ impl Store {
 			Some(XdsKind::Bind(w)) => self.insert_xds_bind(w),
 			Some(XdsKind::Listener(w)) => self.insert_xds_listener(w),
 			Some(XdsKind::Route(w)) => self.insert_xds_route(w),
+			Some(XdsKind::Backend(w)) => self.insert_xds_backend(w),
 			_ => Err(anyhow::anyhow!("unknown resource type")),
 		}
 	}
@@ -489,6 +491,11 @@ impl Store {
 	fn insert_xds_route(&mut self, raw: XdsRoute) -> anyhow::Result<()> {
 		let (route, listener_name): (Route, ListenerKey) = (&raw).try_into()?;
 		self.insert_route(route, listener_name);
+		Ok(())
+	}
+	fn insert_xds_backend(&mut self, raw: XdsBackend) -> anyhow::Result<()> {
+		let backend: (Backend) = (&raw).try_into()?;
+		self.insert_backend(backend);
 		Ok(())
 	}
 }
