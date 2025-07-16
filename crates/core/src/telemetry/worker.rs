@@ -147,7 +147,7 @@ impl VectoredIOHelper {
 	}
 }
 
-pub(crate)  struct VectoredIOHelperInstance<'a> {
+pub(crate) struct VectoredIOHelperInstance<'a> {
 	bytes_buffer: &'a mut Vec<Vec<u8>>,
 }
 

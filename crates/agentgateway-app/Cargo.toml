@@ -10,8 +10,6 @@ name = "agentgateway"
 path = "src/main.rs"
 bench = false
 
-[target.'cfg(target_env = "musl")'.features]
-default = ["tls-ring", "jemalloc"]
 [features]
 default = ["tls-ring"]
 jemalloc = ["dep:tikv-jemallocator", "agentgateway/jemalloc"]

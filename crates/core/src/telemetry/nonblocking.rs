@@ -424,7 +424,7 @@ mod test {
 
 		let mut hello_count: u8 = 0;
 
-		while let Ok(event_str) = rx.recv_timeout(Duration::from_secs(5)) {
+		while let Ok(event_str) = rx.recv_timeout(Duration::from_millis(25)) {
 			assert!(event_str.contains("Hello"));
 			hello_count += 1;
 		}
