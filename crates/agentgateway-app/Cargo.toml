@@ -10,8 +10,11 @@ name = "agentgateway"
 path = "src/main.rs"
 bench = false
 
+[target.'cfg(target_env = "musl")'.features]
+default = ["tls-ring", "jemalloc"]
 [features]
 default = ["tls-ring"]
+jemalloc = ["dep:tikv-jemallocator", "agentgateway/jemalloc"]
 schema = ["agentgateway/schema"]
 tls-ring = ["rustls/ring", "tokio-rustls/ring"]
 
@@ -26,6 +29,7 @@ rustls.workspace = true
 tokio.workspace = true
 tokio-rustls.workspace = true
 tracing.workspace = true
+tikv-jemallocator = {workspace = true, optional = true}
 
 [lints.clippy]
 # This rule makes code more confusing

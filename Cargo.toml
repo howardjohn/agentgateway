@@ -180,6 +180,8 @@ serde_urlencoded = "0.7"
 serde_with = "3.14"
 value-bag = { version = "1.11", features = ["serde"] }
 time = "0.3"
+tikv-jemallocator = { version = "0.6.0", features = ["profiling", "unprefixed_malloc_on_supported_platforms"] }
+jemalloc_pprof = { version = "0.8.0"}
 
 # Release optimized but without as many dependencies, suitable for incremental development
 [profile.quick-release]

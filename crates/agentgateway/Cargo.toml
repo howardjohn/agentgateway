@@ -10,7 +10,7 @@ path = "src/lib.rs"
 
 [features]
 default = ["tls-ring"]
-jemalloc = [] # TODO
+jemalloc = ["dep:tikv-jemallocator", "dep:jemalloc_pprof"]
 ui = []
 schema = ["schemars"]
 tls-ring = ["rustls/ring", "tokio-rustls/ring"]
@@ -114,7 +114,8 @@ percent-encoding.workspace = true
 http-serde.workspace = true
 cel-parser.workspace = true
 cel-interpreter = { workspace = true, features = ["json", "regex", "chrono"] }
-
+tikv-jemallocator = {workspace = true, optional = true}
+jemalloc_pprof = {workspace = true, optional = true}
 [build-dependencies]
 anyhow.workspace = true
 prost-build.workspace = true

@@ -8,6 +8,10 @@ use agentgateway::{Config, client, serdes};
 use clap::Parser;
 use tracing::info;
 
+#[cfg(feature = "jemalloc")]
+#[global_allocator]
+static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 lazy_static::lazy_static! {
 	// The memory is intentionally leaked here using Box::leak to achieve a 'static lifetime
 	// for the version string. This is necessary because the version string is used in a

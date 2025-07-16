@@ -359,7 +359,7 @@ fn change_log_level(reset: bool, level: &str) -> Response {
 async fn handle_jemalloc_pprof_heapgen(_req: Request<Incoming>) -> anyhow::Result<Response> {
 	let Some(prof_ctrl) = jemalloc_pprof::PROF_CTL.as_ref() else {
 		return Ok(
-			Response::builder()
+			::http::Response::builder()
 				.status(hyper::StatusCode::INTERNAL_SERVER_ERROR)
 				.body("jemalloc profiling is not enabled".into())
 				.expect("builder with known status code should not fail"),
@@ -368,7 +368,7 @@ async fn handle_jemalloc_pprof_heapgen(_req: Request<Incoming>) -> anyhow::Resul
 	let mut prof_ctl = prof_ctrl.lock().await;
 	if !prof_ctl.activated() {
 		return Ok(
-			Response::builder()
+			::http::Response::builder()
 				.status(hyper::StatusCode::INTERNAL_SERVER_ERROR)
 				.body("jemalloc not enabled".into())
 				.expect("builder with known status code should not fail"),
@@ -376,7 +376,7 @@ async fn handle_jemalloc_pprof_heapgen(_req: Request<Incoming>) -> anyhow::Resul
 	}
 	let pprof = prof_ctl.dump_pprof()?;
 	Ok(
-		Response::builder()
+		::http::Response::builder()
 			.status(hyper::StatusCode::OK)
 			.body(Bytes::from(pprof).into())
 			.expect("builder with known status code should not fail"),
