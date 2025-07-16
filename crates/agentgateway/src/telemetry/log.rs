@@ -158,53 +158,53 @@ impl Drop for RequestLog {
 
 		let mcp = self.mcp_status.take();
 		agent_core::telemetry::fast_log(&[]).unwrap();
+		return;
+		//
+		event!(
+			target: "request",
+			parent: None,
+			tracing::Level::INFO,
 
-		// return;
-		// event!(
-		// 	target: "request",
-		// 	parent: None,
-		// 	tracing::Level::INFO,
-		//
-		// 	gateway = self.gateway_name.as_ref().map(display),
-		// 	listener = self.listener_name.as_ref().map(display),
-		// 	route_rule = self.route_rule_name.as_ref().map(display),
-		// 	route = self.route_name.as_ref().map(display),
-		//
-		// 	endpoint = self.endpoint.as_ref().map(display),
-		//
-		// 	src.addr = %tcp_info.peer_addr,
-		//
-		// 	http.method = self.method.as_ref().map(display),
-		// 	http.host = self.host.as_ref().map(display),
-		// 	http.path = self.path.as_ref().map(display),
-		// 	// TODO: incoming vs outgoing
-		// 	http.version = self.version.as_ref().map(debug),
-		// 	http.status = self.status.as_ref().map(|s| s.as_u16()),
-		// 	grpc.status = grpc,
-		//
-		// 	trace.id = self.outgoing_span.as_ref().map(|id| display(id.trace_id())),
-		// 	span.id = self.outgoing_span.as_ref().map(|id| display(id.span_id())),
-		//
-		// 	jwt.sub = self.jwt_sub,
-		//
-		// 	a2a.method = self.a2a_method.as_ref().map(display),
-		//
-		// 	mcp.target = mcp.as_ref().and_then(|m| m.target_name.as_ref()).map(display),
-		// 	mcp.tool = mcp.as_ref().and_then(|m| m.tool_call_name.as_ref()).map(display),
-		//
-		// 	inferencepool.selected_endpoint = self.inference_pool.as_ref().map(display),
-		//
-		// 	llm.provider = self.llm_request.as_ref().map(|l| display(&l.provider)),
-		// 	llm.request.model = self.llm_request.as_ref().map(|l| display(&l.request_model)),
-		// 	llm.request.tokens = input_tokens.map(display),
-		// 	llm.response.model = llm_response.as_ref().and_then(|l| l.provider_model.clone()).map(display),
-		// 	llm.response.tokens = llm_response.as_ref().and_then(|l| l.output_tokens).map(display),
-		//
-		// 	retry.attempt = self.retry_attempt.as_ref(),
-		// 	error = self.error.as_ref().map(ToString::to_string),
-		//
-		// 	duration = %dur,
-		// );
+			gateway = self.gateway_name.as_ref().map(display),
+			listener = self.listener_name.as_ref().map(display),
+			route_rule = self.route_rule_name.as_ref().map(display),
+			route = self.route_name.as_ref().map(display),
+
+			endpoint = self.endpoint.as_ref().map(display),
+
+			src.addr = %tcp_info.peer_addr,
+
+			http.method = self.method.as_ref().map(display),
+			http.host = self.host.as_ref().map(display),
+			http.path = self.path.as_ref().map(display),
+			// TODO: incoming vs outgoing
+			http.version = self.version.as_ref().map(debug),
+			http.status = self.status.as_ref().map(|s| s.as_u16()),
+			grpc.status = grpc,
+
+			trace.id = self.outgoing_span.as_ref().map(|id| display(id.trace_id())),
+			span.id = self.outgoing_span.as_ref().map(|id| display(id.span_id())),
+
+			jwt.sub = self.jwt_sub,
+
+			a2a.method = self.a2a_method.as_ref().map(display),
+
+			mcp.target = mcp.as_ref().and_then(|m| m.target_name.as_ref()).map(display),
+			mcp.tool = mcp.as_ref().and_then(|m| m.tool_call_name.as_ref()).map(display),
+
+			inferencepool.selected_endpoint = self.inference_pool.as_ref().map(display),
+
+			llm.provider = self.llm_request.as_ref().map(|l| display(&l.provider)),
+			llm.request.model = self.llm_request.as_ref().map(|l| display(&l.request_model)),
+			llm.request.tokens = input_tokens.map(display),
+			llm.response.model = llm_response.as_ref().and_then(|l| l.provider_model.clone()).map(display),
+			llm.response.tokens = llm_response.as_ref().and_then(|l| l.output_tokens).map(display),
+
+			retry.attempt = self.retry_attempt.as_ref(),
+			error = self.error.as_ref().map(ToString::to_string),
+
+			duration = %dur,
+		);
 	}
 }
 
