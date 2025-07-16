@@ -38,17 +38,6 @@ struct Args {
 fn main() -> anyhow::Result<()> {
 	let _log_flush = telemetry::setup_logging();
 
-	// logforth::builder()
-	// 	.dispatch(|d| {
-	// 		d.filter(logforth::filter::EnvFilter::from_default_env_or("info"))
-	// 			.append(
-	// 				logforth::append::Stdout::default()
-	// 				// .with_layout(logforth::layout::JsonLayout::default()),
-	// 			)
-	// 	})
-	// 	.apply();
-	// log::info!(a:serde = HashMap::from([("hi", 1)]),"b.b":serde = 1; "hello!");
-	// return Ok(());
 	let args = Args::parse();
 	#[cfg(feature = "schema")]
 	println!("{}", agentgateway::types::local::generate_schema());
