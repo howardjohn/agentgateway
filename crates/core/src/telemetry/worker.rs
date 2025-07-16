@@ -12,7 +12,6 @@ pub(crate) struct Worker<T: Write + Send + 'static> {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum WorkerState {
-	Empty,
 	Disconnected,
 	Shutdown,
 	Error,
@@ -83,7 +82,6 @@ impl<T: Write + Send + 'static> Worker<T> {
 				loop {
 					match self.work(buf.instance()) {
 						Ok(()) => {},
-						Err(WorkerState::Empty) => {},
 						Err(WorkerState::Shutdown) | Err(WorkerState::Disconnected) => {
 							let _ = self.shutdown.recv();
 							break;

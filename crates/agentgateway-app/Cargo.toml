@@ -19,13 +19,9 @@ tls-ring = ["rustls/ring", "tokio-rustls/ring"]
 agent-core.workspace = true
 agentgateway.workspace = true
 anyhow.workspace = true
-bytes.workspace = true
 clap.workspace = true
-fastrace = { version = "0.7.14", features = ["enable"] }
 fs-err = { workspace = true, features = ["tokio"] }
 lazy_static.workspace = true
-log = { version = "0.4.27", features = ["kv", "kv_serde"] }
-logforth = { version = "0.26.2", features = ["layout-json"] }
 rustls.workspace = true
 tokio.workspace = true
 tokio-rustls.workspace = true

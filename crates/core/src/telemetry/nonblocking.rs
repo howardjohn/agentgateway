@@ -91,17 +91,6 @@ pub struct NonBlocking {
 pub struct ErrorCounter(Arc<AtomicUsize>);
 
 impl NonBlocking {
-	/// Returns a new `NonBlocking` writer wrapping the provided `writer`.
-	///
-	/// The returned `NonBlocking` writer will have the [default configuration][default] values.
-	/// Other configurations can be specified using the [builder] interface.
-	///
-	/// [default]: NonBlockingBuilder::default
-	/// [builder]: NonBlockingBuilder
-	pub fn new<T: Write + Send + 'static>(writer: T) -> (NonBlocking, WorkerGuard) {
-		NonBlockingBuilder::default().finish(writer)
-	}
-
 	fn create<T: Write + Send + 'static>(
 		writer: T,
 		buffered_lines_limit: usize,
@@ -131,6 +120,7 @@ impl NonBlocking {
 
 	/// Returns a counter for the number of times logs where dropped. This will always return zero if
 	/// `NonBlocking` is not lossy.
+	#[cfg(test)]
 	pub fn error_counter(&self) -> ErrorCounter {
 		self.error_counter.clone()
 	}
@@ -159,14 +149,6 @@ impl NonBlockingBuilder {
 	/// By default, the built `NonBlocking` will be lossy.
 	pub fn lossy(mut self, is_lossy: bool) -> NonBlockingBuilder {
 		self.is_lossy = is_lossy;
-		self
-	}
-
-	/// Override the worker thread's name.
-	///
-	/// The default worker thread name is "tracing-appender".
-	pub fn thread_name(mut self, name: &str) -> NonBlockingBuilder {
-		self.thread_name = name.to_string();
 		self
 	}
 
@@ -272,6 +254,7 @@ impl ErrorCounter {
 	/// count should always be 0.
 	///
 	/// [lossy mode]: NonBlockingBuilder::lossy
+	#[cfg(test)]
 	pub fn dropped_lines(&self) -> usize {
 		self.0.load(Ordering::Acquire)
 	}
