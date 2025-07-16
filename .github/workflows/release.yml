@@ -165,8 +165,8 @@ jobs:
             features: jemalloc
           - os: ubuntu-22.04-arm
             target: aarch64-unknown-linux-musl
-            # Performance is horrendous on musl without jemalloc
-            features: jemalloc
+            # TODO: arm64 build fails with jemalloc for some reason?
+            features: default
           - os: macos-latest
             target: aarch64-apple-darwin
             features: default
