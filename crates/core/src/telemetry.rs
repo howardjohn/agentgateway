@@ -1,8 +1,10 @@
 // Originally derived from https://github.com/istio/ztunnel (Apache 2.0 licensed)
-
+use std::fmt::{Display, Formatter, Write as FmtWrite};
+mod date;
 mod msg;
 mod nonblocking;
 mod worker;
+
 use crate::strng::Strng;
 use itertools::Itertools;
 use nonblocking::NonBlocking;
@@ -15,10 +17,11 @@ use std::io::Write;
 use std::str::FromStr;
 use std::time::Instant;
 use std::{env, fmt, io};
+use opentelemetry::time::now;
 use thiserror::Error;
 use tracing::{Event, Subscriber, error, field, info, warn};
 use tracing_core::Field;
-use tracing_core::field::Visit;
+use tracing_core::field::{Value, Visit};
 use tracing_core::span::Record;
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::field::RecordFields;
@@ -28,21 +31,30 @@ use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields, FormattedFi
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::{Layer, Registry, filter, reload};
+pub use value_bag::ValueBag;
 
 pub static APPLICATION_START_TIME: Lazy<Instant> = Lazy::new(Instant::now);
 static LOG_HANDLE: OnceCell<LogHandle> = OnceCell::new();
 static NON_BLOCKING: OnceCell<NonBlocking> = OnceCell::new();
 
-pub fn fast_log(kv: &[(Strng, serde_json::Value)]) -> anyhow::Result<()> {
+pub fn display<T: Display + 'static>(value: &T) -> ValueBag {
+	ValueBag::capture_display(value)
+}
+
+pub fn debug<T: Debug + 'static>(value: &T) -> ValueBag {
+	ValueBag::capture_debug(value)
+}
+
+pub fn fast_log(kv: &[(&str, Option<ValueBag>)]) {
 	let Some(nb) = NON_BLOCKING.get() else {
-		tracing::error!("howardjohn: skip");
-		return Ok(());
+		return;
 	};
 	thread_local! {
 		static BUF: RefCell<String> = const { RefCell::new(String::new()) };
 	}
 
-	BUF.with(|buf| {
+	// Re-use the buffer to reduce allocations
+	let _ = BUF.with(|buf| {
 		let borrow = buf.try_borrow_mut();
 		let mut a;
 		let mut b;
@@ -56,127 +68,30 @@ pub fn fast_log(kv: &[(Strng, serde_json::Value)]) -> anyhow::Result<()> {
 				&mut b
 			},
 		};
-		let mut w = Writer::new(&mut buf);
-		SystemTime.format_time(&mut w)?;
 
-		write!(w, "\tinfo\trequest\t\n",)?;
+		date::write(&mut buf);
+		write!(buf, "\tinfo\trequest")?;
+		for (k, v) in kv {
+			match v {
+				None => {}
+				Some(i) => {
+					write!(buf, " {}={}", k, i)?;
+				}
+			}
+		}
+		buf.push('\n');
+		// Send a copy to the logging thread
 		nb.write_vec(buf.as_bytes().to_vec())?;
 		buf.clear();
 		Ok::<(), anyhow::Error>(())
-	})?;
-	Ok(())
-}
-
-mod date {
-	use std::cell::RefCell;
-	use std::fmt::{self, Write};
-	use std::str;
-	use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
-	// "2025-07-16T18:32:01.170102Z".len()
-	pub(crate) const DATE_VALUE_LENGTH: usize = 27;
-
-	pub(crate) fn write(dst: &mut String) {
-		CACHED.with(|cache| {
-			dst.push_str(cache.borrow().buffer());
-		})
-	}
-
-	pub(crate) fn update() {
-		CACHED.with(|cache| {
-			cache.borrow_mut().check();
-		})
-	}
-
-	#[cfg(feature = "http2")]
-	pub(crate) fn update_and_header_value() -> HeaderValue {
-		CACHED.with(|cache| {
-			let mut cache = cache.borrow_mut();
-			cache.check();
-			cache.header_value.clone()
-		})
-	}
-
-	struct CachedDate {
-		bytes: [u8; DATE_VALUE_LENGTH],
-		pos: usize,
-		#[cfg(feature = "http2")]
-		header_value: HeaderValue,
-		next_update: SystemTime,
-	}
-
-	thread_local!(static CACHED: RefCell<CachedDate> = RefCell::new(CachedDate::new()));
-
-	impl CachedDate {
-		fn new() -> Self {
-			let mut cache = CachedDate {
-				bytes: [0; DATE_VALUE_LENGTH],
-				pos: 0,
-				next_update: SystemTime::now(),
-			};
-			cache.update(cache.next_update);
-			cache
-		}
-
-		fn buffer(&self) -> &str {
-			unsafe { std::str::from_utf8_unchecked(&self.bytes[..]) }
-		}
-
-		fn check(&mut self) {
-			let now = SystemTime::now();
-			if now > self.next_update {
-				self.update(now);
-			}
-		}
-
-		fn update(&mut self, now: SystemTime) {
-			let nanos = now
-				.duration_since(UNIX_EPOCH)
-				.unwrap_or_default()
-				.subsec_nanos();
-
-			self.render(now);
-			self.next_update = now + Duration::new(1, 0) - Duration::from_nanos(nanos as u64);
-		}
-
-		fn render(&mut self, now: SystemTime) {
-			self.pos = 0;
-			let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-			let seconds = duration.as_secs();
-			let nanos = duration.subsec_nanos();
-			let micros = nanos / 1000;
-
-			let datetime = time::OffsetDateTime::from_unix_timestamp(seconds as i64).unwrap();
-			let _ = write!(
-				self,
-				"{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06}Z",
-				datetime.year(),
-				datetime.month() as u8,
-				datetime.day(),
-				datetime.hour(),
-				datetime.minute(),
-				datetime.second(),
-				micros
-			);
-			debug_assert!(self.pos == DATE_VALUE_LENGTH);
-		}
-	}
-
-	impl fmt::Write for CachedDate {
-		fn write_str(&mut self, s: &str) -> fmt::Result {
-			let len = s.len();
-			self.bytes[self.pos..self.pos + len].copy_from_slice(s.as_bytes());
-			self.pos += len;
-			Ok(())
-		}
-	}
+	});
 }
 
 pub fn setup_logging() -> nonblocking::WorkerGuard {
 	Lazy::force(&APPLICATION_START_TIME);
 	let (non_blocking, _guard) = nonblocking::NonBlockingBuilder::default()
 		.lossy(false)
-		.buffered_lines_limit(10000) // Buffer up to 1000 lines to avoid blocking on logs
+		.buffered_lines_limit(10000) // Buffer up to 10l lines to avoid blocking on logs
 		.finish(std::io::stdout());
 	let _ = NON_BLOCKING.set(non_blocking.clone());
 	tracing_subscriber::registry()

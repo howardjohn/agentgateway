@@ -53,10 +53,7 @@ impl<T: Write + Send + 'static> Worker<T> {
 	/// Blocks on the first recv of each batch of logs, unless the
 	/// channel is disconnected. Afterwards, grabs as many logs as
 	/// it can off the channel, buffers them and attempts a flush.
-	pub(crate) fn work<'a>(
-		&mut self,
-		mut buf: VectoredIOHelperInstance<'a>,
-	) -> Result<(), WorkerState> {
+	pub(crate) fn work(&mut self, mut buf: VectoredIOHelperInstance) -> Result<(), WorkerState> {
 		// At high throughputs, we have more incoming messages than we can write out
 		// So we batch up big batches of writes to collapse into a single syscall
 		let msg = self.handle_recv(self.receiver.recv())?;
@@ -73,10 +70,9 @@ impl<T: Write + Send + 'static> Worker<T> {
 			}
 		}
 
-		let n = buf
+		buf
 			.flush(&mut self.writer)
 			.map_err(|_| WorkerState::Error)?;
-		self.writer.flush().map_err(|_| WorkerState::Error)?;
 		res
 	}
 
@@ -171,7 +167,9 @@ impl<'a> VectoredIOHelperInstance<'a> {
 		for (i, b) in self.bytes_buffer.iter().enumerate() {
 			iovs[i] = IoSlice::new(&b[..]);
 		}
-		write_all_vectored(io, &mut iovs)
+		let n = write_all_vectored(io, &mut iovs)?;
+		io.flush()?;
+		Ok(n)
 	}
 	pub fn push(&mut self, bytes: Vec<u8>) {
 		self.bytes_buffer.push(bytes);

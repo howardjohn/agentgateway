@@ -5,10 +5,6 @@ use std::sync::Arc;
 use std::task::{Context, Poll, ready};
 use std::time::{Instant, SystemTime};
 
-use crossbeam::atomic::AtomicCell;
-use http_body::{Body, Frame, SizeHint};
-use tracing::{event, log};
-
 use crate::telemetry::metrics::{HTTPLabels, Metrics};
 use crate::telemetry::trc;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
@@ -17,6 +13,10 @@ use crate::types::agent::{
 };
 use crate::types::discovery::NamespacedHostname;
 use crate::{cel, llm, mcp};
+use agent_core::telemetry::{debug, display};
+use crossbeam::atomic::AtomicCell;
+use http_body::{Body, Frame, SizeHint};
+use tracing::{event, log};
 
 /// AsyncLog is a wrapper around an item that can be atomically set.
 /// The intent is to provide additional info to the log after we have lost the RequestLog reference,
@@ -157,8 +157,48 @@ impl Drop for RequestLog {
 			.or_else(|| self.llm_request.as_ref().map(|req| req.input_tokens));
 
 		let mcp = self.mcp_status.take();
-		agent_core::telemetry::fast_log(&[]).unwrap();
-		return;
+		agent_core::telemetry::fast_log(&[
+			("gateway", self.gateway_name.as_ref().map(display)),
+			("listener", self.listener_name.as_ref().map(display)),
+			("route_rule", self.route_rule_name.as_ref().map(display)),
+			("route", self.route_name.as_ref().map(display)),
+
+			("endpoint", self.endpoint.as_ref().map(display)),
+
+			("src.addr", Some(display(&tcp_info.peer_addr))),
+
+			("http.method", self.method.as_ref().map(display)),
+			("http.host", self.host.as_ref().map(display)),
+			("http.path", self.path.as_ref().map(display)),
+			// TODO: incoming vs outgoing
+			("http.version", self.version.as_ref().map(debug)),
+			("http.status", self.status.as_ref().map(|s| s.as_u16().into())),
+			("grpc.status", grpc.map(Into::into)),
+
+			("trace.id", self.outgoing_span.as_ref().map(|id| id.trace_id()).as_ref().map(display)),
+			("span.id", self.outgoing_span.as_ref().map(|id| id.span_id()).as_ref().map(display)),
+
+			("jwt.sub", self.jwt_sub.as_ref().map(display)),
+
+			("a2a.method", self.a2a_method.as_ref().map(display)),
+
+			("mcp.target", mcp.as_ref().and_then(|m| m.target_name.as_ref()).map(display)),
+			("mcp.tool", mcp.as_ref().and_then(|m| m.tool_call_name.as_ref()).map(display)),
+
+			("inferencepool.selected_endpoint", self.inference_pool.as_ref().map(display)),
+
+			("llm.provider", self.llm_request.as_ref().map(|l| display(&l.provider))),
+			("llm.request.model", self.llm_request.as_ref().map(|l| display(&l.request_model))),
+			("llm.request.tokens", input_tokens.map(Into::into)),
+			("llm.response.model", llm_response.as_ref().and_then(|l| l.provider_model.clone()).as_ref().map(display)),
+			("llm.response.tokens", llm_response.as_ref().and_then(|l| l.output_tokens).map(Into::into)),
+
+			("retry.attempt", self.retry_attempt.as_ref().map(display)),
+			("error", self.error.as_ref().map(display)),
+
+			("duration", Some(dur.as_str().into())),
+		]);
+		// return;
 		//
 		event!(
 			target: "request",
