@@ -1,10 +1,8 @@
 use super::msg::Msg;
 use crossbeam_channel::{Receiver, RecvError, TryRecvError};
-use itertools::Itertools;
 use std::fmt::Debug;
-use std::fs::File;
-use std::io::{Error, IoSlice, Write};
-use std::{io, thread};
+use std::io::{IoSlice, Write};
+use std::thread;
 
 pub(crate) struct Worker<T: Write + Send + 'static> {
 	writer: T,
@@ -96,7 +94,7 @@ impl<T: Write + Send + 'static> Worker<T> {
 					}
 				}
 				if let Err(e) = self.writer.flush() {
-					eprintln!("Failed to flush. Error: {}", e);
+					eprintln!("Failed to flush. Error: {e}");
 				}
 			})
 			.expect("failed to spawn `tracing-appender` non-blocking worker thread")
@@ -133,7 +131,7 @@ fn write_all_vectored<T: Write>(
 
 const GROUP_SIZE: usize = 64;
 
-struct VectoredIOHelper {
+pub(crate) struct VectoredIOHelper {
 	bytes_buffer: Vec<Vec<u8>>,
 }
 
@@ -151,16 +149,13 @@ impl VectoredIOHelper {
 	}
 }
 
-struct VectoredIOHelperInstance<'a> {
+pub(crate)  struct VectoredIOHelperInstance<'a> {
 	bytes_buffer: &'a mut Vec<Vec<u8>>,
 }
 
 impl<'a> VectoredIOHelperInstance<'a> {
 	pub fn can_push(&mut self) -> bool {
 		self.bytes_buffer.len() < self.bytes_buffer.capacity()
-	}
-	pub fn len(&self) -> usize {
-		self.bytes_buffer.len()
 	}
 	pub fn flush<T: Write>(&mut self, io: &mut T) -> std::io::Result<usize> {
 		let mut iovs: [IoSlice; 64] = [IoSlice::new(&[]); GROUP_SIZE];

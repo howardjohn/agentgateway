@@ -1,11 +1,13 @@
 // Originally derived from https://github.com/istio/ztunnel (Apache 2.0 licensed)
-use std::fmt::{Display, Formatter, Write as FmtWrite};
+
+// We build our own Date cacher, as formatting the date string is ~50% of the cost of the log
 mod date;
+
+// We have a force of tracing_appender to support batching writes, which leads to massive throughput benefits
 mod msg;
 mod nonblocking;
 mod worker;
 
-use crate::strng::Strng;
 use itertools::Itertools;
 use nonblocking::NonBlocking;
 use once_cell::sync::{Lazy, OnceCell};
@@ -13,15 +15,14 @@ use serde::Serializer;
 use serde::ser::SerializeMap;
 use std::cell::RefCell;
 use std::fmt::Debug;
-use std::io::Write;
+use std::fmt::{Display, Write as FmtWrite};
 use std::str::FromStr;
 use std::time::Instant;
 use std::{env, fmt, io};
-use opentelemetry::time::now;
 use thiserror::Error;
 use tracing::{Event, Subscriber, error, field, info, warn};
 use tracing_core::Field;
-use tracing_core::field::{Value, Visit};
+use tracing_core::field::Visit;
 use tracing_core::span::Record;
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::field::RecordFields;
@@ -35,7 +36,22 @@ pub use value_bag::ValueBag;
 
 pub static APPLICATION_START_TIME: Lazy<Instant> = Lazy::new(Instant::now);
 static LOG_HANDLE: OnceCell<LogHandle> = OnceCell::new();
-static NON_BLOCKING: OnceCell<NonBlocking> = OnceCell::new();
+static NON_BLOCKING: OnceCell<(NonBlocking, bool)> = OnceCell::new();
+
+pub trait OptionExt<T>: Sized {
+	fn display(&self) -> Option<ValueBag>
+	where
+		T: Display;
+}
+
+impl<T: 'static> OptionExt<T> for Option<T> {
+	fn display(&self) -> Option<ValueBag>
+	where
+		T: Display,
+	{
+		self.as_ref().map(display)
+	}
+}
 
 pub fn display<T: Display + 'static>(value: &T) -> ValueBag {
 	ValueBag::capture_display(value)
@@ -45,8 +61,10 @@ pub fn debug<T: Debug + 'static>(value: &T) -> ValueBag {
 	ValueBag::capture_debug(value)
 }
 
-pub fn fast_log(kv: &[(&str, Option<ValueBag>)]) {
-	let Some(nb) = NON_BLOCKING.get() else {
+// log is like using tracing macros, but allows arbitrary k/v pairs. Tracing requires compile-time keys!
+// This does NOT respect tracing enable/log level; users can do that themselves before calling this function.
+pub fn log(level: &str, target: &str, kv: &[(&str, Option<ValueBag>)]) {
+	let Some((nb, json)) = NON_BLOCKING.get() else {
 		return;
 	};
 	thread_local! {
@@ -58,7 +76,7 @@ pub fn fast_log(kv: &[(&str, Option<ValueBag>)]) {
 		let borrow = buf.try_borrow_mut();
 		let mut a;
 		let mut b;
-		let mut buf = match borrow {
+		let buf = match borrow {
 			Ok(buf) => {
 				a = buf;
 				&mut *a
@@ -69,13 +87,30 @@ pub fn fast_log(kv: &[(&str, Option<ValueBag>)]) {
 			},
 		};
 
-		date::write(&mut buf);
-		write!(buf, "\tinfo\trequest")?;
-		for (k, v) in kv {
-			match v {
-				None => {}
-				Some(i) => {
-					write!(buf, " {}={}", k, i)?;
+		if *json {
+			let mut sx = serde_json::Serializer::new(StringWriteAdaptor::new(buf));
+			let mut s = sx.serialize_map(Some(kv.len() + 3))?;
+			s.serialize_entry("level", level)?;
+			s.serialize_entry("time", &date::build())?;
+			s.serialize_entry("scope", target)?;
+			for (k, v) in kv {
+				match v {
+					None => {},
+					Some(i) => {
+						s.serialize_entry(k, i)?;
+					},
+				}
+			}
+			s.end()?;
+		} else {
+			date::write(buf);
+			write!(buf, "\t{level}\t{target}")?;
+			for (k, v) in kv {
+				match v {
+					None => {},
+					Some(i) => {
+						write!(buf, " {k}={i}")?;
+					},
 				}
 			}
 		}
@@ -93,9 +128,10 @@ pub fn setup_logging() -> nonblocking::WorkerGuard {
 		.lossy(false)
 		.buffered_lines_limit(10000) // Buffer up to 10l lines to avoid blocking on logs
 		.finish(std::io::stdout());
-	let _ = NON_BLOCKING.set(non_blocking.clone());
+	let use_json = env::var("LOG_FORMAT").unwrap_or("plain".to_string()) == "json";
+	let _ = NON_BLOCKING.set((non_blocking.clone(), use_json));
 	tracing_subscriber::registry()
-		.with(fmt_layer(non_blocking))
+		.with(fmt_layer(non_blocking, use_json))
 		.init();
 	_guard
 }
@@ -116,8 +152,11 @@ fn plain_fmt(writer: NonBlocking) -> Box<dyn Layer<Registry> + Send + Sync + 'st
 	Box::new(format)
 }
 
-fn fmt_layer(writer: NonBlocking) -> Box<dyn Layer<Registry> + Send + Sync + 'static> {
-	let format = if env::var("LOG_FORMAT").unwrap_or("plain".to_string()) == "json" {
+fn fmt_layer(
+	writer: NonBlocking,
+	use_json: bool,
+) -> Box<dyn Layer<Registry> + Send + Sync + 'static> {
+	let format = if use_json {
 		json_fmt(writer)
 	} else {
 		plain_fmt(writer)
@@ -380,6 +419,27 @@ impl io::Write for WriteAdaptor<'_> {
 		Ok(())
 	}
 }
+pub struct StringWriteAdaptor<'a> {
+	s: &'a mut String,
+}
+impl<'a> StringWriteAdaptor<'a> {
+	pub fn new(s: &'a mut String) -> Self {
+		Self { s }
+	}
+}
+impl io::Write for StringWriteAdaptor<'_> {
+	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+		let s = std::str::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+		self.s.push_str(s);
+
+		Ok(s.len())
+	}
+
+	fn flush(&mut self) -> io::Result<()> {
+		Ok(())
+	}
+}
 impl<S, N> FormatEvent<S, N> for IstioJsonFormat
 where
 	S: Subscriber + for<'lookup> LookupSpan<'lookup>,
@@ -527,7 +587,7 @@ pub mod testing {
 			.fmt_fields(IstioJsonFormat())
 			.with_writer(mock_writer);
 		tracing_subscriber::registry()
-			.with(fmt_layer(non_blocking))
+			.with(fmt_layer(non_blocking, true))
 			.with(layer)
 			.init();
 	}

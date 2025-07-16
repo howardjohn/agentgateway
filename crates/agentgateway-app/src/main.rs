@@ -1,13 +1,12 @@
 // Originally derived from https://github.com/istio/ztunnel (Apache 2.0 licensed)
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use agent_core::{telemetry, version};
 use agentgateway::{Config, client, serdes};
 use clap::Parser;
-use tracing::{info, log};
+use tracing::info;
 
 lazy_static::lazy_static! {
 	// The memory is intentionally leaked here using Box::leak to achieve a 'static lifetime

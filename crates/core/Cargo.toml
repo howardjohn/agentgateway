@@ -32,10 +32,8 @@ tracing-core.workspace = true
 tracing-log.workspace = true
 tracing-subscriber.workspace = true
 crossbeam-channel = "0.5.15"
-time = "0.3.41"
 itoa = "1.0.15"
-log = { version = "0.4.27", features = ["kv"] }
-value-bag = "1.11.1"
+value-bag = { version = "1.11.1", features = ["value-bag-serde1"] }
 
 [build-dependencies]
 rustc_version.workspace = true
