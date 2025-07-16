@@ -34,21 +34,6 @@ pub struct TCPProxy {
 impl TCPProxy {
 	pub async fn proxy(&self, connection: Socket) {
 		let mut log: RequestLog = Default::default();
-		self
-			.inputs
-			.metrics
-			.downstream_connection
-			.get_or_create(&TCPLabels {
-				bind: Some(&self.bind_name).into(),
-				gateway: Some(&self.selected_listener.gateway_name).into(),
-				listener: Some(&self.selected_listener.name).into(),
-				protocol: if log.tls_info.is_some() {
-					BindProtocol::tls
-				} else {
-					BindProtocol::tcp
-				},
-			})
-			.inc();
 		let ret = self.proxy_internal(connection, &mut log).await;
 		if let Err(e) = ret {
 			log.error = Some(e.to_string());
