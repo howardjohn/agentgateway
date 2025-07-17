@@ -53,6 +53,7 @@ use crate::http::{
 use crate::llm::{LLMRequest, LLMResponse, RequestResult};
 use crate::proxy::ProxyError;
 use crate::store::{BackendPolicies, Event, LLMRoutePolicies};
+use crate::telemetry::log;
 use crate::telemetry::log::{AsyncLog, LogBody, RequestLog};
 use crate::telemetry::metrics::TCPLabels;
 use crate::telemetry::trc::TraceParent;
@@ -250,8 +251,8 @@ impl HTTPProxy {
 		// Pass the log into the body so it finishes once the stream is entirely complete.
 		// We will also record trailer info there.
 		log.status = Some(resp.status());
-		if let Some(f) = log.filter.as_mut() {
-			f.with_response(&resp);
+		if let Some(f) = log.cel.as_mut() {
+			f.ctx().with_response(&resp);
 		}
 
 		resp.map(move |b| http::Body::new(LogBody::new(b, log)))
@@ -267,14 +268,7 @@ impl HTTPProxy {
 		connection.copy::<TCPConnectionInfo>(req.extensions_mut());
 		connection.copy::<TLSConnectionInfo>(req.extensions_mut());
 		log.start = Some(start);
-		log.filter = self
-			.inputs
-			.cfg
-			.logging
-			.filter
-			.clone()
-			.map(cel::ExpressionCall::from_expression);
-		log.fields = Some(self.inputs.cfg.logging.fields.clone());
+		log.cel = Some(log::CelLogging::new(self.inputs.cfg.logging.clone()));
 		log.tcp_info = Some(tcp.clone());
 		log.tls_info = connection.get::<TLSConnectionInfo>().cloned();
 		log.metrics = Some(self.inputs.metrics.clone());
@@ -339,8 +333,8 @@ impl HTTPProxy {
 		log.method = Some(req.method().clone());
 		log.path = Some(req.uri().path().to_string());
 		log.version = Some(req.version());
-		if let Some(f) = log.filter.as_mut() {
-			f.with_request(&req);
+		if let Some(f) = log.cel.as_mut() {
+			f.ctx().with_request(&req);
 		}
 
 		let selected_listener = selected_listener

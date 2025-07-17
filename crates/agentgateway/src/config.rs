@@ -195,6 +195,7 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 				.map(|f| cel::Expression::new(f))
 				.transpose()?
 				.map(Arc::new),
+			root_context: Arc::new(cel_interpreter::Context::default()),
 			fields: Arc::new(
 				raw
 					.logging

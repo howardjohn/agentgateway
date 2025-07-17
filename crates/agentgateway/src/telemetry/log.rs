@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll, ready};
 use std::time::{Instant, SystemTime};
 
+use crate::cel::{ContextBuilder, Expression};
 use crate::telemetry::metrics::{HTTPLabels, Metrics};
 use crate::telemetry::trc;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
@@ -16,7 +17,9 @@ use crate::types::discovery::NamespacedHostname;
 use crate::{cel, llm, mcp};
 use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
 use crossbeam::atomic::AtomicCell;
+use frozen_collections::{FzHashSet, FzOrderedMap};
 use http_body::{Body, Frame, SizeHint};
+use serde_json::Value;
 use tracing::{Level, event, log};
 
 /// AsyncLog is a wrapper around an item that can be atomically set.
@@ -66,16 +69,27 @@ impl<T: Debug> Debug for AsyncLog<T> {
 	}
 }
 
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(serde::Serialize, Clone)]
 pub struct Config {
 	pub filter: Option<Arc<cel::Expression>>,
 	pub fields: Arc<LoggingFields>,
+	#[serde(skip)]
+	pub root_context: Arc<cel_interpreter::Context<'static>>,
+}
+
+impl Debug for Config {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Config")
+			.field("filter", &self.filter)
+			.field("fields", &self.fields)
+			.finish()
+	}
 }
 
 #[derive(serde::Serialize, Default, Clone, Debug)]
 pub struct LoggingFields {
-	pub remove: HashSet<String>,
-	pub add: BTreeMap<String, Arc<cel::Expression>>,
+	pub remove: FzHashSet<String>,
+	pub add: FzOrderedMap<String, Arc<cel::Expression>>,
 }
 
 impl LoggingFields {
@@ -84,10 +98,80 @@ impl LoggingFields {
 	}
 }
 
+#[derive(Debug)]
+pub struct CelLogging {
+	pub cel_context: cel::ContextBuilder,
+	pub filter: Option<Arc<cel::Expression>>,
+	pub fields: Arc<LoggingFields>,
+}
+
+pub struct CelLoggingExecutor<'a> {
+	pub executor: cel::Executor<'a>,
+	pub filter: &'a Option<Arc<cel::Expression>>,
+	pub fields: &'a Arc<LoggingFields>,
+}
+
+impl<'a> CelLoggingExecutor<'a> {
+	fn eval_filter(&self) -> bool {
+		match self.filter.as_deref() {
+			Some(f) => self.executor.eval_bool(f),
+			None => true,
+		}
+	}
+
+	fn eval_additions<'b>(&'b self) -> Vec<(&'b String, Option<Value>)> {
+		let mut raws = Vec::with_capacity(self.fields.add.len());
+		for (k, v) in &self.fields.add {
+			let celv = self
+				.executor
+				.eval(v.as_ref())
+				.ok()
+				.and_then(|v| v.json().ok());
+
+			raws.push((k, celv));
+		}
+		raws
+	}
+}
+
+impl CelLogging {
+	pub fn new(cfg: Config) -> Self {
+		let mut cel_context = cel::ContextBuilder::new(cfg.root_context.clone());
+		if let Some(f) = &cfg.filter {
+			cel_context.register_expression(f.as_ref());
+		}
+		for v in cfg.fields.add.values() {
+			cel_context.register_expression(v.as_ref());
+		}
+		Self {
+			cel_context,
+			filter: cfg.filter,
+			fields: cfg.fields,
+		}
+	}
+
+	pub fn ctx(&mut self) -> &mut ContextBuilder {
+		&mut self.cel_context
+	}
+
+	pub fn build(&self) -> Result<CelLoggingExecutor, cel::Error> {
+		let CelLogging {
+			cel_context,
+			filter,
+			fields,
+		} = self;
+		let executor = cel_context.build()?;
+		Ok(CelLoggingExecutor {
+			executor,
+			filter,
+			fields,
+		})
+	}
+}
+
 #[derive(Default, Debug)]
 pub struct RequestLog {
-	pub filter: Option<cel::ExpressionCall>,
-	pub fields: Option<Arc<LoggingFields>>,
+	pub cel: Option<CelLogging>,
 
 	pub tracer: Option<trc::Tracer>,
 	pub metrics: Option<Arc<Metrics>>,
@@ -152,11 +236,15 @@ impl Drop for RequestLog {
 		if !tracing::enabled!(target: "request", Level::INFO) {
 			return;
 		}
-		if let Some(filter) = &self.filter {
-			if !filter.eval_bool() {
-				return;
-			}
+		let cel = self.cel.take().unwrap();
+		let Ok(cel_exec) = cel.build() else {
+			tracing::warn!("failed to build CEL context");
+			return;
+		};
+		if !cel_exec.eval_filter() {
+			return;
 		}
+
 		let tcp_info = self.tcp_info.as_ref().expect("tODO");
 
 		let dur = format!("{}ms", self.start.unwrap().elapsed().as_millis());
@@ -179,7 +267,7 @@ impl Drop for RequestLog {
 		let trace_id = self.outgoing_span.as_ref().map(|id| id.trace_id());
 		let span_id = self.outgoing_span.as_ref().map(|id| id.span_id());
 
-		let fields = self.fields.take().unwrap_or_default();
+		let fields = cel_exec.fields.as_ref();
 
 		macro_rules! log {
 			($key:expr, $value:expr$(,)?) => {
@@ -256,14 +344,7 @@ impl Drop for RequestLog {
 
 		// To avoid lifetime issues need to store the expression before we give it to ValueBag reference.
 		// TODO: we could allow log() to take a list of borrows and then a list of OwnedValueBag
-		let mut raws = Vec::with_capacity(fields.add.len());
-		for (k, v) in &fields.add {
-			let celv = cel::ExpressionCall::from_expression(v.clone())
-				.eval()
-				.ok()
-				.and_then(|v| v.json().ok());
-			raws.push((k, celv));
-		}
+		let raws = cel_exec.eval_additions();
 		for (k, v) in &raws {
 			// TODO: convert directly instead of via json()
 			let eval = v.as_ref().map(|v| ValueBag::capture_serde1(v));

@@ -127,6 +127,7 @@ dependencies = [
  "crossbeam",
  "divan",
  "duration-str",
+ "frozen-collections",
  "fs-err",
  "futures",
  "futures-core",
@@ -1877,6 +1878,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "frozen-collections"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f80d04e59be9d42b94254781a2b7d6788783d1ffc792e5074f5f112768c316ac"
+dependencies = [
+ "foldhash",
+ "frozen-collections-core",
+ "frozen-collections-macros",
+ "rand 0.9.1",
+ "rand_chacha 0.9.0",
+]
+
+[[package]]
+name = "frozen-collections-core"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5646a7f1d16f60a7c564288fcac261dde8865d3fe5864b1dec56778156109064"
+dependencies = [
+ "const-random",
+ "equivalent",
+ "foldhash",
+ "hashbrown 0.15.4",
+ "mutants",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn",
+]
+
+[[package]]
+name = "frozen-collections-macros"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "345d441eeaea2aa2bfec6f14c5f4b00de249bb3636cc7eb8b4aa937488c84272"
+dependencies = [
+ "frozen-collections-core",
+ "proc-macro-error2",
+]
+
+[[package]]
 name = "fs-err"
 version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3171,6 +3212,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
 
 [[package]]
+name = "mutants"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc0287524726960e07b119cebd01678f852f147742ae0d925e6a520dca956126"
+
+[[package]]
 name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3871,6 +3918,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "061c1221631e079b26479d25bbf2275bfe5917ae8419cd7e34f13bfc2aa7539a"
 dependencies = [
  "proc-macro2",
+ "syn",
+]
+
+[[package]]
+name = "proc-macro-error-attr2"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96de42df36bb9bba5542fe9f1a054b8cc87e172759a1868aa05c1f3acc89dfc5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+]
+
+[[package]]
+name = "proc-macro-error2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11ec05c52be0a07b08061f7dd003e7d7092e0472bc731b4af7bb1ef876109802"
+dependencies = [
+ "proc-macro-error-attr2",
+ "proc-macro2",
+ "quote",
  "syn",
 ]
 

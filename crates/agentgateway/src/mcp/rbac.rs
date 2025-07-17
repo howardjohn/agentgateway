@@ -115,13 +115,19 @@ impl RuleSet {
 			return Ok(true);
 		}
 
+		// TODO: reuse one context
+		// TODO: use the one from the HTTP context, so we can get the HTTP attributes.
+		let mut ctx = cel::ContextBuilder::new(Arc::new(cel_interpreter::Context::default()));
 		for rule in &self.rules.0 {
-			let mut exp = cel::ExpressionCall::from_expression(rule.clone());
-			if let Some(claims) = claims.claims.as_ref() {
-				exp.with_jwt(claims)
-			}
-			exp.with_mcp(resource);
-			if exp.eval_bool() {
+			ctx.register_expression(rule.as_ref());
+		}
+		if let Some(claims) = claims.claims.as_ref() {
+			ctx.with_jwt(claims)
+		}
+		ctx.with_mcp(resource);
+		let exec = ctx.build()?;
+		for rule in &self.rules.0 {
+			if exec.eval_bool(rule.as_ref()) {
 				return Ok(true);
 			}
 		}

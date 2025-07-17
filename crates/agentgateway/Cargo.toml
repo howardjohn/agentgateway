@@ -116,6 +116,7 @@ cel-parser.workspace = true
 cel-interpreter = { workspace = true, features = ["json", "regex", "chrono"] }
 tikv-jemallocator = {workspace = true, optional = true}
 jemalloc_pprof = {workspace = true, optional = true}
+frozen-collections = "0.8.0"
 [build-dependencies]
 anyhow.workspace = true
 prost-build.workspace = true

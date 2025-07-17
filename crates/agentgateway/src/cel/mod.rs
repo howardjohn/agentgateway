@@ -3,6 +3,7 @@
 
 use crate::http::jwt::Claims;
 use crate::serdes::*;
+use crate::telemetry::log::CelLogging;
 use axum_core::body::Body;
 use bytes::Bytes;
 use cel_interpreter::extractors::{Arguments, This};
@@ -40,7 +41,6 @@ pub struct Expression {
 	attributes: HashSet<String>,
 	expression: CelExpression,
 	original_expression: String,
-	root_context: Context<'static>,
 }
 
 impl Serialize for Expression {
@@ -60,6 +60,101 @@ impl Debug for Expression {
 	}
 }
 
+pub struct ContextBuilder {
+	attributes: HashSet<String>,
+	context: ExpressionContext,
+	root_context: Arc<Context<'static>>,
+}
+
+impl Debug for ContextBuilder {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("ContextBuilder").finish()
+	}
+}
+
+impl ContextBuilder {
+	pub fn new(root_context: Arc<Context<'static>>) -> Self {
+		Self {
+			attributes: Default::default(),
+			context: Default::default(),
+			root_context,
+		}
+	}
+	/// register_expression registers the given expressions attributes as required attributes.
+	/// Callers MUST call this for each expression they wish to call with the context if they want correct results.
+	pub fn register_expression(&mut self, expression: &Expression) {
+		self
+			.attributes
+			.extend(expression.attributes.iter().cloned());
+	}
+	pub fn with_request(&mut self, req: &crate::http::Request) {
+		if !self.attributes.contains(REQUEST_ATTRIBUTE) {
+			return;
+		}
+		self.context.request = Some(RequestContext {
+			method: req.method().clone(),
+			// TODO: split headers and the rest?
+			headers: req.headers().clone(),
+			uri: req.uri().clone(),
+		})
+	}
+	pub fn with_response(&mut self, resp: &crate::http::Response) {
+		if !self.attributes.contains(RESPONSE_ATTRIBUTE) {
+			return;
+		}
+		self.context.response = Some(ResponseContext {
+			code: resp.status(),
+		})
+	}
+
+	pub fn with_jwt(&mut self, info: &Claims) {
+		if !self.attributes.contains(JWT_ATTRIBUTE) {
+			return;
+		}
+		self.context.jwt = Some(info.clone())
+	}
+
+	pub fn with_mcp(&mut self, info: &crate::mcp::rbac::ResourceType) {
+		if !self.attributes.contains(MCP_ATTRIBUTE) {
+			return;
+		}
+		self.context.mcp = Some(info.clone())
+	}
+
+	pub fn build(&self) -> Result<Executor, Error> {
+		let mut ctx = self.root_context.new_inner_scope();
+
+		let ExpressionContext {
+			request,
+			response,
+			jwt,
+			mcp,
+		} = &self.context;
+
+		ctx.add_variable_from_value("request", opt_to_value(request)?);
+		ctx.add_variable_from_value("response", opt_to_value(response)?);
+		ctx.add_variable_from_value("jwt", opt_to_value(jwt)?);
+		ctx.add_variable_from_value("mcp", opt_to_value(mcp)?);
+
+		Ok(Executor { ctx })
+	}
+}
+
+impl Executor<'_> {
+	pub fn eval(&self, expr: &Expression) -> Result<Value, Error> {
+		Ok(Value::resolve(&expr.expression, &self.ctx)?)
+	}
+	pub fn eval_bool(&self, expr: &Expression) -> bool {
+		match self.eval(expr) {
+			Ok(Value::Bool(b)) => b,
+			_ => false,
+		}
+	}
+}
+
+pub struct Executor<'a> {
+	ctx: Context<'a>,
+}
 pub struct ExpressionCall {
 	expression: Arc<Expression>,
 	context: ExpressionContext,
@@ -120,15 +215,15 @@ impl ExpressionCall {
 		self.context.mcp = Some(info.clone())
 	}
 
-	pub fn eval(&self) -> Result<Value, Error> {
-		self.expression.eval(&self.context)
-	}
-	pub fn eval_bool(&self) -> bool {
-		match self.expression.eval(&self.context) {
-			Ok(Value::Bool(b)) => b,
-			_ => false,
-		}
-	}
+	// pub fn eval(&self) -> Result<Value, Error> {
+	// 	self.expression.eval(&self.context)
+	// }
+	// pub fn eval_bool(&self) -> bool {
+	// 	match self.expression.eval(&self.context) {
+	// 		Ok(Value::Bool(b)) => b,
+	// 		_ => false,
+	// 	}
+	// }
 }
 
 impl Expression {
@@ -149,26 +244,7 @@ impl Expression {
 			attributes,
 			expression,
 			original_expression,
-			root_context: Context::default(),
 		})
-	}
-
-	fn eval(&self, ec: &ExpressionContext) -> Result<Value, Error> {
-		let mut ctx = self.root_context.new_inner_scope();
-
-		let ExpressionContext {
-			request,
-			response,
-			jwt,
-			mcp,
-		} = ec;
-
-		ctx.add_variable_from_value("request", opt_to_value(request)?);
-		ctx.add_variable_from_value("response", opt_to_value(response)?);
-		ctx.add_variable_from_value("jwt", opt_to_value(jwt)?);
-		ctx.add_variable_from_value("mcp", opt_to_value(mcp)?);
-
-		Ok(Value::resolve(&self.expression, &ctx)?)
 	}
 }
 
