@@ -425,27 +425,29 @@ pub mod tests {
 		.bench_refs(|r| {
 			let mut cb = ContextBuilder::new(ctx.clone());
 			cb.register_expression(&expr);
-			cb.with_response(&r);
+			cb.with_response(r);
 			let exec = cb.build()?;
 			exec.eval(&expr)
 		});
 	}
 
-	// #[divan::bench]
-	// fn bench(b: Bencher) {
-	// 	let expr = Arc::new(Expression::new(r#"1 + 2 == 3"#).unwrap());
-	// 	b.with_inputs(|| {
-	// 		::http::Request::builder()
-	// 			.method(Method::GET)
-	// 			.uri("http://example.com")
-	// 			.header("x-example", "value")
-	// 			.body(Body::empty())
-	// 			.unwrap()
-	// 	})
-	// 	.bench_refs(|r| {
-	// 		let mut ec = ExpressionCall::from_expression(expr.clone());
-	// 		ec.with_request(r);
-	// 		ec.eval().unwrap();
-	// 	});
-	// }
+	#[divan::bench]
+	fn bench(b: Bencher) {
+		let expr = Arc::new(Expression::new(r#"1 + 2 == 3"#).unwrap());
+		let ctx = root_context();
+		b.with_inputs(|| {
+			::http::Response::builder()
+				.status(200)
+				.header("x-example", "value")
+				.body(Body::empty())
+				.unwrap()
+		})
+		.bench_refs(|r| {
+			let mut cb = ContextBuilder::new(ctx.clone());
+			cb.register_expression(&expr);
+			cb.with_response(r);
+			let exec = cb.build()?;
+			exec.eval(&expr)
+		});
+	}
 }
