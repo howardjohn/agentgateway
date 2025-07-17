@@ -3,8 +3,7 @@ use anyhow::{Context as _, Error};
 
 use lazy_static::lazy_static;
 
-use crate::cel::Executor;
-use crate::mcp::sse::CelContextBuilder;
+use crate::cel::{ContextBuilder, Executor};
 use crate::*;
 use secrecy::SecretString;
 use serde::ser::SerializeSeq;
@@ -78,17 +77,19 @@ impl From<Vec<RuleSet>> for RuleSets {
 }
 
 impl RuleSets {
-	pub fn validate(&self, resource: &ResourceType, cel: CelContextBuilder) -> bool {
+	pub fn register(&self, ctx: &mut ContextBuilder) {
+		for rule_set in &self.0 {
+			for rule in &rule_set.rules.0 {
+				ctx.register_expression(rule.as_ref());
+			}
+		}
+	}
+	pub fn validate(&self, resource: &ResourceType, cel: &ContextBuilder) -> bool {
 		// If there are no rule sets, everyone has access
 		if self.0.is_empty() {
 			return true;
 		}
-		let Ok(exec) = cel
-			.0
-			.lock()
-			.expect("mutex poisoned")
-			.build_with_mcp(Some(resource))
-		else {
+		let Ok(exec) = cel.build_with_mcp(Some(resource)) else {
 			return false;
 		};
 		self
@@ -124,7 +125,7 @@ impl RuleSet {
 			return Ok(true);
 		}
 
-		let mut ctx = cel::ContextBuilder::new(cel::root_context());
+		let mut ctx = cel::ContextBuilder::new();
 		for rule in &self.rules.0 {
 			if exec.eval_bool(rule.as_ref()) {
 				return Ok(true);

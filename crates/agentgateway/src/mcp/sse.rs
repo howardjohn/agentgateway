@@ -4,6 +4,8 @@ use std::ops::IndexMut;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::cel::ContextBuilder;
+use crate::http::jwt::Claims;
 use crate::http::*;
 use crate::json::{from_body, to_body};
 use crate::llm::LLMRequest;
@@ -57,7 +59,6 @@ use tokio_util::sync::CancellationToken;
 use tower::ServiceExt;
 use tracing::warn;
 use url::form_urlencoded;
-use crate::cel::ContextBuilder;
 
 type SseTxs =
 	Arc<std::sync::RwLock<HashMap<SessionId, tokio::sync::mpsc::Sender<ClientJsonRpcMessage>>>>;
@@ -67,9 +68,6 @@ pub struct MCPInfo {
 	pub tool_call_name: Option<String>,
 	pub target_name: Option<String>,
 }
-
-#[derive(Debug, Clone)]
-pub struct CelContextBuilder(pub Arc<Mutex<ContextBuilder>>);
 
 #[derive(Debug, Clone)]
 pub struct App {
@@ -106,7 +104,6 @@ impl App {
 		backends: McpBackend,
 		mut req: Request,
 		log: AsyncLog<MCPInfo>,
-		ctx: Arc<Mutex<ContextBuilder>>,
 	) -> Response {
 		let (backends, authorization_policies, authn) = {
 			let binds = self.state.read_binds();
@@ -136,11 +133,26 @@ impl App {
 		let metrics = self.metrics.clone();
 		let sm = self.session.clone();
 		let client = self.client.clone();
+
 		// Store an empty value, we will populate each field async
 		log.store(Some(MCPInfo::default()));
 		req.extensions_mut().insert(log);
-		// ContextBuilder
-		req.extensions_mut().insert(CelContextBuilder(ctx));
+
+		let mut ctx = ContextBuilder::new();
+		authorization_policies.register(&mut ctx);
+		let needs_body = ctx.with_request(&req);
+		if needs_body {
+			if let Ok(body) = crate::http::inspect_body(req.body_mut()).await {
+				ctx.with_request_body(body);
+			}
+		}
+		if let Some(jwt) = req.extensions().get::<Claims>() {
+			ctx.with_jwt(jwt);
+		}
+		// `response` is not valid here, since we run authz first
+		// MCP context is added later
+		req.extensions_mut().insert(Arc::new(ctx));
+
 		match (req.uri().path(), req.method(), authn) {
 			("/sse", m, _) if m == Method::GET => Self::sse_get_handler(
 				self.sse_txs.clone(),

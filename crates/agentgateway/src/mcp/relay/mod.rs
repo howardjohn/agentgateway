@@ -1,3 +1,14 @@
+use crate::cel::ContextBuilder;
+use crate::client;
+use crate::http::jwt::Claims;
+use crate::mcp::rbac;
+use crate::mcp::rbac::{Identity, RuleSets};
+use crate::mcp::sse::{MCPInfo, McpBackendGroup};
+use crate::store::Stores;
+use crate::telemetry::log::AsyncLog;
+use crate::telemetry::trc::TraceParent;
+use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
+use crate::types::agent::{McpAuthorization, McpBackend};
 use agent_core::metrics::Recorder;
 use agent_core::prelude::Strng;
 use agent_core::trcng;
@@ -22,17 +33,6 @@ use std::time::Duration;
 use tokio::process::Command;
 use tokio::sync::RwLock;
 use tracing::instrument;
-
-use crate::client;
-use crate::http::jwt::Claims;
-use crate::mcp::rbac;
-use crate::mcp::rbac::{Identity, RuleSets};
-use crate::mcp::sse::{CelContextBuilder, MCPInfo, McpBackendGroup};
-use crate::store::Stores;
-use crate::telemetry::log::AsyncLog;
-use crate::telemetry::trc::TraceParent;
-use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
-use crate::types::agent::{McpAuthorization, McpBackend};
 
 pub mod metrics;
 mod pool;
@@ -122,11 +122,11 @@ impl Relay {
 	fn setup_request_log(
 		ext: &model::Extensions,
 		span_name: &str,
-	) -> Result<(BoxedSpan, RqCtx, AsyncLog<MCPInfo>, CelContextBuilder), McpError> {
+	) -> Result<(BoxedSpan, RqCtx, AsyncLog<MCPInfo>, Arc<ContextBuilder>), McpError> {
 		let Some(http) = ext.get::<Parts>() else {
 			return Err(McpError::internal_error(
 				"failed to extract parts".to_string(),
-        None,
+				None,
 			));
 		};
 		let otelc = trcng::extract_context_from_request(&http.headers);
@@ -156,7 +156,7 @@ impl Relay {
 
 		let cel = http
 			.extensions
-			.get::<CelContextBuilder>()
+			.get::<Arc<ContextBuilder>>()
 			.cloned()
 			.expect("CelContextBuilder must be set");
 
@@ -374,7 +374,8 @@ impl ServerHandler for Relay {
 		request: ReadResourceRequestParam,
 		context: RequestContext<RoleServer>,
 	) -> std::result::Result<ReadResourceResult, McpError> {
-		let (_span, ref rq_ctx, _, cel) = Self::setup_request_log(&context.extensions, "read_resource")?;
+		let (_span, ref rq_ctx, _, cel) =
+			Self::setup_request_log(&context.extensions, "read_resource")?;
 
 		let uri = request.uri.to_string();
 		let (service_name, resource) = self.parse_resource_name(&uri)?;
@@ -383,7 +384,7 @@ impl ServerHandler for Relay {
 				service_name.to_string(),
 				resource.to_string(),
 			)),
-			cel,
+			cel.as_ref(),
 		) {
 			return Err(McpError::invalid_request("not allowed", None));
 		}
@@ -432,7 +433,7 @@ impl ServerHandler for Relay {
 				service_name.to_string(),
 				prompt.to_string(),
 			)),
-			cel,
+			cel.as_ref(),
 		) {
 			return Err(McpError::invalid_request("not allowed", None));
 		}
@@ -487,7 +488,7 @@ impl ServerHandler for Relay {
 										_name.to_string(),
 										t.name.to_string(),
 									)),
-									cel.clone(),
+									cel.as_ref(),
 								)
 							})
 							.map(|t| Tool {
@@ -546,7 +547,7 @@ impl ServerHandler for Relay {
 				service_name.to_string(),
 				tool.to_string(),
 			)),
-			cel.clone(),
+			cel.as_ref(),
 		) {
 			return Err(McpError::invalid_request("not allowed", None));
 		}

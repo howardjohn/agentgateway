@@ -64,7 +64,7 @@ impl Debug for Expression {
 	}
 }
 
-pub fn root_context() -> Arc<Context<'static>> {
+fn root_context() -> Arc<Context<'static>> {
 	let mut ctx = Context::default();
 	ctx.add_function("json", fns::json_parse);
 	Arc::new(ctx)
@@ -75,7 +75,6 @@ static ROOT_CONTEXT: Lazy<Arc<Context<'static>>> = Lazy::new(|| Arc::new(Context
 pub struct ContextBuilder {
 	attributes: HashSet<String>,
 	context: ExpressionContext,
-	// root_context: Arc<Context<'static>>,
 }
 
 impl Debug for ContextBuilder {
@@ -85,11 +84,10 @@ impl Debug for ContextBuilder {
 }
 
 impl ContextBuilder {
-	pub fn new(root_context: Arc<Context<'static>>) -> Self {
+	pub fn new() -> Self {
 		Self {
 			attributes: Default::default(),
 			context: Default::default(),
-			// root_context,
 		}
 	}
 	/// register_expression registers the given expressions attributes as required attributes.
@@ -105,7 +103,7 @@ impl ContextBuilder {
 		};
 		r.body = Some(body);
 	}
-	pub fn with_request(&mut self, req: &mut crate::http::Request) -> bool {
+	pub fn with_request(&mut self, req: &crate::http::Request) -> bool {
 		if !self.attributes.contains(REQUEST_ATTRIBUTE) {
 			return false;
 		}
@@ -164,7 +162,7 @@ impl Executor<'_> {
 		Ok(Value::resolve(&expr.expression, &self.ctx)?)
 	}
 	pub fn eval_bool(&self, expr: &Expression) -> bool {
-		match dbg!(self.eval(expr)) {
+		match self.eval(expr) {
 			Ok(Value::Bool(b)) => b,
 			_ => false,
 		}
@@ -389,12 +387,11 @@ pub mod tests {
 	use divan::Bencher;
 	use http::Method;
 	use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-	fn simple(expr: &str, mut req: crate::http::Request) -> Result<Value, Error> {
-		let ctx = root_context();
-		let mut cb = ContextBuilder::new(ctx);
+	fn simple(expr: &str, req: crate::http::Request) -> Result<Value, Error> {
+		let mut cb = ContextBuilder::new();
 		let exp = Expression::new(expr)?;
 		cb.register_expression(&exp);
-		cb.with_request(&mut req);
+		cb.with_request(&req);
 		let exec = cb.build()?;
 		exec.eval(&exp)
 	}

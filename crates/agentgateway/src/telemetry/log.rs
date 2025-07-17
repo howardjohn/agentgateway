@@ -69,21 +69,10 @@ impl<T: Debug> Debug for AsyncLog<T> {
 	}
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize, Debug, Clone)]
 pub struct Config {
 	pub filter: Option<Arc<cel::Expression>>,
 	pub fields: Arc<LoggingFields>,
-	#[serde(skip)]
-	pub root_context: Arc<cel_interpreter::Context<'static>>,
-}
-
-impl Debug for Config {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("Config")
-			.field("filter", &self.filter)
-			.field("fields", &self.fields)
-			.finish()
-	}
 }
 
 #[derive(serde::Serialize, Default, Clone, Debug)]
@@ -100,7 +89,7 @@ impl LoggingFields {
 
 #[derive(Debug)]
 pub struct CelLogging {
-	pub cel_context: Arc<Mutex<cel::ContextBuilder>>,
+	pub cel_context: cel::ContextBuilder,
 	pub filter: Option<Arc<cel::Expression>>,
 	pub fields: Arc<LoggingFields>,
 }
@@ -137,7 +126,7 @@ impl<'a> CelLoggingExecutor<'a> {
 
 impl CelLogging {
 	pub fn new(cfg: Config) -> Self {
-		let mut cel_context = cel::ContextBuilder::new(cfg.root_context.clone());
+		let mut cel_context = cel::ContextBuilder::new();
 		if let Some(f) = &cfg.filter {
 			cel_context.register_expression(f.as_ref());
 		}
@@ -145,18 +134,14 @@ impl CelLogging {
 			cel_context.register_expression(v.as_ref());
 		}
 		Self {
-			cel_context: Arc::new(Mutex::new(cel_context)),
+			cel_context,
 			filter: cfg.filter,
 			fields: cfg.fields,
 		}
 	}
 
-	pub fn ctx_copy(&self) -> Arc<Mutex<ContextBuilder>> {
-		self.cel_context.clone()
-	}
-
-	pub fn ctx(&mut self) -> MutexGuard<'_, ContextBuilder> {
-		self.cel_context.lock().expect("mutex poisoned")
+	pub fn ctx(&mut self) -> &mut ContextBuilder {
+		&mut self.cel_context
 	}
 
 	pub fn build(&self) -> Result<CelLoggingExecutor, cel::Error> {
@@ -165,8 +150,7 @@ impl CelLogging {
 			filter,
 			fields,
 		} = self;
-		let ctx = cel_context.lock().expect("mutex poisoned");
-		let executor = ctx.build()?;
+		let executor = cel_context.build()?;
 		Ok(CelLoggingExecutor {
 			executor,
 			filter,
