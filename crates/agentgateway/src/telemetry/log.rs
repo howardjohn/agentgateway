@@ -119,13 +119,14 @@ impl<'a> CelLoggingExecutor<'a> {
 		}
 	}
 
-	fn eval_additions<'b>(&'b self) -> Vec<(&'b String, Option<Value>)> {
+	fn eval_additions(&self) -> Vec<(&String, Option<Value>)> {
 		let mut raws = Vec::with_capacity(self.fields.add.len());
 		for (k, v) in &self.fields.add {
 			let celv = self
 				.executor
 				.eval(v.as_ref())
 				.ok()
+				.filter(|v| !matches!(v, cel_interpreter::Value::Null))
 				.and_then(|v| v.json().ok());
 
 			raws.push((k, celv));
@@ -347,7 +348,7 @@ impl Drop for RequestLog {
 		let raws = cel_exec.eval_additions();
 		for (k, v) in &raws {
 			// TODO: convert directly instead of via json()
-			let eval = v.as_ref().map(|v| ValueBag::capture_serde1(v));
+			let eval = v.as_ref().map(ValueBag::capture_serde1);
 			kv.push((k, eval));
 		}
 

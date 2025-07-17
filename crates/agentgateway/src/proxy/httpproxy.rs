@@ -328,17 +328,17 @@ impl HTTPProxy {
 			log.outgoing_span = Some(ns);
 		}
 
-		let host = http::get_host(&req)?;
-		log.host = Some(host.to_string());
+		let host = http::get_host(&req)?.to_string();
+		log.host = Some(host.clone());
 		log.method = Some(req.method().clone());
 		log.path = Some(req.uri().path().to_string());
 		log.version = Some(req.version());
 		if let Some(f) = log.cel.as_mut() {
-			f.ctx().with_request(&req);
+			f.ctx().with_request(&mut req).await;
 		}
 
 		let selected_listener = selected_listener
-			.or_else(|| listeners.best_match(host))
+			.or_else(|| listeners.best_match(&host))
 			.ok_or(ProxyError::ListenerNotFound)?;
 		log.gateway_name = Some(selected_listener.gateway_name.clone());
 		log.listener_name = Some(selected_listener.name.clone());
