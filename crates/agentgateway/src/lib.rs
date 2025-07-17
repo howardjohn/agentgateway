@@ -1,17 +1,17 @@
 // For now, the entire package is not linked up to anything so squash the warnings
 #![allow(unused)]
+use agent_core::prelude::*;
+use hickory_resolver::config::{ResolverConfig, ResolverOpts};
+use serde::de::Visitor;
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+pub use serdes::*;
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Display};
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::{fmt, io};
-
-use agent_core::prelude::*;
-use hickory_resolver::config::{ResolverConfig, ResolverOpts};
-use serde::de::Visitor;
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
-pub use serdes::*;
 
 #[cfg(feature = "schema")]
 pub use schemars::JsonSchema;
@@ -109,6 +109,16 @@ pub struct RawTracing {
 #[serde(rename_all = "camelCase")]
 pub struct RawLogging {
 	filter: Option<String>,
+	fields: Option<RawLoggingFields>,
+}
+
+#[derive(serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RawLoggingFields {
+	#[serde(default)]
+	remove: Vec<String>,
+	#[serde(default)]
+	add: BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug)]

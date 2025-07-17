@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -13,7 +14,7 @@ use crate::types::agent::{
 };
 use crate::types::discovery::NamespacedHostname;
 use crate::{cel, llm, mcp};
-use agent_core::telemetry::{OptionExt, debug, display};
+use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
 use crossbeam::atomic::AtomicCell;
 use http_body::{Body, Frame, SizeHint};
 use tracing::{Level, event, log};
@@ -68,11 +69,25 @@ impl<T: Debug> Debug for AsyncLog<T> {
 #[derive(serde::Serialize, Clone, Debug)]
 pub struct Config {
 	pub filter: Option<Arc<cel::Expression>>,
+	pub fields: Arc<LoggingFields>,
+}
+
+#[derive(serde::Serialize, Default, Clone, Debug)]
+pub struct LoggingFields {
+	pub remove: HashSet<String>,
+	pub add: BTreeMap<String, Arc<cel::Expression>>,
+}
+
+impl LoggingFields {
+	pub fn has(&self, k: &str) -> bool {
+		self.remove.contains(k) || self.add.contains_key(k)
+	}
 }
 
 #[derive(Default, Debug)]
 pub struct RequestLog {
 	pub filter: Option<cel::ExpressionCall>,
+	pub fields: Option<Arc<LoggingFields>>,
 
 	pub tracer: Option<trc::Tracer>,
 	pub metrics: Option<Arc<Metrics>>,
@@ -117,15 +132,6 @@ pub struct RequestLog {
 
 impl Drop for RequestLog {
 	fn drop(&mut self) {
-		if let Some(filter) = &self.filter {
-			if !filter.eval_bool() {
-				return;
-			}
-		}
-		let tcp_info = self.tcp_info.as_ref().expect("tODO");
-
-		let dur = format!("{}ms", self.start.unwrap().elapsed().as_millis());
-		let grpc = self.grpc_status.load();
 		if let Some(t) = &self.tracer {
 			t.send(self)
 		};
@@ -143,6 +149,18 @@ impl Drop for RequestLog {
 				})
 				.inc();
 		}
+		if !tracing::enabled!(target: "request", Level::INFO) {
+			return;
+		}
+		if let Some(filter) = &self.filter {
+			if !filter.eval_bool() {
+				return;
+			}
+		}
+		let tcp_info = self.tcp_info.as_ref().expect("tODO");
+
+		let dur = format!("{}ms", self.start.unwrap().elapsed().as_millis());
+		let grpc = self.grpc_status.load();
 
 		let llm_response = self.llm_response.take();
 		if let (Some(req), Some(resp)) = (self.llm_request.as_ref(), llm_response.as_ref()) {
@@ -157,89 +175,102 @@ impl Drop for RequestLog {
 			.or_else(|| self.llm_request.as_ref().map(|req| req.input_tokens));
 
 		let mcp = self.mcp_status.take();
-		if !tracing::enabled!(target: "request", Level::INFO) {
-			return;
+
+		let trace_id = self.outgoing_span.as_ref().map(|id| id.trace_id());
+		let span_id = self.outgoing_span.as_ref().map(|id| id.span_id());
+
+		let fields = self.fields.take().unwrap_or_default();
+
+		macro_rules! log {
+			($key:expr, $value:expr$(,)?) => {
+				($key, if fields.has($key) { None } else { $value })
+			};
 		}
-		agent_core::telemetry::log(
-			"info",
-			"request",
-			&[
-				("gateway", self.gateway_name.display()),
-				("listener", self.listener_name.display()),
-				("route_rule", self.route_rule_name.display()),
-				("route", self.route_name.display()),
-				("endpoint", self.endpoint.display()),
-				("src.addr", Some(display(&tcp_info.peer_addr))),
-				("http.method", self.method.display()),
-				("http.host", self.host.display()),
-				("http.path", self.path.display()),
-				// TODO: incoming vs outgoing
-				("http.version", self.version.as_ref().map(debug)),
-				(
-					"http.status",
-					self.status.as_ref().map(|s| s.as_u16().into()),
-				),
-				("grpc.status", grpc.map(Into::into)),
-				(
-					"trace.id",
-					self
-						.outgoing_span
-						.as_ref()
-						.map(|id| id.trace_id())
-						.display(),
-				),
-				(
-					"span.id",
-					self.outgoing_span.as_ref().map(|id| id.span_id()).display(),
-				),
-				("jwt.sub", self.jwt_sub.display()),
-				("a2a.method", self.a2a_method.display()),
-				(
-					"mcp.target",
-					mcp
-						.as_ref()
-						.and_then(|m| m.target_name.as_ref())
-						.map(display),
-				),
-				(
-					"mcp.tool",
-					mcp
-						.as_ref()
-						.and_then(|m| m.tool_call_name.as_ref())
-						.map(display),
-				),
-				(
-					"inferencepool.selected_endpoint",
-					self.inference_pool.display(),
-				),
-				(
-					"llm.provider",
-					self.llm_request.as_ref().map(|l| display(&l.provider)),
-				),
-				(
-					"llm.request.model",
-					self.llm_request.as_ref().map(|l| display(&l.request_model)),
-				),
-				("llm.request.tokens", input_tokens.map(Into::into)),
-				(
-					"llm.response.model",
-					llm_response
-						.as_ref()
-						.and_then(|l| l.provider_model.clone())
-						.display(),
-				),
-				(
-					"llm.response.tokens",
-					llm_response
-						.as_ref()
-						.and_then(|l| l.output_tokens)
-						.map(Into::into),
-				),
-				("retry.attempt", self.retry_attempt.display()),
-				("error", self.error.display()),
-				("duration", Some(dur.as_str().into())),
-			],
-		);
+
+		let mut kv = vec![
+			log!("gateway", self.gateway_name.display()),
+			log!("listener", self.listener_name.display()),
+			log!("route_rule", self.route_rule_name.display()),
+			log!("route", self.route_name.display()),
+			log!("endpoint", self.endpoint.display()),
+			log!("src.addr", Some(display(&tcp_info.peer_addr))),
+			log!("http.method", self.method.display()),
+			log!("http.host", self.host.display()),
+			log!("http.path", self.path.display()),
+			// TODO: incoming vs outgoing
+			log!("http.version", self.version.as_ref().map(debug)),
+			log!(
+				"http.status",
+				self.status.as_ref().map(|s| s.as_u16().into()),
+			),
+			log!("grpc.status", grpc.map(Into::into)),
+			log!("trace.id", trace_id.display()),
+			log!("span.id", span_id.display()),
+			log!("jwt.sub", self.jwt_sub.display()),
+			log!("a2a.method", self.a2a_method.display()),
+			log!(
+				"mcp.target",
+				mcp
+					.as_ref()
+					.and_then(|m| m.target_name.as_ref())
+					.map(display),
+			),
+			log!(
+				"mcp.tool",
+				mcp
+					.as_ref()
+					.and_then(|m| m.tool_call_name.as_ref())
+					.map(display),
+			),
+			log!(
+				"inferencepool.selected_endpoint",
+				self.inference_pool.display(),
+			),
+			log!(
+				"llm.provider",
+				self.llm_request.as_ref().map(|l| display(&l.provider)),
+			),
+			log!(
+				"llm.request.model",
+				self.llm_request.as_ref().map(|l| display(&l.request_model)),
+			),
+			log!("llm.request.tokens", input_tokens.map(Into::into)),
+			log!(
+				"llm.response.model",
+				llm_response
+					.as_ref()
+					.and_then(|l| l.provider_model.display())
+			),
+			log!(
+				"llm.response.tokens",
+				llm_response
+					.as_ref()
+					.and_then(|l| l.output_tokens)
+					.map(Into::into),
+			),
+			log!("retry.attempt", self.retry_attempt.display()),
+			log!("error", self.error.display()),
+			log!("duration", Some(dur.as_str().into())),
+		];
+		kv.reserve(fields.add.len());
+
+		// To avoid lifetime issues need to store the expression before we give it to ValueBag reference.
+		// TODO: we could allow log() to take a list of borrows and then a list of OwnedValueBag
+		let mut raws = Vec::with_capacity(fields.add.len());
+		for (k, v) in &fields.add {
+			let celv = cel::ExpressionCall::from_expression(v.clone())
+				.eval()
+				.ok()
+				.and_then(|v| v.json().ok());
+			raws.push((k, celv));
+		}
+		for (k, v) in &raws {
+			// TODO: convert directly instead of via json()
+			let eval = v.as_ref().map(|v| ValueBag::capture_serde1(v));
+			kv.push((k, eval));
+		}
+
+		agent_core::telemetry::log("info", "request", &kv);
 	}
 }
 

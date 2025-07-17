@@ -274,6 +274,7 @@ impl HTTPProxy {
 			.filter
 			.clone()
 			.map(cel::ExpressionCall::from_expression);
+		log.fields = Some(self.inputs.cfg.logging.fields.clone());
 		log.tcp_info = Some(tcp.clone());
 		log.tls_info = connection.get::<TLSConnectionInfo>().cloned();
 		log.metrics = Some(self.inputs.metrics.clone());

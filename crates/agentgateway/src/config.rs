@@ -9,6 +9,7 @@ use anyhow::anyhow;
 use hickory_resolver::config::ResolveHosts;
 
 use crate::control::caclient;
+use crate::telemetry::log::LoggingFields;
 use crate::telemetry::trc;
 use crate::types::discovery::Identity;
 use crate::{
@@ -189,10 +190,28 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 		logging: telemetry::log::Config {
 			filter: raw
 				.logging
-				.and_then(|l| l.filter)
-				.map(|f| cel::Expression::new(&f))
+				.as_ref()
+				.and_then(|l| l.filter.as_ref())
+				.map(|f| cel::Expression::new(f))
 				.transpose()?
 				.map(Arc::new),
+			fields: Arc::new(
+				raw
+					.logging
+					.and_then(|f| f.fields)
+					.map(|fields| {
+						Ok::<_, anyhow::Error>(LoggingFields {
+							remove: fields.remove.into_iter().collect(),
+							add: fields
+								.add
+								.iter()
+								.map(|(k, v)| cel::Expression::new(v).map(|v| (k.clone(), Arc::new(v))))
+								.collect::<Result<_, _>>()?,
+						})
+					})
+					.transpose()?
+					.unwrap_or_default(),
+			),
 		},
 		dns: client::Config {
 			// TODO: read from file
