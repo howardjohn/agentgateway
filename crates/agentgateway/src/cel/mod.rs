@@ -1,6 +1,7 @@
 // Portions of this code are heavily inspired from https://github.com/Kuadrant/wasm-shim/
 // Under Apache 2.0 license (https://github.com/Kuadrant/wasm-shim/blob/main/LICENSE)
 
+use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
 use crate::http::jwt::Claims;
 use crate::json;
 use crate::serdes::*;
@@ -12,6 +13,7 @@ use cel_interpreter::objects::{Key, Map, TryIntoValue, ValueType};
 use cel_interpreter::{Context, ExecutionError, FunctionContext, Program, ResolveResult, Value};
 use cel_parser::{Expression as CelExpression, ParseError};
 use http::Request;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, Serializer};
 use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
@@ -68,10 +70,12 @@ pub fn root_context() -> Arc<Context<'static>> {
 	Arc::new(ctx)
 }
 
+static ROOT_CONTEXT: Lazy<Arc<Context<'static>>> = Lazy::new(|| Arc::new(Context::default()));
+
 pub struct ContextBuilder {
 	attributes: HashSet<String>,
 	context: ExpressionContext,
-	root_context: Arc<Context<'static>>,
+	// root_context: Arc<Context<'static>>,
 }
 
 impl Debug for ContextBuilder {
@@ -85,7 +89,7 @@ impl ContextBuilder {
 		Self {
 			attributes: Default::default(),
 			context: Default::default(),
-			root_context,
+			// root_context,
 		}
 	}
 	/// register_expression registers the given expressions attributes as required attributes.
@@ -95,22 +99,24 @@ impl ContextBuilder {
 			.attributes
 			.extend(expression.attributes.iter().cloned());
 	}
-	pub async fn with_request(&mut self, req: &mut crate::http::Request) {
-		if !self.attributes.contains(REQUEST_ATTRIBUTE) {
+	pub fn with_request_body(&mut self, body: Bytes) {
+		let Some(r) = &mut self.context.request else {
 			return;
+		};
+		r.body = Some(body);
+	}
+	pub fn with_request(&mut self, req: &mut crate::http::Request) -> bool {
+		if !self.attributes.contains(REQUEST_ATTRIBUTE) {
+			return false;
 		}
 		self.context.request = Some(RequestContext {
 			method: req.method().clone(),
 			// TODO: split headers and the rest?
 			headers: req.headers().clone(),
 			uri: req.uri().clone(),
-			body: if self.attributes.contains(REQUEST_BODY_ATTRIBUTE) {
-				let body = crate::http::inspect_body(req.body_mut()).await;
-				body.ok()
-			} else {
-				None
-			},
-		})
+			body: None,
+		});
+		self.attributes.contains(REQUEST_BODY_ATTRIBUTE)
 	}
 	pub fn with_response(&mut self, resp: &crate::http::Response) {
 		if !self.attributes.contains(RESPONSE_ATTRIBUTE) {
@@ -128,29 +134,28 @@ impl ContextBuilder {
 		self.context.jwt = Some(info.clone())
 	}
 
-	pub fn with_mcp(&mut self, info: &crate::mcp::rbac::ResourceType) {
-		if !self.attributes.contains(MCP_ATTRIBUTE) {
-			return;
-		}
-		self.context.mcp = Some(info.clone())
-	}
-
-	pub fn build(&self) -> Result<Executor, Error> {
-		let mut ctx = self.root_context.new_inner_scope();
+	pub fn build_with_mcp(
+		&self,
+		mcp: Option<&crate::mcp::rbac::ResourceType>,
+	) -> Result<Executor<'static>, Error> {
+		let mut ctx: Context<'static> = ROOT_CONTEXT.new_inner_scope();
 
 		let ExpressionContext {
 			request,
 			response,
 			jwt,
-			mcp,
 		} = &self.context;
 
-		ctx.add_variable_from_value("request", opt_to_value(request)?);
-		ctx.add_variable_from_value("response", opt_to_value(response)?);
-		ctx.add_variable_from_value("jwt", opt_to_value(jwt)?);
-		ctx.add_variable_from_value("mcp", opt_to_value(mcp)?);
+		ctx.add_variable_from_value(REQUEST_ATTRIBUTE, opt_to_value(request)?);
+		ctx.add_variable_from_value(RESPONSE_ATTRIBUTE, opt_to_value(response)?);
+		ctx.add_variable_from_value(JWT_ATTRIBUTE, opt_to_value(jwt)?);
+		ctx.add_variable_from_value(MCP_ATTRIBUTE, opt_to_value(&mcp)?);
 
 		Ok(Executor { ctx })
+	}
+
+	pub fn build(&self) -> Result<Executor<'static>, Error> {
+		self.build_with_mcp(None)
 	}
 }
 
@@ -159,7 +164,7 @@ impl Executor<'_> {
 		Ok(Value::resolve(&expr.expression, &self.ctx)?)
 	}
 	pub fn eval_bool(&self, expr: &Expression) -> bool {
-		match self.eval(expr) {
+		match dbg!(self.eval(expr)) {
 			Ok(Value::Bool(b)) => b,
 			_ => false,
 		}
@@ -200,7 +205,6 @@ struct ExpressionContext {
 	request: Option<RequestContext>,
 	response: Option<ResponseContext>,
 	jwt: Option<Claims>,
-	mcp: Option<crate::mcp::rbac::ResourceType>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -385,19 +389,18 @@ pub mod tests {
 	use divan::Bencher;
 	use http::Method;
 	use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
-	async fn simple(expr: &str, mut req: crate::http::Request) -> Result<Value, Error> {
+	fn simple(expr: &str, mut req: crate::http::Request) -> Result<Value, Error> {
 		let ctx = root_context();
 		let mut cb = ContextBuilder::new(ctx);
 		let exp = Expression::new(expr)?;
 		cb.register_expression(&exp);
-		cb.with_request(&mut req).await;
+		cb.with_request(&mut req);
 		let exec = cb.build()?;
 		exec.eval(&exp)
 	}
 
-	#[tokio::test]
-	async fn expression() {
+	#[test]
+	fn expression() {
 		let expr = r#"request.method == "GET" && request.headers["x-example"] == "value""#;
 		let req = ::http::Request::builder()
 			.method(Method::GET)
@@ -405,7 +408,7 @@ pub mod tests {
 			.header("x-example", "value")
 			.body(Body::empty())
 			.unwrap();
-		assert_eq!(Value::Bool(true), simple(expr, req).await.unwrap());
+		assert_eq!(Value::Bool(true), simple(expr, req).unwrap());
 	}
 
 	#[divan::bench]

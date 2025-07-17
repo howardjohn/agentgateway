@@ -334,7 +334,12 @@ impl HTTPProxy {
 		log.path = Some(req.uri().path().to_string());
 		log.version = Some(req.version());
 		if let Some(f) = log.cel.as_mut() {
-			f.ctx().with_request(&mut req).await;
+			let needs_body = f.ctx().with_request(&mut req);
+			if needs_body {
+				if let Ok(body) = crate::http::inspect_body(req.body_mut()).await {
+					f.ctx().with_request_body(body);
+				}
+			}
 		}
 
 		let selected_listener = selected_listener
@@ -365,6 +370,7 @@ impl HTTPProxy {
 			selected_route.route_name.clone(),
 			selected_listener.gateway_name.clone(),
 		);
+		tracing::error!("howardjohn: {:#?}", route_policies);
 		let ext_authz_response =
 			apply_request_policies(&route_policies, upstream.clone(), log, &mut req).await?;
 		if let Some(dr) = ext_authz_response.direct_response {
@@ -783,11 +789,15 @@ async fn make_backend_call(
 			let inputs = inputs.clone();
 			let backend = backend.clone();
 			let name = name.clone();
+			let ctx = log
+				.as_ref()
+				.and_then(|l| l.cel.as_ref().map(|c| c.ctx_copy()))
+				.expect("must be set");
 			let mcp_response_log = log.map(|l| l.mcp_status.clone()).expect("must be set");
 			return Ok(Box::pin(async move {
 				inputs
 					.mcp_state
-					.serve(name, backend, req, mcp_response_log)
+					.serve(name, backend, req, mcp_response_log, ctx)
 					.map(Ok)
 					.await
 			}));

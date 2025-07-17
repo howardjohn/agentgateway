@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::task::{Context, Poll, ready};
 use std::time::{Instant, SystemTime};
 
@@ -100,7 +100,7 @@ impl LoggingFields {
 
 #[derive(Debug)]
 pub struct CelLogging {
-	pub cel_context: cel::ContextBuilder,
+	pub cel_context: Arc<Mutex<cel::ContextBuilder>>,
 	pub filter: Option<Arc<cel::Expression>>,
 	pub fields: Arc<LoggingFields>,
 }
@@ -145,14 +145,18 @@ impl CelLogging {
 			cel_context.register_expression(v.as_ref());
 		}
 		Self {
-			cel_context,
+			cel_context: Arc::new(Mutex::new(cel_context)),
 			filter: cfg.filter,
 			fields: cfg.fields,
 		}
 	}
 
-	pub fn ctx(&mut self) -> &mut ContextBuilder {
-		&mut self.cel_context
+	pub fn ctx_copy(&self) -> Arc<Mutex<ContextBuilder>> {
+		self.cel_context.clone()
+	}
+
+	pub fn ctx(&mut self) -> MutexGuard<'_, ContextBuilder> {
+		self.cel_context.lock().expect("mutex poisoned")
 	}
 
 	pub fn build(&self) -> Result<CelLoggingExecutor, cel::Error> {
@@ -161,7 +165,8 @@ impl CelLogging {
 			filter,
 			fields,
 		} = self;
-		let executor = cel_context.build()?;
+		let ctx = cel_context.lock().expect("mutex poisoned");
+		let executor = ctx.build()?;
 		Ok(CelLoggingExecutor {
 			executor,
 			filter,

@@ -3,6 +3,8 @@ use anyhow::{Context as _, Error};
 
 use lazy_static::lazy_static;
 
+use crate::cel::Executor;
+use crate::mcp::sse::CelContextBuilder;
 use crate::*;
 use secrecy::SecretString;
 use serde::ser::SerializeSeq;
@@ -14,6 +16,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 use tracing::log;
 use x509_parser::asn1_rs::AsTaggedExplicit;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -45,7 +48,7 @@ impl PolicySet {
 pub fn se_policies<S: Serializer>(t: &PolicySet, serializer: S) -> Result<S::Ok, S::Error> {
 	let mut seq = serializer.serialize_seq(Some(t.0.len()))?;
 	for tt in &t.0 {
-		seq.serialize_element(&format!("{tt:?}"))?;
+		seq.serialize_element(tt)?;
 	}
 	seq.end()
 }
@@ -75,15 +78,23 @@ impl From<Vec<RuleSet>> for RuleSets {
 }
 
 impl RuleSets {
-	pub fn validate(&self, resource: &ResourceType, claims: &Identity) -> bool {
+	pub fn validate(&self, resource: &ResourceType, cel: CelContextBuilder) -> bool {
 		// If there are no rule sets, everyone has access
 		if self.0.is_empty() {
 			return true;
 		}
+		let Ok(exec) = cel
+			.0
+			.lock()
+			.expect("mutex poisoned")
+			.build_with_mcp(Some(resource))
+		else {
+			return false;
+		};
 		self
 			.0
 			.iter()
-			.any(|rule_set| rule_set.validate(resource, claims))
+			.any(|rule_set| rule_set.validate(resource, &exec))
 	}
 
 	pub fn is_empty(&self) -> bool {
@@ -97,17 +108,15 @@ impl RuleSet {
 	}
 
 	// Check if the claims have access to the resource
-	pub fn validate(&self, resource: &ResourceType, claims: &Identity) -> bool {
-		self
-			.validate_internal(resource, claims)
-			.unwrap_or_else(|e| {
-				tracing::warn!("authorization failed with error: {e}");
-				// Fail closed
-				false
-			})
+	pub fn validate(&self, resource: &ResourceType, exec: &cel::Executor) -> bool {
+		self.validate_internal(resource, exec).unwrap_or_else(|e| {
+			tracing::warn!("authorization failed with error: {e}");
+			// Fail closed
+			false
+		})
 	}
 
-	fn validate_internal(&self, resource: &ResourceType, claims: &Identity) -> anyhow::Result<bool> {
+	fn validate_internal(&self, resource: &ResourceType, exec: &Executor) -> anyhow::Result<bool> {
 		tracing::debug!("Checking RBAC for resource: {:?}", resource);
 
 		// If there are no rules, everyone has access
@@ -115,17 +124,7 @@ impl RuleSet {
 			return Ok(true);
 		}
 
-		// TODO: reuse one context
-		// TODO: use the one from the HTTP context, so we can get the HTTP attributes.
 		let mut ctx = cel::ContextBuilder::new(cel::root_context());
-		for rule in &self.rules.0 {
-			ctx.register_expression(rule.as_ref());
-		}
-		if let Some(claims) = claims.claims.as_ref() {
-			ctx.with_jwt(claims)
-		}
-		ctx.with_mcp(resource);
-		let exec = ctx.build()?;
 		for rule in &self.rules.0 {
 			if exec.eval_bool(rule.as_ref()) {
 				return Ok(true);

@@ -27,7 +27,7 @@ use crate::client;
 use crate::http::jwt::Claims;
 use crate::mcp::rbac;
 use crate::mcp::rbac::{Identity, RuleSets};
-use crate::mcp::sse::{MCPInfo, McpBackendGroup};
+use crate::mcp::sse::{CelContextBuilder, MCPInfo, McpBackendGroup};
 use crate::store::Stores;
 use crate::telemetry::log::AsyncLog;
 use crate::telemetry::trc::TraceParent;
@@ -112,53 +112,61 @@ impl Relay {
 		}
 	}
 
-	fn setup_request(ext: &model::Extensions, span_name: &str) -> (BoxedSpan, RqCtx) {
-		let (s, rq, _) = Self::setup_request_log(ext, span_name);
-		(s, rq)
+	fn setup_request(
+		ext: &model::Extensions,
+		span_name: &str,
+	) -> Result<(BoxedSpan, RqCtx), McpError> {
+		let (s, rq, _, _) = Self::setup_request_log(ext, span_name)?;
+		Ok((s, rq))
 	}
 	fn setup_request_log(
 		ext: &model::Extensions,
 		span_name: &str,
-	) -> (BoxedSpan, RqCtx, AsyncLog<MCPInfo>) {
-		let (rq_ctx, log) = if let Some(http) = ext.get::<Parts>() {
-			let otelc = trcng::extract_context_from_request(&http.headers);
-			let traceparent = http.extensions.get::<TraceParent>();
-			let mut ctx = Context::new();
-			if let Some(tp) = traceparent {
-				ctx = ctx.with_remote_span_context(SpanContext::new(
-					tp.trace_id.into(),
-					tp.span_id.into(),
-					TraceFlags::new(tp.flags),
-					true,
-					TraceState::default(),
-				));
-			}
-			let claims = http.extensions.get::<Claims>();
-			let tcp = http.extensions.get::<TCPConnectionInfo>();
-			let tls = http.extensions.get::<TLSConnectionInfo>();
-			let id = tls
-				.and_then(|tls| tls.src_identity.as_ref())
-				.map(|src_id| src_id.to_string());
-
-			let log = http
-				.extensions
-				.get::<AsyncLog<MCPInfo>>()
-				.cloned()
-				.unwrap_or_default();
-
-			(RqCtx::new(Identity::new(claims.cloned(), id), ctx), log)
-		} else {
-			(
-				RqCtx::new(Identity::new(None, None), Context::new()),
-				Default::default(),
-			)
+	) -> Result<(BoxedSpan, RqCtx, AsyncLog<MCPInfo>, CelContextBuilder), McpError> {
+		let Some(http) = ext.get::<Parts>() else {
+			return Err(McpError::internal_error(
+				"failed to extract parts".to_string(),
+        None,
+			));
 		};
+		let otelc = trcng::extract_context_from_request(&http.headers);
+		let traceparent = http.extensions.get::<TraceParent>();
+		let mut ctx = Context::new();
+		if let Some(tp) = traceparent {
+			ctx = ctx.with_remote_span_context(SpanContext::new(
+				tp.trace_id.into(),
+				tp.span_id.into(),
+				TraceFlags::new(tp.flags),
+				true,
+				TraceState::default(),
+			));
+		}
+		let claims = http.extensions.get::<Claims>();
+		let tcp = http.extensions.get::<TCPConnectionInfo>();
+		let tls = http.extensions.get::<TLSConnectionInfo>();
+		let id = tls
+			.and_then(|tls| tls.src_identity.as_ref())
+			.map(|src_id| src_id.to_string());
+
+		let log = http
+			.extensions
+			.get::<AsyncLog<MCPInfo>>()
+			.cloned()
+			.unwrap_or_default();
+
+		let cel = http
+			.extensions
+			.get::<CelContextBuilder>()
+			.cloned()
+			.expect("CelContextBuilder must be set");
+
+		let rq_ctx = RqCtx::new(Identity::new(claims.cloned(), id), ctx);
 
 		let tracer = trcng::get_tracer();
 		let _span = trcng::start_span(span_name.to_string(), &rq_ctx.identity)
 			.with_kind(SpanKind::Server)
 			.start_with_context(tracer, &rq_ctx.context);
-		(_span, rq_ctx, log)
+		Ok((_span, rq_ctx, log, cel))
 	}
 }
 
@@ -210,7 +218,7 @@ impl ServerHandler for Relay {
 		request: InitializeRequestParam,
 		context: RequestContext<RoleServer>,
 	) -> Result<InitializeResult, McpError> {
-		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "initialize");
+		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "initialize")?;
 
 		// List servers and initialize the ones that are not initialized
 		let mut pool = self.pool.write().await;
@@ -232,7 +240,7 @@ impl ServerHandler for Relay {
 		request: Option<PaginatedRequestParam>,
 		context: RequestContext<RoleServer>,
 	) -> std::result::Result<ListResourcesResult, McpError> {
-		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "list_resources");
+		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "list_resources")?;
 
 		let mut pool = self.pool.write().await;
 		let connections = pool
@@ -267,7 +275,7 @@ impl ServerHandler for Relay {
 		request: Option<PaginatedRequestParam>,
 		context: RequestContext<RoleServer>,
 	) -> std::result::Result<ListResourceTemplatesResult, McpError> {
-		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "list_resource_templates");
+		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "list_resource_templates")?;
 
 		let mut pool = self.pool.write().await;
 		let connections = pool
@@ -294,7 +302,7 @@ impl ServerHandler for Relay {
 				resource_type: "resource_template".to_string(),
 				params: vec![],
 			},
-			&rq_ctx.identity,
+			(),
 		);
 
 		Ok(ListResourceTemplatesResult {
@@ -309,7 +317,7 @@ impl ServerHandler for Relay {
 		request: Option<PaginatedRequestParam>,
 		context: RequestContext<RoleServer>,
 	) -> std::result::Result<ListPromptsResult, McpError> {
-		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "list_prompts");
+		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "list_prompts")?;
 
 		let mut pool = self.pool.write().await;
 		let connections = pool
@@ -346,7 +354,7 @@ impl ServerHandler for Relay {
 				resource_type: "prompt".to_string(),
 				params: vec![],
 			},
-			&rq_ctx.identity,
+			(),
 		);
 		Ok(ListPromptsResult {
 			prompts: results.into_iter().flatten().collect(),
@@ -355,18 +363,18 @@ impl ServerHandler for Relay {
 	}
 
 	#[instrument(
-    level = "debug",
-    skip_all,
-    fields(
+        level = "debug",
+        skip_all,
+        fields(
         name=%request.uri,
-    ),
-  )]
+        ),
+    )]
 	async fn read_resource(
 		&self,
 		request: ReadResourceRequestParam,
 		context: RequestContext<RoleServer>,
 	) -> std::result::Result<ReadResourceResult, McpError> {
-		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "read_resource");
+		let (_span, ref rq_ctx, _, cel) = Self::setup_request_log(&context.extensions, "read_resource")?;
 
 		let uri = request.uri.to_string();
 		let (service_name, resource) = self.parse_resource_name(&uri)?;
@@ -375,7 +383,7 @@ impl ServerHandler for Relay {
 				service_name.to_string(),
 				resource.to_string(),
 			)),
-			&rq_ctx.identity,
+			cel,
 		) {
 			return Err(McpError::invalid_request("not allowed", None));
 		}
@@ -395,7 +403,7 @@ impl ServerHandler for Relay {
 				uri: resource.to_string(),
 				params: vec![],
 			},
-			&rq_ctx.identity,
+			(),
 		);
 		match service_arc.read_resource(req, rq_ctx).await {
 			Ok(r) => Ok(r),
@@ -404,18 +412,18 @@ impl ServerHandler for Relay {
 	}
 
 	#[instrument(
-    level = "debug",
-    skip_all,
-    fields(
+        level = "debug",
+        skip_all,
+        fields(
         name=%request.name,
-    ),
-  )]
+        ),
+    )]
 	async fn get_prompt(
 		&self,
 		request: GetPromptRequestParam,
 		context: RequestContext<RoleServer>,
 	) -> std::result::Result<GetPromptResult, McpError> {
-		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "get_prompt");
+		let (_span, ref rq_ctx, _, cel) = Self::setup_request_log(&context.extensions, "get_prompt")?;
 
 		let prompt_name = request.name.to_string();
 		let (service_name, prompt) = self.parse_resource_name(&prompt_name)?;
@@ -424,7 +432,7 @@ impl ServerHandler for Relay {
 				service_name.to_string(),
 				prompt.to_string(),
 			)),
-			&rq_ctx.identity,
+			cel,
 		) {
 			return Err(McpError::invalid_request("not allowed", None));
 		}
@@ -444,7 +452,7 @@ impl ServerHandler for Relay {
 				name: prompt.to_string(),
 				params: vec![],
 			},
-			&rq_ctx.identity,
+			(),
 		);
 		match svc.get_prompt(req, rq_ctx).await {
 			Ok(r) => Ok(r),
@@ -458,7 +466,7 @@ impl ServerHandler for Relay {
 		request: Option<PaginatedRequestParam>,
 		mut context: RequestContext<RoleServer>,
 	) -> std::result::Result<ListToolsResult, McpError> {
-		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "list_tools");
+		let (_span, ref rq_ctx, _, cel) = Self::setup_request_log(&context.extensions, "list_tools")?;
 		let mut pool = self.pool.write().await;
 		let connections = pool
 			.list()
@@ -467,6 +475,7 @@ impl ServerHandler for Relay {
 		let multi = connections.len() > 1;
 		let all = connections.into_iter().map(|(_name, svc_arc)| {
 			let request = request.clone();
+			let cel = cel.clone();
 			async move {
 				match svc_arc.list_tools(request, rq_ctx).await {
 					Ok(r) => Ok(
@@ -478,7 +487,7 @@ impl ServerHandler for Relay {
 										_name.to_string(),
 										t.name.to_string(),
 									)),
-									&rq_ctx.identity,
+									cel.clone(),
 								)
 							})
 							.map(|t| Tool {
@@ -504,7 +513,7 @@ impl ServerHandler for Relay {
 				resource_type: "tool".to_string(),
 				params: vec![],
 			},
-			&rq_ctx.identity,
+			(),
 		);
 
 		Ok(ListToolsResult {
@@ -514,18 +523,18 @@ impl ServerHandler for Relay {
 	}
 
 	#[instrument(
-    level = "debug",
-    skip_all,
-    fields(
+        level = "debug",
+        skip_all,
+        fields(
         name=%request.name,
-    ),
-  )]
+        ),
+    )]
 	async fn call_tool(
 		&self,
 		request: CallToolRequestParam,
 		context: RequestContext<RoleServer>,
 	) -> std::result::Result<CallToolResult, McpError> {
-		let (_span, ref rq_ctx, log) = Self::setup_request_log(&context.extensions, "call_tool");
+		let (_span, ref rq_ctx, log, cel) = Self::setup_request_log(&context.extensions, "call_tool")?;
 		let tool_name = request.name.to_string();
 		let (service_name, tool) = self.parse_resource_name(&tool_name)?;
 		log.non_atomic_mutate(|l| {
@@ -537,7 +546,7 @@ impl ServerHandler for Relay {
 				service_name.to_string(),
 				tool.to_string(),
 			)),
-			&rq_ctx.identity,
+			cel.clone(),
 		) {
 			return Err(McpError::invalid_request("not allowed", None));
 		}
@@ -557,7 +566,7 @@ impl ServerHandler for Relay {
 				name: tool.to_string(),
 				params: vec![],
 			},
-			&rq_ctx.identity,
+			(),
 		);
 
 		match svc.call_tool(req, rq_ctx).await {
@@ -570,7 +579,7 @@ impl ServerHandler for Relay {
 						error_type: e.error_code(),
 						params: vec![],
 					},
-					&rq_ctx.identity,
+					(),
 				);
 				Err(e.into())
 			},
