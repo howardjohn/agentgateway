@@ -206,7 +206,7 @@ pub struct RouteMatch {
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub headers: Vec<HeaderMatch>,
 	pub path: PathMatch,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default, flatten, skip_serializing_if = "Option::is_none")]
 	pub method: Option<MethodMatch>,
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub query: Vec<QueryMatch>,
