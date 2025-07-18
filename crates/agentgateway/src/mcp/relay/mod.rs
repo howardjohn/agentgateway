@@ -19,7 +19,7 @@ use opentelemetry::{Context, TraceFlags};
 use rmcp::model::{CallToolRequestParam, Tool, *};
 use rmcp::service::{RequestContext, RunningService};
 use rmcp::transport::child_process::TokioChildProcess;
-use rmcp::{model, RoleClient, RoleServer, ServerHandler};
+use rmcp::{RoleClient, RoleServer, ServerHandler, model};
 use tokio::process::Command;
 use tokio::sync::RwLock;
 use tracing::instrument;

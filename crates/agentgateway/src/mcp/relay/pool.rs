@@ -195,8 +195,8 @@ impl ConnectionPool {
 							transport,
 							ct.child_token(),
 						)
-						.await
-					?),
+						.await?,
+					),
 				}
 			},
 			McpTargetSpec::Stdio { cmd, args, env: _ } => {

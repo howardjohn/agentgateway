@@ -94,10 +94,7 @@ impl RuleSets {
 		let Ok(exec) = cel.build_with_mcp(Some(resource)) else {
 			return false;
 		};
-		self
-			.0
-			.iter()
-			.any(|rule_set| rule_set.validate(&exec))
+		self.0.iter().any(|rule_set| rule_set.validate(&exec))
 	}
 
 	pub fn is_empty(&self) -> bool {
@@ -119,8 +116,7 @@ impl RuleSet {
 		})
 	}
 
-	fn validate_internal(&self,exec: &Executor) -> anyhow::Result<bool> {
-
+	fn validate_internal(&self, exec: &Executor) -> anyhow::Result<bool> {
 		// If there are no rules, everyone has access
 		if self.rules.0.is_empty() {
 			return Ok(true);

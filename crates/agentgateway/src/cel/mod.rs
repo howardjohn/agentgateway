@@ -85,6 +85,12 @@ impl Debug for ContextBuilder {
 	}
 }
 
+impl Default for ContextBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl ContextBuilder {
 	pub fn new() -> Self {
 		Self {
@@ -388,6 +394,7 @@ pub mod tests {
 	use std::io::Write;
 	use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 	use std::time::Duration;
+
 	use agent_core::strng;
 	use divan::Bencher;
 	use http::Method;
@@ -405,22 +412,21 @@ pub mod tests {
 		exec.eval(&exp)
 	}
 
-
 	#[test]
 	fn test_eval() {
 		let expr = Arc::new(Expression::new(r#"request.method"#).unwrap());
 		let ctx = root_context();
 		let req = ::http::Request::builder()
-		.method(Method::GET)
-		.header("x-example", "value")
-		.body(Body::empty())
-		.unwrap();
+			.method(Method::GET)
+			.header("x-example", "value")
+			.body(Body::empty())
+			.unwrap();
 		let mut cb = ContextBuilder::new();
 		cb.register_expression(&expr);
 		cb.with_request(&req);
 		let exec = cb.build().unwrap();
 
-			exec.eval(&expr);
+		exec.eval(&expr);
 	}
 
 	#[test]
@@ -435,14 +441,13 @@ pub mod tests {
 		assert_eq!(Value::Bool(true), simple(expr, req).unwrap());
 	}
 
-
 	#[divan::bench]
 	fn bench_native(b: Bencher) {
 		let req = ::http::Request::builder()
-		.method(Method::GET)
-		.header("x-example", "value")
-		.body(http_body_util::Empty::<Bytes>::new())
-		.unwrap();
+			.method(Method::GET)
+			.header("x-example", "value")
+			.body(http_body_util::Empty::<Bytes>::new())
+			.unwrap();
 		b.bench(|| {
 			divan::black_box(req.method());
 		});
@@ -451,12 +456,14 @@ pub mod tests {
 	#[divan::bench]
 	fn bench_native_map(b: Bencher) {
 		let req = ::http::Request::builder()
-		.method(Method::GET)
-		.header("x-example", "value")
-		.body(http_body_util::Empty::<Bytes>::new())
-		.unwrap();
-		let map = HashMap::from([("request".to_string(),
-		HashMap::from([("method".to_string(), "GET".to_string())]))]);
+			.method(Method::GET)
+			.header("x-example", "value")
+			.body(http_body_util::Empty::<Bytes>::new())
+			.unwrap();
+		let map = HashMap::from([(
+			"request".to_string(),
+			HashMap::from([("method".to_string(), "GET".to_string())]),
+		)]);
 
 		with_profiling("native", || {
 			b.bench(|| {
@@ -467,23 +474,24 @@ pub mod tests {
 
 	#[macro_export]
 	macro_rules! function {
-			() => {{
-					fn f() {}
-					fn type_name_of<T>(_: T) -> &'static str {
-							std::any::type_name::<T>()
-					}
-					let name = type_name_of(f);
-					let name = &name[..name.len() - 3].to_string();
-					name.strip_suffix("::with_profiling").unwrap().to_string()
-			}};
+		() => {{
+			fn f() {}
+			fn type_name_of<T>(_: T) -> &'static str {
+				std::any::type_name::<T>()
+			}
+			let name = type_name_of(f);
+			let name = &name[..name.len() - 3].to_string();
+			name.strip_suffix("::with_profiling").unwrap().to_string()
+		}};
 	}
 
 	fn with_profiling(name: &str, f: impl FnOnce()) {
 		use pprof::protos::Message;
 		let guard = pprof::ProfilerGuardBuilder::default()
-		.frequency(1000)
-		// .blocklist(&["libc", "libgcc", "pthread", "vdso"])
-		.build().unwrap();
+			.frequency(1000)
+			// .blocklist(&["libc", "libgcc", "pthread", "vdso"])
+			.build()
+			.unwrap();
 
 		f();
 
@@ -491,7 +499,10 @@ pub mod tests {
 		let profile = report.pprof().unwrap();
 
 		let mut body = profile.write_to_bytes().unwrap();
-		File::create(format!("/tmp/pprof-{}::{name}", function!())).unwrap().write_all(&mut body).unwrap()
+		File::create(format!("/tmp/pprof-{}::{name}", function!()))
+			.unwrap()
+			.write_all(&mut body)
+			.unwrap()
 	}
 
 	#[divan::bench]
@@ -499,10 +510,10 @@ pub mod tests {
 		let expr = Arc::new(Expression::new(r#"request.method"#).unwrap());
 		let ctx = root_context();
 		let req = ::http::Request::builder()
-		.method(Method::GET)
-		.header("x-example", "value")
-		.body(Body::empty())
-		.unwrap();
+			.method(Method::GET)
+			.header("x-example", "value")
+			.body(Body::empty())
+			.unwrap();
 		let mut cb = ContextBuilder::new();
 		cb.register_expression(&expr);
 		cb.with_request(&req);
@@ -513,7 +524,6 @@ pub mod tests {
 				exec.eval(&expr);
 			});
 		})
-
 	}
 
 	#[divan::bench]

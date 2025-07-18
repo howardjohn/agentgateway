@@ -100,9 +100,8 @@ impl Tracer {
 		if !out_span.is_sampled() {
 			return;
 		}
-		let tcp_info = request.tcp_info.as_ref().expect("tODO");
 		let end = SystemTime::now();
-		let elapsed = tcp_info.start.elapsed();
+		let elapsed = request.tcp_info.start.elapsed();
 
 		// For now we only accept HTTP(?)
 		attributes.push(KeyValue::new(semconv::URL_SCHEME.clone(), "http"));
@@ -155,9 +154,9 @@ fn to_otel(v: &ValueBag) -> opentelemetry::Value {
 	if let Some(b) = v.to_str() {
 		opentelemetry::Value::String(b.to_string().into())
 	} else if let Some(b) = v.to_i64() {
-		opentelemetry::Value::I64(b.into())
+		opentelemetry::Value::I64(b)
 	} else if let Some(b) = v.to_f64() {
-		opentelemetry::Value::F64(b.into())
+		opentelemetry::Value::F64(b)
 	} else {
 		opentelemetry::Value::String(v.to_string().into())
 	}

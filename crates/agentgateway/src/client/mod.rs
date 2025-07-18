@@ -301,8 +301,8 @@ impl Client {
 		);
 		Ok(
 			resp
-			.map_err(ProxyError::UpstreamCallFailed)?
-			.map(http::Body::new),
+				.map_err(ProxyError::UpstreamCallFailed)?
+				.map(http::Body::new),
 		)
 	}
 }

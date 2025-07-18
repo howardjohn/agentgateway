@@ -72,14 +72,14 @@ fn test_rbac_target() {
 		.unwrap();
 
 	assert_matches!(rbac.validate_internal(&exec), Ok(true));
-	
+
 	let exec_different_target = ctx
 		.build_with_mcp(Some(&ResourceType::Tool(ResourceId::new(
 			"not-server".to_string(),
 			"increment".to_string(),
 		))))
 		.unwrap();
-	
+
 	assert_matches!(rbac.validate_internal(&exec_different_target), Ok(false));
 }
 

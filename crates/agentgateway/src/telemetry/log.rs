@@ -166,20 +166,80 @@ impl CelLogging {
 	}
 }
 
+#[derive(Debug)]
 pub struct DropOnLog {
-	log: Option<RequestLog>
+	log: Option<RequestLog>,
 }
 
-#[derive(Default, Debug)]
+impl DropOnLog {
+	pub fn as_mut(&mut self) -> Option<&mut RequestLog> {
+		self.log.as_mut()
+	}
+	pub fn with(&mut self, f: impl FnOnce(&mut RequestLog)) {
+		if let Some(l) = self.log.as_mut() {
+			f(l)
+		}
+	}
+}
+
+impl From<RequestLog> for DropOnLog {
+	fn from(log: RequestLog) -> Self {
+		Self { log: Some(log) }
+	}
+}
+
+impl RequestLog {
+	pub fn new(
+		cel: CelLogging,
+		metrics: Arc<Metrics>,
+		start: Instant,
+		tcp_info: TCPConnectionInfo,
+	) -> Self {
+		RequestLog {
+			cel,
+			metrics,
+			start,
+			tcp_info,
+			tls_info: None,
+			tracer: None,
+			endpoint: None,
+			bind_name: None,
+			gateway_name: None,
+			listener_name: None,
+			route_rule_name: None,
+			route_name: None,
+			backend_name: None,
+			host: None,
+			method: None,
+			path: None,
+			version: None,
+			status: None,
+			jwt_sub: None,
+			retry_attempt: None,
+			error: None,
+			grpc_status: Default::default(),
+			mcp_status: Default::default(),
+			incoming_span: None,
+			outgoing_span: None,
+			llm_request: None,
+			llm_response: Default::default(),
+			a2a_method: None,
+			inference_pool: None,
+		}
+	}
+}
+#[derive(Debug)]
 pub struct RequestLog {
-	pub cel: Option<CelLogging>,
+	pub cel: CelLogging,
+	pub metrics: Arc<Metrics>,
+	pub start: Instant,
+	pub tcp_info: TCPConnectionInfo,
 
-	pub tracer: Option<trc::Tracer>,
-	pub metrics: Option<Arc<Metrics>>,
-
-	pub start: Option<Instant>,
-	pub tcp_info: Option<TCPConnectionInfo>,
+	// Set only for TLS traffic
 	pub tls_info: Option<TLSConnectionInfo>,
+
+	// Set only if the trace is sampled
+	pub tracer: Option<trc::Tracer>,
 
 	pub endpoint: Option<Target>,
 
@@ -218,28 +278,29 @@ pub struct RequestLog {
 impl Drop for DropOnLog {
 	fn drop(&mut self) {
 		let Some(mut log) = self.log.take() else {
-			return
+			return;
 		};
-		if let Some(m) = &log.metrics {
-			m.requests
-				.get_or_create(&HTTPLabels {
-					bind: (&log.bind_name).into(),
-					gateway: (&log.gateway_name).into(),
-					listener: (&log.listener_name).into(),
-					route: (&log.route_name).into(),
-					route_rule: (&log.route_rule_name).into(),
-					backend: (&log.backend_name).into(),
-					method: log.method.clone().into(),
-					status: log.status.as_ref().map(|s| s.as_u16()).into(),
-				})
-				.inc();
-		}
+
+		log
+			.metrics
+			.requests
+			.get_or_create(&HTTPLabels {
+				bind: (&log.bind_name).into(),
+				gateway: (&log.gateway_name).into(),
+				listener: (&log.listener_name).into(),
+				route: (&log.route_name).into(),
+				route_rule: (&log.route_rule_name).into(),
+				backend: (&log.backend_name).into(),
+				method: log.method.clone().into(),
+				status: log.status.as_ref().map(|s| s.as_u16()).into(),
+			})
+			.inc();
+
 		let enable_trace = log.tracer.is_some();
 		if !tracing::enabled!(target: "request", Level::INFO) && !enable_trace {
 			return;
 		}
-		let cel = log.cel.take().unwrap();
-		let Ok(cel_exec) = cel.build() else {
+		let Ok(cel_exec) = log.cel.build() else {
 			tracing::warn!("failed to build CEL context");
 			return;
 		};
@@ -248,9 +309,7 @@ impl Drop for DropOnLog {
 			return;
 		}
 
-		let tcp_info = log.tcp_info.as_ref().expect("tODO");
-
-		let dur = format!("{}ms", log.start.unwrap().elapsed().as_millis());
+		let dur = format!("{}ms", log.start.elapsed().as_millis());
 		let grpc = log.grpc_status.load();
 
 		let llm_response = log.llm_response.take();
@@ -284,7 +343,7 @@ impl Drop for DropOnLog {
 			log!("route_rule", log.route_rule_name.display()),
 			log!("route", log.route_name.display()),
 			log!("endpoint", log.endpoint.display()),
-			log!("src.addr", Some(display(&tcp_info.peer_addr))),
+			log!("src.addr", Some(display(&log.tcp_info.peer_addr))),
 			log!("http.method", log.method.display()),
 			log!("http.host", log.host.display()),
 			log!("http.path", log.path.display()),
@@ -376,13 +435,13 @@ pin_project_lite::pin_project! {
 		pub struct LogBody<B> {
 				#[pin]
 				body: B,
-				log: RequestLog,
+				log: DropOnLog,
 		}
 }
 
 impl<B> LogBody<B> {
 	/// Create a new `LogBody`
-	pub fn new(body: B, log: RequestLog) -> Self {
+	pub fn new(body: B, log: DropOnLog) -> Self {
 		Self { body, log }
 	}
 }
@@ -403,7 +462,9 @@ where
 		match result {
 			Some(Ok(frame)) => {
 				if let Some(trailer) = frame.trailers_ref() {
-					crate::proxy::httpproxy::maybe_set_grpc_status(&this.log.grpc_status, trailer);
+					if let Some(grpc) = this.log.as_mut().map(|log| log.grpc_status.clone()) {
+						crate::proxy::httpproxy::maybe_set_grpc_status(&grpc, trailer);
+					}
 				}
 				Poll::Ready(Some(Ok(frame)))
 			},
