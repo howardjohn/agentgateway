@@ -1,3 +1,12 @@
+use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+use agent_core::strng;
+use anyhow::anyhow;
+use itertools::Itertools;
+use rand::prelude::IndexedRandom;
+
 use crate::client::Transport;
 use crate::http::Request;
 use crate::proxy::ProxyError;
@@ -15,13 +24,6 @@ use crate::types::agent::{
 use crate::types::discovery::NetworkAddress;
 use crate::types::discovery::gatewayaddress::Destination;
 use crate::{ProxyInputs, *};
-use agent_core::strng;
-use anyhow::anyhow;
-use itertools::Itertools;
-use rand::prelude::IndexedRandom;
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct TCPProxy {

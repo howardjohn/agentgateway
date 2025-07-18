@@ -1,14 +1,11 @@
-use crate::cel::ContextBuilder;
-use crate::client;
-use crate::http::jwt::Claims;
-use crate::mcp::rbac;
-use crate::mcp::rbac::{Identity, RuleSets};
-use crate::mcp::sse::{MCPInfo, McpBackendGroup};
-use crate::store::Stores;
-use crate::telemetry::log::AsyncLog;
-use crate::telemetry::trc::TraceParent;
-use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
-use crate::types::agent::{McpAuthorization, McpBackend};
+use std::any::{Any, TypeId};
+use std::borrow::Cow;
+use std::collections::{BTreeSet, HashMap};
+use std::fmt::{Debug, Formatter};
+use std::hash::BuildHasherDefault;
+use std::sync::Arc;
+use std::time::Duration;
+
 use agent_core::metrics::Recorder;
 use agent_core::prelude::Strng;
 use agent_core::trcng;
@@ -22,17 +19,24 @@ use opentelemetry::{Context, TraceFlags};
 use rmcp::model::{CallToolRequestParam, Tool, *};
 use rmcp::service::{RequestContext, RunningService};
 use rmcp::transport::child_process::TokioChildProcess;
-use rmcp::{Error as McpError, RoleClient, RoleServer, ServerHandler, model};
-use std::any::{Any, TypeId};
-use std::borrow::Cow;
-use std::collections::{BTreeSet, HashMap};
-use std::fmt::{Debug, Formatter};
-use std::hash::BuildHasherDefault;
-use std::sync::Arc;
-use std::time::Duration;
+use rmcp::{model, RoleClient, RoleServer, ServerHandler};
 use tokio::process::Command;
 use tokio::sync::RwLock;
 use tracing::instrument;
+
+use crate::cel::ContextBuilder;
+use crate::client;
+use crate::http::jwt::Claims;
+use crate::mcp::rbac;
+use crate::mcp::rbac::{Identity, RuleSets};
+use crate::mcp::sse::{MCPInfo, McpBackendGroup};
+use crate::store::Stores;
+use crate::telemetry::log::AsyncLog;
+use crate::telemetry::trc::TraceParent;
+use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
+use crate::types::agent::{McpAuthorization, McpBackend};
+
+type McpError = ErrorData;
 
 pub mod metrics;
 mod pool;

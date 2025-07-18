@@ -4,21 +4,6 @@ use std::ops::IndexMut;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::cel::ContextBuilder;
-use crate::http::jwt::Claims;
-use crate::http::*;
-use crate::json::{from_body, to_body};
-use crate::llm::LLMRequest;
-use crate::mcp::rbac::RuleSets;
-use crate::mcp::relay::Relay;
-use crate::mcp::{rbac, relay};
-use crate::store::{BackendPolicies, Stores};
-use crate::telemetry::log::AsyncLog;
-use crate::types::agent::{
-	BackendName, McpAuthentication, McpBackend, McpIDP, McpTarget as TypeMcpTarget, McpTargetSpec,
-	PolicyTarget, Target,
-};
-use crate::{client, json, mcp};
 use a2a_sdk::SendTaskStreamingResponseResult::Status;
 use agent_core::drain::DrainWatcher;
 use agent_core::prelude::Strng;
@@ -59,6 +44,22 @@ use tokio_util::sync::CancellationToken;
 use tower::ServiceExt;
 use tracing::warn;
 use url::form_urlencoded;
+
+use crate::cel::ContextBuilder;
+use crate::http::jwt::Claims;
+use crate::http::*;
+use crate::json::{from_body, to_body};
+use crate::llm::LLMRequest;
+use crate::mcp::rbac::RuleSets;
+use crate::mcp::relay::Relay;
+use crate::mcp::{rbac, relay};
+use crate::store::{BackendPolicies, Stores};
+use crate::telemetry::log::AsyncLog;
+use crate::types::agent::{
+	BackendName, McpAuthentication, McpBackend, McpIDP, McpTarget as TypeMcpTarget, McpTargetSpec,
+	PolicyTarget, Target,
+};
+use crate::{client, json, mcp};
 
 type SseTxs =
 	Arc<std::sync::RwLock<HashMap<SessionId, tokio::sync::mpsc::Sender<ClientJsonRpcMessage>>>>;

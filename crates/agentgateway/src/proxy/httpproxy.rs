@@ -5,9 +5,8 @@ use std::iter::Empty;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
-use ::http::HeaderMap;
-use ::http::header;
 use ::http::uri::PathAndQuery;
+use ::http::{HeaderMap, header};
 use agent_core::drain::{DrainMode, DrainUpgrader, DrainWatcher, new};
 use agent_core::{copy, drain};
 use anyhow::anyhow;
@@ -327,7 +326,9 @@ impl HTTPProxy {
 			req.extensions_mut().insert(ns.clone());
 			log.outgoing_span = Some(ns);
 		}
-		if let Some(tracer) = &log.tracer && let Some(c) = &mut log.cel {
+		if let Some(tracer) = &log.tracer
+			&& let Some(c) = &mut log.cel
+		{
 			c.register(tracer.fields.as_ref());
 		}
 

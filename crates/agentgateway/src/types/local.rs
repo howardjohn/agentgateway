@@ -1,3 +1,19 @@
+use std::collections::HashMap;
+use std::io::Cursor;
+use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::str::FromStr;
+
+use agent_core::prelude::Strng;
+use anyhow::{Error, anyhow, bail};
+use itertools::Itertools;
+use jsonwebtoken::jwk::{AlgorithmParameters, JwkSet, KeyAlgorithm};
+use jsonwebtoken::{DecodingKey, Validation};
+use rmcp::handler::server::router::tool::CallToolHandlerExt;
+use rustls::{ClientConfig, ServerConfig};
+use serde::de::DeserializeOwned;
+use serde_with::serde_as;
+
 use crate::http::auth::BackendAuth;
 use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
 use crate::http::jwt::{JwkError, Jwt};
@@ -16,20 +32,6 @@ use crate::types::agent::{
 };
 use crate::types::discovery::{NamespacedHostname, Service};
 use crate::*;
-use agent_core::prelude::Strng;
-use anyhow::{Error, anyhow, bail};
-use itertools::Itertools;
-use jsonwebtoken::jwk::{AlgorithmParameters, JwkSet, KeyAlgorithm};
-use jsonwebtoken::{DecodingKey, Validation};
-use rmcp::handler::server::router::tool::CallToolHandlerExt;
-use rustls::{ClientConfig, ServerConfig};
-use serde::de::DeserializeOwned;
-use serde_with::serde_as;
-use std::collections::HashMap;
-use std::io::Cursor;
-use std::net::SocketAddr;
-use std::path::PathBuf;
-use std::str::FromStr;
 
 impl NormalizedLocalConfig {
 	pub async fn from(client: client::Client, s: &str) -> anyhow::Result<NormalizedLocalConfig> {
@@ -62,9 +64,11 @@ pub fn generate_schema() -> String {
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 struct LocalConfig {
+	#[serde(default)]
+	config: Arc<Option<serde_json::value::Value>>,
 	#[serde(default)]
 	binds: Vec<LocalBind>,
 	#[serde(default)]
@@ -143,7 +147,7 @@ struct LocalRoute {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct LocalRouteBackend {
 	#[serde(default = "default_weight")]
@@ -160,7 +164,7 @@ fn default_weight() -> usize {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum LocalBackend {
 	// This one is a reference
@@ -221,7 +225,7 @@ struct LocalTCPRoute {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct LocalTCPRouteBackend {
 	#[serde(default = "default_weight")]
@@ -230,7 +234,7 @@ pub struct LocalTCPRouteBackend {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum SimpleLocalBackend {
 	Service {
@@ -310,7 +314,7 @@ struct FilterOrPolicy {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 struct TCPFilterOrPolicy {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
@@ -319,6 +323,7 @@ struct TCPFilterOrPolicy {
 
 async fn convert(client: client::Client, i: LocalConfig) -> anyhow::Result<NormalizedLocalConfig> {
 	let LocalConfig {
+		config: _,
 		binds,
 		workloads,
 		services,

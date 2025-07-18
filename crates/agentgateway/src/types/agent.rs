@@ -19,7 +19,6 @@ use regex::Regex;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::{ClientConfig, ServerConfig};
 use rustls_pemfile::Item;
-
 use secrecy::SecretString;
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

@@ -150,7 +150,8 @@ impl Tracer {
 }
 
 fn to_otel(v: &ValueBag) -> opentelemetry::Value {
-	use value_bag::{Error, ValueBag, visit::Visit};
+	use value_bag::visit::Visit;
+	use value_bag::{Error, ValueBag};
 	if let Some(b) = v.to_str() {
 		opentelemetry::Value::String(b.to_string().into())
 	} else if let Some(b) = v.to_i64() {

@@ -6,6 +6,13 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::task::{Context, Poll, ready};
 use std::time::{Instant, SystemTime};
 
+use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
+use crossbeam::atomic::AtomicCell;
+use frozen_collections::{FzHashSet, FzOrderedMap};
+use http_body::{Body, Frame, SizeHint};
+use serde_json::Value;
+use tracing::{Level, event, log};
+
 use crate::cel::{ContextBuilder, Expression};
 use crate::telemetry::metrics::{HTTPLabels, Metrics};
 use crate::telemetry::trc;
@@ -15,12 +22,6 @@ use crate::types::agent::{
 };
 use crate::types::discovery::NamespacedHostname;
 use crate::{cel, llm, mcp};
-use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
-use crossbeam::atomic::AtomicCell;
-use frozen_collections::{FzHashSet, FzOrderedMap};
-use http_body::{Body, Frame, SizeHint};
-use serde_json::Value;
-use tracing::{Level, event, log};
 
 /// AsyncLog is a wrapper around an item that can be atomically set.
 /// The intent is to provide additional info to the log after we have lost the RequestLog reference,
@@ -140,13 +141,11 @@ impl CelLogging {
 		}
 	}
 
-
 	pub fn register(&mut self, fields: &LoggingFields) {
 		for v in fields.add.values() {
 			self.cel_context.register_expression(v.as_ref());
 		}
 	}
-
 
 	pub fn ctx(&mut self) -> &mut ContextBuilder {
 		&mut self.cel_context

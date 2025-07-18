@@ -1,10 +1,5 @@
 // For now, the entire package is not linked up to anything so squash the warnings
 #![allow(unused)]
-use agent_core::prelude::*;
-use hickory_resolver::config::{ResolverConfig, ResolverOpts};
-use serde::de::Visitor;
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
-pub use serdes::*;
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Display};
 use std::fs::File;
@@ -13,12 +8,17 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::{fmt, io};
 
+use agent_core::prelude::*;
+use control::caclient::CaClient;
+use hickory_resolver::config::{ResolverConfig, ResolverOpts};
 #[cfg(feature = "schema")]
 pub use schemars::JsonSchema;
+use serde::de::Visitor;
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+pub use serdes::*;
 
 use crate::store::Stores;
 use crate::types::discovery::Identity;
-use control::caclient::CaClient;
 
 pub mod a2a;
 pub mod app;

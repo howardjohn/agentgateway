@@ -1,10 +1,3 @@
-use super::*;
-use crate::client::Client;
-use crate::http::{Body, Error as HttpError, auth};
-use crate::mcp::sse::McpTarget;
-use crate::store::BackendPolicies;
-use crate::types::agent::{Backend, McpBackend, McpTargetSpec, Target};
-use crate::{client, json};
 use agent_core::prelude::*;
 use anyhow::anyhow;
 use futures::future::BoxFuture;
@@ -16,7 +9,6 @@ use reqwest::header::ACCEPT;
 use reqwest::{Client as HttpClient, IntoUrl, Url};
 use rmcp::model::{ClientJsonRpcMessage, ServerJsonRpcMessage};
 use rmcp::service::{NotificationContext, Peer, serve_client_with_ct, serve_directly_with_ct};
-use rmcp::transport::StreamableHttpClientTransport;
 use rmcp::transport::common::client_side_sse::BoxedSseResponse;
 use rmcp::transport::common::http_header::{
 	EVENT_STREAM_MIME_TYPE, HEADER_LAST_EVENT_ID, HEADER_SESSION_ID, JSON_MIME_TYPE,
@@ -26,9 +18,19 @@ use rmcp::transport::streamable_http_client::{
 	StreamableHttpClient, StreamableHttpClientTransportConfig, StreamableHttpError,
 	StreamableHttpPostResponse,
 };
-use rmcp::transport::{SseClientTransport, Transport};
+use rmcp::transport::{SseClientTransport, StreamableHttpClientTransport, Transport};
 use rmcp::{ClientHandler, ServiceError};
 use sse_stream::{Error as SseError, Sse, SseStream};
+
+use super::*;
+use crate::client::Client;
+use crate::http::{Body, Error as HttpError, auth};
+use crate::mcp::sse::McpTarget;
+use crate::store::BackendPolicies;
+use crate::types::agent::{Backend, McpBackend, McpTargetSpec, Target};
+use crate::{client, json};
+
+type McpError = ErrorData;
 
 pub(crate) struct ConnectionPool {
 	backend: McpBackendGroup,
@@ -183,8 +185,8 @@ impl ConnectionPool {
 				);
 
 				upstream::UpstreamTarget {
-					spec: upstream::UpstreamTargetSpec::Mcp(
-						dbg!(serve_client_with_ct(
+					spec: upstream::UpstreamTargetSpec::Mcp(dbg!(
+						serve_client_with_ct(
 							PeerClientHandler {
 								peer: peer.clone(),
 								peer_client: None,
@@ -193,8 +195,8 @@ impl ConnectionPool {
 							transport,
 							ct.child_token(),
 						)
-						.await)?,
-					),
+						.await
+					)?),
 				}
 			},
 			McpTargetSpec::Stdio { cmd, args, env: _ } => {
@@ -435,8 +437,15 @@ impl StreamableHttpClient for ClientWrapper {
 			.await
 			.map_err(|e| StreamableHttpError::Client(HttpError::new(e)))?;
 
-		if resp.status() == http::StatusCode::ACCEPTED {
+		if dbg!(&resp).status() == http::StatusCode::ACCEPTED {
 			return Ok(StreamableHttpPostResponse::Accepted);
+		}
+
+		if resp.status().is_client_error() || resp.status().is_server_error() {
+			return Err(StreamableHttpError::Client(HttpError::new(anyhow!(
+				"received status code {}",
+				resp.status()
+			))));
 		}
 
 		let content_type = resp.headers().get(CONTENT_TYPE);
@@ -554,7 +563,7 @@ impl StreamableHttpClient for ClientWrapper {
 			.await
 			.map_err(|e| StreamableHttpError::Client(HttpError::new(e)))?;
 
-		if resp.status() == http::StatusCode::METHOD_NOT_ALLOWED {
+		if dbg!(&resp).status() == http::StatusCode::METHOD_NOT_ALLOWED {
 			return Err(StreamableHttpError::SeverDoesNotSupportSse);
 		}
 

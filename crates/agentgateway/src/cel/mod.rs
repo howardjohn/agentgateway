@@ -1,11 +1,10 @@
 // Portions of this code are heavily inspired from https://github.com/Kuadrant/wasm-shim/
 // Under Apache 2.0 license (https://github.com/Kuadrant/wasm-shim/blob/main/LICENSE)
 
-use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
-use crate::http::jwt::Claims;
-use crate::json;
-use crate::serdes::*;
-use crate::telemetry::log::CelLogging;
+use std::collections::HashSet;
+use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
+
 use axum_core::body::Body;
 use bytes::Bytes;
 use cel_interpreter::extractors::{Arguments, This};
@@ -15,9 +14,12 @@ use cel_parser::{Expression as CelExpression, ParseError};
 use http::Request;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, Serializer};
-use std::collections::HashSet;
-use std::fmt::{Debug, Display, Formatter};
-use std::sync::Arc;
+
+use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
+use crate::http::jwt::Claims;
+use crate::json;
+use crate::serdes::*;
+use crate::telemetry::log::CelLogging;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -362,9 +364,11 @@ fn to_value(v: impl Serialize) -> Result<Value, Error> {
 }
 
 mod fns {
-	use crate::cel::to_value;
-	use cel_interpreter::{FunctionContext, ResolveResult, Value};
 	use std::sync::Arc;
+
+	use cel_interpreter::{FunctionContext, ResolveResult, Value};
+
+	use crate::cel::to_value;
 
 	pub fn json_parse(ftx: &FunctionContext, v: Value) -> ResolveResult {
 		let sv = match v {
@@ -379,14 +383,16 @@ mod fns {
 
 #[cfg(any(test, feature = "internal_benches"))]
 pub mod tests {
+	use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+	use agent_core::strng;
+	use divan::Bencher;
+	use http::Method;
+
 	use super::*;
 	use crate::http::Body;
 	use crate::store::Stores;
 	use crate::types::agent::{Listener, ListenerProtocol, PathMatch, Route, RouteMatch, RouteSet};
-	use agent_core::strng;
-	use divan::Bencher;
-	use http::Method;
-	use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 	fn simple(expr: &str, req: crate::http::Request) -> Result<Value, Error> {
 		let mut cb = ContextBuilder::new();
 		let exp = Expression::new(expr)?;

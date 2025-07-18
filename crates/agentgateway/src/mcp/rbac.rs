@@ -1,20 +1,20 @@
-use crate::http::jwt::Claims;
+use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
+use std::str::FromStr;
+
 use anyhow::{Context as _, Error};
-
 use lazy_static::lazy_static;
-
-use crate::cel::{ContextBuilder, Executor};
-use crate::*;
 use secrecy::SecretString;
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use serde_json::map::Map;
-use std::collections::{HashMap, HashSet};
-use std::fmt::Display;
-use std::str::FromStr;
 use tracing::log;
 use x509_parser::asn1_rs::AsTaggedExplicit;
+
+use crate::cel::{ContextBuilder, Executor};
+use crate::http::jwt::Claims;
+use crate::*;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

@@ -1,9 +1,10 @@
-use super::*;
 #[cfg(test)]
 use assert_matches::assert_matches;
 use divan::Bencher;
 use secrecy::SecretString;
 use serde_json::{Map, Value};
+
+use super::*;
 
 fn create_policy_set(policies: Vec<&str>) -> PolicySet {
 	let mut policy_set = PolicySet::new();
