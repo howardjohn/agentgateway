@@ -14,6 +14,7 @@ message Resource {
     Listener listener = 2;
     Route route = 3;
     Backend backend = 4;
+    Policy policy = 5;
   }
 }
 
@@ -167,6 +168,37 @@ message RouteBackend {
   repeated RouteFilter filters = 4;
 }
 
+message PolicyTarget {
+  oneof kind {
+    string gateway = 1;
+    string listener = 2;
+    string route = 3;
+    string route_rule = 4;
+    string backend = 5;
+  }
+}
+message PolicySpec {
+  message LocalRateLimit {
+    enum Type {
+      REQUEST = 0;
+      TOKEN = 1;
+    }
+    uint64 max_tokens = 1;
+    uint64 tokens_per_fill = 2;
+    google.protobuf.Duration fill_interval = 3;
+    Type type = 4;
+  }
+  oneof kind {
+    LocalRateLimit local_rate_limit = 1;
+  }
+}
+
+message Policy {
+  // Format is "<ns>/<name>"
+  string name = 1;
+  PolicyTarget target = 2;
+  PolicySpec spec = 3;
+}
 message Backend {
   // Format is "<ns>/<name>"
   string name = 1;
