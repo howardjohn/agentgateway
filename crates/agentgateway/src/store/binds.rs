@@ -22,7 +22,7 @@ use crate::types::discovery::{NamespacedHostname, Service, Workload};
 use crate::types::proto::agent::resource::Kind as XdsKind;
 use crate::types::proto::agent::{
 	Backend as XdsBackend, Bind as XdsBind, Listener as XdsListener, Policy as XdsPolicy,
-	Resource as ADPResource, Route as XdsRoute,
+	Resource as ADPResource, Route as XdsRoute, Policy as XdsPolicy,
 };
 use crate::*;
 
