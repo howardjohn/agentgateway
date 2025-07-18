@@ -185,7 +185,7 @@ impl ConnectionPool {
 				);
 
 				upstream::UpstreamTarget {
-					spec: upstream::UpstreamTargetSpec::Mcp(dbg!(
+					spec: upstream::UpstreamTargetSpec::Mcp(
 						serve_client_with_ct(
 							PeerClientHandler {
 								peer: peer.clone(),
@@ -196,7 +196,7 @@ impl ConnectionPool {
 							ct.child_token(),
 						)
 						.await
-					)?),
+					?),
 				}
 			},
 			McpTargetSpec::Stdio { cmd, args, env: _ } => {
@@ -437,7 +437,7 @@ impl StreamableHttpClient for ClientWrapper {
 			.await
 			.map_err(|e| StreamableHttpError::Client(HttpError::new(e)))?;
 
-		if dbg!(&resp).status() == http::StatusCode::ACCEPTED {
+		if resp.status() == http::StatusCode::ACCEPTED {
 			return Ok(StreamableHttpPostResponse::Accepted);
 		}
 
@@ -563,7 +563,7 @@ impl StreamableHttpClient for ClientWrapper {
 			.await
 			.map_err(|e| StreamableHttpError::Client(HttpError::new(e)))?;
 
-		if dbg!(&resp).status() == http::StatusCode::METHOD_NOT_ALLOWED {
+		if resp.status() == http::StatusCode::METHOD_NOT_ALLOWED {
 			return Err(StreamableHttpError::SeverDoesNotSupportSse);
 		}
 

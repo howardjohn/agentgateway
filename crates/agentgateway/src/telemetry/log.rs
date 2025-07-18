@@ -166,6 +166,10 @@ impl CelLogging {
 	}
 }
 
+pub struct DropOnLog {
+	log: Option<RequestLog>
+}
+
 #[derive(Default, Debug)]
 pub struct RequestLog {
 	pub cel: Option<CelLogging>,
@@ -211,27 +215,30 @@ pub struct RequestLog {
 	pub inference_pool: Option<SocketAddr>,
 }
 
-impl Drop for RequestLog {
+impl Drop for DropOnLog {
 	fn drop(&mut self) {
-		if let Some(m) = &self.metrics {
+		let Some(mut log) = self.log.take() else {
+			return
+		};
+		if let Some(m) = &log.metrics {
 			m.requests
 				.get_or_create(&HTTPLabels {
-					bind: (&self.bind_name).into(),
-					gateway: (&self.gateway_name).into(),
-					listener: (&self.listener_name).into(),
-					route: (&self.route_name).into(),
-					route_rule: (&self.route_rule_name).into(),
-					backend: (&self.backend_name).into(),
-					method: self.method.clone().into(),
-					status: self.status.as_ref().map(|s| s.as_u16()).into(),
+					bind: (&log.bind_name).into(),
+					gateway: (&log.gateway_name).into(),
+					listener: (&log.listener_name).into(),
+					route: (&log.route_name).into(),
+					route_rule: (&log.route_rule_name).into(),
+					backend: (&log.backend_name).into(),
+					method: log.method.clone().into(),
+					status: log.status.as_ref().map(|s| s.as_u16()).into(),
 				})
 				.inc();
 		}
-		let enable_trace = self.tracer.is_some();
+		let enable_trace = log.tracer.is_some();
 		if !tracing::enabled!(target: "request", Level::INFO) && !enable_trace {
 			return;
 		}
-		let cel = self.cel.take().unwrap();
+		let cel = log.cel.take().unwrap();
 		let Ok(cel_exec) = cel.build() else {
 			tracing::warn!("failed to build CEL context");
 			return;
@@ -241,13 +248,13 @@ impl Drop for RequestLog {
 			return;
 		}
 
-		let tcp_info = self.tcp_info.as_ref().expect("tODO");
+		let tcp_info = log.tcp_info.as_ref().expect("tODO");
 
-		let dur = format!("{}ms", self.start.unwrap().elapsed().as_millis());
-		let grpc = self.grpc_status.load();
+		let dur = format!("{}ms", log.start.unwrap().elapsed().as_millis());
+		let grpc = log.grpc_status.load();
 
-		let llm_response = self.llm_response.take();
-		if let (Some(req), Some(resp)) = (self.llm_request.as_ref(), llm_response.as_ref()) {
+		let llm_response = log.llm_response.take();
+		if let (Some(req), Some(resp)) = (log.llm_request.as_ref(), llm_response.as_ref()) {
 			if Some(req.input_tokens) != resp.input_tokens_from_response {
 				// TODO: remove this, just for dev
 				tracing::warn!("maybe bug: mismatch in tokens {req:?}, {resp:?}");
@@ -256,12 +263,12 @@ impl Drop for RequestLog {
 		let input_tokens = llm_response
 			.as_ref()
 			.and_then(|t| t.input_tokens_from_response)
-			.or_else(|| self.llm_request.as_ref().map(|req| req.input_tokens));
+			.or_else(|| log.llm_request.as_ref().map(|req| req.input_tokens));
 
-		let mcp = self.mcp_status.take();
+		let mcp = log.mcp_status.take();
 
-		let trace_id = self.outgoing_span.as_ref().map(|id| id.trace_id());
-		let span_id = self.outgoing_span.as_ref().map(|id| id.span_id());
+		let trace_id = log.outgoing_span.as_ref().map(|id| id.trace_id());
+		let span_id = log.outgoing_span.as_ref().map(|id| id.span_id());
 
 		let fields = cel_exec.fields.as_ref();
 
@@ -272,26 +279,26 @@ impl Drop for RequestLog {
 		}
 
 		let mut kv = vec![
-			log!("gateway", self.gateway_name.display()),
-			log!("listener", self.listener_name.display()),
-			log!("route_rule", self.route_rule_name.display()),
-			log!("route", self.route_name.display()),
-			log!("endpoint", self.endpoint.display()),
+			log!("gateway", log.gateway_name.display()),
+			log!("listener", log.listener_name.display()),
+			log!("route_rule", log.route_rule_name.display()),
+			log!("route", log.route_name.display()),
+			log!("endpoint", log.endpoint.display()),
 			log!("src.addr", Some(display(&tcp_info.peer_addr))),
-			log!("http.method", self.method.display()),
-			log!("http.host", self.host.display()),
-			log!("http.path", self.path.display()),
+			log!("http.method", log.method.display()),
+			log!("http.host", log.host.display()),
+			log!("http.path", log.path.display()),
 			// TODO: incoming vs outgoing
-			log!("http.version", self.version.as_ref().map(debug)),
+			log!("http.version", log.version.as_ref().map(debug)),
 			log!(
 				"http.status",
-				self.status.as_ref().map(|s| s.as_u16().into()),
+				log.status.as_ref().map(|s| s.as_u16().into()),
 			),
 			log!("grpc.status", grpc.map(Into::into)),
 			log!("trace.id", trace_id.display()),
 			log!("span.id", span_id.display()),
-			log!("jwt.sub", self.jwt_sub.display()),
-			log!("a2a.method", self.a2a_method.display()),
+			log!("jwt.sub", log.jwt_sub.display()),
+			log!("a2a.method", log.a2a_method.display()),
 			log!(
 				"mcp.target",
 				mcp
@@ -308,15 +315,15 @@ impl Drop for RequestLog {
 			),
 			log!(
 				"inferencepool.selected_endpoint",
-				self.inference_pool.display(),
+				log.inference_pool.display(),
 			),
 			log!(
 				"llm.provider",
-				self.llm_request.as_ref().map(|l| display(&l.provider)),
+				log.llm_request.as_ref().map(|l| display(&l.provider)),
 			),
 			log!(
 				"llm.request.model",
-				self.llm_request.as_ref().map(|l| display(&l.request_model)),
+				log.llm_request.as_ref().map(|l| display(&l.request_model)),
 			),
 			log!("llm.request.tokens", input_tokens.map(Into::into)),
 			log!(
@@ -332,13 +339,13 @@ impl Drop for RequestLog {
 					.and_then(|l| l.output_tokens)
 					.map(Into::into),
 			),
-			log!("retry.attempt", self.retry_attempt.display()),
-			log!("error", self.error.display()),
+			log!("retry.attempt", log.retry_attempt.display()),
+			log!("error", log.error.display()),
 			log!("duration", Some(dur.as_str().into())),
 		];
 		if enable_trace {
-			if let Some(t) = &self.tracer {
-				t.send(self, kv.as_slice())
+			if let Some(t) = &log.tracer {
+				t.send(&log, kv.as_slice())
 			};
 		}
 		if enable_logs {

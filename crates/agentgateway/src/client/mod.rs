@@ -299,9 +299,10 @@ impl Client {
 
 			duration = dur,
 		);
-		let mut resp = resp.unwrap().map(http::Body::new);
-		let b = http::inspect_body(resp.body_mut()).await.unwrap();
-		tracing::error!("howardjohn: {}", String::from_utf8_lossy(&b));
-		Ok(resp)
+		Ok(
+			resp
+			.map_err(ProxyError::UpstreamCallFailed)?
+			.map(http::Body::new),
+		)
 	}
 }

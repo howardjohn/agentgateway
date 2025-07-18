@@ -89,13 +89,15 @@ impl RuleSets {
 		if self.0.is_empty() {
 			return true;
 		}
+
+		tracing::debug!("Checking RBAC for resource: {:?}", resource);
 		let Ok(exec) = cel.build_with_mcp(Some(resource)) else {
 			return false;
 		};
 		self
 			.0
 			.iter()
-			.any(|rule_set| rule_set.validate(resource, &exec))
+			.any(|rule_set| rule_set.validate(&exec))
 	}
 
 	pub fn is_empty(&self) -> bool {
@@ -109,23 +111,21 @@ impl RuleSet {
 	}
 
 	// Check if the claims have access to the resource
-	pub fn validate(&self, resource: &ResourceType, exec: &cel::Executor) -> bool {
-		self.validate_internal(resource, exec).unwrap_or_else(|e| {
+	pub fn validate(&self, exec: &cel::Executor) -> bool {
+		self.validate_internal(exec).unwrap_or_else(|e| {
 			tracing::warn!("authorization failed with error: {e}");
 			// Fail closed
 			false
 		})
 	}
 
-	fn validate_internal(&self, resource: &ResourceType, exec: &Executor) -> anyhow::Result<bool> {
-		tracing::debug!("Checking RBAC for resource: {:?}", resource);
+	fn validate_internal(&self,exec: &Executor) -> anyhow::Result<bool> {
 
 		// If there are no rules, everyone has access
 		if self.rules.0.is_empty() {
 			return Ok(true);
 		}
 
-		let mut ctx = cel::ContextBuilder::new();
 		for rule in &self.rules.0 {
 			if exec.eval_bool(rule.as_ref()) {
 				return Ok(true);
