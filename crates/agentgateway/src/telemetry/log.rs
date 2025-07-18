@@ -109,9 +109,9 @@ impl<'a> CelLoggingExecutor<'a> {
 		}
 	}
 
-	fn eval_additions(&self) -> Vec<(&String, Option<Value>)> {
-		let mut raws = Vec::with_capacity(self.fields.add.len());
-		for (k, v) in &self.fields.add {
+	pub fn eval(&self, fields: &'a Arc<LoggingFields>) -> Vec<(&String, Option<Value>)> {
+		let mut raws = Vec::with_capacity(fields.add.len());
+		for (k, v) in &fields.add {
 			let celv = self
 				.executor
 				.eval(v.as_ref())
@@ -122,6 +122,10 @@ impl<'a> CelLoggingExecutor<'a> {
 			raws.push((k, celv));
 		}
 		raws
+	}
+
+	fn eval_additions(&self) -> Vec<(&String, Option<Value>)> {
+		self.eval(self.fields)
 	}
 }
 
@@ -300,6 +304,7 @@ impl Drop for DropOnLog {
 		if !tracing::enabled!(target: "request", Level::INFO) && !enable_trace {
 			return;
 		}
+
 		let Ok(cel_exec) = log.cel.build() else {
 			tracing::warn!("failed to build CEL context");
 			return;
@@ -331,85 +336,84 @@ impl Drop for DropOnLog {
 
 		let fields = cel_exec.fields.as_ref();
 
-		macro_rules! log {
-			($key:expr, $value:expr$(,)?) => {
-				($key, if fields.has($key) { None } else { $value })
-			};
-		}
-
 		let mut kv = vec![
-			log!("gateway", log.gateway_name.display()),
-			log!("listener", log.listener_name.display()),
-			log!("route_rule", log.route_rule_name.display()),
-			log!("route", log.route_name.display()),
-			log!("endpoint", log.endpoint.display()),
-			log!("src.addr", Some(display(&log.tcp_info.peer_addr))),
-			log!("http.method", log.method.display()),
-			log!("http.host", log.host.display()),
-			log!("http.path", log.path.display()),
+			("gateway", log.gateway_name.display()),
+			("listener", log.listener_name.display()),
+			("route_rule", log.route_rule_name.display()),
+			("route", log.route_name.display()),
+			("endpoint", log.endpoint.display()),
+			("src.addr", Some(display(&log.tcp_info.peer_addr))),
+			("http.method", log.method.display()),
+			("http.host", log.host.display()),
+			("http.path", log.path.display()),
 			// TODO: incoming vs outgoing
-			log!("http.version", log.version.as_ref().map(debug)),
-			log!(
+			("http.version", log.version.as_ref().map(debug)),
+			(
 				"http.status",
 				log.status.as_ref().map(|s| s.as_u16().into()),
 			),
-			log!("grpc.status", grpc.map(Into::into)),
-			log!("trace.id", trace_id.display()),
-			log!("span.id", span_id.display()),
-			log!("jwt.sub", log.jwt_sub.display()),
-			log!("a2a.method", log.a2a_method.display()),
-			log!(
+			("grpc.status", grpc.map(Into::into)),
+			("trace.id", trace_id.display()),
+			("span.id", span_id.display()),
+			("jwt.sub", log.jwt_sub.display()),
+			("a2a.method", log.a2a_method.display()),
+			(
 				"mcp.target",
 				mcp
 					.as_ref()
 					.and_then(|m| m.target_name.as_ref())
 					.map(display),
 			),
-			log!(
+			(
 				"mcp.tool",
 				mcp
 					.as_ref()
 					.and_then(|m| m.tool_call_name.as_ref())
 					.map(display),
 			),
-			log!(
+			(
 				"inferencepool.selected_endpoint",
 				log.inference_pool.display(),
 			),
-			log!(
+			(
 				"llm.provider",
 				log.llm_request.as_ref().map(|l| display(&l.provider)),
 			),
-			log!(
+			(
 				"llm.request.model",
 				log.llm_request.as_ref().map(|l| display(&l.request_model)),
 			),
-			log!("llm.request.tokens", input_tokens.map(Into::into)),
-			log!(
+			("llm.request.tokens", input_tokens.map(Into::into)),
+			(
 				"llm.response.model",
 				llm_response
 					.as_ref()
-					.and_then(|l| l.provider_model.display())
+					.and_then(|l| l.provider_model.display()),
 			),
-			log!(
+			(
 				"llm.response.tokens",
 				llm_response
 					.as_ref()
 					.and_then(|l| l.output_tokens)
 					.map(Into::into),
 			),
-			log!("retry.attempt", log.retry_attempt.display()),
-			log!("error", log.error.display()),
-			log!("duration", Some(dur.as_str().into())),
+			("retry.attempt", log.retry_attempt.display()),
+			("error", log.error.display()),
+			("duration", Some(dur.as_str().into())),
 		];
 		if enable_trace {
 			if let Some(t) = &log.tracer {
-				t.send(&log, kv.as_slice())
+				t.send(&log, &cel_exec, kv.as_slice())
 			};
 		}
 		if enable_logs {
 			kv.reserve(fields.add.len());
-
+			for (k, v) in &mut kv {
+				// Remove filtered lines, or things we are about to add
+				if fields.has(k) {
+					*v = None;
+				}
+			}
 			// To avoid lifetime issues need to store the expression before we give it to ValueBag reference.
 			// TODO: we could allow log() to take a list of borrows and then a list of OwnedValueBag
 			let raws = cel_exec.eval_additions();

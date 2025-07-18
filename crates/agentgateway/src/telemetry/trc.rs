@@ -14,7 +14,7 @@ use tokio::io::AsyncWriteExt;
 pub use traceparent::TraceParent;
 
 use crate::http::Request;
-use crate::telemetry::log::{LoggingFields, RequestLog};
+use crate::telemetry::log::{CelLoggingExecutor, LoggingFields, RequestLog};
 
 #[derive(Clone, Debug)]
 pub struct Tracer {
@@ -90,7 +90,12 @@ impl Tracer {
 		self.provider.shutdown();
 	}
 
-	pub fn send<'v>(&self, request: &RequestLog, attrs: &[(&str, Option<ValueBag<'v>>)]) {
+	pub fn send<'v>(
+		&self,
+		request: &RequestLog,
+		cel_exec: &CelLoggingExecutor,
+		attrs: &[(&str, Option<ValueBag<'v>>)],
+	) {
 		let mut attributes = attrs
 			.iter()
 			.filter_map(|(k, v)| v.as_ref().map(|v| (k, v)))
@@ -114,6 +119,18 @@ impl Tracer {
 				attributes.push(KeyValue::new(semconv::PROTOCOL_VERSION.clone(), "2"));
 			},
 			_ => {},
+		}
+
+		attributes.reserve(self.fields.add.len());
+
+		// To avoid lifetime issues need to store the expression before we give it to ValueBag reference.
+		// TODO: we could allow log() to take a list of borrows and then a list of OwnedValueBag
+		let raws = cel_exec.eval(&self.fields);
+		for (k, v) in &raws {
+			// TODO: convert directly instead of via json()
+			if let Some(eval) = v.as_ref().map(ValueBag::capture_serde1) {
+				attributes.push(KeyValue::new(Key::new(k.to_string()), to_otel(&eval)));
+			}
 		}
 
 		let span_name = match (&request.method, &request.path) {
