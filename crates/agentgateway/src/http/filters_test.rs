@@ -835,7 +835,8 @@ fn rewrite_test() {
 				uri: "http://test.com/hello/world?param1=value%201&param2=value%2B2&param3=value%3D3",
 			},
 			Some(Want {
-				uri: "http://test.com/new/path?param1=value%201&param2=value%2B2&param3=value%3D3".to_string(),
+				uri: "http://test.com/new/path?param1=value%201&param2=value%2B2&param3=value%3D3"
+					.to_string(),
 			}),
 		),
 	];

@@ -106,6 +106,7 @@ impl Metrics {
 		}
 	}
 
+	#[allow(clippy::ptr_arg)]
 	fn add_additional_tags(&self, params: &mut Vec<(String, String)>) {
 		let Some(tags) = &self.additional_tags else {
 			return;

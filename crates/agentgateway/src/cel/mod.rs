@@ -501,7 +501,7 @@ pub mod tests {
 		let mut body = profile.write_to_bytes().unwrap();
 		File::create(format!("/tmp/pprof-{}::{name}", function!()))
 			.unwrap()
-			.write_all(&mut body)
+			.write_all(&body)
 			.unwrap()
 	}
 

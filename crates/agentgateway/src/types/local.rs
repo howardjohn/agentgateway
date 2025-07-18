@@ -261,7 +261,6 @@ impl SimpleLocalBackend {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 struct FilterOrPolicy {
 	// Filters. Keep in sync with RouteFilter
-
 	/// Headers to be modified in the request.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	request_header_modifier: Option<filters::HeaderModifier>,
@@ -291,7 +290,6 @@ struct FilterOrPolicy {
 	cors: Option<http::cors::Cors>,
 
 	// Policy
-
 	/// Authorization policies for MCP access.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	mcp_authorization: Option<McpAuthorization>,
@@ -333,7 +331,6 @@ struct FilterOrPolicy {
 	ext_authz: Option<crate::http::ext_authz::ExtAuthz>,
 
 	// TrafficPolicy
-
 	/// Timeout requests that exceed the configured duration.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	timeout: Option<timeout::Policy>,
