@@ -327,6 +327,9 @@ impl HTTPProxy {
 			req.extensions_mut().insert(ns.clone());
 			log.outgoing_span = Some(ns);
 		}
+		if let Some(tracer) = &log.tracer && let Some(c) = &mut log.cel {
+			c.register(tracer.fields.as_ref());
+		}
 
 		let host = http::get_host(&req)?.to_string();
 		log.host = Some(host.clone());

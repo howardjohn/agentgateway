@@ -184,7 +184,7 @@ impl ConnectionPool {
 
 				upstream::UpstreamTarget {
 					spec: upstream::UpstreamTargetSpec::Mcp(
-						serve_client_with_ct(
+						dbg!(serve_client_with_ct(
 							PeerClientHandler {
 								peer: peer.clone(),
 								peer_client: None,
@@ -193,7 +193,7 @@ impl ConnectionPool {
 							transport,
 							ct.child_token(),
 						)
-						.await?,
+						.await)?,
 					),
 				}
 			},

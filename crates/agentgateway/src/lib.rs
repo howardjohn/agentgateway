@@ -103,6 +103,7 @@ pub struct RawHTTP2 {
 #[serde(rename_all = "camelCase")]
 pub struct RawTracing {
 	otlp_endpoint: String,
+	fields: Option<RawLoggingFields>,
 }
 
 #[derive(serde::Deserialize, Clone, Debug)]

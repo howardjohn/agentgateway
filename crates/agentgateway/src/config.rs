@@ -148,7 +148,7 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 		.unwrap_or_default();
 	let termination_max_deadline =
 		parse_duration("CONNECTION_TERMINATION_DEADLINE")?.or(raw.connection_min_termination_deadline);
-	let otlp = empty_to_none(parse("OTLP_ENDPOINT")?).or(raw.tracing.map(|t| t.otlp_endpoint));
+	let otlp = empty_to_none(parse("OTLP_ENDPOINT")?).or(raw.tracing.as_ref().map(|t| t.otlp_endpoint.clone()));
 	// Parse admin_addr from environment variable or config file
 	let admin_addr = parse::<String>("ADMIN_ADDR")?
 		.or(raw.admin_addr)
@@ -186,7 +186,26 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 				None => Duration::from_secs(5),
 			},
 		},
-		tracing: trc::Config { endpoint: otlp },
+		tracing: trc::Config {
+			endpoint: otlp,
+			fields: Arc::new(
+				raw
+				.tracing
+				.and_then(|f| f.fields)
+				.map(|fields| {
+					Ok::<_, anyhow::Error>(LoggingFields {
+						remove: fields.remove.into_iter().collect(),
+						add: fields
+						.add
+						.iter()
+						.map(|(k, v)| cel::Expression::new(v).map(|v| (k.clone(), Arc::new(v))))
+						.collect::<Result<_, _>>()?,
+					})
+				})
+				.transpose()?
+				.unwrap_or_default(),
+			)
+		},
 		logging: telemetry::log::Config {
 			filter: raw
 				.logging

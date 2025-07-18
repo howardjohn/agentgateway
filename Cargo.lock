@@ -208,6 +208,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "value-bag",
  "which 8.0.0",
  "wiremock",
  "x509-parser",

@@ -140,6 +140,14 @@ impl CelLogging {
 		}
 	}
 
+
+	pub fn register(&mut self, fields: &LoggingFields) {
+		for v in fields.add.values() {
+			self.cel_context.register_expression(v.as_ref());
+		}
+	}
+
+
 	pub fn ctx(&mut self) -> &mut ContextBuilder {
 		&mut self.cel_context
 	}
@@ -206,9 +214,6 @@ pub struct RequestLog {
 
 impl Drop for RequestLog {
 	fn drop(&mut self) {
-		if let Some(t) = &self.tracer {
-			t.send(self)
-		};
 		if let Some(m) = &self.metrics {
 			m.requests
 				.get_or_create(&HTTPLabels {
@@ -223,7 +228,8 @@ impl Drop for RequestLog {
 				})
 				.inc();
 		}
-		if !tracing::enabled!(target: "request", Level::INFO) {
+		let enable_trace = self.tracer.is_some();
+		if !tracing::enabled!(target: "request", Level::INFO) && !enable_trace {
 			return;
 		}
 		let cel = self.cel.take().unwrap();
@@ -231,7 +237,8 @@ impl Drop for RequestLog {
 			tracing::warn!("failed to build CEL context");
 			return;
 		};
-		if !cel_exec.eval_filter() {
+		let enable_logs = cel_exec.eval_filter();
+		if !enable_logs && !enable_trace {
 			return;
 		}
 
@@ -330,18 +337,25 @@ impl Drop for RequestLog {
 			log!("error", self.error.display()),
 			log!("duration", Some(dur.as_str().into())),
 		];
-		kv.reserve(fields.add.len());
-
-		// To avoid lifetime issues need to store the expression before we give it to ValueBag reference.
-		// TODO: we could allow log() to take a list of borrows and then a list of OwnedValueBag
-		let raws = cel_exec.eval_additions();
-		for (k, v) in &raws {
-			// TODO: convert directly instead of via json()
-			let eval = v.as_ref().map(ValueBag::capture_serde1);
-			kv.push((k, eval));
+		if enable_trace {
+			if let Some(t) = &self.tracer {
+				t.send(self, kv.as_slice())
+			};
 		}
+		if enable_logs {
+			kv.reserve(fields.add.len());
 
-		agent_core::telemetry::log("info", "request", &kv);
+			// To avoid lifetime issues need to store the expression before we give it to ValueBag reference.
+			// TODO: we could allow log() to take a list of borrows and then a list of OwnedValueBag
+			let raws = cel_exec.eval_additions();
+			for (k, v) in &raws {
+				// TODO: convert directly instead of via json()
+				let eval = v.as_ref().map(ValueBag::capture_serde1);
+				kv.push((k, eval));
+			}
+
+			agent_core::telemetry::log("info", "request", &kv);
+		}
 	}
 }
 
