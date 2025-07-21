@@ -16,16 +16,16 @@ use crate::types::proto::agent::{
 	Resource as ADPResource, Route as XdsRoute,
 };
 use crate::*;
+use ::http::Request;
 use agent_xds::{RejectedConfig, XdsUpdate};
 use axum_core::body::Body;
 use futures_core::Stream;
-use ::http::Request;
 use itertools::Itertools;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
-use tracing::{instrument, Level};
+use tracing::{Level, instrument};
 
 #[derive(Debug)]
 pub struct Store {
@@ -148,7 +148,8 @@ impl Store {
 			.policies_by_target
 			.get(&PolicyTarget::RouteRule(route_rule));
 		let rules = route_rule
-			.iter().copied()
+			.iter()
+			.copied()
 			.flatten()
 			.chain(route.iter().copied().flatten())
 			.chain(gateway.iter().copied().flatten())

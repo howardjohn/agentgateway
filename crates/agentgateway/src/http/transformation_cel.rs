@@ -29,7 +29,7 @@ pub struct LocalTransformationConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct LocalTransform {
 	#[serde(default)]
-  #[serde_as(as = "serde_with::Map<_, _>")]
+	#[serde_as(as = "serde_with::Map<_, _>")]
 	pub add: Vec<(Strng, Strng)>,
 	#[serde(default)]
 	#[serde_as(as = "serde_with::Map<_, _>")]
