@@ -93,7 +93,6 @@ mod functions {
 	use crate::cel::ExpressionContext;
 	use minijinja::{State, Value};
 
-	#[macro_export]
 	macro_rules! state {
 		($s:ident) => {
 			let Some(state_value) = $s.lookup("STATE") else {

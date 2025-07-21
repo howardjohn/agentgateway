@@ -32,6 +32,7 @@ use crate::types::agent::{
 };
 use crate::types::discovery::{NamespacedHostname, Service};
 use crate::*;
+use serde_with::TryFromInto;
 
 impl NormalizedLocalConfig {
 	pub async fn from(client: client::Client, s: &str) -> anyhow::Result<NormalizedLocalConfig> {
@@ -255,6 +256,7 @@ impl SimpleLocalBackend {
 		}
 	}
 }
+
 #[serde_as]
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -303,7 +305,6 @@ struct FilterOrPolicy {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
 	ai: Option<llm::Policy>,
-
 	/// Send TLS to the backend.
 	#[serde(
 		rename = "backendTLS",
@@ -329,6 +330,10 @@ struct FilterOrPolicy {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
 	ext_authz: Option<crate::http::ext_authz::ExtAuthz>,
+	/// Modify requests and responses
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde_as(as = "Option<TryFromInto<http::transformation_cel::LocalTransformationConfig>>")]
+	transformations: Option<crate::http::transformation_cel::Transformation>,
 
 	// TrafficPolicy
 	/// Timeout requests that exceed the configured duration.
@@ -558,6 +563,7 @@ async fn convert_route(
 			local_rate_limit,
 			remote_rate_limit,
 			jwt_auth,
+			transformations,
 			ext_authz,
 			timeout,
 			retry,
@@ -612,6 +618,9 @@ async fn convert_route(
 		}
 		if let Some(p) = jwt_auth {
 			external_policies.push(tgt(Policy::JwtAuth(p.try_into(client.clone()).await?)))
+		}
+		if let Some(p) = transformations {
+			external_policies.push(tgt(Policy::Transformation(p)))
 		}
 		if let Some(p) = ext_authz {
 			external_policies.push(tgt(Policy::ExtAuthz(p)))

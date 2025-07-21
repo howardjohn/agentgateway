@@ -1034,6 +1034,10 @@ pub enum Policy {
 	// ExtProc(),
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
 	JwtAuth(crate::http::jwt::Jwt),
+	// Supported targets: Gateway < Route < RouteRule; single policy allowed
+	// ExtProc(),
+	// Supported targets: Gateway < Route < RouteRule; single policy allowed
+	Transformation(crate::http::transformation_cel::Transformation),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
