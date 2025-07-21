@@ -13,13 +13,6 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
-const REQUEST_HEADER_ATTRIBUTE: &str = "request_header";
-const RESPONSE_HEADER_ATTRIBUTE: &str = "header";
-const BODY_ATTRIBUTE: &str = "body";
-const RESPONSE_ATTRIBUTE: &str = "response";
-const JWT_ATTRIBUTE: &str = "jwt";
-const MCP_ATTRIBUTE: &str = "mcp";
-
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -31,7 +24,7 @@ pub struct LocalTransformationConfig {
 }
 
 #[serde_as]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Default, Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct LocalTransform {
@@ -46,8 +39,6 @@ pub struct LocalTransform {
 	#[serde(default)]
 	pub body: Option<Strng>,
 }
-
-fn x<T: JsonSchema>(t: T) {}
 
 impl TryFrom<LocalTransform> for TransformerConfig {
 	type Error = anyhow::Error;
@@ -124,10 +115,10 @@ impl Transformation {
 			.iter()
 			.map(|v| &v.1)
 			.chain(self.request.set.iter().map(|v| &v.1))
-			.chain(self.request.body.as_ref().into_iter())
+			.chain(self.request.body.as_ref())
 			.chain(self.response.add.iter().map(|v| &v.1))
 			.chain(self.response.set.iter().map(|v| &v.1))
-			.chain(self.response.body.as_ref().into_iter())
+			.chain(self.response.body.as_ref())
 	}
 }
 
@@ -141,15 +132,6 @@ pub struct TransformerConfig {
 	#[serde_as(serialize_as = "Vec<SerAsStr>")]
 	pub remove: Vec<HeaderName>,
 	pub body: Option<cel::Expression>,
-}
-
-impl Transformation {
-	pub fn ctx(&self) -> ContextBuilder {
-		ContextBuilder {
-			attributes: todo!(),
-			context: Default::default(),
-		}
-	}
 }
 
 pub struct SerAsStr;

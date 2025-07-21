@@ -148,13 +148,11 @@ impl Store {
 			.policies_by_target
 			.get(&PolicyTarget::RouteRule(route_rule));
 		let rules = route_rule
-			.iter()
-			.map(|x| *x)
+			.iter().copied()
 			.flatten()
-			.chain(route.iter().map(|x| *x).flatten())
-			.chain(gateway.iter().map(|x| *x).flatten())
-			.map(|n| self.policies_by_name.get(n))
-			.flatten()
+			.chain(route.iter().copied().flatten())
+			.chain(gateway.iter().copied().flatten())
+			.filter_map(|n| self.policies_by_name.get(n))
 			.collect_vec();
 		let local_rate_limit = rules.iter().find_map(|n| match &n.policy {
 			Policy::LocalRateLimit(lrl) => Some(lrl.clone()),

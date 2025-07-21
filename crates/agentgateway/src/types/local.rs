@@ -260,7 +260,7 @@ impl SimpleLocalBackend {
 #[serde_as(schemars = true)]
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[derive(JsonSchema)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 struct FilterOrPolicy {
 	// Filters. Keep in sync with RouteFilter
 	/// Headers to be modified in the request.

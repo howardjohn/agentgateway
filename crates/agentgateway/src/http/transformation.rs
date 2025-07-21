@@ -51,7 +51,7 @@ fn build(transforms: HashMap<HeaderName, String>) -> anyhow::Result<Transformati
 	let mut attributes = HashSet::new();
 	let id = 0;
 	for (k, t) in transforms.into_iter() {
-		let name = format!("template_{}", id);
+		let name = format!("template_{id}");
 		env.add_template_owned(name.clone(), t)?;
 		let tmpl = env.get_template(&name)?;
 		attributes.extend(tmpl.undeclared_variables(false));
