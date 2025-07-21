@@ -1048,19 +1048,9 @@
                             ],
                             "properties": {
                               "add": {
-                                "type": "array",
-                                "items": {
-                                  "type": "array",
-                                  "maxItems": 2,
-                                  "minItems": 2,
-                                  "prefixItems": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "string"
-                                    }
-                                  ]
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
                                 }
                               },
                               "remove": {
@@ -1070,19 +1060,9 @@
                                 }
                               },
                               "set": {
-                                "type": "array",
-                                "items": {
-                                  "type": "array",
-                                  "maxItems": 2,
-                                  "minItems": 2,
-                                  "prefixItems": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "string"
-                                    }
-                                  ]
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
                                 }
                               }
                             },
@@ -1327,19 +1307,9 @@
                             ],
                             "properties": {
                               "add": {
-                                "type": "array",
-                                "items": {
-                                  "type": "array",
-                                  "maxItems": 2,
-                                  "minItems": 2,
-                                  "prefixItems": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "string"
-                                    }
-                                  ]
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
                                 }
                               },
                               "remove": {
@@ -1349,19 +1319,9 @@
                                 }
                               },
                               "set": {
-                                "type": "array",
-                                "items": {
-                                  "type": "array",
-                                  "maxItems": 2,
-                                  "minItems": 2,
-                                  "prefixItems": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "string"
-                                    }
-                                  ]
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
                                 }
                               }
                             },
