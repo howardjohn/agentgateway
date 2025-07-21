@@ -257,90 +257,95 @@ impl SimpleLocalBackend {
 	}
 }
 
-#[serde_as]
+#[serde_as(schemars = true)]
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[derive(JsonSchema)]
 struct FilterOrPolicy {
 	// Filters. Keep in sync with RouteFilter
 	/// Headers to be modified in the request.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	request_header_modifier: Option<filters::HeaderModifier>,
 
 	/// Headers to be modified in the response.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	response_header_modifier: Option<filters::HeaderModifier>,
 
 	/// Directly respond to the request with a redirect.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	request_redirect: Option<filters::RequestRedirect>,
 
 	/// Modify the URL path or authority.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	url_rewrite: Option<filters::UrlRewrite>,
 
 	/// Mirror incoming requests to another destination.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	request_mirror: Option<LocalRequestMirror>,
 
 	/// Directly respond to the request with a static response.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	direct_response: Option<filters::DirectResponse>,
 
 	/// Handle CORS preflight requests and append configured CORS headers to applicable requests.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	cors: Option<http::cors::Cors>,
 
 	// Policy
 	/// Authorization policies for MCP access.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	mcp_authorization: Option<McpAuthorization>,
 	/// Authentication for MCP clients.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	mcp_authentication: Option<McpAuthentication>,
 	/// Mark this traffic as A2A to enable A2A processing and telemetry.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	a2a: Option<A2aPolicy>,
 	/// Mark this as LLM traffic to enable LLM processing.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
 	ai: Option<llm::Policy>,
 	/// Send TLS to the backend.
-	#[serde(
-		rename = "backendTLS",
-		default,
-		skip_serializing_if = "Option::is_none"
-	)]
+	#[serde(rename = "backendTLS", default)]
 	backend_tls: Option<http::backendtls::LocalBackendTLS>,
 	/// Authenticate to the backend.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	backend_auth: Option<BackendAuth>,
 	/// Rate limit incoming requests. State is kept local.
-	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	#[serde(default)]
 	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
 	local_rate_limit: Vec<crate::http::localratelimit::RateLimit>,
 	/// Rate limit incoming requests. State is managed by a remote server.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
 	remote_rate_limit: Option<crate::http::remoteratelimit::RemoteRateLimit>,
 	/// Authenticate incoming JWT requests.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	jwt_auth: Option<crate::http::jwt::LocalJwtConfig>,
 	/// Authenticate incoming requests by calling an external authorization server.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
 	ext_authz: Option<crate::http::ext_authz::ExtAuthz>,
 	/// Modify requests and responses
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	#[serde_as(as = "Option<TryFromInto<http::transformation_cel::LocalTransformationConfig>>")]
+	#[serde(default)]
+	#[serde_as(
+		deserialize_as = "Option<TryFromInto<http::transformation_cel::LocalTransformationConfig>>"
+	)]
+	// serde_as is supposed to generate this automatically; not sure why its failing...
+	#[cfg_attr(
+		feature = "schema",
+		schemars(
+			with = "serde_with::Schema::<Option<crate::http::transformation_cel::Transformation>, Option<TryFromInto<http::transformation_cel::LocalTransformationConfig>>>"
+		)
+	)]
 	transformations: Option<crate::http::transformation_cel::Transformation>,
 
 	// TrafficPolicy
 	/// Timeout requests that exceed the configured duration.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	timeout: Option<timeout::Policy>,
 	/// Retry matching requests.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(default)]
 	retry: Option<retry::Policy>,
 }
 

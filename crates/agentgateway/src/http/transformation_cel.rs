@@ -24,25 +24,30 @@ const MCP_ATTRIBUTE: &str = "mcp";
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct LocalTransformationConfig {
-	#[serde(default, skip_serializing_if = "is_default")]
+	#[serde(default)]
 	pub request: Option<LocalTransform>,
-	#[serde(default, skip_serializing_if = "is_default")]
+	#[serde(default)]
 	pub response: Option<LocalTransform>,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct LocalTransform {
-	#[serde(default, skip_serializing_if = "is_default")]
+	#[serde(default)]
+  #[serde_as(as = "serde_with::Map<_, _>")]
 	pub add: Vec<(Strng, Strng)>,
-	#[serde(default, skip_serializing_if = "is_default")]
+	#[serde(default)]
+	#[serde_as(as = "serde_with::Map<_, _>")]
 	pub set: Vec<(Strng, Strng)>,
-	#[serde(default, skip_serializing_if = "is_default")]
+	#[serde(default)]
 	pub remove: Vec<Strng>,
-	#[serde(default, skip_serializing_if = "is_default")]
+	#[serde(default)]
 	pub body: Option<Strng>,
 }
+
+fn x<T: JsonSchema>(t: T) {}
 
 impl TryFrom<LocalTransform> for TransformerConfig {
 	type Error = anyhow::Error;
