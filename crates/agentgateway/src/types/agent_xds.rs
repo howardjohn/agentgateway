@@ -464,14 +464,8 @@ impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
 
 	fn try_from(s: &proto::agent::Policy) -> Result<Self, Self::Error> {
 		let name = PolicyName::from(&s.name);
-		let target = s
-			.target
-			.as_ref()
-			.ok_or_else(|| ProtoError::MissingRequiredField)?;
-		let spec = s
-			.spec
-			.as_ref()
-			.ok_or_else(|| ProtoError::MissingRequiredField)?;
+		let target = s.target.as_ref().ok_or(ProtoError::MissingRequiredField)?;
+		let spec = s.spec.as_ref().ok_or(ProtoError::MissingRequiredField)?;
 		let target = match &target.kind {
 			Some(proto::agent::policy_target::Kind::Gateway(v)) => PolicyTarget::Gateway(v.into()),
 			Some(proto::agent::policy_target::Kind::Listener(v)) => PolicyTarget::Listener(v.into()),
@@ -489,7 +483,7 @@ impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
 						tokens_per_fill: lrl.tokens_per_fill,
 						fill_interval: lrl
 							.fill_interval
-							.ok_or_else(|| ProtoError::MissingRequiredField)?
+							.ok_or(ProtoError::MissingRequiredField)?
 							.try_into()?,
 						limit_type: match t {
 							Type::Request => localratelimit::RateLimitType::Requests,
@@ -497,7 +491,7 @@ impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
 						},
 					}
 					.try_into()
-					.map_err(|e| ProtoError::Generic(format!("invalid rate limit: {}", e)))?,
+					.map_err(|e| ProtoError::Generic(format!("invalid rate limit: {e}")))?,
 				])
 			},
 			_ => return Err(ProtoError::EnumParse("unknown spec kind".to_string())),
