@@ -170,10 +170,16 @@ message RouteBackend {
 
 message PolicyTarget {
   oneof kind {
+    // Matches Listener.gateway_name
     string gateway = 1;
+    // Matches Listener.name
     string listener = 2;
+    // Match Route.route_name
     string route = 3;
+    // Matches Route.rule_name
     string route_rule = 4;
+    // For Service: `service/{namespace}/{hostname}:{port}`
+    // For Backend: `{ns}/{name}`
     string backend = 5;
   }
 }
