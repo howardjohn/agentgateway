@@ -183,6 +183,16 @@ pub struct Config {
 	pub logging: crate::telemetry::log::Config,
 	pub dns: client::Config,
 	pub proxy_metadata: ProxyMetadata,
+	pub threading_mode: ThreadingMode,
+}
+
+#[derive(serde::Serialize, Copy, PartialOrd, PartialEq, Eq, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum ThreadingMode {
+	#[default]
+	Multithreaded,
+	// Experimental; do not use beyond testing
+	ThreadPerCore,
 }
 
 #[derive(serde::Serialize, Clone, Debug)]

@@ -364,7 +364,7 @@ impl Drop for DropOnLog {
 
 		let enable_trace = log.tracer.is_some();
 		// We will later check it also matches a filter, but filter is slower
-		let maybe_enable_log = agent_core::telemetry::enabled("request", &Level::INFO);;
+		let maybe_enable_log = agent_core::telemetry::enabled("request", &Level::INFO);
 		if !maybe_enable_log && !enable_trace {
 			return;
 		}

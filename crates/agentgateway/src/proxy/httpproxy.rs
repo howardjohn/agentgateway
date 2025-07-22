@@ -585,17 +585,16 @@ impl HTTPProxy {
 		};
 
 		// Setup timeout
-		let (call, body_timeout) = if let Some(timeout) = timeout {
+		let (call_result, body_timeout) = if let Some(timeout) = timeout {
 			let deadline = tokio::time::Instant::from_std(log.start + timeout);
 			let fut = tokio::time::timeout_at(deadline, call);
-			(fut, http::timeout::BodyTimeout::Deadline(deadline))
+			(fut.await, http::timeout::BodyTimeout::Deadline(deadline))
 		} else {
-			let fut = tokio::time::timeout(Duration::MAX, call);
-			(fut, http::timeout::BodyTimeout::None)
+			(Ok(call.await), http::timeout::BodyTimeout::None)
 		};
 
 		// Run the actual call
-		let mut resp = match call.await {
+		let mut resp = match call_result {
 			Ok(Ok(resp)) => resp,
 			Ok(Err(e)) => {
 				return Err(e);
