@@ -12,13 +12,14 @@ use futures_util::FutureExt;
 use http::StatusCode;
 use hyper_util::rt::TokioIo;
 use hyper_util::server::conn::auto;
+use net2::unix::UnixTcpBuilderExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;
 use tokio::task::{AbortHandle, JoinSet};
 use tokio_stream::StreamExt;
 use tracing::{Instrument, debug, event, info, info_span, warn};
 
-use crate::ProxyInputs;
+use crate::{client, ProxyInputs};
 use crate::store::Event;
 use crate::telemetry::metrics::TCPLabels;
 use crate::transport::stream::{BytesCounter, Extension, LoggingMode, Socket};
@@ -63,9 +64,36 @@ impl Gateway {
 			}
 
 			debug!("add bind {}", b.address);
-			let task =
-				js.spawn(Self::run_bind(self.pi.clone(), subdrain.clone(), b.clone()).in_current_span());
-			active.insert(b.address, task);
+			let core_ids = core_affinity::get_core_ids().unwrap();
+			let handles = core_ids
+				.into_iter()
+				.map(|id| {
+					let subdrain = subdrain.clone();
+					let pi = self.pi.clone();
+					let b = b.clone();
+					std::thread::spawn(move || {
+						let res = core_affinity::set_for_current(id);
+						if !res {
+							panic!("failed to set current CPU")
+						}
+						tracing::error!("howardjohn: build for core {id:?}");
+						tokio::runtime::Builder::new_current_thread()
+							.enable_all()
+							.build()
+							.unwrap()
+							.block_on(async {
+								let res = Self::run_bind(pi.clone(), subdrain.clone(), b.clone())
+									.in_current_span()
+									.await;
+								tracing::error!("howardjohn: res: {res:?}");
+							})
+						// Pin this thread to a single CPU core.
+					})
+				})
+				.collect::<Vec<_>>();
+			// let task =
+			// 	js.spawn(Self::run_bind(self.pi.clone(), subdrain.clone(), b.clone()).in_current_span());
+			// active.insert(b.address, task);
 		};
 		for bind in initial_binds {
 			handle_bind(&mut js, Event::Add(bind))
@@ -106,7 +134,16 @@ impl Gateway {
 		let min_deadline = pi.cfg.termination_min_deadline;
 		let max_deadline = pi.cfg.termination_max_deadline;
 		let name = b.key.clone();
-		let listener = TcpListener::bind(b.address).await?; // TODO: nodelay
+		let mut pi = Arc::unwrap_or_clone(pi);
+		let client = client::Client::new(&pi.cfg.dns, None);
+		pi.upstream = client;
+		let pi = Arc::new(pi);
+		let listener = net2::TcpBuilder::new_v6().unwrap()
+		.reuse_port(true).unwrap()
+		.bind(b.address).unwrap()
+		.listen(1024).unwrap();
+		listener.set_nonblocking(true).unwrap();
+		let listener = tokio::net::TcpListener::from_std(listener).unwrap();
 		info!(bind = name.as_str(), "started bind");
 		let component = format!("bind {name}");
 

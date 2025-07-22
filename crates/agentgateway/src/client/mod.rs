@@ -7,7 +7,11 @@ use std::task;
 
 use ::http::Uri;
 use ::http::uri::{Authority, Scheme};
+use arc_swap::ArcSwapOption;
 use axum::body::to_bytes;
+use futures_util::SinkExt;
+use http_body_util::Empty;
+use hyper::client::conn::http1::SendRequest;
 use hyper_util_fork::rt::TokioIo;
 use rand::prelude::IteratorRandom;
 use rustls_pki_types::{DnsName, ServerName};
@@ -26,6 +30,7 @@ use crate::*;
 #[derive(Clone)]
 pub struct Client {
 	resolver: Arc<dns::CachedResolver>,
+	mu: Arc<tokio::sync::Mutex<Option<SendRequest<http::Body>>>>,
 	client: hyper_util_fork::client::legacy::Client<Connector, http::Body, PoolKey>,
 }
 
@@ -201,6 +206,7 @@ impl Client {
 		Client {
 			resolver: Arc::new(resolver),
 			client,
+			mu: Arc::new(tokio::sync::Mutex::new(None)),
 		}
 	}
 
@@ -235,6 +241,29 @@ impl Client {
 	}
 
 	pub async fn call(&self, call: Call) -> Result<http::Response, ProxyError> {
+		let mut mu = self.mu.lock().await;
+		if mu.is_none() {
+			let outbound = tokio::net::TcpStream::connect(SocketAddr::from(([127, 0, 0, 1], 8084))).await.unwrap();
+			outbound.set_nodelay(true).unwrap();
+			let io = hyper_util::rt::TokioIo::new(outbound);
+			let (sender, conn) =
+			hyper::client::conn::http1::handshake(io).await.unwrap();
+			tokio::task::spawn(async move {
+				if let Err(err) = conn.await {
+					eprintln!("Connection failed: {err:?}");
+				}
+			});
+			*mu = Some(sender)
+		}
+
+		let c = mu.as_mut().unwrap();
+		let resp = c.send_request(call.req).await;
+		Ok(
+			resp.unwrap()
+			.map(http::Body::new),
+		)
+	}
+	pub async fn call_legacy(&self, call: Call) -> Result<http::Response, ProxyError> {
 		let start = std::time::Instant::now();
 		let Call {
 			mut req,

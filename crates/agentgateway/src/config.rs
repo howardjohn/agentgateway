@@ -155,13 +155,13 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 		.or(raw.admin_addr)
 		.map(|addr| Address::new(ipv6_localhost_enabled, &addr))
 		.transpose()?
-		.unwrap_or(Address::Localhost(ipv6_localhost_enabled, 15000));
+		.unwrap_or(Address::Localhost(ipv6_localhost_enabled, 0));
 
 	Ok(crate::Config {
 		network: network.into(),
 		admin_addr,
-		stats_addr: Address::SocketAddr(SocketAddr::new(bind_wildcard, 15020)),
-		readiness_addr: Address::SocketAddr(SocketAddr::new(bind_wildcard, 15021)),
+		stats_addr: Address::SocketAddr(SocketAddr::new(bind_wildcard, 0)),
+		readiness_addr: Address::SocketAddr(SocketAddr::new(bind_wildcard, 0)),
 		self_addr,
 		xds,
 		ca,
