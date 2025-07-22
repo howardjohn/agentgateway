@@ -317,7 +317,9 @@ impl Store {
     )]
 	pub fn remove_policy(&mut self, pol: PolicyName) {
 		if let Some(old) = self.policies_by_name.remove(&pol) {
-			self.policies_by_target.remove(&old.target);
+			if let Some(o) = self.policies_by_target.get_mut(&old.target) {
+				o.remove(&pol);
+			}
 		}
 	}
 	#[instrument(
@@ -413,7 +415,10 @@ impl Store {
 	pub fn insert_policy(&mut self, pol: TargetedPolicy) {
 		let pol = Arc::new(pol);
 		if let Some(old) = self.policies_by_name.insert(pol.name.clone(), pol.clone()) {
-			self.policies_by_target.remove(&old.target);
+			// Remove the old target. We may add it back, though.
+			if let Some(o) = self.policies_by_target.get_mut(&old.target) {
+				o.remove(&pol.name);
+			}
 		}
 		self
 			.policies_by_target
