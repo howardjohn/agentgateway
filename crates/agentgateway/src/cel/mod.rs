@@ -5,12 +5,6 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
-use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
-use crate::http::jwt::Claims;
-use crate::json;
-use crate::llm::{LLMRequest, LLMResponse};
-use crate::serdes::*;
-use crate::telemetry::log::CelLogging;
 use agent_core::strng::Strng;
 use axum_core::body::Body;
 use bytes::Bytes;
@@ -21,6 +15,13 @@ use cel_parser::{Expression as CelExpression, ParseError};
 use http::Request;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, Serializer};
+
+use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
+use crate::http::jwt::Claims;
+use crate::json;
+use crate::llm::{LLMRequest, LLMResponse};
+use crate::serdes::*;
+use crate::telemetry::log::CelLogging;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -243,6 +244,7 @@ impl Expression {
 }
 
 #[derive(Clone, Debug, Default, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ExpressionContext {
 	pub request: Option<RequestContext>,
 	pub response: Option<ResponseContext>,
@@ -251,26 +253,33 @@ pub struct ExpressionContext {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct RequestContext {
 	#[serde(with = "http_serde::method")]
+	#[cfg_attr(feature = "schema", schemars(with = "String"))]
 	pub method: ::http::Method,
 
 	#[serde(with = "http_serde::uri")]
+	#[cfg_attr(feature = "schema", schemars(with = "String"))]
 	pub uri: ::http::Uri,
 
 	#[serde(with = "http_serde::header_map")]
+	#[cfg_attr(feature = "schema", schemars(with = "std::collections::HashMap<String, String>"))]
 	pub headers: ::http::HeaderMap,
 
 	pub body: Option<Bytes>,
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ResponseContext {
 	#[serde(with = "http_serde::status_code")]
+	#[cfg_attr(feature = "schema", schemars(with = "u16"))]
 	pub code: ::http::StatusCode,
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct LLMContext {
 	streaming: bool,
 	request_model: Strng,
@@ -423,10 +432,11 @@ fn to_value(v: impl Serialize) -> Result<Value, Error> {
 mod fns {
 	use std::sync::Arc;
 
-	use cel_interpreter::{ExecutionError, FunctionContext, ResolveResult, Value};
 	use cel_interpreter::extractors::{Identifier, This};
 	use cel_interpreter::objects::ValueType;
+	use cel_interpreter::{ExecutionError, FunctionContext, ResolveResult, Value};
 	use cel_parser::Expression;
+
 	use crate::cel::to_value;
 
 	pub fn with(

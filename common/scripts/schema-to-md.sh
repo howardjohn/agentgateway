@@ -1,3 +1,5 @@
+#!/bin/bash
+
 echo "|Field|Column|"
 echo "|-|-|"
 jq -r '

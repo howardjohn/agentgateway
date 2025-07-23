@@ -4,14 +4,15 @@ use std::io::Write;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
-use super::*;
-use crate::http::Body;
-use crate::store::Stores;
-use crate::types::agent::{Listener, ListenerProtocol, PathMatch, Route, RouteMatch, RouteSet};
 use agent_core::strng;
 use divan::Bencher;
 use http::Method;
 use serde_json::json;
+
+use super::*;
+use crate::http::Body;
+use crate::store::Stores;
+use crate::types::agent::{Listener, ListenerProtocol, PathMatch, Route, RouteMatch, RouteSet};
 
 fn eval_request(expr: &str, req: crate::http::Request) -> Result<Value, Error> {
 	let mut cb = ContextBuilder::new();

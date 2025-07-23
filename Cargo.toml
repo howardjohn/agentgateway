@@ -11,6 +11,7 @@ members = [
     "crates/hbone",
     "crates/mock-server",
     "crates/xds",
+    "xtask",
 ]
 default-members = [
     "crates/a2a-sdk",
@@ -19,6 +20,7 @@ default-members = [
     "crates/hbone",
     "crates/agentgateway",
     "crates/agentgateway-app",
+    "xtask",
 ]
 
 [workspace.package]
