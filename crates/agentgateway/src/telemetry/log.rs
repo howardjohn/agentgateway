@@ -8,7 +8,7 @@ use std::time::{Instant, SystemTime};
 
 use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
 use crossbeam::atomic::AtomicCell;
-use frozen_collections::{FzHashSet, FzOrderedMap};
+use frozen_collections::{FzHashSet, FzOrderedMap, FzStringMap};
 use http_body::{Body, Frame, SizeHint};
 use serde_json::Value;
 use tracing::{Level, event, log};
@@ -79,7 +79,7 @@ pub struct Config {
 #[derive(serde::Serialize, Default, Clone, Debug)]
 pub struct LoggingFields {
 	pub remove: FzHashSet<String>,
-	pub add: FzOrderedMap<String, Arc<cel::Expression>>,
+	pub add: FzStringMap<Box<str>, Arc<cel::Expression>>,
 }
 
 impl LoggingFields {
@@ -109,7 +109,7 @@ impl<'a> CelLoggingExecutor<'a> {
 		}
 	}
 
-	pub fn eval(&self, fields: &'a Arc<LoggingFields>) -> Vec<(&String, Option<Value>)> {
+	pub fn eval(&self, fields: &'a Arc<LoggingFields>) -> Vec<(&str, Option<Value>)> {
 		let mut raws = Vec::with_capacity(fields.add.len());
 		for (k, v) in &fields.add {
 			let celv = self
@@ -119,12 +119,12 @@ impl<'a> CelLoggingExecutor<'a> {
 				.filter(|v| !matches!(v, cel_interpreter::Value::Null))
 				.and_then(|v| v.json().ok());
 
-			raws.push((k, celv));
+			raws.push((k.as_ref(), celv));
 		}
 		raws
 	}
 
-	fn eval_additions(&self) -> Vec<(&String, Option<Value>)> {
+	fn eval_additions(&self) -> Vec<(&str, Option<Value>)> {
 		self.eval(self.fields)
 	}
 }
@@ -305,6 +305,12 @@ impl Drop for DropOnLog {
 			return;
 		}
 
+		let llm_response = log.llm_response.take();
+		if let Some(llm_response) = &llm_response {
+			// Since this is async, we add it to the context here. A bit awkward but gets the job done.
+			log.cel.cel_context.with_llm_response(llm_response);
+		}
+
 		let Ok(cel_exec) = log.cel.build() else {
 			tracing::warn!("failed to build CEL context");
 			return;
@@ -317,7 +323,6 @@ impl Drop for DropOnLog {
 		let dur = format!("{}ms", log.start.elapsed().as_millis());
 		let grpc = log.grpc_status.load();
 
-		let llm_response = log.llm_response.take();
 		if let (Some(req), Some(resp)) = (log.llm_request.as_ref(), llm_response.as_ref()) {
 			if Some(req.input_tokens) != resp.input_tokens_from_response {
 				// TODO: remove this, just for dev

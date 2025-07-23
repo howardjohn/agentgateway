@@ -54,6 +54,7 @@ gen: generate-apis generate-schema
 .PHONY: generate-schema
 generate-schema:
 	cargo run -F schema > schema/local.json
+	common/scripts/schema-to-md.sh schema/local.json > schema/local.md
 
 # Code generation for xds apis
 .PHONY: generate-apis

@@ -867,6 +867,9 @@ async fn make_backend_call(
 			RequestResult::Success(r, lr) => (r, lr),
 			RequestResult::Rejected(dr) => return Ok(Box::pin(async move { Ok(dr) })),
 		};
+		if let Some(log) = log.as_mut() {
+			log.cel.cel_context.with_llm_request(&llm_request);
+		}
 		apply_llm_request_policies(route_policies, &llm_request)?;
 		log.add(|l| l.llm_request = Some(llm_request.clone()));
 		(req, Some(llm_request))

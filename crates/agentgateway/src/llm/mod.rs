@@ -441,6 +441,13 @@ fn num_tokens_from_messages(
 	Ok(num_tokens)
 }
 
+/// Tokenizers take about 200ms to load and are lazy loaded. This loads them on demand, outside the
+/// request path
+pub fn preload_tokenizers() {
+	let _ = tiktoken_rs::cl100k_base_singleton();
+	let _ = tiktoken_rs::o200k_base_singleton();
+}
+
 pub fn get_bpe_from_tokenizer<'a>(tokenizer: Tokenizer) -> &'a CoreBPE {
 	match tokenizer {
 		Tokenizer::O200kBase => tiktoken_rs::o200k_base_singleton(),
