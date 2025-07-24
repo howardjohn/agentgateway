@@ -78,7 +78,7 @@ fn root_context() -> Arc<Context<'static>> {
 	Arc::new(ctx)
 }
 
-static ROOT_CONTEXT: Lazy<Arc<Context<'static>>> = Lazy::new(|| root_context());
+static ROOT_CONTEXT: Lazy<Arc<Context<'static>>> = Lazy::new(root_context);
 
 #[derive(Debug)]
 pub struct ContextBuilder {
@@ -173,8 +173,8 @@ impl ContextBuilder {
 			return;
 		}
 		if let Some(o) = self.context.llm.as_mut() {
-			o.output_tokens = info.output_tokens.clone();
-			o.total_tokens = info.total_tokens.clone();
+			o.output_tokens = info.output_tokens;
+			o.total_tokens = info.total_tokens;
 			if let Some(pt) = info.input_tokens_from_response {
 				// Better info, override
 				o.input_tokens = pt;
