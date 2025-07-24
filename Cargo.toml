@@ -20,7 +20,6 @@ default-members = [
     "crates/hbone",
     "crates/agentgateway",
     "crates/agentgateway-app",
-    "xtask",
 ]
 
 [workspace.package]

@@ -128,6 +128,9 @@ This folder contains JSON schemas for various parts of the project
 |`llm.completion`||
 |`llm.input_tokens`||
 |`llm.output_tokens`||
+|`llm.prompt`||
+|`llm.prompt[].content`||
+|`llm.prompt[].role`||
 |`llm.provider`||
 |`llm.request_model`||
 |`llm.response_model`||

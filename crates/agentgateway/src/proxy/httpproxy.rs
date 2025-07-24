@@ -860,16 +860,13 @@ async fn make_backend_call(
 	}
 	let (mut req, llm_request) = if let Some((llm, _)) = &policies.llm_provider {
 		let r = llm
-			.process_request(client, policies.llm.as_ref(), req)
+			.process_request(client, policies.llm.as_ref(), req, &mut log)
 			.await
 			.map_err(|e| ProxyError::Processing(e.into()))?;
 		let (mut req, llm_request) = match r {
 			RequestResult::Success(r, lr) => (r, lr),
 			RequestResult::Rejected(dr) => return Ok(Box::pin(async move { Ok(dr) })),
 		};
-		if let Some(log) = log.as_mut() {
-			log.cel.cel_context.with_llm_request(&llm_request);
-		}
 		apply_llm_request_policies(route_policies, &llm_request)?;
 		log.add(|l| l.llm_request = Some(llm_request.clone()));
 		(req, Some(llm_request))
@@ -885,7 +882,11 @@ async fn make_backend_call(
 		transport,
 	};
 	let mut upstream = inputs.upstream.clone();
-	let llm_response_log = log.map(|l| l.llm_response.clone());
+	let llm_response_log = log.as_ref().map(|l| l.llm_response.clone());
+	let include_completion_in_log = log
+		.as_ref()
+		.map(|l| l.cel.cel_context.needs_llm_completion())
+		.unwrap_or_default();
 	let rate_limit = route_policies.local_rate_limit.clone();
 	Ok(Box::pin(async move {
 		let mut resp = upstream.call(call).await?;
@@ -898,6 +899,7 @@ async fn make_backend_call(
 					llm_request,
 					rate_limit,
 					llm_response_log.expect("must be set"),
+					include_completion_in_log,
 					resp,
 				)
 				.await

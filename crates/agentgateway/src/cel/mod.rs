@@ -5,6 +5,12 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
+use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
+use crate::http::jwt::Claims;
+use crate::llm::{LLMRequest, LLMResponse};
+use crate::serdes::*;
+use crate::telemetry::log::CelLogging;
+use crate::{json, llm};
 use agent_core::strng::Strng;
 use axum_core::body::Body;
 use bytes::Bytes;
@@ -15,13 +21,7 @@ use cel_parser::{Expression as CelExpression, ParseError};
 use http::Request;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, Serializer};
-
-use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
-use crate::http::jwt::Claims;
-use crate::json;
-use crate::llm::{LLMRequest, LLMResponse};
-use crate::serdes::*;
-use crate::telemetry::log::CelLogging;
+use tiktoken_rs::ChatCompletionRequestMessage;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -43,6 +43,7 @@ pub const REQUEST_ATTRIBUTE: &str = "request";
 pub const REQUEST_BODY_ATTRIBUTE: &str = "request.body";
 pub const LLM_ATTRIBUTE: &str = "llm";
 pub const LLM_PROMPT_ATTRIBUTE: &str = "llm.prompt";
+pub const LLM_COMPLETION_ATTRIBUTE: &str = "llm.completion";
 pub const RESPONSE_ATTRIBUTE: &str = "response";
 pub const JWT_ATTRIBUTE: &str = "jwt";
 pub const MCP_ATTRIBUTE: &str = "mcp";
@@ -140,9 +141,9 @@ impl ContextBuilder {
 		self.context.jwt = Some(info.clone())
 	}
 
-	pub fn with_llm_request(&mut self, info: &LLMRequest) {
+	pub fn with_llm_request(&mut self, info: &LLMRequest) -> bool {
 		if !self.attributes.contains(LLM_ATTRIBUTE) {
-			return;
+			return false;
 		}
 
 		self.context.llm = Some(LLMContext {
@@ -154,8 +155,17 @@ impl ContextBuilder {
 			response_model: None,
 			output_tokens: None,
 			total_tokens: None,
+			prompt: None,
 			completion: None,
-		})
+		});
+		self.attributes.contains(LLM_PROMPT_ATTRIBUTE)
+	}
+
+	pub fn with_llm_prompt(&mut self, msg: Vec<llm::SimpleChatCompletionMessage>) {
+		let Some(r) = &mut self.context.llm else {
+			return;
+		};
+		r.prompt = Some(msg);
 	}
 
 	pub fn with_llm_response(&mut self, info: &LLMResponse) {
@@ -170,9 +180,13 @@ impl ContextBuilder {
 				o.input_tokens = pt;
 			}
 			o.response_model = info.provider_model.clone();
-			// ... TODO ...
-			o.completion = None;
+			// Not always set
+			o.completion = info.completion.clone();
 		}
+	}
+
+	pub fn needs_llm_completion(&self) -> bool {
+		self.attributes.contains(LLM_COMPLETION_ATTRIBUTE)
 	}
 
 	pub fn build_with_mcp(
@@ -230,6 +244,8 @@ impl Expression {
 			.into_iter()
 			.filter_map(|tokens| match tokens.as_slice() {
 				["request", "body", ..] => Some(REQUEST_BODY_ATTRIBUTE.to_string()),
+				["llm", "prompt", ..] => Some(LLM_PROMPT_ATTRIBUTE.to_string()),
+				["llm", "completion", ..] => Some(LLM_COMPLETION_ATTRIBUTE.to_string()),
 				[first, ..] => Some(first.to_string()),
 				_ => None,
 			})
@@ -264,7 +280,10 @@ pub struct RequestContext {
 	pub uri: ::http::Uri,
 
 	#[serde(with = "http_serde::header_map")]
-	#[cfg_attr(feature = "schema", schemars(with = "std::collections::HashMap<String, String>"))]
+	#[cfg_attr(
+		feature = "schema",
+		schemars(with = "std::collections::HashMap<String, String>")
+	)]
 	pub headers: ::http::HeaderMap,
 
 	pub body: Option<Bytes>,
@@ -292,7 +311,9 @@ pub struct LLMContext {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	total_tokens: Option<u64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	completion: Option<Vec<Bytes>>,
+	prompt: Option<Vec<llm::SimpleChatCompletionMessage>>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	completion: Option<Vec<String>>,
 }
 
 fn create_context<'a>() -> Context<'a> {

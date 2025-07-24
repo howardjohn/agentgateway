@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::io::Write;
 
 use agentgateway::cel;
@@ -23,14 +22,16 @@ pub fn generate_schema() -> Result<()> {
 	let mut readme = r#"# Schemas
 This folder contains JSON schemas for various parts of the project
 
-	"#.to_owned();
+	"#
+	.to_owned();
 	for (name, _, file) in schemas {
 		let rule_path = format!("{xtask_path}/../schema/{file}");
 		let cmd_path = format!("{xtask_path}/../common/scripts/schema-to-md.sh");
-		let o = std::process::Command::new(cmd_path).arg(&rule_path).output()?;
+		let o = std::process::Command::new(cmd_path)
+			.arg(&rule_path)
+			.output()?;
 		readme.push_str(&format!("## {name}\n\n"));
 		readme.push_str(&String::from_utf8_lossy(&o.stdout));
-		let xtask_path = std::env::var("CARGO_MANIFEST_DIR")?;
 	}
 	let mut file = fs_err::File::create(format!("{xtask_path}/../schema/README.md"))?;
 	file.write_all(readme.as_bytes())?;

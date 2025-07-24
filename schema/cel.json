@@ -55,6 +55,27 @@
           "format": "uint64",
           "minimum": 0
         },
+        "prompt": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role",
+              "content"
+            ]
+          }
+        },
         "provider": {
           "type": "string"
         },

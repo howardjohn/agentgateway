@@ -11,7 +11,7 @@ use crossbeam::atomic::AtomicCell;
 use frozen_collections::{FzHashSet, FzOrderedMap, FzStringMap};
 use http_body::{Body, Frame, SizeHint};
 use serde_json::Value;
-use tracing::{Level, event, log};
+use tracing::{Level, event, log, trace};
 
 use crate::cel::{ContextBuilder, Expression};
 use crate::telemetry::metrics::{HTTPLabels, Metrics};
@@ -112,9 +112,11 @@ impl<'a> CelLoggingExecutor<'a> {
 	pub fn eval(&self, fields: &'a Arc<LoggingFields>) -> Vec<(&str, Option<Value>)> {
 		let mut raws = Vec::with_capacity(fields.add.len());
 		for (k, v) in &fields.add {
-			let celv = self
-				.executor
-				.eval(v.as_ref())
+			let field = self.executor.eval(v.as_ref());
+			if let Err(e) = &field {
+				trace!(target: "cel", ?e, expression=?v, "expression failed");
+			}
+			let celv = field
 				.ok()
 				.filter(|v| !matches!(v, cel_interpreter::Value::Null))
 				.and_then(|v| v.json().ok());
