@@ -15,7 +15,7 @@ pub fn generate_schema() -> Result<()> {
 		("CEL context", make::<cel::ExpressionContext>()?, "cel.json"),
 	];
 	for (_, schema, file) in &schemas {
-		let rule_path = format!("{xtask_path}/../schema/{file}");
+		let rule_path = format!("{xtask_path}/../../schema/{file}");
 		let mut file = fs_err::File::create(rule_path)?;
 		file.write_all(schema.as_bytes())?;
 	}
@@ -25,15 +25,15 @@ This folder contains JSON schemas for various parts of the project
 "#
 	.to_owned();
 	for (name, _, file) in schemas {
-		let rule_path = format!("{xtask_path}/../schema/{file}");
-		let cmd_path = format!("{xtask_path}/../common/scripts/schema-to-md.sh");
+		let rule_path = format!("{xtask_path}/../../schema/{file}");
+		let cmd_path = format!("{xtask_path}/../../common/scripts/schema-to-md.sh");
 		let o = std::process::Command::new(cmd_path)
 			.arg(&rule_path)
 			.output()?;
 		readme.push_str(&format!("## {name}\n\n"));
 		readme.push_str(&String::from_utf8_lossy(&o.stdout));
 	}
-	let mut file = fs_err::File::create(format!("{xtask_path}/../schema/README.md"))?;
+	let mut file = fs_err::File::create(format!("{xtask_path}/../../schema/README.md"))?;
 	file.write_all(readme.as_bytes())?;
 	Ok(())
 }

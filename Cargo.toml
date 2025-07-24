@@ -11,7 +11,7 @@ members = [
     "crates/hbone",
     "crates/mock-server",
     "crates/xds",
-    "xtask",
+    "crates/xtask",
 ]
 default-members = [
     "crates/a2a-sdk",
