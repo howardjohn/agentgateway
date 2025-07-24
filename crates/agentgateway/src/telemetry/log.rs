@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
+use std::hash::BuildHasher;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -8,8 +9,11 @@ use std::time::{Instant, SystemTime};
 
 use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
 use crossbeam::atomic::AtomicCell;
-use frozen_collections::{FzHashSet, FzOrderedMap, FzStringMap};
+use frozen_collections::maps::Values;
+use frozen_collections::{FzHashSet, FzOrderedMap, FzStringMap, MapIteration};
 use http_body::{Body, Frame, SizeHint};
+use itertools::Itertools;
+use serde::{Serialize, Serializer};
 use serde_json::Value;
 use tracing::{Level, event, log, trace};
 
@@ -79,7 +83,63 @@ pub struct Config {
 #[derive(serde::Serialize, Default, Clone, Debug)]
 pub struct LoggingFields {
 	pub remove: FzHashSet<String>,
-	pub add: FzStringMap<Box<str>, Arc<cel::Expression>>,
+	pub add: OrderedStringMap<Arc<cel::Expression>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct OrderedStringMap<V> {
+	map: FzStringMap<Box<str>, V>,
+	order: Box<[Box<str>]>,
+}
+
+impl<V> OrderedStringMap<V> {}
+
+impl<V> OrderedStringMap<V> {
+	pub fn len(&self) -> usize {
+		self.map.len()
+	}
+	pub fn contains_key(&self, k: &str) -> bool {
+		self.map.contains_key(k)
+	}
+	pub fn values_unordered(&self) -> impl Iterator<Item = &V> {
+		self.map.values()
+	}
+	pub fn iter(&self) -> impl Iterator<Item = (&Box<str>, &V)> {
+		self
+			.order
+			.iter()
+			.map(|k| (k, self.map.get(k).expect("key must be present")))
+	}
+}
+
+impl<V> Default for OrderedStringMap<V> {
+	fn default() -> Self {
+		Self {
+			map: Default::default(),
+			order: Default::default(),
+		}
+	}
+}
+
+impl<V: Serialize> Serialize for OrderedStringMap<V> {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
+		self.map.serialize(serializer)
+	}
+}
+
+impl<K, V> FromIterator<(K, V)> for OrderedStringMap<V>
+where
+	K: AsRef<str>,
+{
+	fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+		let items = iter.into_iter().collect_vec();
+		let order: Box<[Box<str>]> = items.iter().map(|(k, v)| k.as_ref().into()).collect();
+		let map: FzStringMap<Box<str>, V> = items.into_iter().collect();
+		Self { map, order }
+	}
 }
 
 impl LoggingFields {
@@ -111,7 +171,7 @@ impl<'a> CelLoggingExecutor<'a> {
 
 	pub fn eval(&self, fields: &'a Arc<LoggingFields>) -> Vec<(&str, Option<Value>)> {
 		let mut raws = Vec::with_capacity(fields.add.len());
-		for (k, v) in &fields.add {
+		for (k, v) in fields.add.iter() {
 			let field = self.executor.eval(v.as_ref());
 			if let Err(e) = &field {
 				trace!(target: "cel", ?e, expression=?v, "expression failed");
@@ -137,7 +197,7 @@ impl CelLogging {
 		if let Some(f) = &cfg.filter {
 			cel_context.register_expression(f.as_ref());
 		}
-		for v in cfg.fields.add.values() {
+		for v in cfg.fields.add.values_unordered() {
 			cel_context.register_expression(v.as_ref());
 		}
 		Self {
@@ -148,7 +208,7 @@ impl CelLogging {
 	}
 
 	pub fn register(&mut self, fields: &LoggingFields) {
-		for v in fields.add.values() {
+		for v in fields.add.values_unordered() {
 			self.cel_context.register_expression(v.as_ref());
 		}
 	}

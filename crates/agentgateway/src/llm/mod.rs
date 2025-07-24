@@ -257,7 +257,9 @@ impl AIProvider {
 		resp: Response,
 	) -> Result<Response, AIError> {
 		if req.streaming {
-			return self.process_streaming(req, rate_limit, log, resp).await;
+			return self
+				.process_streaming(req, rate_limit, log, include_completion_in_log, resp)
+				.await;
 		}
 		// Buffer the body, max 2mb
 		let (mut parts, body) = resp.into_parts();
@@ -361,6 +363,7 @@ impl AIProvider {
 		req: LLMRequest,
 		rate_limit: Vec<http::localratelimit::RateLimit>,
 		log: AsyncLog<llm::LLMResponse>,
+		include_completion_in_log: bool,
 		resp: Response,
 	) -> Result<Response, AIError> {
 		// Store an empty response, as we stream in info we will parse into it
@@ -376,7 +379,11 @@ impl AIProvider {
 		let resp = match self {
 			AIProvider::Anthropic(p) => p.process_streaming(log, resp).await,
 			AIProvider::Bedrock(p) => return Err(AIError::StreamingUnsupported),
-			_ => self.default_process_streaming(log, rate_limit, resp).await,
+			_ => {
+				self
+					.default_process_streaming(log, include_completion_in_log, rate_limit, resp)
+					.await
+			},
 		};
 		Ok(resp)
 	}
@@ -384,26 +391,55 @@ impl AIProvider {
 	async fn default_process_streaming(
 		&self,
 		log: AsyncLog<llm::LLMResponse>,
+		include_completion_in_log: bool,
 		rate_limit: Vec<http::localratelimit::RateLimit>,
 		resp: Response,
 	) -> Response {
+		let mut completion = if include_completion_in_log {
+			Some(String::new())
+		} else {
+			None
+		};
 		resp.map(|b| {
 			let mut seen_provider = false;
 			parse::sse::json_passthrough::<universal::ChatCompletionStreamResponse>(b, move |f| {
-				if let Ok(f) = f {
-					if !seen_provider {
-						seen_provider = true;
-						log.non_atomic_mutate(|r| r.provider_model = Some(strng::new(&f.model)));
-					}
-					if let Some(u) = f.usage {
-						log.non_atomic_mutate(|r| {
-							r.input_tokens_from_response = Some(u.prompt_tokens as u64);
-							r.output_tokens = Some(u.completion_tokens as u64);
-							r.total_tokens = Some(u.total_tokens as u64);
+				match f {
+					Some(Ok(f)) => {
+						if let Some(c) = completion.as_mut() {
+							if let Some(delta) = f.choices.first().and_then(|c| c.delta.content.as_deref()) {
+								c.push_str(delta);
+							}
+						}
+						tracing::error!("howardjohn: {} {}", seen_provider, &f.model);
+						if !seen_provider {
+							seen_provider = true;
+							log.non_atomic_mutate(|r| r.provider_model = Some(strng::new(&f.model)));
+						}
+						if let Some(u) = f.usage {
+							log.non_atomic_mutate(|r| {
+								r.input_tokens_from_response = Some(u.prompt_tokens as u64);
+								r.output_tokens = Some(u.completion_tokens as u64);
+								r.total_tokens = Some(u.total_tokens as u64);
+								if let Some(c) = completion.take() {
+									r.completion = Some(vec![c]);
+								}
 
-							amend_tokens(rate_limit.as_slice(), r);
+								amend_tokens(rate_limit.as_slice(), r);
+							});
+						}
+					},
+					Some(Err(e)) => {
+						debug!("failed to parse streaming response: {e}");
+					},
+					None => {
+						// We are done, try to set completion if we haven't already
+						// This is useful in case we never see "usage"
+						log.non_atomic_mutate(|r| {
+							if let Some(c) = completion.take() {
+								r.completion = Some(vec![c]);
+							}
 						});
-					}
+					},
 				}
 			})
 		})
