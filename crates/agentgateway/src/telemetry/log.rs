@@ -7,16 +7,6 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::task::{Context, Poll, ready};
 use std::time::{Instant, SystemTime};
 
-use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
-use crossbeam::atomic::AtomicCell;
-use frozen_collections::maps::Values;
-use frozen_collections::{FzHashSet, FzOrderedMap, FzStringMap, MapIteration};
-use http_body::{Body, Frame, SizeHint};
-use itertools::Itertools;
-use serde::{Serialize, Serializer};
-use serde_json::Value;
-use tracing::{Level, event, log, trace};
-
 use crate::cel::{ContextBuilder, Expression};
 use crate::telemetry::metrics::{HTTPLabels, Metrics};
 use crate::telemetry::trc;
@@ -26,6 +16,16 @@ use crate::types::agent::{
 };
 use crate::types::discovery::NamespacedHostname;
 use crate::{cel, llm, mcp};
+use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
+use crossbeam::atomic::AtomicCell;
+use frozen_collections::maps::Values;
+use frozen_collections::{FzHashSet, FzOrderedMap, FzStringMap, MapIteration};
+use http_body::{Body, Frame, SizeHint};
+use itertools::Itertools;
+use serde::{Serialize, Serializer};
+use serde_json::Value;
+use tracing::log::Log;
+use tracing::{Level, event, log, trace};
 
 /// AsyncLog is a wrapper around an item that can be atomically set.
 /// The intent is to provide additional info to the log after we have lost the RequestLog reference,
@@ -363,7 +363,9 @@ impl Drop for DropOnLog {
 			.inc();
 
 		let enable_trace = log.tracer.is_some();
-		if !tracing::enabled!(target: "request", Level::INFO) && !enable_trace {
+		// We will later check it also matches a filter, but filter is slower
+		let maybe_enable_log = agent_core::telemetry::enabled("request", &Level::INFO);;
+		if !maybe_enable_log && !enable_trace {
 			return;
 		}
 
@@ -377,7 +379,7 @@ impl Drop for DropOnLog {
 			tracing::warn!("failed to build CEL context");
 			return;
 		};
-		let enable_logs = cel_exec.eval_filter();
+		let enable_logs = maybe_enable_log && cel_exec.eval_filter();
 		if !enable_logs && !enable_trace {
 			return;
 		}

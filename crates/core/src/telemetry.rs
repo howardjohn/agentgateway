@@ -17,13 +17,13 @@ use std::{env, fmt, io};
 use itertools::Itertools;
 use nonblocking::NonBlocking;
 use once_cell::sync::{Lazy, OnceCell};
-use serde::Serializer;
 use serde::ser::SerializeMap;
+use serde::Serializer;
 use thiserror::Error;
-use tracing::{Event, Subscriber, error, field, info, warn};
-use tracing_core::Field;
+use tracing::{error, field, info, warn, Event, Subscriber};
 use tracing_core::field::Visit;
 use tracing_core::span::Record;
+use tracing_core::Field;
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::field::RecordFields;
 use tracing_subscriber::fmt::format::{JsonVisitor, Writer};
@@ -31,7 +31,7 @@ use tracing_subscriber::fmt::time::{FormatTime, SystemTime};
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields, FormattedFields};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::registry::LookupSpan;
-use tracing_subscriber::{Layer, Registry, filter, reload};
+use tracing_subscriber::{filter, reload, Layer, Registry};
 pub use value_bag::ValueBag;
 
 pub static APPLICATION_START_TIME: Lazy<Instant> = Lazy::new(Instant::now);
@@ -59,6 +59,18 @@ pub fn display<T: Display + 'static>(value: &T) -> ValueBag {
 
 pub fn debug<T: Debug + 'static>(value: &T) -> ValueBag {
 	ValueBag::capture_debug(value)
+}
+
+/// A safe function to determine if a target is enabled.
+/// Do NOT use `tracing::enabled!` which is broken (https://github.com/tokio-rs/tracing/issues/3345)
+pub fn enabled(target: &'static str, level: &tracing::Level) -> bool {
+	if let Some(handle) = LOG_HANDLE.get() {
+		handle
+			.with_current(|f| f.filter().would_enable(target, level))
+			.unwrap_or_default()
+	} else {
+		false
+	}
 }
 
 // log is like using tracing macros, but allows arbitrary k/v pairs. Tracing requires compile-time keys!
@@ -522,7 +534,7 @@ pub mod testing {
 	use tracing_subscriber::layer::SubscriberExt;
 	use tracing_subscriber::util::SubscriberInitExt;
 
-	use crate::telemetry::{APPLICATION_START_TIME, IstioJsonFormat, fmt_layer, nonblocking};
+	use crate::telemetry::{fmt_layer, nonblocking, IstioJsonFormat, APPLICATION_START_TIME};
 
 	/// MockWriter will store written logs
 	#[derive(Debug)]
