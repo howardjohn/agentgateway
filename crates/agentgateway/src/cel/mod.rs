@@ -5,12 +5,6 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
-use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
-use crate::http::jwt::Claims;
-use crate::llm::{LLMRequest, LLMResponse};
-use crate::serdes::*;
-use crate::telemetry::log::CelLogging;
-use crate::{json, llm};
 use agent_core::strng::Strng;
 use axum_core::body::Body;
 use bytes::Bytes;
@@ -22,6 +16,13 @@ use http::Request;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, Serializer};
 use tiktoken_rs::ChatCompletionRequestMessage;
+
+use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
+use crate::http::jwt::Claims;
+use crate::llm::{LLMRequest, LLMResponse};
+use crate::serdes::*;
+use crate::telemetry::log::CelLogging;
+use crate::{json, llm};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

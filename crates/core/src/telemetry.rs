@@ -17,13 +17,13 @@ use std::{env, fmt, io};
 use itertools::Itertools;
 use nonblocking::NonBlocking;
 use once_cell::sync::{Lazy, OnceCell};
-use serde::ser::SerializeMap;
 use serde::Serializer;
+use serde::ser::SerializeMap;
 use thiserror::Error;
-use tracing::{error, field, info, warn, Event, Subscriber};
+use tracing::{Event, Subscriber, error, field, info, warn};
+use tracing_core::Field;
 use tracing_core::field::Visit;
 use tracing_core::span::Record;
-use tracing_core::Field;
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::field::RecordFields;
 use tracing_subscriber::fmt::format::{JsonVisitor, Writer};
@@ -31,7 +31,7 @@ use tracing_subscriber::fmt::time::{FormatTime, SystemTime};
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields, FormattedFields};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::registry::LookupSpan;
-use tracing_subscriber::{filter, reload, Layer, Registry};
+use tracing_subscriber::{Layer, Registry, filter, reload};
 pub use value_bag::ValueBag;
 
 pub static APPLICATION_START_TIME: Lazy<Instant> = Lazy::new(Instant::now);
@@ -534,7 +534,7 @@ pub mod testing {
 	use tracing_subscriber::layer::SubscriberExt;
 	use tracing_subscriber::util::SubscriberInitExt;
 
-	use crate::telemetry::{fmt_layer, nonblocking, IstioJsonFormat, APPLICATION_START_TIME};
+	use crate::telemetry::{APPLICATION_START_TIME, IstioJsonFormat, fmt_layer, nonblocking};
 
 	/// MockWriter will store written logs
 	#[derive(Debug)]

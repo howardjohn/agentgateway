@@ -12,7 +12,6 @@ use serde_json::Value;
 use tiktoken_rs::CoreBPE;
 use tiktoken_rs::tokenizer::{Tokenizer, get_tokenizer};
 
-use crate::client;
 use crate::http::auth::BackendAuth;
 use crate::http::backendtls::BackendTLS;
 use crate::http::localratelimit::RateLimit;
@@ -25,7 +24,7 @@ use crate::proxy::ProxyError;
 use crate::store::BackendPolicies;
 use crate::telemetry::log::{AsyncLog, RequestLog};
 use crate::types::agent::{BackendName, Target};
-use crate::*;
+use crate::{client, *};
 
 mod anthropic;
 mod bedrock;
