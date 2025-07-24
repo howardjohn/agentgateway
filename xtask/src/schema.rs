@@ -22,7 +22,7 @@ pub fn generate_schema() -> Result<()> {
 	let mut readme = r#"# Schemas
 This folder contains JSON schemas for various parts of the project
 
-	"#
+"#
 	.to_owned();
 	for (name, _, file) in schemas {
 		let rule_path = format!("{xtask_path}/../schema/{file}");

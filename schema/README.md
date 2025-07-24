@@ -1,7 +1,7 @@
 # Schemas
 This folder contains JSON schemas for various parts of the project
 
-	## Configuration File
+## Configuration File
 
 |Field|Column|
 |-|-|

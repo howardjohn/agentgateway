@@ -410,7 +410,6 @@ impl AIProvider {
 								c.push_str(delta);
 							}
 						}
-						tracing::error!("howardjohn: {} {}", seen_provider, &f.model);
 						if !seen_provider {
 							seen_provider = true;
 							log.non_atomic_mutate(|r| r.provider_model = Some(strng::new(&f.model)));
