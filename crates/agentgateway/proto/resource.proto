@@ -3,6 +3,7 @@ syntax = "proto3";
 package agentgateway.dev.resource;
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/wrappers.proto";
 
 option go_package = "github.com/agentgateway/agentgateway/go/api;api";
 
@@ -225,21 +226,21 @@ message AIBackend {
   }
   Override override = 1;
   message OpenAI {
-    string model = 1;
+    google.protobuf.StringValue model = 1;
   }
   message Gemini {
-    string model = 1;
+    google.protobuf.StringValue model = 1;
   }
   message Vertex {
-    string model = 1;
+    google.protobuf.StringValue model = 1;
     string region = 2;
     string project_id = 3;
   }
   message Anthropic {
-    string model = 1;
+    google.protobuf.StringValue model = 1;
   }
   message Bedrock {
-    string model = 1;
+    google.protobuf.StringValue model = 1;
     string region = 2;
   }
   oneof provider {
