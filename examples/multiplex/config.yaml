@@ -1,26 +1,18 @@
+# yaml-language-server: $schema=../../schema/local.json
 binds:
 - port: 3000
   listeners:
   - routes:
-    - policies:
-        backendTLS: {}
-        urlRewrite:
-          path:
-            prefix: /
-        cors:
-          allowOrigins:
-          - "*"
-          allowHeaders:
-          - "*"
-      matches:
-      - path:
-          pathPrefix: /atlassian
-      backends:
+    - backends:
       - mcp:
-          name: atlassian
+          name: default
           targets:
-          - name: mcp-atlassian
-            mcp:
-              host: mcp.context7.com
-              port: 443
-              path: /mcp
+          - name: time
+            stdio:
+              cmd: uvx
+              args: ["mcp-server-time"]
+          - name: everything
+            sse:
+              host: lo
+              port: 3001
+              path: /sse

@@ -410,7 +410,9 @@ impl StreamableHttpClient for ClientWrapper {
 	) -> Result<StreamableHttpPostResponse, StreamableHttpError<Self::Error>> {
 		let client = self.client.clone();
 
-		let uri = self.backend.hostport() + Self::parse_uri(uri)?.path();
+		tracing::error!("howardjohn: uri {uri}");
+		let uri = "http://".to_string() + &self.backend.hostport() + Self::parse_uri(uri)?.path();
+		tracing::error!("howardjohn: uri2 {uri}");
 
 		let body =
 			serde_json::to_vec(&message).map_err(|e| StreamableHttpError::Client(HttpError::new(e)))?;
@@ -484,7 +486,7 @@ impl StreamableHttpClient for ClientWrapper {
 	) -> Result<(), StreamableHttpError<Self::Error>> {
 		let client = self.client.clone();
 
-		let uri = self.backend.hostport() + Self::parse_uri(uri)?.path();
+		let uri = "http://".to_string() + &self.backend.hostport() + Self::parse_uri(uri)?.path();
 
 		let mut req = http::Request::builder()
 			.uri(uri)
@@ -523,7 +525,7 @@ impl StreamableHttpClient for ClientWrapper {
 	) -> Result<BoxStream<'static, Result<Sse, SseError>>, StreamableHttpError<Self::Error>> {
 		let client = self.client.clone();
 
-		let uri = self.backend.hostport() + Self::parse_uri(uri)?.path();
+		let uri = "http://".to_string() + &self.backend.hostport() + Self::parse_uri(uri)?.path();
 
 		let mut reqb = http::Request::builder()
 			.uri(uri)
@@ -582,7 +584,9 @@ impl SseClient for ClientWrapper {
 		message: ClientJsonRpcMessage,
 		auth_token: Option<String>,
 	) -> Result<(), SseTransportError<Self::Error>> {
+		tracing::error!("howardjohn: uri {uri}");
 		let uri = self.backend.hostport() + uri.path();
+		tracing::error!("howardjohn: uri2 {uri}");
 		let body =
 			serde_json::to_vec(&message).map_err(|e| SseTransportError::Client(HttpError::new(e)))?;
 		let mut req = http::Request::builder()
