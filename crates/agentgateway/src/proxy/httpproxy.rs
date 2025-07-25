@@ -845,11 +845,11 @@ async fn make_backend_call(
 	log.add(|l| l.endpoint = Some(backend_call.target.clone()));
 
 	let policies = inputs.stores.read_binds().backend_policies(policy_target);
-	let policies = match dbg!(backend_call.default_policies.clone()) {
+	let policies = match backend_call.default_policies.clone() {
 		Some(def) => def.merge(policies),
 		None => policies,
 	};
-	tracing::error!("howardjohn: final pol {policies:?}");
+
 	// Apply auth before LLM request setup, so the providers can assume auth is in standardized header
 	auth::apply_backend_auth(policies.backend_auth.as_ref(), &mut req).await?;
 	let a2a_type = a2a::apply_to_request(policies.a2a.as_ref(), &mut req).await;
@@ -1108,7 +1108,6 @@ impl PolicyClient {
 		backend: &SimpleBackend,
 		defaults: BackendPolicies,
 	) -> Result<Response, ProxyError> {
-		tracing::error!("howardjohn: call {backend:?} {defaults:?}");
 		Box::pin(
 			make_backend_call(
 				self.inputs.clone(),

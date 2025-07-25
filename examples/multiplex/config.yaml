@@ -12,7 +12,6 @@ binds:
               cmd: uvx
               args: ["mcp-server-time"]
           - name: everything
-            sse:
-              host: lo
-              port: 3001
-              path: /sse
+            stdio:
+              cmd: npx
+              args: ["@modelcontextprotocol/server-everything"]
