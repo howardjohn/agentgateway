@@ -141,12 +141,13 @@ impl ConnectionPool {
 					_ => sse.path.as_str(),
 				};
 				let be = crate::proxy::resolve_simple_backend(&sse.backend, &self.pi)?;
+				let hostport = be.hostport();
 				let client =
 					ClientWrapper::new_with_client(be, self.client.clone(), target.backend_policies.clone());
 				let transport = SseClientTransport::start_with_client(
 					client,
 					SseClientConfig {
-						sse_endpoint: path.into(),
+						sse_endpoint: format!("http://{hostport}{path}").into(),
 						..Default::default()
 					},
 				)
