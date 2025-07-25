@@ -111,7 +111,13 @@ message RouteFilter {
     RequestRedirect request_redirect = 3;
     UrlRewrite url_rewrite = 4;
     RequestMirror request_mirror = 5;
+    DirectResponse direct_response = 6;
   }
+}
+
+message DirectResponse {
+  uint32 status = 1;
+  bytes body = 2;
 }
 
 message HeaderModifier {

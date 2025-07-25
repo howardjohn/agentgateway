@@ -499,6 +499,12 @@ impl TryFrom<&proto::agent::RouteFilter> for RouteFilter {
 					percentage: m.percentage / 100.0,
 				})
 			},
+			Some(proto::agent::route_filter::Kind::DirectResponse(m)) => {
+				RouteFilter::DirectResponse(filters::DirectResponse {
+					body: Bytes::copy_from_slice(&m.body),
+					status: StatusCode::from_u16(m.status as u16)?,
+				})
+			},
 		})
 	}
 }
