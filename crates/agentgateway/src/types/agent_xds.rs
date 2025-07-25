@@ -505,6 +505,17 @@ impl TryFrom<&proto::agent::RouteFilter> for RouteFilter {
 					status: StatusCode::from_u16(m.status as u16)?,
 				})
 			},
+			Some(proto::agent::route_filter::Kind::Cors(c)) => RouteFilter::CORS(
+				http::cors::Cors::try_from(http::cors::CorsSerde {
+					allow_credentials: c.allow_credentials,
+					allow_headers: c.allow_headers.clone(),
+					allow_methods: c.allow_methods.clone(),
+					allow_origins: c.allow_origins.clone(),
+					expose_headers: c.expose_headers.clone(),
+					max_age: c.max_age.map(|d| Duration::from_secs(d.seconds as u64)),
+				})
+				.map_err(|e| ProtoError::Generic(e.to_string()))?,
+			),
 		})
 	}
 }

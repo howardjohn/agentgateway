@@ -112,7 +112,18 @@ message RouteFilter {
     UrlRewrite url_rewrite = 4;
     RequestMirror request_mirror = 5;
     DirectResponse direct_response = 6;
+    CORS cors = 7;
   }
+}
+
+message CORS {
+  bool allow_credentials = 1;
+  repeated string allow_headers = 2;
+  repeated string allow_methods = 3;
+  repeated string allow_origins = 4;
+  repeated string expose_headers = 5;
+  // max_age is in seconds, use google.protobuf.Duration if available, otherwise uint64 for seconds
+  google.protobuf.Duration max_age = 6;
 }
 
 message DirectResponse {
