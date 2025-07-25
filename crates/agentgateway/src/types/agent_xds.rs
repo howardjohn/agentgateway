@@ -253,32 +253,35 @@ impl TryFrom<&proto::agent::McpTarget> for McpTarget {
 
 	fn try_from(s: &proto::agent::McpTarget) -> Result<Self, Self::Error> {
 		let proto = proto::agent::mcp_target::Protocol::try_from(s.protocol)?;
-		let host = match &s.kind {
+		let backend = match &s.kind {
+			None => SimpleBackendReference::Invalid,
 			Some(proto::agent::mcp_target::Kind::Backend(name)) => {
-				return Err(ProtoError::Generic(
-					"Backend is not currently supported".to_string(),
-				));
+				SimpleBackendReference::Backend(name.into())
 			},
-			Some(proto::agent::mcp_target::Kind::Service(name)) => {
-				let n = NamespacedHostname::from_str(name)?;
-				n.hostname
-			},
-			_ => {
-				return Err(ProtoError::Generic("Unknown backend type".to_string()));
+			Some(proto::agent::mcp_target::Kind::Service(svc_key)) => {
+				let ns = match svc_key.split_once('/') {
+					Some((namespace, hostname)) => Ok(NamespacedHostname {
+						namespace: namespace.into(),
+						hostname: hostname.into(),
+					}),
+					None => Err(ProtoError::NamespacedHostnameParse(svc_key.clone())),
+				}?;
+				SimpleBackendReference::Service {
+					name: ns,
+					port: s.port as u16,
+				}
 			},
 		};
 		Ok(Self {
 			name: strng::new(&s.name),
 			spec: match proto {
 				Protocol::Sse => McpTargetSpec::Sse(SseTargetSpec {
-					host: host.to_string(),
-					port: s.port as u16,
+					backend,
 					path: "/sse".to_string(),
 				}),
 				Protocol::Undefined | Protocol::StreamableHttp => {
 					McpTargetSpec::Mcp(StreamableHTTPTargetSpec {
-						host: host.to_string(),
-						port: s.port as u16,
+						backend,
 						path: "/mcp".to_string(),
 					})
 				},

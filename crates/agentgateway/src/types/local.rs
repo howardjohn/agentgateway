@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::io::Cursor;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -9,6 +10,7 @@ use anyhow::{Error, anyhow, bail};
 use itertools::Itertools;
 use jsonwebtoken::jwk::{AlgorithmParameters, JwkSet, KeyAlgorithm};
 use jsonwebtoken::{DecodingKey, Validation};
+use openapiv3::OpenAPI;
 use rmcp::handler::server::router::tool::CallToolHandlerExt;
 use rustls::{ClientConfig, ServerConfig};
 use serde::de::DeserializeOwned;
@@ -25,8 +27,9 @@ use crate::types::agent::PolicyTarget::RouteRule;
 use crate::types::agent::{
 	A2aPolicy, Backend, BackendName, BackendReference, Bind, BindName, GatewayName, Listener,
 	ListenerKey, ListenerProtocol, ListenerSet, McpAuthentication, McpAuthorization, McpBackend,
-	PathMatch, Policy, PolicyTarget, Route, RouteBackend, RouteBackendReference, RouteFilter,
-	RouteMatch, RouteName, RouteRuleName, RouteSet, SimpleBackend, SimpleBackendReference, TCPRoute,
+	McpTarget, McpTargetName, McpTargetSpec, OpenAPITarget, PathMatch, Policy, PolicyTarget, Route,
+	RouteBackend, RouteBackendReference, RouteFilter, RouteMatch, RouteName, RouteRuleName, RouteSet,
+	SimpleBackend, SimpleBackendReference, SseTargetSpec, StreamableHTTPTargetSpec, TCPRoute,
 	TCPRouteBackendReference, TCPRouteSet, TLSConfig, Target, TargetedPolicy, TrafficPolicy,
 	parse_cert, parse_key,
 };
@@ -169,23 +172,137 @@ pub enum LocalBackend {
 	Opaque(Target), // Hostname or IP
 	Dynamic {},
 	#[serde(rename = "mcp")]
-	MCP(McpBackend),
+	MCP(LocalMcpBackend),
 	#[serde(rename = "ai")]
 	AI(crate::llm::AIBackend),
 	Invalid,
 }
 
 impl LocalBackend {
-	pub fn as_backend(&self, name: BackendName) -> Option<Backend> {
+	pub fn as_backends(&self, name: BackendName) -> Vec<Backend> {
 		match self {
-			LocalBackend::Service { .. } => None, // These stay as references
-			LocalBackend::Opaque(tgt) => Some(Backend::Opaque(name, tgt.clone())),
-			LocalBackend::Dynamic { .. } => Some(Backend::Dynamic {}),
-			LocalBackend::MCP(tgt) => Some(Backend::MCP(name, tgt.clone())),
-			LocalBackend::AI(tgt) => Some(Backend::AI(name, tgt.clone())),
-			LocalBackend::Invalid => Some(Backend::Invalid),
+			LocalBackend::Service { .. } => vec![], // These stay as references
+			LocalBackend::Opaque(tgt) => vec![Backend::Opaque(name, tgt.clone())],
+			LocalBackend::Dynamic { .. } => vec![Backend::Dynamic {}],
+			LocalBackend::MCP(tgt) => {
+				let mut targets = vec![];
+				let mut backends = vec![];
+				for (idx, t) in tgt.targets.iter().enumerate() {
+					let spec = match t.spec.clone() {
+						LocalMcpTargetSpec::Sse { backend, path } => {
+							let name = strng::format!("mcp/{}/{}", name.clone(), idx);
+							let (bref, be) = to_simple_backend_and_ref(name, &backend);
+							be.into_iter().for_each(|b| backends.push(b));
+							McpTargetSpec::Sse(SseTargetSpec {
+								backend: bref,
+								path: path.clone(),
+							})
+						},
+						LocalMcpTargetSpec::Mcp { backend, path } => {
+							let name = strng::format!("mcp/{}/{}", name.clone(), idx);
+							let (bref, be) = to_simple_backend_and_ref(name, &backend);
+							be.into_iter().for_each(|b| backends.push(b));
+							McpTargetSpec::Mcp(StreamableHTTPTargetSpec {
+								backend: bref,
+								path: path.clone(),
+							})
+						},
+						LocalMcpTargetSpec::Stdio { cmd, args, env } => McpTargetSpec::Stdio { cmd, args, env },
+						LocalMcpTargetSpec::OpenAPI { backend, schema } => {
+							let (bref, be) = to_simple_backend_and_ref(name.clone(), &backend);
+							be.into_iter().for_each(|b| backends.push(b));
+							McpTargetSpec::OpenAPI(OpenAPITarget {
+								backend: bref,
+								schema,
+							})
+						},
+					};
+					let t = McpTarget {
+						name: t.name.clone(),
+						spec,
+					};
+					targets.push(Arc::new(t));
+				}
+				let m = McpBackend { targets };
+				backends.push(Backend::MCP(name, m));
+				backends
+			},
+			LocalBackend::AI(tgt) => vec![Backend::AI(name, tgt.clone())],
+			LocalBackend::Invalid => vec![Backend::Invalid],
 		}
 	}
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct LocalMcpBackend {
+	pub targets: Vec<Arc<LocalMcpTarget>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct LocalMcpTarget {
+	pub name: McpTargetName,
+	#[serde(flatten)]
+	pub spec: LocalMcpTargetSpec,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct McpBackendHost {
+	pub host: String,
+	pub port: u16,
+}
+
+impl TryFrom<McpBackendHost> for SimpleLocalBackend {
+	type Error = anyhow::Error;
+	fn try_from(value: McpBackendHost) -> Result<Self, Self::Error> {
+		Ok(SimpleLocalBackend::Opaque(Target::try_from((
+			value.host.as_str(),
+			value.port,
+		))?))
+	}
+}
+
+#[serde_as]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum LocalMcpTargetSpec {
+	#[serde(rename = "sse")]
+	Sse {
+		#[serde(flatten)]
+		#[serde_as(deserialize_as = "TryFromInto<McpBackendHost>")]
+		backend: SimpleLocalBackend,
+		path: String,
+	},
+	#[serde(rename = "mcp")]
+	Mcp {
+		#[serde(flatten)]
+		#[serde_as(deserialize_as = "TryFromInto<McpBackendHost>")]
+		backend: SimpleLocalBackend,
+		path: String,
+	},
+	#[serde(rename = "stdio")]
+	Stdio {
+		cmd: String,
+		#[serde(default, skip_serializing_if = "Vec::is_empty")]
+		args: Vec<String>,
+		#[serde(default, skip_serializing_if = "HashMap::is_empty")]
+		env: HashMap<String, String>,
+	},
+	#[serde(rename = "openapi")]
+	OpenAPI {
+		#[serde(flatten)]
+		#[serde_as(deserialize_as = "TryFromInto<McpBackendHost>")]
+		backend: SimpleLocalBackend,
+		#[serde(deserialize_with = "types::agent::de_openapi")]
+		#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
+		schema: Arc<OpenAPI>,
+	},
 }
 
 fn default_matches() -> Vec<RouteMatch> {
@@ -502,7 +619,7 @@ async fn convert_route(
 		}
 	};
 
-	let (refs, mut external_backends): (Vec<_>, Vec<Option<Backend>>) = backends
+	let (refs, external_backends): (Vec<_>, Vec<Vec<Backend>>) = backends
 		.into_iter()
 		.map(|b| {
 			let bref = match &b.backend {
@@ -513,16 +630,17 @@ async fn convert_route(
 				LocalBackend::Invalid => BackendReference::Invalid,
 				_ => BackendReference::Backend(key.clone()),
 			};
-			let backend = b.backend.as_backend(bref.name());
+			let backends = b.backend.as_backends(bref.name());
 			let bref = RouteBackendReference {
 				weight: b.weight,
 				backend: bref,
 				filters: vec![],
 				// filters: b.filters,
 			};
-			(bref, backend)
+			(bref, backends)
 		})
 		.unzip();
+	let mut external_backends = external_backends.into_iter().flatten().collect_vec();
 	let mut be_pol = 0;
 	let mut backend_tgt = |p: Policy| {
 		if refs.len() != 1 {
@@ -582,7 +700,7 @@ async fn convert_route(
 				backend: bref,
 				percentage: p.percentage,
 			};
-			external_backends.push(backend);
+			backend.into_iter().for_each(|backend| external_backends.push(backend));
 			filters.push(RouteFilter::RequestMirror(pol));
 		}
 		if let Some(p) = direct_response {
@@ -648,7 +766,7 @@ async fn convert_route(
 	Ok((
 		route,
 		external_policies,
-		external_backends.into_iter().flatten().collect(),
+		external_backends,
 	))
 }
 

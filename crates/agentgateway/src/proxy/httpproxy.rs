@@ -574,6 +574,7 @@ impl HTTPProxy {
 			&route_policies,
 			override_dest,
 			&selected_backend.backend,
+			None,
 			req,
 			Some(log),
 		)
@@ -729,6 +730,7 @@ async fn make_backend_call(
 	route_policies: &store::LLMRoutePolicies,
 	override_dest: Option<SocketAddr>,
 	backend: &Backend,
+	default_policies: Option<BackendPolicies>,
 	mut req: Request,
 	mut log: Option<&mut RequestLog>,
 ) -> Result<Pin<Box<dyn Future<Output = Result<Response, ProxyError>> + Send>>, ProxyError> {
@@ -789,7 +791,7 @@ async fn make_backend_call(
 				target: Target::Address(dest),
 				http_version_override,
 				transport_override: Some((wl.protocol, wl.identity())),
-				default_policies: None,
+				default_policies,
 			}
 		},
 		Backend::Opaque(_, target) => BackendCall {
@@ -810,7 +812,7 @@ async fn make_backend_call(
 				target: target.clone(),
 				http_version_override: None,
 				transport_override: None,
-				default_policies: None,
+				default_policies,
 			}
 		},
 		Backend::MCP(name, backend) => {
@@ -820,8 +822,9 @@ async fn make_backend_call(
 			let mcp_response_log = log.map(|l| l.mcp_status.clone()).expect("must be set");
 			return Ok(Box::pin(async move {
 				inputs
+					.clone()
 					.mcp_state
-					.serve(name, backend, req, mcp_response_log)
+					.serve(inputs, name, backend, req, mcp_response_log)
 					.map(Ok)
 					.await
 			}));
@@ -1085,36 +1088,42 @@ pub struct PolicyClient {
 }
 
 impl PolicyClient {
-	pub async fn call_for_route(
-		&self,
-		req: Request,
-		route_policies: &store::LLMRoutePolicies,
-		override_dest: Option<SocketAddr>,
-		backend: &Backend,
-		log: &mut RequestLog,
-	) -> Result<Pin<Box<dyn Future<Output = Result<Response, proxy::ProxyError>> + Send>>, ProxyError>
-	{
-		make_backend_call(
-			self.inputs.clone(),
-			&LLMRoutePolicies::default(),
-			None,
-			backend,
-			req,
-			Some(log),
-		)
-		.await
-	}
 	pub async fn call(&self, req: Request, backend: SimpleBackend) -> Result<Response, ProxyError> {
 		make_backend_call(
 			self.inputs.clone(),
 			&LLMRoutePolicies::default(),
 			None,
 			&backend.into(),
+			None,
 			req,
 			None,
 		)
 		.await?
 		.await
+	}
+	pub async fn call_with_default_policies(
+		&self,
+		req: Request,
+		backend: &SimpleBackend,
+		defaults: BackendPolicies,
+	) -> Result<Response, ProxyError> {
+		Box::pin(
+			make_backend_call(
+				self.inputs.clone(),
+				&LLMRoutePolicies::default(),
+				None,
+				&backend.clone().into(),
+				Some(defaults),
+				req,
+				None,
+			)
+			.await?,
+		)
+		.await
+	}
+
+	pub async fn simple_call(&self, req: Request) -> Result<Response, ProxyError> {
+		self.inputs.upstream.simple_call(req).await
 	}
 }
 trait OptLogger {

@@ -10,6 +10,7 @@ use tokio::task::JoinSet;
 
 use crate::control::caclient;
 use crate::management::admin::ConfigDumpHandler;
+use crate::proxy::httpproxy::PolicyClient;
 use crate::telemetry::trc;
 use crate::telemetry::trc::Tracer;
 use crate::transport::hbone;
@@ -115,7 +116,6 @@ pub async fn run(config: Arc<Config>) -> anyhow::Result<Bound> {
 				&mut registry,
 				None, // TODO custom tags
 			)),
-			client.clone(),
 			drain_rx.clone(),
 		),
 	};

@@ -421,6 +421,15 @@ impl SimpleBackendReference {
 }
 
 impl SimpleBackend {
+	pub fn hostport(&self) -> String {
+		match self {
+			SimpleBackend::Service(svc, port) => {
+				format!("{}:{port}", svc.hostname)
+			},
+			SimpleBackend::Opaque(name, tgt) => tgt.to_string(),
+			SimpleBackend::Invalid => "invalid".to_string(),
+		}
+	}
 	pub fn name(&self) -> BackendName {
 		match self {
 			SimpleBackend::Service(svc, port) => {
@@ -461,7 +470,7 @@ impl Backend {
 
 pub type BackendName = Strng;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct McpBackend {
@@ -478,7 +487,7 @@ impl McpBackend {
 	}
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct McpTarget {
@@ -487,9 +496,9 @@ pub struct McpTarget {
 	pub spec: McpTargetSpec,
 }
 
-type McpTargetName = Strng;
+pub type McpTargetName = Strng;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum McpTargetSpec {
@@ -509,38 +518,33 @@ pub enum McpTargetSpec {
 	OpenAPI(OpenAPITarget),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct SseTargetSpec {
-	// TODO: reference a service
-	pub host: String,
-	pub port: u16,
+	pub backend: SimpleBackendReference,
 	pub path: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct StreamableHTTPTargetSpec {
-	// TODO: reference a service
-	pub host: String,
-	pub port: u16,
+	pub backend: SimpleBackendReference,
 	pub path: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct OpenAPITarget {
-	pub host: String,
-	pub port: u16,
+	pub backend: SimpleBackendReference,
 	#[serde(deserialize_with = "de_openapi")]
 	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
 	pub schema: Arc<OpenAPI>,
 }
 
-fn de_openapi<'a, D>(deserializer: D) -> Result<Arc<OpenAPI>, D::Error>
+pub fn de_openapi<'a, D>(deserializer: D) -> Result<Arc<OpenAPI>, D::Error>
 where
 	D: serde::Deserializer<'a>,
 {
@@ -1095,6 +1099,7 @@ impl McpAuthorization {
 }
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(with = "String"))]
 pub enum Target {
 	Address(SocketAddr),
 	Hostname(Strng, u16),

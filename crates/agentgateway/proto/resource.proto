@@ -267,7 +267,8 @@ message MCPTarget {
     // These are joined with the service discovery.
     string service = 2;
     // A Backend object.
-    // Format is "<ns>/<name>". Joined with the Backend object
+    // Format is "<ns>/<name>". Joined with the Backend object.
+    // Must be of type StaticBackend.
     string backend = 3;
   }
   int32 port = 4;

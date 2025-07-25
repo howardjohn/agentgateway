@@ -2402,7 +2402,8 @@ type MCPTarget_Service struct {
 
 type MCPTarget_Backend struct {
 	// A Backend object.
-	// Format is "<ns>/<name>". Joined with the Backend object
+	// Format is "<ns>/<name>". Joined with the Backend object.
+	// Must be of type StaticBackend.
 	Backend string `protobuf:"bytes,3,opt,name=backend,proto3,oneof"`
 }
 

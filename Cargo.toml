@@ -135,6 +135,7 @@ schemars = { version = "=1.0.4", git = "https://github.com/howardjohn/schemars",
     "bytes1",
     "arcstr1",
     "raw_value",
+    "preserve_order",
 ] }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1.0", features = ["derive", "rc"] }
