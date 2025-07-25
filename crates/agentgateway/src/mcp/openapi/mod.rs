@@ -583,7 +583,10 @@ impl Handler {
 
 		let base_url = format!(
 			"{}://{}{}{}",
-			"http", self.backend.hostport(), self.prefix, path
+			"http",
+			self.backend.hostport(),
+			self.prefix,
+			path
 		);
 
 		// --- Request Building ---

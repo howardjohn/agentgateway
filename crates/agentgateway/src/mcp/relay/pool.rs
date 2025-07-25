@@ -393,16 +393,14 @@ impl ClientWrapper {
 	fn parse_uri(
 		uri: Arc<str>,
 	) -> Result<String, StreamableHttpError<<ClientWrapper as StreamableHttpClient>::Error>> {
-		Ok(
-			uri
-				.parse::<Uri>()
-				.map(|u| {
-					u.path_and_query()
-						.map(|p| p.as_str().to_string())
-						.unwrap_or_default()
-				})
-				.map_err(|e| StreamableHttpError::Client(HttpError::new(e)))?,
-		)
+		uri
+			.parse::<Uri>()
+			.map(|u| {
+				u.path_and_query()
+					.map(|p| p.as_str().to_string())
+					.unwrap_or_default()
+			})
+			.map_err(|e| StreamableHttpError::Client(HttpError::new(e)))
 	}
 }
 

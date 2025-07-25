@@ -18,7 +18,7 @@ async fn setup() -> (MockServer, Handler) {
 	let server = MockServer::start().await;
 	let host = server.uri();
 	let parsed = reqwest::Url::parse(&host).unwrap();
-	let config = crate::config::parse_config("{}".to_string(), None)?;
+	let config = crate::config::parse_config("{}".to_string(), None).unwrap();
 	let stores = Stores::new();
 	let client = Client::new(
 		&client::Config {
@@ -141,7 +141,10 @@ async fn setup() -> (MockServer, Handler) {
 		default_policies: BackendPolicies::default(),
 		backend: SimpleBackend::Opaque(
 			strng::literal!("dummy"),
-			Target::Hostname(parsed.host().unwrap().into(), parsed.port().unwrap_or(8080)),
+			Target::Hostname(
+				parsed.host().unwrap().to_string().into(),
+				parsed.port().unwrap_or(8080),
+			),
 		),
 	};
 

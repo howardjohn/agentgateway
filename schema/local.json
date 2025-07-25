@@ -1216,74 +1216,69 @@
                                               "sse": {
                                                 "type": "object",
                                                 "properties": {
-                                                  "backend": {
-                                                    "oneOf": [
-                                                      {
-                                                        "type": "string",
-                                                        "enum": [
-                                                          "invalid"
-                                                        ]
-                                                      },
-                                                      {
-                                                        "type": "object",
-                                                        "properties": {
-                                                          "service": {
-                                                            "type": "object",
-                                                            "properties": {
-                                                              "name": {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                  "namespace": {
-                                                                    "type": "string"
-                                                                  },
-                                                                  "hostname": {
-                                                                    "type": "string"
-                                                                  }
-                                                                },
-                                                                "required": [
-                                                                  "namespace",
-                                                                  "hostname"
-                                                                ]
-                                                              },
-                                                              "port": {
-                                                                "type": "integer",
-                                                                "format": "uint16",
-                                                                "minimum": 0,
-                                                                "maximum": 65535
-                                                              }
-                                                            },
-                                                            "additionalProperties": false,
-                                                            "required": [
-                                                              "name",
-                                                              "port"
-                                                            ]
-                                                          }
-                                                        },
-                                                        "required": [
-                                                          "service"
-                                                        ],
-                                                        "additionalProperties": false
-                                                      },
-                                                      {
-                                                        "type": "object",
-                                                        "properties": {
-                                                          "host": {
-                                                            "type": "string"
-                                                          }
-                                                        },
-                                                        "required": [
-                                                          "host"
-                                                        ],
-                                                        "additionalProperties": false
-                                                      }
-                                                    ]
-                                                  },
                                                   "path": {
                                                     "type": "string"
                                                   }
                                                 },
+                                                "oneOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "invalid"
+                                                    ]
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "service": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "name": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "namespace": {
+                                                                "type": "string"
+                                                              },
+                                                              "hostname": {
+                                                                "type": "string"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "namespace",
+                                                              "hostname"
+                                                            ]
+                                                          },
+                                                          "port": {
+                                                            "type": "integer",
+                                                            "format": "uint16",
+                                                            "minimum": 0,
+                                                            "maximum": 65535
+                                                          }
+                                                        },
+                                                        "additionalProperties": false,
+                                                        "required": [
+                                                          "name",
+                                                          "port"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "service"
+                                                    ]
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "host": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "host"
+                                                    ]
+                                                  }
+                                                ],
                                                 "required": [
-                                                  "backend",
                                                   "path"
                                                 ]
                                               }
@@ -1298,74 +1293,69 @@
                                               "mcp": {
                                                 "type": "object",
                                                 "properties": {
-                                                  "backend": {
-                                                    "oneOf": [
-                                                      {
-                                                        "type": "string",
-                                                        "enum": [
-                                                          "invalid"
-                                                        ]
-                                                      },
-                                                      {
-                                                        "type": "object",
-                                                        "properties": {
-                                                          "service": {
-                                                            "type": "object",
-                                                            "properties": {
-                                                              "name": {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                  "namespace": {
-                                                                    "type": "string"
-                                                                  },
-                                                                  "hostname": {
-                                                                    "type": "string"
-                                                                  }
-                                                                },
-                                                                "required": [
-                                                                  "namespace",
-                                                                  "hostname"
-                                                                ]
-                                                              },
-                                                              "port": {
-                                                                "type": "integer",
-                                                                "format": "uint16",
-                                                                "minimum": 0,
-                                                                "maximum": 65535
-                                                              }
-                                                            },
-                                                            "additionalProperties": false,
-                                                            "required": [
-                                                              "name",
-                                                              "port"
-                                                            ]
-                                                          }
-                                                        },
-                                                        "required": [
-                                                          "service"
-                                                        ],
-                                                        "additionalProperties": false
-                                                      },
-                                                      {
-                                                        "type": "object",
-                                                        "properties": {
-                                                          "host": {
-                                                            "type": "string"
-                                                          }
-                                                        },
-                                                        "required": [
-                                                          "host"
-                                                        ],
-                                                        "additionalProperties": false
-                                                      }
-                                                    ]
-                                                  },
                                                   "path": {
                                                     "type": "string"
                                                   }
                                                 },
+                                                "oneOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "invalid"
+                                                    ]
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "service": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "name": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "namespace": {
+                                                                "type": "string"
+                                                              },
+                                                              "hostname": {
+                                                                "type": "string"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "namespace",
+                                                              "hostname"
+                                                            ]
+                                                          },
+                                                          "port": {
+                                                            "type": "integer",
+                                                            "format": "uint16",
+                                                            "minimum": 0,
+                                                            "maximum": 65535
+                                                          }
+                                                        },
+                                                        "additionalProperties": false,
+                                                        "required": [
+                                                          "name",
+                                                          "port"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "service"
+                                                    ]
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "host": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "host"
+                                                    ]
+                                                  }
+                                                ],
                                                 "required": [
-                                                  "backend",
                                                   "path"
                                                 ]
                                               }
@@ -1411,72 +1401,67 @@
                                               "openapi": {
                                                 "type": "object",
                                                 "properties": {
-                                                  "backend": {
-                                                    "oneOf": [
-                                                      {
-                                                        "type": "string",
-                                                        "enum": [
-                                                          "invalid"
-                                                        ]
-                                                      },
-                                                      {
-                                                        "type": "object",
-                                                        "properties": {
-                                                          "service": {
-                                                            "type": "object",
-                                                            "properties": {
-                                                              "name": {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                  "namespace": {
-                                                                    "type": "string"
-                                                                  },
-                                                                  "hostname": {
-                                                                    "type": "string"
-                                                                  }
-                                                                },
-                                                                "required": [
-                                                                  "namespace",
-                                                                  "hostname"
-                                                                ]
-                                                              },
-                                                              "port": {
-                                                                "type": "integer",
-                                                                "format": "uint16",
-                                                                "minimum": 0,
-                                                                "maximum": 65535
-                                                              }
-                                                            },
-                                                            "additionalProperties": false,
-                                                            "required": [
-                                                              "name",
-                                                              "port"
-                                                            ]
-                                                          }
-                                                        },
-                                                        "required": [
-                                                          "service"
-                                                        ],
-                                                        "additionalProperties": false
-                                                      },
-                                                      {
-                                                        "type": "object",
-                                                        "properties": {
-                                                          "host": {
-                                                            "type": "string"
-                                                          }
-                                                        },
-                                                        "required": [
-                                                          "host"
-                                                        ],
-                                                        "additionalProperties": false
-                                                      }
-                                                    ]
-                                                  },
                                                   "schema": true
                                                 },
+                                                "oneOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "invalid"
+                                                    ]
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "service": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "name": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "namespace": {
+                                                                "type": "string"
+                                                              },
+                                                              "hostname": {
+                                                                "type": "string"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "namespace",
+                                                              "hostname"
+                                                            ]
+                                                          },
+                                                          "port": {
+                                                            "type": "integer",
+                                                            "format": "uint16",
+                                                            "minimum": 0,
+                                                            "maximum": 65535
+                                                          }
+                                                        },
+                                                        "additionalProperties": false,
+                                                        "required": [
+                                                          "name",
+                                                          "port"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "service"
+                                                    ]
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "host": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "host"
+                                                    ]
+                                                  }
+                                                ],
                                                 "required": [
-                                                  "backend",
                                                   "schema"
                                                 ]
                                               }

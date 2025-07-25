@@ -700,7 +700,9 @@ async fn convert_route(
 				backend: bref,
 				percentage: p.percentage,
 			};
-			backend.into_iter().for_each(|backend| external_backends.push(backend));
+			backend
+				.into_iter()
+				.for_each(|backend| external_backends.push(backend));
 			filters.push(RouteFilter::RequestMirror(pol));
 		}
 		if let Some(p) = direct_response {
@@ -763,11 +765,7 @@ async fn convert_route(
 		backends: refs,
 		policies: Some(traffic_policy),
 	};
-	Ok((
-		route,
-		external_policies,
-		external_backends,
-	))
+	Ok((route, external_policies, external_backends))
 }
 
 async fn convert_tcp_route(
