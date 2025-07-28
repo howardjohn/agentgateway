@@ -23,11 +23,11 @@ use crate::http::ext_authz::proto::check_response::HttpResponse;
 use crate::http::ext_authz::proto::{
 	AttributeContext, CheckRequest, DeniedHttpResponse, HeaderValueOption, OkHttpResponse,
 };
+use crate::http::ext_proc::GrpcReferenceChannel;
 use crate::http::ext_proc::proto::{
 	BodyMutation, BodyResponse, HeadersResponse, HttpBody, HttpHeaders, HttpTrailers,
 	ProcessingRequest, ProcessingResponse,
 };
-use crate::http::ext_proc::{GrpcChannel, GrpcReferenceChannel};
 use crate::http::filters::DirectResponse;
 use crate::http::{HeaderName, HeaderValue, PolicyResponse, Request, Response};
 use crate::proxy::ProxyError;

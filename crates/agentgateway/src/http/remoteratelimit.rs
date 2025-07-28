@@ -17,7 +17,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use crate::client::{Client, Transport};
 use crate::control::AuthSource;
 use crate::http::backendtls::BackendTLS;
-use crate::http::ext_proc::{GrpcChannel, GrpcReferenceChannel};
+use crate::http::ext_proc::GrpcReferenceChannel;
 use crate::http::filters::DirectResponse;
 use crate::http::remoteratelimit::proto::RateLimitDescriptor;
 use crate::http::remoteratelimit::proto::rate_limit_descriptor::Entry;

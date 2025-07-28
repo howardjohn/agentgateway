@@ -565,7 +565,7 @@ impl HTTPProxy {
 	) -> Result<Response, ProxyError> {
 		let inputs = self.inputs.clone();
 		let mut maybe_inference =
-			ext_proc::InferencePoolRouter::new(upstream.clone(), &selected_backend.backend);
+			ext_proc::InferencePoolRouter::new(self.policy_client(), &selected_backend.backend);
 		let override_dest = maybe_inference.mutate_request(&mut req).await?;
 		log.inference_pool = override_dest;
 
