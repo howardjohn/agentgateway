@@ -14,7 +14,7 @@ fn main() -> Result<(), anyhow::Error> {
 		c.disable_comments(Some("."));
 		c
 	};
- tonic_prost_build::configure()
+	tonic_prost_build::configure()
 		.build_server(true)
 		.compile_with_config(
 			config,
