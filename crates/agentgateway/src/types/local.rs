@@ -204,6 +204,7 @@ impl LocalBackend {
 						},
 						LocalMcpTargetSpec::Stdio { cmd, args, env } => McpTargetSpec::Stdio { cmd, args, env },
 						LocalMcpTargetSpec::OpenAPI { backend, schema } => {
+							let name = strng::format!("mcp/{}/{}", name.clone(), idx);
 							let (bref, be) = to_simple_backend_and_ref(name.clone(), &backend);
 							be.into_iter().for_each(|b| backends.push(b));
 							McpTargetSpec::OpenAPI(OpenAPITarget {

@@ -49,7 +49,7 @@ use control::caclient;
 use telemetry::{metrics, trc};
 
 #[derive(serde::Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 /// NestedRawConfig represents a subset of the config that can be passed in. This is split out from static
 /// and dynamic config
 pub struct NestedRawConfig {
