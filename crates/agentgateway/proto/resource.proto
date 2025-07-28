@@ -138,9 +138,7 @@ message HeaderModifier {
 }
 
 message RequestMirror {
-  oneof kind {
-    string service = 1;
-  }
+  BackendReference kind = 1;
   // 0-100
   double percentage = 2;
   int32 port = 3;
@@ -171,14 +169,7 @@ message Header {
 }
 
 message RouteBackend {
-  oneof kind {
-    // A service (could be Service, ServiceEntry, etc) in "<ns>/<hostname>" format
-    // These are joined with the service discovery.
-    string service = 1;
-    // A Backend object.
-    // Format is "<ns>/<name>". Joined with the Backend object
-    string backend = 5;
-  }
+  BackendReference kind = 1;
   int32 weight = 2;
   int32 port = 3;
   repeated RouteFilter filters = 4;
@@ -210,8 +201,13 @@ message PolicySpec {
     google.protobuf.Duration fill_interval = 3;
     Type type = 4;
   }
+  message ExternalAuth {
+    BackendReference target = 1;
+    map<string, string> context = 2;
+  }
   oneof kind {
     LocalRateLimit local_rate_limit = 1;
+    ExternalAuth ext_authz = 2;
   }
 }
 
@@ -280,15 +276,21 @@ message MCPTarget {
     STREAMABLE_HTTP = 2;
   }
   string name = 1;
+  BackendReference kind = 2;
+  int32 port = 3;
+  Protocol protocol = 4;
+}
+
+message BackendReference {
   oneof kind {
     // A service (could be Service, ServiceEntry, etc) in "<ns>/<hostname>" format
     // These are joined with the service discovery.
-    string service = 2;
+    string service = 1;
     // A Backend object.
     // Format is "<ns>/<name>". Joined with the Backend object.
     // Must be of type StaticBackend.
-    string backend = 3;
+    string backend = 2;
   }
-  int32 port = 4;
-  Protocol protocol = 5;
+  // Port, used only with 'service' type
+  uint32 port = 3;
 }

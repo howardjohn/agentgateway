@@ -19,6 +19,7 @@ use serde_with::{TryFromInto, serde_as};
 use crate::http::auth::BackendAuth;
 use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
 use crate::http::jwt::{JwkError, Jwt};
+use crate::http::remoteratelimit::Descriptor;
 use crate::http::{filters, retry, timeout};
 use crate::llm::AIProvider;
 use crate::store::LocalWorkload;
@@ -425,15 +426,13 @@ struct FilterOrPolicy {
 	local_rate_limit: Vec<crate::http::localratelimit::RateLimit>,
 	/// Rate limit incoming requests. State is managed by a remote server.
 	#[serde(default)]
-	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
-	remote_rate_limit: Option<crate::http::remoteratelimit::RemoteRateLimit>,
+	remote_rate_limit: Option<LocalRemoteRateLimit>,
 	/// Authenticate incoming JWT requests.
 	#[serde(default)]
 	jwt_auth: Option<crate::http::jwt::LocalJwtConfig>,
 	/// Authenticate incoming requests by calling an external authorization server.
 	#[serde(default)]
-	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
-	ext_authz: Option<crate::http::ext_authz::ExtAuthz>,
+	ext_authz: Option<LocalExtAuthz>,
 	/// Modify requests and responses
 	#[serde(default)]
 	#[serde_as(
@@ -739,13 +738,31 @@ async fn convert_route(
 			external_policies.push(tgt(Policy::Transformation(p)))
 		}
 		if let Some(p) = ext_authz {
-			external_policies.push(tgt(Policy::ExtAuthz(p)))
+			let (bref, backend) =
+				to_simple_backend_and_ref(strng::format!("{}/extauthz", key), &p.target);
+			let pol = http::ext_authz::ExtAuthz {
+				target: Arc::new(bref),
+				context: p.context,
+			};
+			backend
+				.into_iter()
+				.for_each(|backend| external_backends.push(backend));
+			external_policies.push(tgt(Policy::ExtAuthz(pol)))
 		}
 		if !local_rate_limit.is_empty() {
 			external_policies.push(tgt(Policy::LocalRateLimit(local_rate_limit)))
 		}
 		if let Some(p) = remote_rate_limit {
-			external_policies.push(tgt(Policy::RemoteRateLimit(p)))
+			let (bref, backend) =
+				to_simple_backend_and_ref(strng::format!("{}/extauthz", key), &p.target);
+			let pol = http::remoteratelimit::RemoteRateLimit {
+				target: Arc::new(bref),
+				descriptors: p.descriptors,
+			};
+			backend
+				.into_iter()
+				.for_each(|backend| external_backends.push(backend));
+			external_policies.push(tgt(Policy::RemoteRateLimit(pol)))
 		}
 
 		if let Some(p) = timeout {
@@ -885,4 +902,23 @@ pub struct LocalRequestMirror {
 	pub backend: SimpleLocalBackend,
 	// 0.0-1.0
 	pub percentage: f64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct LocalExtAuthz {
+	#[serde(flatten)]
+	pub target: SimpleLocalBackend,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub context: Option<HashMap<String, String>>, // TODO: gRPC vs HTTP, fail open, include body,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct LocalRemoteRateLimit {
+	#[serde(flatten)]
+	pub target: SimpleLocalBackend,
+	pub descriptors: HashMap<String, Descriptor>,
 }

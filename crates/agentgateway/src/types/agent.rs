@@ -349,14 +349,28 @@ fn default_weight() -> usize {
 #[serde(rename_all = "camelCase")]
 pub enum Backend {
 	Service(Arc<Service>, u16),
-	#[serde(rename = "host")]
+	#[serde(rename = "host", serialize_with = "serialize_backend_tuple")]
 	Opaque(BackendName, Target), // Hostname or IP
-	#[serde(rename = "mcp")]
+	#[serde(rename = "mcp", serialize_with = "serialize_backend_tuple")]
 	MCP(BackendName, McpBackend),
-	#[serde(rename = "ai")]
+	#[serde(rename = "ai", serialize_with = "serialize_backend_tuple")]
 	AI(BackendName, crate::llm::AIBackend),
 	Dynamic {},
 	Invalid,
+}
+
+pub fn serialize_backend_tuple<S: Serializer, T: serde::Serialize>(
+	name: &BackendName,
+	t: T,
+	serializer: S,
+) -> Result<S::Ok, S::Error> {
+	#[derive(Debug, Clone, serde::Serialize)]
+	#[serde(rename_all = "camelCase")]
+	struct BackendTuple<'a, T: serde::Serialize> {
+		name: &'a BackendName,
+		target: &'a T,
+	}
+	BackendTuple { name, target: &t }.serialize(serializer)
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

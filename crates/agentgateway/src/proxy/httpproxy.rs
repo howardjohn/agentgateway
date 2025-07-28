@@ -52,7 +52,7 @@ use crate::http::{
 	filters, get_host, merge_in_headers, retry,
 };
 use crate::llm::{LLMRequest, LLMResponse, RequestResult};
-use crate::proxy::ProxyError;
+use crate::proxy::{ProxyError, resolve_simple_backend};
 use crate::store::{BackendPolicies, Event, LLMRoutePolicies, RoutePolicies};
 use crate::telemetry::log;
 use crate::telemetry::log::{AsyncLog, DropOnLog, LogBody, RequestLog};
@@ -73,7 +73,7 @@ fn select_backend(route: &Route, _req: &Request) -> Option<RouteBackendReference
 
 async fn apply_request_policies(
 	policies: &store::RoutePolicies,
-	client: Client,
+	client: PolicyClient,
 	log: &mut RequestLog,
 	req: &mut Request,
 ) -> Result<http::PolicyResponse, ProxyError> {
@@ -399,7 +399,7 @@ impl HTTPProxy {
 		}
 
 		let ext_authz_response =
-			apply_request_policies(&route_policies, upstream.clone(), log, &mut req).await?;
+			apply_request_policies(&route_policies, self.policy_client(), log, &mut req).await?;
 		if let Some(dr) = ext_authz_response.direct_response {
 			return Ok(dr);
 		}
@@ -1089,6 +1089,28 @@ pub struct PolicyClient {
 }
 
 impl PolicyClient {
+	pub async fn call_reference(
+		&self,
+		mut req: Request,
+		backend_ref: &SimpleBackendReference,
+	) -> Result<Response, ProxyError> {
+		let backend = resolve_simple_backend(backend_ref, self.inputs.as_ref())?;
+		trace!("resolved {:?} to {:?}", backend_ref, &backend);
+
+		http::modify_req_uri(&mut req, |uri| {
+			if uri.authority.is_none() {
+				// If host is not set, set it to the backend
+				uri.authority = Some(Authority::try_from(backend.hostport())?);
+			}
+			if uri.scheme.is_none() {
+				// Default to HTTP, if the policy is TLS it will get set correctly later
+				uri.scheme = Some(Scheme::HTTP);
+			}
+			Ok(())
+		})
+		.map_err(ProxyError::Processing)?;
+		self.call(req, backend).await
+	}
 	pub async fn call(&self, req: Request, backend: SimpleBackend) -> Result<Response, ProxyError> {
 		make_backend_call(
 			self.inputs.clone(),

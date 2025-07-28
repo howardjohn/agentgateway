@@ -39,7 +39,8 @@ use crate::types::agent::Backend::Opaque;
 use crate::types::discovery::NamespacedHostname;
 use crate::types::proto;
 use crate::types::proto::ProtoError;
-use crate::types::proto::agent::mcp_target::{Kind, Protocol};
+use crate::types::proto::agent::mcp_target::Protocol;
+use crate::types::proto::agent::policy_spec::ExternalAuth;
 use crate::types::proto::agent::policy_spec::local_rate_limit::Type;
 use crate::*;
 
@@ -66,25 +67,7 @@ impl TryFrom<&proto::agent::RouteBackend> for RouteBackendReference {
 	type Error = ProtoError;
 
 	fn try_from(s: &proto::agent::RouteBackend) -> Result<Self, Self::Error> {
-		let kind = match &s.kind {
-			None => BackendReference::Invalid,
-			Some(proto::agent::route_backend::Kind::Backend(backend_key)) => {
-				BackendReference::Backend(backend_key.into())
-			},
-			Some(proto::agent::route_backend::Kind::Service(svc_key)) => {
-				let ns = match svc_key.split_once('/') {
-					Some((namespace, hostname)) => Ok(NamespacedHostname {
-						namespace: namespace.into(),
-						hostname: hostname.into(),
-					}),
-					None => Err(ProtoError::NamespacedHostnameParse(svc_key.clone())),
-				}?;
-				BackendReference::Service {
-					name: ns,
-					port: s.port as u16,
-				}
-			},
-		};
+		let kind = resolve_reference(s.kind.as_ref())?;
 		let filters = s
 			.filters
 			.iter()
@@ -302,25 +285,7 @@ impl TryFrom<&proto::agent::McpTarget> for McpTarget {
 
 	fn try_from(s: &proto::agent::McpTarget) -> Result<Self, Self::Error> {
 		let proto = proto::agent::mcp_target::Protocol::try_from(s.protocol)?;
-		let backend = match &s.kind {
-			None => SimpleBackendReference::Invalid,
-			Some(proto::agent::mcp_target::Kind::Backend(name)) => {
-				SimpleBackendReference::Backend(name.into())
-			},
-			Some(proto::agent::mcp_target::Kind::Service(svc_key)) => {
-				let ns = match svc_key.split_once('/') {
-					Some((namespace, hostname)) => Ok(NamespacedHostname {
-						namespace: namespace.into(),
-						hostname: hostname.into(),
-					}),
-					None => Err(ProtoError::NamespacedHostnameParse(svc_key.clone())),
-				}?;
-				SimpleBackendReference::Service {
-					name: ns,
-					port: s.port as u16,
-				}
-			},
-		};
+		let backend = resolve_simple_reference(s.kind.as_ref())?;
 		Ok(Self {
 			name: strng::new(&s.name),
 			spec: match proto {
@@ -479,23 +444,9 @@ impl TryFrom<&proto::agent::RouteFilter> for RouteFilter {
 				})
 			},
 			Some(proto::agent::route_filter::Kind::RequestMirror(m)) => {
+				let backend = resolve_simple_reference(m.kind.as_ref())?;
 				RouteFilter::RequestMirror(filters::RequestMirror {
-					backend: match &m.kind {
-						None => SimpleBackendReference::Invalid,
-						Some(proto::agent::request_mirror::Kind::Service(svc_key)) => {
-							let ns = match svc_key.split_once('/') {
-								Some((namespace, hostname)) => Ok(NamespacedHostname {
-									namespace: namespace.into(),
-									hostname: hostname.into(),
-								}),
-								None => Err(ProtoError::NamespacedHostnameParse(svc_key.clone())),
-							}?;
-							SimpleBackendReference::Service {
-								name: ns,
-								port: m.port as u16,
-							}
-						},
-					},
+					backend,
 					percentage: m.percentage / 100.0,
 				})
 			},
@@ -563,6 +514,13 @@ impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
 					.map_err(|e| ProtoError::Generic(format!("invalid rate limit: {e}")))?,
 				])
 			},
+			Some(proto::agent::policy_spec::Kind::ExtAuthz(ea)) => {
+				let target = resolve_simple_reference(ea.target.as_ref())?;
+				Policy::ExtAuthz(http::ext_authz::ExtAuthz {
+					target: Arc::new(target),
+					context: Some(ea.context.clone()),
+				})
+			},
 			_ => return Err(ProtoError::EnumParse("unknown spec kind".to_string())),
 		};
 		Ok(TargetedPolicy {
@@ -571,4 +529,58 @@ impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
 			policy,
 		})
 	}
+}
+
+fn resolve_simple_reference(
+	target: Option<&proto::agent::BackendReference>,
+) -> Result<SimpleBackendReference, ProtoError> {
+	let Some(target) = target else {
+		return Ok(SimpleBackendReference::Invalid);
+	};
+	Ok(match target.kind.as_ref() {
+		None => SimpleBackendReference::Invalid,
+		Some(proto::agent::backend_reference::Kind::Service(svc_key)) => {
+			let ns = match svc_key.split_once('/') {
+				Some((namespace, hostname)) => Ok(NamespacedHostname {
+					namespace: namespace.into(),
+					hostname: hostname.into(),
+				}),
+				None => Err(ProtoError::NamespacedHostnameParse(svc_key.clone())),
+			}?;
+			SimpleBackendReference::Service {
+				name: ns,
+				port: target.port as u16,
+			}
+		},
+		Some(proto::agent::backend_reference::Kind::Backend(name)) => {
+			SimpleBackendReference::Backend(name.into())
+		},
+	})
+}
+
+fn resolve_reference(
+	target: Option<&proto::agent::BackendReference>,
+) -> Result<BackendReference, ProtoError> {
+	let Some(target) = target else {
+		return Ok(BackendReference::Invalid);
+	};
+	Ok(match target.kind.as_ref() {
+		None => BackendReference::Invalid,
+		Some(proto::agent::backend_reference::Kind::Service(svc_key)) => {
+			let ns = match svc_key.split_once('/') {
+				Some((namespace, hostname)) => Ok(NamespacedHostname {
+					namespace: namespace.into(),
+					hostname: hostname.into(),
+				}),
+				None => Err(ProtoError::NamespacedHostnameParse(svc_key.clone())),
+			}?;
+			BackendReference::Service {
+				name: ns,
+				port: target.port as u16,
+			}
+		},
+		Some(proto::agent::backend_reference::Kind::Backend(name)) => {
+			BackendReference::Backend(name.into())
+		},
+	})
 }

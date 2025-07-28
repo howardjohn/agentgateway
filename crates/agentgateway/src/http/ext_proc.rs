@@ -24,8 +24,9 @@ use crate::http::ext_proc::proto::{
 };
 use crate::http::{HeaderName, HeaderValue};
 use crate::proxy::ProxyError;
+use crate::proxy::httpproxy::PolicyClient;
 use crate::types::agent;
-use crate::types::agent::{Backend, Target};
+use crate::types::agent::{Backend, SimpleBackendReference, Target};
 use crate::*;
 
 #[allow(warnings)]
@@ -445,5 +446,28 @@ impl tower::Service<::http::Request<tonic::body::Body>> for GrpcChannel {
 					.await?,
 			)
 		})
+	}
+}
+
+#[derive(Clone, Debug)]
+pub struct GrpcReferenceChannel {
+	pub target: Arc<SimpleBackendReference>,
+	pub client: PolicyClient,
+}
+
+impl tower::Service<::http::Request<tonic::body::Body>> for GrpcReferenceChannel {
+	type Response = http::Response;
+	type Error = anyhow::Error;
+	type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+	fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+		Ok(()).into()
+	}
+
+	fn call(&mut self, mut req: ::http::Request<tonic::body::Body>) -> Self::Future {
+		let client = self.client.clone();
+		let target = self.target.clone();
+		let mut req = req.map(http::Body::new);
+		Box::pin(async move { Ok(client.call_reference(req, &target).await?) })
 	}
 }
