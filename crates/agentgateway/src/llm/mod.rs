@@ -1,16 +1,16 @@
 use std::str::FromStr;
 
+use ::http::uri::{Authority, PathAndQuery};
+use ::http::{HeaderValue, StatusCode, header};
 use agent_core::prelude::Strng;
 use agent_core::strng;
 use axum_extra::headers::authorization::Bearer;
 use headers::{Header, HeaderMapExt};
-use ::http::uri::{Authority, PathAndQuery};
-use ::http::{header, HeaderValue, StatusCode};
 use itertools::Itertools;
 pub use policy::Policy;
 use serde_json::Value;
-use tiktoken_rs::tokenizer::{get_tokenizer, Tokenizer};
 use tiktoken_rs::CoreBPE;
+use tiktoken_rs::tokenizer::{Tokenizer, get_tokenizer};
 
 use crate::http::auth::BackendAuth;
 use crate::http::backendtls::BackendTLS;

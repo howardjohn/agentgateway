@@ -1,10 +1,6 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use super::*;
-use crate::client::Client;
-use crate::store::Stores;
-use crate::{ProxyInputs, mcp};
 use agent_core::{drain, metrics, strng};
 use hickory_resolver::config::{ResolverConfig, ResolverOpts};
 use prometheus_client::registry::Registry;
@@ -12,6 +8,11 @@ use rmcp::model::Tool;
 use serde_json::json;
 use wiremock::matchers::{body_json, header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
+
+use super::*;
+use crate::client::Client;
+use crate::store::Stores;
+use crate::{ProxyInputs, mcp};
 
 // Helper to create a handler and mock server for tests
 async fn setup() -> (MockServer, Handler) {
