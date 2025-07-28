@@ -6,6 +6,39 @@ This folder contains JSON schemas for various parts of the project
 |Field|Column|
 |-|-|
 |`config`||
+|`config.enableIpv6`||
+|`config.localXdsPath`|Local XDS path. If not specified, the current configuration file will be used.|
+|`config.caAddress`||
+|`config.xdsAddress`||
+|`config.namespace`||
+|`config.gateway`||
+|`config.trustDomain`||
+|`config.serviceAccount`||
+|`config.clusterId`||
+|`config.network`||
+|`config.adminAddr`|Admin UI address in the format "ip:port"|
+|`config.statsAddr`|Stats/metrics server address in the format "ip:port"|
+|`config.readinessAddr`|Readiness probe server address in the format "ip:port"|
+|`config.authToken`||
+|`config.connectionTerminationDeadline`||
+|`config.connectionMinTerminationDeadline`||
+|`config.workerThreads`||
+|`config.tracing`||
+|`config.tracing.otlpEndpoint`||
+|`config.tracing.fields`||
+|`config.tracing.fields.remove`||
+|`config.tracing.fields.add`||
+|`config.logging`||
+|`config.logging.filter`||
+|`config.logging.fields`||
+|`config.logging.fields.remove`||
+|`config.logging.fields.add`||
+|`config.http2`||
+|`config.http2.windowSize`||
+|`config.http2.connectionWindowSize`||
+|`config.http2.frameSize`||
+|`config.http2.poolMaxStreamsPerConn`||
+|`config.http2.poolUnusedReleaseTimeout`||
 |`binds`||
 |`binds[].port`||
 |`binds[].listeners`||
@@ -107,6 +140,12 @@ This folder contains JSON schemas for various parts of the project
 |`binds[].listeners[].routes[].policies.backendAuth.(any)(1)aws`||
 |`binds[].listeners[].routes[].policies.localRateLimit`|Rate limit incoming requests. State is kept local.|
 |`binds[].listeners[].routes[].policies.remoteRateLimit`|Rate limit incoming requests. State is managed by a remote server.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.(any)(1)service`||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.(any)(1)service.name`||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.(any)(1)service.name.namespace`||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.(any)(1)service.name.hostname`||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.(any)(1)service.port`||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.(any)(1)host`||
 |`binds[].listeners[].routes[].policies.jwtAuth`|Authenticate incoming JWT requests.|
 |`binds[].listeners[].routes[].policies.jwtAuth.issuer`||
 |`binds[].listeners[].routes[].policies.jwtAuth.audiences`||
@@ -114,6 +153,12 @@ This folder contains JSON schemas for various parts of the project
 |`binds[].listeners[].routes[].policies.jwtAuth.jwks.(any)file`||
 |`binds[].listeners[].routes[].policies.jwtAuth.jwks.(any)url`||
 |`binds[].listeners[].routes[].policies.extAuthz`|Authenticate incoming requests by calling an external authorization server.|
+|`binds[].listeners[].routes[].policies.extAuthz.(any)(1)service`||
+|`binds[].listeners[].routes[].policies.extAuthz.(any)(1)service.name`||
+|`binds[].listeners[].routes[].policies.extAuthz.(any)(1)service.name.namespace`||
+|`binds[].listeners[].routes[].policies.extAuthz.(any)(1)service.name.hostname`||
+|`binds[].listeners[].routes[].policies.extAuthz.(any)(1)service.port`||
+|`binds[].listeners[].routes[].policies.extAuthz.(any)(1)host`||
 |`binds[].listeners[].routes[].policies.transformations`|Modify requests and responses|
 |`binds[].listeners[].routes[].policies.transformations.request`||
 |`binds[].listeners[].routes[].policies.transformations.request.add`||

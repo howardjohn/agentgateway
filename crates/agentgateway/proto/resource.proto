@@ -171,7 +171,6 @@ message Header {
 message RouteBackend {
   BackendReference kind = 1;
   int32 weight = 2;
-  int32 port = 3;
   repeated RouteFilter filters = 4;
 }
 

@@ -10,6 +10,7 @@ use anyhow::{Error, anyhow, bail};
 use itertools::Itertools;
 use jsonwebtoken::jwk::{AlgorithmParameters, JwkSet, KeyAlgorithm};
 use jsonwebtoken::{DecodingKey, Validation};
+use macro_rules_attribute::{apply, attribute_alias};
 use openapiv3::OpenAPI;
 use rmcp::handler::server::router::tool::CallToolHandlerExt;
 use rustls::{ClientConfig, ServerConfig};
@@ -37,6 +38,10 @@ use crate::types::agent::{
 use crate::types::discovery::{NamespacedHostname, Service};
 use crate::*;
 
+attribute_alias! {
+		#[apply(schema!)] = #[serde_as] #[derive(Debug, Clone, serde::Deserialize)] #[serde(rename_all = "camelCase", deny_unknown_fields)] #[cfg_attr(feature = "schema", derive(JsonSchema))];
+}
+
 impl NormalizedLocalConfig {
 	pub async fn from(client: client::Client, s: &str) -> anyhow::Result<NormalizedLocalConfig> {
 		// Avoid shell expanding the comment for schema. Probably there are better ways to do this!
@@ -59,11 +64,10 @@ pub struct NormalizedLocalConfig {
 	pub services: Vec<Service>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct LocalConfig {
 	#[serde(default)]
+	#[cfg_attr(feature = "schema", schemars(with = "RawConfig"))]
 	config: Arc<Option<serde_json::value::Value>>,
 	#[serde(default)]
 	binds: Vec<LocalBind>,
@@ -75,17 +79,13 @@ pub struct LocalConfig {
 	services: Vec<Service>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 struct LocalBind {
 	port: u16,
 	listeners: Vec<LocalListener>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 struct LocalListener {
 	// User facing name
 	name: Option<Strng>,
@@ -121,9 +121,7 @@ struct LocalTLSServerConfig {
 	key: PathBuf,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 struct LocalRoute {
 	#[serde(default, skip_serializing_if = "Option::is_none", rename = "name")]
 	// User facing name of the route
@@ -142,9 +140,7 @@ struct LocalRoute {
 	backends: Vec<LocalRouteBackend>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct LocalRouteBackend {
 	#[serde(default = "default_weight")]
 	pub weight: usize,
@@ -159,9 +155,7 @@ fn default_weight() -> usize {
 	1
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub enum LocalBackend {
 	// This one is a reference
 	Service {
@@ -234,25 +228,19 @@ impl LocalBackend {
 	}
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct LocalMcpBackend {
 	pub targets: Vec<Arc<LocalMcpTarget>>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct LocalMcpTarget {
 	pub name: McpTargetName,
 	#[serde(flatten)]
 	pub spec: LocalMcpTargetSpec,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct McpBackendHost {
 	pub host: String,
 	pub port: u16,
@@ -268,10 +256,7 @@ impl TryFrom<McpBackendHost> for SimpleLocalBackend {
 	}
 }
 
-#[serde_as]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub enum LocalMcpTargetSpec {
 	#[serde(rename = "sse")]
 	Sse {
@@ -315,9 +300,7 @@ fn default_matches() -> Vec<RouteMatch> {
 	}]
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 struct LocalTCPRoute {
 	#[serde(default, skip_serializing_if = "Option::is_none", rename = "name")]
 	// User facing name of the route
@@ -334,18 +317,14 @@ struct LocalTCPRoute {
 	backends: Vec<LocalTCPRouteBackend>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct LocalTCPRouteBackend {
 	#[serde(default = "default_weight")]
 	pub weight: usize,
 	pub backend: SimpleLocalBackend,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub enum SimpleLocalBackend {
 	Service {
 		name: NamespacedHostname,
@@ -366,10 +345,7 @@ impl SimpleLocalBackend {
 	}
 }
 
-#[serde_as(schemars = true)]
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 struct FilterOrPolicy {
 	// Filters. Keep in sync with RouteFilter
 	/// Headers to be modified in the request.
@@ -456,9 +432,7 @@ struct FilterOrPolicy {
 	retry: Option<retry::Policy>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 struct TCPFilterOrPolicy {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	backend_tls: Option<LocalBackendTLS>,
@@ -895,18 +869,14 @@ fn convert_tls_server(tls: LocalTLSServerConfig) -> anyhow::Result<TLSConfig> {
 	})
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct LocalRequestMirror {
 	pub backend: SimpleLocalBackend,
 	// 0.0-1.0
 	pub percentage: f64,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct LocalExtAuthz {
 	#[serde(flatten)]
 	pub target: SimpleLocalBackend,
@@ -914,9 +884,7 @@ pub struct LocalExtAuthz {
 	pub context: Option<HashMap<String, String>>, // TODO: gRPC vs HTTP, fail open, include body,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct LocalRemoteRateLimit {
 	#[serde(flatten)]
 	pub target: SimpleLocalBackend,

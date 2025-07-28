@@ -121,6 +121,7 @@ frozen-collections = "0.8.0"
 value-bag = { workspace = true, features = ["value-bag-serde1"] }
 net2 = "0.2.39"
 core_affinity = "0.8.3"
+macro_rules_attribute = "0.2.2"
 [build-dependencies]
 anyhow.workspace = true
 prost-build.workspace = true
