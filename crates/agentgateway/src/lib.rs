@@ -84,10 +84,10 @@ pub struct RawConfig {
 
 	auth_token: Option<String>,
 
-	#[serde(deserialize_with = "serde_dur_option::deserialize")]
+	#[serde(default, with = "serde_dur_option")]
 	#[cfg_attr(feature = "schema", schemars(with = "Option<String>"))]
 	connection_termination_deadline: Option<Duration>,
-	#[serde(deserialize_with = "serde_dur_option::deserialize")]
+	#[serde(default, with = "serde_dur_option")]
 	#[cfg_attr(feature = "schema", schemars(with = "Option<String>"))]
 	connection_min_termination_deadline: Option<Duration>,
 

@@ -98,13 +98,15 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "default": null
         },
         "connectionMinTerminationDeadline": {
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "default": null
         },
         "workerThreads": {
           "type": "string"
