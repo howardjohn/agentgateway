@@ -138,10 +138,9 @@ message HeaderModifier {
 }
 
 message RequestMirror {
-  BackendReference kind = 1;
+  BackendReference backend = 1;
   // 0-100
   double percentage = 2;
-  int32 port = 3;
 }
 
 message RequestRedirect {
@@ -169,7 +168,7 @@ message Header {
 }
 
 message RouteBackend {
-  BackendReference kind = 1;
+  BackendReference backend = 1;
   int32 weight = 2;
   repeated RouteFilter filters = 4;
 }
@@ -204,9 +203,16 @@ message PolicySpec {
     BackendReference target = 1;
     map<string, string> context = 2;
   }
+  message A2a {
+  }
+  message InferenceRouting {
+    BackendReference endpoint_picker = 1;
+  }
   oneof kind {
     LocalRateLimit local_rate_limit = 1;
     ExternalAuth ext_authz = 2;
+    A2a a2a = 3;
+    InferenceRouting inference_routing = 4;
   }
 }
 
@@ -275,8 +281,7 @@ message MCPTarget {
     STREAMABLE_HTTP = 2;
   }
   string name = 1;
-  BackendReference kind = 2;
-  int32 port = 3;
+  BackendReference backend = 2;
   Protocol protocol = 4;
 }
 

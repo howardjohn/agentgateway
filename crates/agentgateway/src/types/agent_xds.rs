@@ -30,7 +30,8 @@ use crate::http::auth::BackendAuth;
 use crate::http::jwt::Jwt;
 use crate::http::localratelimit::RateLimit;
 use crate::http::{
-	HeaderName, HeaderValue, StatusCode, filters, localratelimit, retry, status, timeout, uri,
+	HeaderName, HeaderValue, StatusCode, ext_proc, filters, localratelimit, retry, status, timeout,
+	uri,
 };
 use crate::llm::{AIBackend, AIProvider};
 use crate::mcp::rbac::RuleSet;
@@ -67,7 +68,7 @@ impl TryFrom<&proto::agent::RouteBackend> for RouteBackendReference {
 	type Error = ProtoError;
 
 	fn try_from(s: &proto::agent::RouteBackend) -> Result<Self, Self::Error> {
-		let kind = resolve_reference(s.kind.as_ref())?;
+		let kind = resolve_reference(s.backend.as_ref())?;
 		let filters = s
 			.filters
 			.iter()
@@ -285,7 +286,7 @@ impl TryFrom<&proto::agent::McpTarget> for McpTarget {
 
 	fn try_from(s: &proto::agent::McpTarget) -> Result<Self, Self::Error> {
 		let proto = proto::agent::mcp_target::Protocol::try_from(s.protocol)?;
-		let backend = resolve_simple_reference(s.kind.as_ref())?;
+		let backend = resolve_simple_reference(s.backend.as_ref())?;
 		Ok(Self {
 			name: strng::new(&s.name),
 			spec: match proto {
@@ -444,7 +445,7 @@ impl TryFrom<&proto::agent::RouteFilter> for RouteFilter {
 				})
 			},
 			Some(proto::agent::route_filter::Kind::RequestMirror(m)) => {
-				let backend = resolve_simple_reference(m.kind.as_ref())?;
+				let backend = resolve_simple_reference(m.backend.as_ref())?;
 				RouteFilter::RequestMirror(filters::RequestMirror {
 					backend,
 					percentage: m.percentage / 100.0,
@@ -519,6 +520,12 @@ impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
 				Policy::ExtAuthz(http::ext_authz::ExtAuthz {
 					target: Arc::new(target),
 					context: Some(ea.context.clone()),
+				})
+			},
+			Some(proto::agent::policy_spec::Kind::A2a(a2a)) => Policy::A2a(A2aPolicy {}),
+			Some(proto::agent::policy_spec::Kind::InferenceRouting(ir)) => {
+				Policy::InferenceRouting(ext_proc::InferenceRouting {
+					target: Arc::new(resolve_simple_reference(ir.endpoint_picker.as_ref())?),
 				})
 			},
 			_ => return Err(ProtoError::EnumParse("unknown spec kind".to_string())),

@@ -100,6 +100,7 @@ impl AIProvider {
 			backend_auth: None,
 			a2a: None,
 			llm: None,
+			inference_routing: None,
 			llm_provider: Some((self.clone(), true)),
 		};
 		match self {
@@ -111,6 +112,7 @@ impl AIProvider {
 					backend_auth: Some(BackendAuth::Gcp {}),
 					a2a: None,
 					llm: None,
+					inference_routing: None,
 					llm_provider: Some((self.clone(), true)),
 				};
 				(Target::Hostname(p.get_host(), 443), bp)
@@ -122,6 +124,7 @@ impl AIProvider {
 					backend_auth: Some(BackendAuth::Aws {}),
 					a2a: None,
 					llm: None,
+					inference_routing: None,
 					llm_provider: Some((self.clone(), true)),
 				};
 				(Target::Hostname(p.get_host(), 443), bp)

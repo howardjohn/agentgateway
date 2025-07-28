@@ -1418,11 +1418,10 @@ func (x *HeaderModifier) GetRemove() []string {
 }
 
 type RequestMirror struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Kind  *BackendReference      `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Backend *BackendReference      `protobuf:"bytes,1,opt,name=backend,proto3" json:"backend,omitempty"`
 	// 0-100
 	Percentage    float64 `protobuf:"fixed64,2,opt,name=percentage,proto3" json:"percentage,omitempty"`
-	Port          int32   `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1457,9 +1456,9 @@ func (*RequestMirror) Descriptor() ([]byte, []int) {
 	return file_resource_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *RequestMirror) GetKind() *BackendReference {
+func (x *RequestMirror) GetBackend() *BackendReference {
 	if x != nil {
-		return x.Kind
+		return x.Backend
 	}
 	return nil
 }
@@ -1467,13 +1466,6 @@ func (x *RequestMirror) GetKind() *BackendReference {
 func (x *RequestMirror) GetPercentage() float64 {
 	if x != nil {
 		return x.Percentage
-	}
-	return 0
-}
-
-func (x *RequestMirror) GetPort() int32 {
-	if x != nil {
-		return x.Port
 	}
 	return 0
 }
@@ -1736,7 +1728,7 @@ func (x *Header) GetValue() string {
 
 type RouteBackend struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kind          *BackendReference      `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Backend       *BackendReference      `protobuf:"bytes,1,opt,name=backend,proto3" json:"backend,omitempty"`
 	Weight        int32                  `protobuf:"varint,2,opt,name=weight,proto3" json:"weight,omitempty"`
 	Filters       []*RouteFilter         `protobuf:"bytes,4,rep,name=filters,proto3" json:"filters,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1773,9 +1765,9 @@ func (*RouteBackend) Descriptor() ([]byte, []int) {
 	return file_resource_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *RouteBackend) GetKind() *BackendReference {
+func (x *RouteBackend) GetBackend() *BackendReference {
 	if x != nil {
-		return x.Kind
+		return x.Backend
 	}
 	return nil
 }
@@ -1936,6 +1928,8 @@ type PolicySpec struct {
 	//
 	//	*PolicySpec_LocalRateLimit_
 	//	*PolicySpec_ExtAuthz
+	//	*PolicySpec_A2A_
+	//	*PolicySpec_InferenceRouting_
 	Kind          isPolicySpec_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1996,6 +1990,24 @@ func (x *PolicySpec) GetExtAuthz() *PolicySpec_ExternalAuth {
 	return nil
 }
 
+func (x *PolicySpec) GetA2A() *PolicySpec_A2A {
+	if x != nil {
+		if x, ok := x.Kind.(*PolicySpec_A2A_); ok {
+			return x.A2A
+		}
+	}
+	return nil
+}
+
+func (x *PolicySpec) GetInferenceRouting() *PolicySpec_InferenceRouting {
+	if x != nil {
+		if x, ok := x.Kind.(*PolicySpec_InferenceRouting_); ok {
+			return x.InferenceRouting
+		}
+	}
+	return nil
+}
+
 type isPolicySpec_Kind interface {
 	isPolicySpec_Kind()
 }
@@ -2008,9 +2020,21 @@ type PolicySpec_ExtAuthz struct {
 	ExtAuthz *PolicySpec_ExternalAuth `protobuf:"bytes,2,opt,name=ext_authz,json=extAuthz,proto3,oneof"`
 }
 
+type PolicySpec_A2A_ struct {
+	A2A *PolicySpec_A2A `protobuf:"bytes,3,opt,name=a2a,proto3,oneof"`
+}
+
+type PolicySpec_InferenceRouting_ struct {
+	InferenceRouting *PolicySpec_InferenceRouting `protobuf:"bytes,4,opt,name=inference_routing,json=inferenceRouting,proto3,oneof"`
+}
+
 func (*PolicySpec_LocalRateLimit_) isPolicySpec_Kind() {}
 
 func (*PolicySpec_ExtAuthz) isPolicySpec_Kind() {}
+
+func (*PolicySpec_A2A_) isPolicySpec_Kind() {}
+
+func (*PolicySpec_InferenceRouting_) isPolicySpec_Kind() {}
 
 type Policy struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2417,8 +2441,7 @@ func (x *MCPBackend) GetTargets() []*MCPTarget {
 type MCPTarget struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Kind          *BackendReference      `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
-	Port          int32                  `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
+	Backend       *BackendReference      `protobuf:"bytes,2,opt,name=backend,proto3" json:"backend,omitempty"`
 	Protocol      MCPTarget_Protocol     `protobuf:"varint,4,opt,name=protocol,proto3,enum=agentgateway.dev.resource.MCPTarget_Protocol" json:"protocol,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2461,18 +2484,11 @@ func (x *MCPTarget) GetName() string {
 	return ""
 }
 
-func (x *MCPTarget) GetKind() *BackendReference {
+func (x *MCPTarget) GetBackend() *BackendReference {
 	if x != nil {
-		return x.Kind
+		return x.Backend
 	}
 	return nil
-}
-
-func (x *MCPTarget) GetPort() int32 {
-	if x != nil {
-		return x.Port
-	}
-	return 0
 }
 
 func (x *MCPTarget) GetProtocol() MCPTarget_Protocol {
@@ -2698,6 +2714,86 @@ func (x *PolicySpec_ExternalAuth) GetContext() map[string]string {
 	return nil
 }
 
+type PolicySpec_A2A struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PolicySpec_A2A) Reset() {
+	*x = PolicySpec_A2A{}
+	mi := &file_resource_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PolicySpec_A2A) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PolicySpec_A2A) ProtoMessage() {}
+
+func (x *PolicySpec_A2A) ProtoReflect() protoreflect.Message {
+	mi := &file_resource_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PolicySpec_A2A.ProtoReflect.Descriptor instead.
+func (*PolicySpec_A2A) Descriptor() ([]byte, []int) {
+	return file_resource_proto_rawDescGZIP(), []int{21, 2}
+}
+
+type PolicySpec_InferenceRouting struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	EndpointPicker *BackendReference      `protobuf:"bytes,1,opt,name=endpoint_picker,json=endpointPicker,proto3" json:"endpoint_picker,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PolicySpec_InferenceRouting) Reset() {
+	*x = PolicySpec_InferenceRouting{}
+	mi := &file_resource_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PolicySpec_InferenceRouting) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PolicySpec_InferenceRouting) ProtoMessage() {}
+
+func (x *PolicySpec_InferenceRouting) ProtoReflect() protoreflect.Message {
+	mi := &file_resource_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PolicySpec_InferenceRouting.ProtoReflect.Descriptor instead.
+func (*PolicySpec_InferenceRouting) Descriptor() ([]byte, []int) {
+	return file_resource_proto_rawDescGZIP(), []int{21, 3}
+}
+
+func (x *PolicySpec_InferenceRouting) GetEndpointPicker() *BackendReference {
+	if x != nil {
+		return x.EndpointPicker
+	}
+	return nil
+}
+
 type AIBackend_Override struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Host          string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
@@ -2708,7 +2804,7 @@ type AIBackend_Override struct {
 
 func (x *AIBackend_Override) Reset() {
 	*x = AIBackend_Override{}
-	mi := &file_resource_proto_msgTypes[32]
+	mi := &file_resource_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2720,7 +2816,7 @@ func (x *AIBackend_Override) String() string {
 func (*AIBackend_Override) ProtoMessage() {}
 
 func (x *AIBackend_Override) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_proto_msgTypes[32]
+	mi := &file_resource_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2759,7 +2855,7 @@ type AIBackend_OpenAI struct {
 
 func (x *AIBackend_OpenAI) Reset() {
 	*x = AIBackend_OpenAI{}
-	mi := &file_resource_proto_msgTypes[33]
+	mi := &file_resource_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2771,7 +2867,7 @@ func (x *AIBackend_OpenAI) String() string {
 func (*AIBackend_OpenAI) ProtoMessage() {}
 
 func (x *AIBackend_OpenAI) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_proto_msgTypes[33]
+	mi := &file_resource_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2803,7 +2899,7 @@ type AIBackend_Gemini struct {
 
 func (x *AIBackend_Gemini) Reset() {
 	*x = AIBackend_Gemini{}
-	mi := &file_resource_proto_msgTypes[34]
+	mi := &file_resource_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2815,7 +2911,7 @@ func (x *AIBackend_Gemini) String() string {
 func (*AIBackend_Gemini) ProtoMessage() {}
 
 func (x *AIBackend_Gemini) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_proto_msgTypes[34]
+	mi := &file_resource_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2849,7 +2945,7 @@ type AIBackend_Vertex struct {
 
 func (x *AIBackend_Vertex) Reset() {
 	*x = AIBackend_Vertex{}
-	mi := &file_resource_proto_msgTypes[35]
+	mi := &file_resource_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2861,7 +2957,7 @@ func (x *AIBackend_Vertex) String() string {
 func (*AIBackend_Vertex) ProtoMessage() {}
 
 func (x *AIBackend_Vertex) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_proto_msgTypes[35]
+	mi := &file_resource_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2907,7 +3003,7 @@ type AIBackend_Anthropic struct {
 
 func (x *AIBackend_Anthropic) Reset() {
 	*x = AIBackend_Anthropic{}
-	mi := &file_resource_proto_msgTypes[36]
+	mi := &file_resource_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2919,7 +3015,7 @@ func (x *AIBackend_Anthropic) String() string {
 func (*AIBackend_Anthropic) ProtoMessage() {}
 
 func (x *AIBackend_Anthropic) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_proto_msgTypes[36]
+	mi := &file_resource_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2952,7 +3048,7 @@ type AIBackend_Bedrock struct {
 
 func (x *AIBackend_Bedrock) Reset() {
 	*x = AIBackend_Bedrock{}
-	mi := &file_resource_proto_msgTypes[37]
+	mi := &file_resource_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2964,7 +3060,7 @@ func (x *AIBackend_Bedrock) String() string {
 func (*AIBackend_Bedrock) ProtoMessage() {}
 
 func (x *AIBackend_Bedrock) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_proto_msgTypes[37]
+	mi := &file_resource_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3083,13 +3179,12 @@ const file_resource_proto_rawDesc = "" +
 	"\x0eHeaderModifier\x123\n" +
 	"\x03add\x18\x01 \x03(\v2!.agentgateway.dev.resource.HeaderR\x03add\x123\n" +
 	"\x03set\x18\x02 \x03(\v2!.agentgateway.dev.resource.HeaderR\x03set\x12\x16\n" +
-	"\x06remove\x18\x03 \x03(\tR\x06remove\"\x84\x01\n" +
-	"\rRequestMirror\x12?\n" +
-	"\x04kind\x18\x01 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\x04kind\x12\x1e\n" +
+	"\x06remove\x18\x03 \x03(\tR\x06remove\"v\n" +
+	"\rRequestMirror\x12E\n" +
+	"\abackend\x18\x01 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\abackend\x12\x1e\n" +
 	"\n" +
 	"percentage\x18\x02 \x01(\x01R\n" +
-	"percentage\x12\x12\n" +
-	"\x04port\x18\x03 \x01(\x05R\x04port\"\xa1\x01\n" +
+	"percentage\"\xa1\x01\n" +
 	"\x0fRequestRedirect\x12\x16\n" +
 	"\x06scheme\x18\x01 \x01(\tR\x06scheme\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12\x14\n" +
@@ -3106,9 +3201,9 @@ const file_resource_proto_rawDesc = "" +
 	"\x04path\"2\n" +
 	"\x06Header\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"\xa9\x01\n" +
-	"\fRouteBackend\x12?\n" +
-	"\x04kind\x18\x01 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\x04kind\x12\x16\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"\xaf\x01\n" +
+	"\fRouteBackend\x12E\n" +
+	"\abackend\x18\x01 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\abackend\x12\x16\n" +
 	"\x06weight\x18\x02 \x01(\x05R\x06weight\x12@\n" +
 	"\afilters\x18\x04 \x03(\v2&.agentgateway.dev.resource.RouteFilterR\afilters\"\xa5\x01\n" +
 	"\fPolicyTarget\x12\x1a\n" +
@@ -3118,11 +3213,13 @@ const file_resource_proto_rawDesc = "" +
 	"\n" +
 	"route_rule\x18\x04 \x01(\tH\x00R\trouteRule\x12\x1a\n" +
 	"\abackend\x18\x05 \x01(\tH\x00R\abackendB\x06\n" +
-	"\x04kind\"\xbf\x05\n" +
+	"\x04kind\"\xd6\a\n" +
 	"\n" +
 	"PolicySpec\x12`\n" +
 	"\x10local_rate_limit\x18\x01 \x01(\v24.agentgateway.dev.resource.PolicySpec.LocalRateLimitH\x00R\x0elocalRateLimit\x12Q\n" +
-	"\text_authz\x18\x02 \x01(\v22.agentgateway.dev.resource.PolicySpec.ExternalAuthH\x00R\bextAuthz\x1a\x86\x02\n" +
+	"\text_authz\x18\x02 \x01(\v22.agentgateway.dev.resource.PolicySpec.ExternalAuthH\x00R\bextAuthz\x12=\n" +
+	"\x03a2a\x18\x03 \x01(\v2).agentgateway.dev.resource.PolicySpec.A2aH\x00R\x03a2a\x12e\n" +
+	"\x11inference_routing\x18\x04 \x01(\v26.agentgateway.dev.resource.PolicySpec.InferenceRoutingH\x00R\x10inferenceRouting\x1a\x86\x02\n" +
 	"\x0eLocalRateLimit\x12\x1d\n" +
 	"\n" +
 	"max_tokens\x18\x01 \x01(\x04R\tmaxTokens\x12&\n" +
@@ -3137,7 +3234,10 @@ const file_resource_proto_rawDesc = "" +
 	"\acontext\x18\x02 \x03(\v2?.agentgateway.dev.resource.PolicySpec.ExternalAuth.ContextEntryR\acontext\x1a:\n" +
 	"\fContextEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x06\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a\x05\n" +
+	"\x03A2a\x1ah\n" +
+	"\x10InferenceRouting\x12T\n" +
+	"\x0fendpoint_picker\x18\x01 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\x0eendpointPickerB\x06\n" +
 	"\x04kind\"\x98\x01\n" +
 	"\x06Policy\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12?\n" +
@@ -3180,11 +3280,10 @@ const file_resource_proto_rawDesc = "" +
 	"\bprovider\"L\n" +
 	"\n" +
 	"MCPBackend\x12>\n" +
-	"\atargets\x18\x02 \x03(\v2$.agentgateway.dev.resource.MCPTargetR\atargets\"\xf8\x01\n" +
+	"\atargets\x18\x02 \x03(\v2$.agentgateway.dev.resource.MCPTargetR\atargets\"\xea\x01\n" +
 	"\tMCPTarget\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12?\n" +
-	"\x04kind\x18\x02 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\x04kind\x12\x12\n" +
-	"\x04port\x18\x03 \x01(\x05R\x04port\x12I\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12E\n" +
+	"\abackend\x18\x02 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\abackend\x12I\n" +
 	"\bprotocol\x18\x04 \x01(\x0e2-.agentgateway.dev.resource.MCPTarget.ProtocolR\bprotocol\"7\n" +
 	"\bProtocol\x12\r\n" +
 	"\tUNDEFINED\x10\x00\x12\a\n" +
@@ -3216,7 +3315,7 @@ func file_resource_proto_rawDescGZIP() []byte {
 }
 
 var file_resource_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_resource_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
+var file_resource_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_resource_proto_goTypes = []any{
 	(Protocol)(0),                       // 0: agentgateway.dev.resource.Protocol
 	(PolicySpec_LocalRateLimit_Type)(0), // 1: agentgateway.dev.resource.PolicySpec.LocalRateLimit.Type
@@ -3252,15 +3351,17 @@ var file_resource_proto_goTypes = []any{
 	(*BackendReference)(nil),            // 31: agentgateway.dev.resource.BackendReference
 	(*PolicySpec_LocalRateLimit)(nil),   // 32: agentgateway.dev.resource.PolicySpec.LocalRateLimit
 	(*PolicySpec_ExternalAuth)(nil),     // 33: agentgateway.dev.resource.PolicySpec.ExternalAuth
-	nil,                                 // 34: agentgateway.dev.resource.PolicySpec.ExternalAuth.ContextEntry
-	(*AIBackend_Override)(nil),          // 35: agentgateway.dev.resource.AIBackend.Override
-	(*AIBackend_OpenAI)(nil),            // 36: agentgateway.dev.resource.AIBackend.OpenAI
-	(*AIBackend_Gemini)(nil),            // 37: agentgateway.dev.resource.AIBackend.Gemini
-	(*AIBackend_Vertex)(nil),            // 38: agentgateway.dev.resource.AIBackend.Vertex
-	(*AIBackend_Anthropic)(nil),         // 39: agentgateway.dev.resource.AIBackend.Anthropic
-	(*AIBackend_Bedrock)(nil),           // 40: agentgateway.dev.resource.AIBackend.Bedrock
-	(*duration.Duration)(nil),           // 41: google.protobuf.Duration
-	(*wrappers.StringValue)(nil),        // 42: google.protobuf.StringValue
+	(*PolicySpec_A2A)(nil),              // 34: agentgateway.dev.resource.PolicySpec.A2a
+	(*PolicySpec_InferenceRouting)(nil), // 35: agentgateway.dev.resource.PolicySpec.InferenceRouting
+	nil,                                 // 36: agentgateway.dev.resource.PolicySpec.ExternalAuth.ContextEntry
+	(*AIBackend_Override)(nil),          // 37: agentgateway.dev.resource.AIBackend.Override
+	(*AIBackend_OpenAI)(nil),            // 38: agentgateway.dev.resource.AIBackend.OpenAI
+	(*AIBackend_Gemini)(nil),            // 39: agentgateway.dev.resource.AIBackend.Gemini
+	(*AIBackend_Vertex)(nil),            // 40: agentgateway.dev.resource.AIBackend.Vertex
+	(*AIBackend_Anthropic)(nil),         // 41: agentgateway.dev.resource.AIBackend.Anthropic
+	(*AIBackend_Bedrock)(nil),           // 42: agentgateway.dev.resource.AIBackend.Bedrock
+	(*duration.Duration)(nil),           // 43: google.protobuf.Duration
+	(*wrappers.StringValue)(nil),        // 44: google.protobuf.StringValue
 }
 var file_resource_proto_depIdxs = []int32{
 	4,  // 0: agentgateway.dev.resource.Resource.bind:type_name -> agentgateway.dev.resource.Bind
@@ -3274,8 +3375,8 @@ var file_resource_proto_depIdxs = []int32{
 	14, // 8: agentgateway.dev.resource.Route.filters:type_name -> agentgateway.dev.resource.RouteFilter
 	22, // 9: agentgateway.dev.resource.Route.backends:type_name -> agentgateway.dev.resource.RouteBackend
 	8,  // 10: agentgateway.dev.resource.Route.traffic_policy:type_name -> agentgateway.dev.resource.TrafficPolicy
-	41, // 11: agentgateway.dev.resource.TrafficPolicy.backend_request_timeout:type_name -> google.protobuf.Duration
-	41, // 12: agentgateway.dev.resource.TrafficPolicy.request_timeout:type_name -> google.protobuf.Duration
+	43, // 11: agentgateway.dev.resource.TrafficPolicy.backend_request_timeout:type_name -> google.protobuf.Duration
+	43, // 12: agentgateway.dev.resource.TrafficPolicy.request_timeout:type_name -> google.protobuf.Duration
 	10, // 13: agentgateway.dev.resource.RouteMatch.path:type_name -> agentgateway.dev.resource.PathMatch
 	13, // 14: agentgateway.dev.resource.RouteMatch.headers:type_name -> agentgateway.dev.resource.HeaderMatch
 	12, // 15: agentgateway.dev.resource.RouteMatch.method:type_name -> agentgateway.dev.resource.MethodMatch
@@ -3287,42 +3388,45 @@ var file_resource_proto_depIdxs = []int32{
 	18, // 21: agentgateway.dev.resource.RouteFilter.request_mirror:type_name -> agentgateway.dev.resource.RequestMirror
 	16, // 22: agentgateway.dev.resource.RouteFilter.direct_response:type_name -> agentgateway.dev.resource.DirectResponse
 	15, // 23: agentgateway.dev.resource.RouteFilter.cors:type_name -> agentgateway.dev.resource.CORS
-	41, // 24: agentgateway.dev.resource.CORS.max_age:type_name -> google.protobuf.Duration
+	43, // 24: agentgateway.dev.resource.CORS.max_age:type_name -> google.protobuf.Duration
 	21, // 25: agentgateway.dev.resource.HeaderModifier.add:type_name -> agentgateway.dev.resource.Header
 	21, // 26: agentgateway.dev.resource.HeaderModifier.set:type_name -> agentgateway.dev.resource.Header
-	31, // 27: agentgateway.dev.resource.RequestMirror.kind:type_name -> agentgateway.dev.resource.BackendReference
-	31, // 28: agentgateway.dev.resource.RouteBackend.kind:type_name -> agentgateway.dev.resource.BackendReference
+	31, // 27: agentgateway.dev.resource.RequestMirror.backend:type_name -> agentgateway.dev.resource.BackendReference
+	31, // 28: agentgateway.dev.resource.RouteBackend.backend:type_name -> agentgateway.dev.resource.BackendReference
 	14, // 29: agentgateway.dev.resource.RouteBackend.filters:type_name -> agentgateway.dev.resource.RouteFilter
 	32, // 30: agentgateway.dev.resource.PolicySpec.local_rate_limit:type_name -> agentgateway.dev.resource.PolicySpec.LocalRateLimit
 	33, // 31: agentgateway.dev.resource.PolicySpec.ext_authz:type_name -> agentgateway.dev.resource.PolicySpec.ExternalAuth
-	23, // 32: agentgateway.dev.resource.Policy.target:type_name -> agentgateway.dev.resource.PolicyTarget
-	24, // 33: agentgateway.dev.resource.Policy.spec:type_name -> agentgateway.dev.resource.PolicySpec
-	27, // 34: agentgateway.dev.resource.Backend.static:type_name -> agentgateway.dev.resource.StaticBackend
-	28, // 35: agentgateway.dev.resource.Backend.ai:type_name -> agentgateway.dev.resource.AIBackend
-	29, // 36: agentgateway.dev.resource.Backend.mcp:type_name -> agentgateway.dev.resource.MCPBackend
-	35, // 37: agentgateway.dev.resource.AIBackend.override:type_name -> agentgateway.dev.resource.AIBackend.Override
-	36, // 38: agentgateway.dev.resource.AIBackend.openai:type_name -> agentgateway.dev.resource.AIBackend.OpenAI
-	37, // 39: agentgateway.dev.resource.AIBackend.gemini:type_name -> agentgateway.dev.resource.AIBackend.Gemini
-	38, // 40: agentgateway.dev.resource.AIBackend.vertex:type_name -> agentgateway.dev.resource.AIBackend.Vertex
-	39, // 41: agentgateway.dev.resource.AIBackend.anthropic:type_name -> agentgateway.dev.resource.AIBackend.Anthropic
-	40, // 42: agentgateway.dev.resource.AIBackend.bedrock:type_name -> agentgateway.dev.resource.AIBackend.Bedrock
-	30, // 43: agentgateway.dev.resource.MCPBackend.targets:type_name -> agentgateway.dev.resource.MCPTarget
-	31, // 44: agentgateway.dev.resource.MCPTarget.kind:type_name -> agentgateway.dev.resource.BackendReference
-	2,  // 45: agentgateway.dev.resource.MCPTarget.protocol:type_name -> agentgateway.dev.resource.MCPTarget.Protocol
-	41, // 46: agentgateway.dev.resource.PolicySpec.LocalRateLimit.fill_interval:type_name -> google.protobuf.Duration
-	1,  // 47: agentgateway.dev.resource.PolicySpec.LocalRateLimit.type:type_name -> agentgateway.dev.resource.PolicySpec.LocalRateLimit.Type
-	31, // 48: agentgateway.dev.resource.PolicySpec.ExternalAuth.target:type_name -> agentgateway.dev.resource.BackendReference
-	34, // 49: agentgateway.dev.resource.PolicySpec.ExternalAuth.context:type_name -> agentgateway.dev.resource.PolicySpec.ExternalAuth.ContextEntry
-	42, // 50: agentgateway.dev.resource.AIBackend.OpenAI.model:type_name -> google.protobuf.StringValue
-	42, // 51: agentgateway.dev.resource.AIBackend.Gemini.model:type_name -> google.protobuf.StringValue
-	42, // 52: agentgateway.dev.resource.AIBackend.Vertex.model:type_name -> google.protobuf.StringValue
-	42, // 53: agentgateway.dev.resource.AIBackend.Anthropic.model:type_name -> google.protobuf.StringValue
-	42, // 54: agentgateway.dev.resource.AIBackend.Bedrock.model:type_name -> google.protobuf.StringValue
-	55, // [55:55] is the sub-list for method output_type
-	55, // [55:55] is the sub-list for method input_type
-	55, // [55:55] is the sub-list for extension type_name
-	55, // [55:55] is the sub-list for extension extendee
-	0,  // [0:55] is the sub-list for field type_name
+	34, // 32: agentgateway.dev.resource.PolicySpec.a2a:type_name -> agentgateway.dev.resource.PolicySpec.A2a
+	35, // 33: agentgateway.dev.resource.PolicySpec.inference_routing:type_name -> agentgateway.dev.resource.PolicySpec.InferenceRouting
+	23, // 34: agentgateway.dev.resource.Policy.target:type_name -> agentgateway.dev.resource.PolicyTarget
+	24, // 35: agentgateway.dev.resource.Policy.spec:type_name -> agentgateway.dev.resource.PolicySpec
+	27, // 36: agentgateway.dev.resource.Backend.static:type_name -> agentgateway.dev.resource.StaticBackend
+	28, // 37: agentgateway.dev.resource.Backend.ai:type_name -> agentgateway.dev.resource.AIBackend
+	29, // 38: agentgateway.dev.resource.Backend.mcp:type_name -> agentgateway.dev.resource.MCPBackend
+	37, // 39: agentgateway.dev.resource.AIBackend.override:type_name -> agentgateway.dev.resource.AIBackend.Override
+	38, // 40: agentgateway.dev.resource.AIBackend.openai:type_name -> agentgateway.dev.resource.AIBackend.OpenAI
+	39, // 41: agentgateway.dev.resource.AIBackend.gemini:type_name -> agentgateway.dev.resource.AIBackend.Gemini
+	40, // 42: agentgateway.dev.resource.AIBackend.vertex:type_name -> agentgateway.dev.resource.AIBackend.Vertex
+	41, // 43: agentgateway.dev.resource.AIBackend.anthropic:type_name -> agentgateway.dev.resource.AIBackend.Anthropic
+	42, // 44: agentgateway.dev.resource.AIBackend.bedrock:type_name -> agentgateway.dev.resource.AIBackend.Bedrock
+	30, // 45: agentgateway.dev.resource.MCPBackend.targets:type_name -> agentgateway.dev.resource.MCPTarget
+	31, // 46: agentgateway.dev.resource.MCPTarget.backend:type_name -> agentgateway.dev.resource.BackendReference
+	2,  // 47: agentgateway.dev.resource.MCPTarget.protocol:type_name -> agentgateway.dev.resource.MCPTarget.Protocol
+	43, // 48: agentgateway.dev.resource.PolicySpec.LocalRateLimit.fill_interval:type_name -> google.protobuf.Duration
+	1,  // 49: agentgateway.dev.resource.PolicySpec.LocalRateLimit.type:type_name -> agentgateway.dev.resource.PolicySpec.LocalRateLimit.Type
+	31, // 50: agentgateway.dev.resource.PolicySpec.ExternalAuth.target:type_name -> agentgateway.dev.resource.BackendReference
+	36, // 51: agentgateway.dev.resource.PolicySpec.ExternalAuth.context:type_name -> agentgateway.dev.resource.PolicySpec.ExternalAuth.ContextEntry
+	31, // 52: agentgateway.dev.resource.PolicySpec.InferenceRouting.endpoint_picker:type_name -> agentgateway.dev.resource.BackendReference
+	44, // 53: agentgateway.dev.resource.AIBackend.OpenAI.model:type_name -> google.protobuf.StringValue
+	44, // 54: agentgateway.dev.resource.AIBackend.Gemini.model:type_name -> google.protobuf.StringValue
+	44, // 55: agentgateway.dev.resource.AIBackend.Vertex.model:type_name -> google.protobuf.StringValue
+	44, // 56: agentgateway.dev.resource.AIBackend.Anthropic.model:type_name -> google.protobuf.StringValue
+	44, // 57: agentgateway.dev.resource.AIBackend.Bedrock.model:type_name -> google.protobuf.StringValue
+	58, // [58:58] is the sub-list for method output_type
+	58, // [58:58] is the sub-list for method input_type
+	58, // [58:58] is the sub-list for extension type_name
+	58, // [58:58] is the sub-list for extension extendee
+	0,  // [0:58] is the sub-list for field type_name
 }
 
 func init() { file_resource_proto_init() }
@@ -3377,6 +3481,8 @@ func file_resource_proto_init() {
 	file_resource_proto_msgTypes[21].OneofWrappers = []any{
 		(*PolicySpec_LocalRateLimit_)(nil),
 		(*PolicySpec_ExtAuthz)(nil),
+		(*PolicySpec_A2A_)(nil),
+		(*PolicySpec_InferenceRouting_)(nil),
 	}
 	file_resource_proto_msgTypes[23].OneofWrappers = []any{
 		(*Backend_Static)(nil),
@@ -3400,7 +3506,7 @@ func file_resource_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_resource_proto_rawDesc), len(file_resource_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   38,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

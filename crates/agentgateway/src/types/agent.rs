@@ -28,8 +28,8 @@ use crate::http::auth::BackendAuth;
 use crate::http::jwt::Jwt;
 use crate::http::localratelimit::RateLimit;
 use crate::http::{
-	HeaderName, HeaderValue, StatusCode, ext_authz, filters, remoteratelimit, retry, status, timeout,
-	uri,
+	HeaderName, HeaderValue, StatusCode, ext_authz, ext_proc, filters, remoteratelimit, retry,
+	status, timeout, uri,
 };
 use crate::mcp::rbac::RuleSet;
 use crate::proxy::ProxyError;
@@ -1039,6 +1039,8 @@ pub enum Policy {
 	// Supported targets: Backend; single policy allowed
 	#[serde(rename = "ai")]
 	AI(llm::Policy),
+	// Supported targets: Backend; single policy allowed
+	InferenceRouting(ext_proc::InferenceRouting),
 
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
 	// Transformation(),

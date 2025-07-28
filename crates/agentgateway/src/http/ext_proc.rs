@@ -36,42 +36,26 @@ pub mod proto {
 	tonic::include_proto!("envoy.service.ext_proc.v3");
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InferenceRouting {
+	pub target: Arc<SimpleBackendReference>,
+}
+
+#[derive(Debug, Default)]
 pub struct InferencePoolRouter {
 	ext_proc: Option<ExtProc>,
 }
 
-impl InferencePoolRouter {
-	pub fn new(upstream: PolicyClient, backend: &Backend) -> Self {
-		Self {
-			ext_proc: Self::build_ext_proc(upstream, backend),
+impl InferenceRouting {
+	pub fn build(&self, client: PolicyClient) -> InferencePoolRouter {
+		InferencePoolRouter {
+			ext_proc: Some(ExtProc::new(client, self.target.clone())),
 		}
 	}
-	fn build_ext_proc(upstream: PolicyClient, backend: &Backend) -> Option<ExtProc> {
-		let Backend::Service(svc, port) = backend else {
-			return None;
-		};
-		if !svc.hostname.ends_with(".inference.cluster.local") {
-			return None;
-		};
-		// Hack, assume EPP name. TODO: make this a proper policy
-		let parts = svc.hostname.split(".").collect_vec();
-		let target = match parts.as_slice() {
-			&[name, ns, "inference", ..] => {
-				let suffix = parts.iter().skip(3).join(".");
-				SimpleBackendReference::Service {
-					name: NamespacedHostname {
-						namespace: strng::new(ns),
-						hostname: strng::format!("{name}-epp.{ns}.svc.{suffix}"),
-					},
-					port: 9002,
-				}
-			},
-			_ => return None,
-		};
+}
 
-		ExtProc::new(upstream.clone(), target).ok()
-	}
-
+impl InferencePoolRouter {
 	pub async fn mutate_request(
 		&mut self,
 		req: &mut http::Request,
@@ -110,18 +94,16 @@ impl InferencePoolRouter {
 }
 
 // Very experimental support for ext_proc
+#[derive(Debug)]
 pub struct ExtProc {
 	tx_req: Sender<ProcessingRequest>,
 	rx_resp: Receiver<ProcessingResponse>,
 }
 
 impl ExtProc {
-	pub fn new(client: PolicyClient, dest: SimpleBackendReference) -> anyhow::Result<ExtProc> {
-		trace!("connecting to {:?}", dest);
-		let chan = GrpcReferenceChannel {
-			target: Arc::new(dest),
-			client,
-		};
+	pub fn new(client: PolicyClient, target: Arc<SimpleBackendReference>) -> ExtProc {
+		trace!("connecting to {:?}", target);
+		let chan = GrpcReferenceChannel { target, client };
 		let mut c = proto::external_processor_client::ExternalProcessorClient::new(chan);
 		let (tx_req, rx_req) = tokio::sync::mpsc::channel(10);
 		let (tx_resp, rx_resp) = tokio::sync::mpsc::channel(10);
@@ -141,7 +123,7 @@ impl ExtProc {
 				let _ = tx_resp.send(item).await;
 			}
 		});
-		Ok(Self { tx_req, rx_resp })
+		Self { tx_req, rx_resp }
 	}
 
 	async fn recv(&mut self) -> anyhow::Result<ProcessingResponse> {

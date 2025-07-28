@@ -564,15 +564,10 @@ impl HTTPProxy {
 		mut req: Request,
 	) -> Result<Response, ProxyError> {
 		let inputs = self.inputs.clone();
-		let mut maybe_inference =
-			ext_proc::InferencePoolRouter::new(self.policy_client(), &selected_backend.backend);
-		let override_dest = maybe_inference.mutate_request(&mut req).await?;
-		log.inference_pool = override_dest;
 
 		let call = make_backend_call(
 			self.inputs.clone(),
 			&route_policies,
-			override_dest,
 			&selected_backend.backend,
 			None,
 			req,
@@ -607,8 +602,6 @@ impl HTTPProxy {
 		if resp.status() == StatusCode::SWITCHING_PROTOCOLS {
 			return handle_upgrade(req_upgrade, resp).await;
 		}
-
-		maybe_inference.mutate_response(&mut resp).await?;
 
 		// Handle response filters
 		apply_response_filters(selected_route.filters.as_slice(), &mut resp)?;
@@ -728,14 +721,21 @@ async fn build_transport(
 async fn make_backend_call(
 	inputs: Arc<ProxyInputs>,
 	route_policies: &store::LLMRoutePolicies,
-	override_dest: Option<SocketAddr>,
 	backend: &Backend,
 	default_policies: Option<BackendPolicies>,
 	mut req: Request,
 	mut log: Option<&mut RequestLog>,
 ) -> Result<Pin<Box<dyn Future<Output = Result<Response, ProxyError>> + Send>>, ProxyError> {
 	let client = inputs.upstream.clone();
+
 	let policy_target = PolicyTarget::Backend(backend.name());
+	let policies = inputs.stores.read_binds().backend_policies(policy_target);
+	let mut maybe_inference = policies.build_inference(PolicyClient {
+		inputs: inputs.clone(),
+	});
+	let override_dest = maybe_inference.mutate_request(&mut req).await?;
+	log.add(|l| l.inference_pool = override_dest);
+
 	let backend_call = match backend {
 		Backend::AI(_, ai) => {
 			let (target, default_policies) = match &ai.host_override {
@@ -746,6 +746,7 @@ async fn make_backend_call(
 						backend_auth: None,
 						a2a: None,
 						llm: None,
+						inference_routing: None,
 						// Attach LLM provider, but don't use default setup
 						llm_provider: Some((ai.provider.clone(), false)),
 					}),
@@ -844,7 +845,6 @@ async fn make_backend_call(
 	};
 	log.add(|l| l.endpoint = Some(backend_call.target.clone()));
 
-	let policies = inputs.stores.read_binds().backend_policies(policy_target);
 	let policies = match backend_call.default_policies.clone() {
 		Some(def) => def.merge(policies),
 		None => policies,
@@ -896,7 +896,8 @@ async fn make_backend_call(
 		a2a::apply_to_response(policies.a2a.as_ref(), a2a_type, &mut resp)
 			.await
 			.map_err(ProxyError::Processing)?;
-		let resp = if let (Some((llm, _)), Some(llm_request)) = (policies.llm_provider, llm_request) {
+		let mut resp = if let (Some((llm, _)), Some(llm_request)) = (policies.llm_provider, llm_request)
+		{
 			llm
 				.process_response(
 					llm_request,
@@ -910,6 +911,7 @@ async fn make_backend_call(
 		} else {
 			resp
 		};
+		maybe_inference.mutate_response(&mut resp).await?;
 		Ok(resp)
 	}))
 }
@@ -1115,7 +1117,6 @@ impl PolicyClient {
 		make_backend_call(
 			self.inputs.clone(),
 			&LLMRoutePolicies::default(),
-			None,
 			&backend.into(),
 			None,
 			req,
@@ -1134,7 +1135,6 @@ impl PolicyClient {
 			make_backend_call(
 				self.inputs.clone(),
 				&LLMRoutePolicies::default(),
-				None,
 				&backend.clone().into(),
 				Some(defaults),
 				req,
