@@ -754,7 +754,7 @@ async fn convert_route(
 		}
 		if let Some(p) = remote_rate_limit {
 			let (bref, backend) =
-				to_simple_backend_and_ref(strng::format!("{}/extauthz", key), &p.target);
+				to_simple_backend_and_ref(strng::format!("{}/ratelimit", key), &p.target);
 			let pol = http::remoteratelimit::RemoteRateLimit {
 				target: Arc::new(bref),
 				descriptors: p.descriptors,
