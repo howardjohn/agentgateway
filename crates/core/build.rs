@@ -2,6 +2,9 @@ use std::env;
 use std::process::Command;
 
 fn main() {
+	// Tell Cargo to rerun if .git/HEAD changes (branch switch)
+	println!("cargo:rerun-if-changed=.git/HEAD");
+
 	let out_dir = env::var("OUT_DIR").unwrap();
 	// Adopted from https://github.com/uutils/coreutils/blob/main/src/uu/stdbuf/build.rs
 	let profile_name = out_dir

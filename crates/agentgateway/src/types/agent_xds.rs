@@ -30,8 +30,8 @@ use crate::http::auth::BackendAuth;
 use crate::http::jwt::Jwt;
 use crate::http::localratelimit::RateLimit;
 use crate::http::{
-	HeaderName, HeaderValue, StatusCode, ext_proc, filters, localratelimit, retry, status, timeout,
-	uri,
+	HeaderName, HeaderValue, StatusCode, backendtls, ext_proc, filters, localratelimit, retry,
+	status, timeout, uri,
 };
 use crate::llm::{AIBackend, AIProvider};
 use crate::mcp::rbac::RuleSet;
@@ -42,6 +42,7 @@ use crate::types::proto;
 use crate::types::proto::ProtoError;
 use crate::types::proto::agent::mcp_target::Protocol;
 use crate::types::proto::agent::policy_spec::ExternalAuth;
+use crate::types::proto::agent::policy_spec::inference_routing::FailureMode;
 use crate::types::proto::agent::policy_spec::local_rate_limit::Type;
 use crate::*;
 
@@ -548,9 +549,27 @@ impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
 				})
 			},
 			Some(proto::agent::policy_spec::Kind::A2a(a2a)) => Policy::A2a(A2aPolicy {}),
+			Some(proto::agent::policy_spec::Kind::BackendTls(btls)) => {
+				let tls = backendtls::ResolvedBackendTLS {
+					cert: btls.cert.clone(),
+					key: btls.key.clone(),
+					root: btls.root.clone(),
+					insecure: btls.insecure.unwrap_or_default(),
+					insecure_host: false,
+				}
+				.try_into()
+				.map_err(|e| ProtoError::Generic(e.to_string()))?;
+				Policy::BackendTLS(tls)
+			},
 			Some(proto::agent::policy_spec::Kind::InferenceRouting(ir)) => {
 				Policy::InferenceRouting(ext_proc::InferenceRouting {
 					target: Arc::new(resolve_simple_reference(ir.endpoint_picker.as_ref())?),
+					failure_mode: match proto::agent::policy_spec::inference_routing::FailureMode::try_from(
+						ir.failure_mode,
+					)? {
+						FailureMode::Unknown | FailureMode::FailClosed => ext_proc::FailureMode::FailClosed,
+						FailureMode::FailOpen => ext_proc::FailureMode::FailOpen,
+					},
 				})
 			},
 			_ => return Err(ProtoError::EnumParse("unknown spec kind".to_string())),

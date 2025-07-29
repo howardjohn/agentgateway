@@ -213,13 +213,29 @@ message PolicySpec {
   message A2a {
   }
   message InferenceRouting {
+    enum FailureMode {
+      UNKNOWN = 0;
+      FAIL_CLOSED = 1;
+      FAIL_OPEN = 2;
+    }
     BackendReference endpoint_picker = 1;
+    FailureMode failure_mode = 2;
+  }
+  message BackendTLS {
+    google.protobuf.BytesValue cert = 1;
+    google.protobuf.BytesValue key = 2;
+    // Root to verify. If not set, system certs will be used.
+    // If no verification is desired, use 'insecure'
+    google.protobuf.BytesValue root = 3;
+    // Disable all verification
+    google.protobuf.BoolValue insecure = 4;
   }
   oneof kind {
     LocalRateLimit local_rate_limit = 1;
     ExternalAuth ext_authz = 2;
     A2a a2a = 3;
     InferenceRouting inference_routing = 4;
+    BackendTLS backend_tls = 5;
   }
 }
 

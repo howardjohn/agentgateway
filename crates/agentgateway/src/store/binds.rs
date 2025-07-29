@@ -500,6 +500,7 @@ impl Store {
 			Some(XdsKind::Listener(w)) => self.insert_xds_listener(w),
 			Some(XdsKind::Route(w)) => self.insert_xds_route(w),
 			Some(XdsKind::Backend(w)) => self.insert_xds_backend(w),
+			Some(XdsKind::Policy(w)) => self.insert_xds_policy(w),
 			_ => Err(anyhow::anyhow!("unknown resource type")),
 		}
 	}
