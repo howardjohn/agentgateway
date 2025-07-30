@@ -80,9 +80,13 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     needs:
       - build-image
     steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.9.2
+
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
@@ -115,6 +119,9 @@ jobs:
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+
+      - name: Sign the container image
+        run: cosign sign --yes ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
 
       - name: Inspect image
         run: |
