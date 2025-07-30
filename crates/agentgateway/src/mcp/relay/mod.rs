@@ -229,11 +229,11 @@ impl ServerHandler for Relay {
 		// List servers and initialize the ones that are not initialized
 		let mut pool = self.pool.write().await;
 		// Initialize all targets
-		let connections = pool
+		pool
 			.initialize(rq_ctx, &context.peer, request)
 			.await
 			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {e}"), None))?;
-
+		let connections = pool.list(rq_ctx, &context.peer).await;
 		// Return static server info about ourselves
 		// TODO: we should actually perform an intersection of what the downstream and we support. The problem
 		// is we may connect to many upstream servers, how do expose what exactly we can and cannot support?
@@ -250,7 +250,7 @@ impl ServerHandler for Relay {
 
 		let mut pool = self.pool.write().await;
 		let connections = pool
-			.list()
+			.list(rq_ctx, &context.peer)
 			.await
 			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {e}"), None))?;
 		let all = connections.into_iter().map(|(_name, svc)| {
@@ -285,7 +285,7 @@ impl ServerHandler for Relay {
 
 		let mut pool = self.pool.write().await;
 		let connections = pool
-			.list()
+			.list(rq_ctx, &context.peer)
 			.await
 			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {e}"), None))?;
 		let all = connections.into_iter().map(|(_name, svc)| {
@@ -327,7 +327,7 @@ impl ServerHandler for Relay {
 
 		let mut pool = self.pool.write().await;
 		let connections = pool
-			.list()
+			.list(rq_ctx, &context.peer)
 			.await
 			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {e}"), None))?;
 
@@ -476,7 +476,7 @@ impl ServerHandler for Relay {
 		let (_span, ref rq_ctx, _, cel) = Self::setup_request_log(&context.extensions, "list_tools")?;
 		let mut pool = self.pool.write().await;
 		let connections = pool
-			.list()
+			.list(rq_ctx, &context.peer)
 			.await
 			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {e}"), None))?;
 		let multi = connections.len() > 1;

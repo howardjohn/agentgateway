@@ -197,6 +197,7 @@ impl App {
 					},
 					sm,
 					StreamableHttpServerConfig {
+						stateful_mode: false,
 						..Default::default()
 					},
 				);

@@ -8,7 +8,10 @@ use http::header::CONTENT_TYPE;
 use reqwest::header::ACCEPT;
 use reqwest::{Client as HttpClient, IntoUrl, Url};
 use rmcp::model::{ClientJsonRpcMessage, ServerJsonRpcMessage};
-use rmcp::service::{NotificationContext, Peer, serve_client_with_ct, serve_directly_with_ct};
+use rmcp::service::{
+	AtomicU32RequestIdProvider, NotificationContext, Peer, serve_client_with_ct,
+	serve_directly_with_ct,
+};
 use rmcp::transport::common::client_side_sse::BoxedSseResponse;
 use rmcp::transport::common::http_header::{
 	EVENT_STREAM_MIME_TYPE, HEADER_LAST_EVENT_ID, HEADER_SESSION_ID, JSON_MIME_TYPE,
@@ -57,6 +60,8 @@ impl ConnectionPool {
 		peer: &Peer<RoleServer>,
 		name: &str,
 	) -> anyhow::Result<&upstream::UpstreamTarget> {
+		self.initialize(rq_ctx, peer, InitializeRequestParam::default()).await?; // TODO: don't do all of them...
+		// self.initialize_stateless(rq_ctx, peer)?; // TODO: don't do all of them...
 		// If it doesn't exist, they haven't initialized yet
 		if !self.by_name.contains_key(name) {
 			return Err(anyhow::anyhow!(
@@ -79,7 +84,7 @@ impl ConnectionPool {
 		rq_ctx: &RqCtx,
 		peer: &Peer<RoleServer>,
 		request: InitializeRequestParam,
-	) -> anyhow::Result<Vec<(Strng, &upstream::UpstreamTarget)>> {
+	) -> anyhow::Result<()> {
 		for tgt in self.backend.targets.clone() {
 			if self.by_name.contains_key(&tgt.name) {
 				anyhow::bail!("connection {} already initialized", tgt.name);
@@ -94,10 +99,37 @@ impl ConnectionPool {
 					e // Propagate error
 				})?;
 		}
-		self.list().await
+		Ok(())
 	}
 
-	pub(crate) async fn list(&mut self) -> anyhow::Result<Vec<(Strng, &upstream::UpstreamTarget)>> {
+	pub(crate) fn initialize_stateless(
+		&mut self,
+		rq_ctx: &RqCtx,
+		peer: &Peer<RoleServer>,
+	) -> anyhow::Result<()> {
+		for tgt in self.backend.targets.clone() {
+			if self.by_name.contains_key(&tgt.name) {
+				continue;
+				// anyhow::bail!("connection {} already initialized", tgt.name);
+			}
+			let ct = tokio_util::sync::CancellationToken::new(); //TODO
+			debug!("initializing target: {}", tgt.name);
+			self
+				.connect_stateless(rq_ctx, &ct, &tgt, peer)
+				.map_err(|e| {
+					error!("Failed to connect target {}: {}", tgt.name, e);
+					e // Propagate error
+				})?;
+		}
+		Ok(())
+	}
+
+	pub(crate) async fn list(
+		&mut self,
+		rq_ctx: &RqCtx,
+		peer: &Peer<RoleServer>,
+	) -> anyhow::Result<Vec<(Strng, &upstream::UpstreamTarget)>> {
+		self.initialize(rq_ctx, peer, InitializeRequestParam::default()).await?;
 		let results = self
 			.backend
 			.targets
@@ -225,6 +257,110 @@ impl ConnectionPool {
 						.await?,
 					),
 				}
+			},
+			McpTargetSpec::OpenAPI(open) => {
+				// Renamed for clarity
+				debug!("starting OpenAPI transport for target: {}", target.name);
+
+				let tools = crate::mcp::openapi::parse_openapi_schema(&open.schema).map_err(|e| {
+					anyhow::anyhow!(
+						"Failed to parse tools from OpenAPI schema for target {}: {}",
+						target.name,
+						e
+					)
+				})?;
+
+				let prefix = crate::mcp::openapi::get_server_prefix(&open.schema).map_err(|e| {
+					anyhow::anyhow!(
+						"Failed to get server prefix from OpenAPI schema for target {}: {}",
+						target.name,
+						e
+					)
+				})?;
+				let be = crate::proxy::resolve_simple_backend(&open.backend, &self.pi)?;
+				upstream::UpstreamTarget {
+					spec: upstream::UpstreamTargetSpec::OpenAPI(Box::new(crate::mcp::openapi::Handler {
+						backend: be,
+						client: self.client.clone(),
+						default_policies: target.backend_policies.clone(),
+						tools,  // From parse_openapi_schema
+						prefix, // From get_server_prefix
+					})),
+				}
+			},
+		};
+		self.by_name.insert(target.name.clone(), transport);
+		Ok(())
+	}
+	pub(crate) fn connect_stateless(
+		&mut self,
+		rq_ctx: &RqCtx,
+		ct: &tokio_util::sync::CancellationToken,
+		target: &McpTarget,
+		peer: &Peer<RoleServer>,
+	) -> Result<(), anyhow::Error> {
+		// Already connected
+		if let Some(_transport) = self.by_name.get(&target.name) {
+			return Ok(());
+		}
+		trace!("connecting to target: {}", target.name);
+		let transport: upstream::UpstreamTarget = match &target.spec {
+			McpTargetSpec::Sse(sse) => {
+				todo!()
+			},
+			McpTargetSpec::Mcp(mcp) => {
+				debug!(
+					"starting streamable http transport for target: {}",
+					target.name
+				);
+				let path = match mcp.path.as_str() {
+					"" => "/mcp",
+					_ => mcp.path.as_str(),
+				};
+				let be = crate::proxy::resolve_simple_backend(&mcp.backend, &self.pi)?;
+				let client =
+					ClientWrapper::new_with_client(be, self.client.clone(), target.backend_policies.clone());
+				let mut transport = StreamableHttpClientTransport::with_client(
+					client,
+					StreamableHttpClientTransportConfig {
+						uri: path.into(),
+						..Default::default()
+					},
+				);
+				// let id_provider = <Arc<AtomicU32RequestIdProvider>>::default();
+				// let info = 		ServerInfo {
+				// 	protocol_version: ProtocolVersion::V_2025_03_26,
+				// 	capabilities: ServerCapabilities {
+				// 		completions: None,
+				// 		experimental: None,
+				// 		logging: None,
+				// 		prompts: Some(PromptsCapability::default()),
+				// 		resources: Some(ResourcesCapability::default()),
+				// 		tools: Some(ToolsCapability::default()),
+				// 	},
+				// 	server_info: Implementation::from_build_env(),
+				// 	instructions: Some(
+				// 		"This server is a gateway to a set of mcp servers. It is responsible for routing requests to the correct server and aggregating the results.".to_string(),
+				// 	),
+				// };
+				// let initialize_result = info;
+				// let (peer, peer_rx) = Peer::new(id_provider, Some(initialize_result));
+
+				upstream::UpstreamTarget {
+					spec: upstream::UpstreamTargetSpec::Mcp(serve_directly_with_ct(
+						PeerClientHandler {
+							peer: peer.clone(),
+							peer_client: None,
+							init_request: InitializeRequestParam::default(),
+						},
+						transport,
+						None,
+						ct.child_token(),
+					)),
+				}
+			},
+			McpTargetSpec::Stdio { cmd, args, env } => {
+				todo!()
 			},
 			McpTargetSpec::OpenAPI(open) => {
 				// Renamed for clarity
@@ -416,10 +552,11 @@ impl StreamableHttpClient for ClientWrapper {
 	) -> Result<StreamableHttpPostResponse, StreamableHttpError<Self::Error>> {
 		let client = self.client.clone();
 
+
 		let uri = "http://".to_string() + &self.backend.hostport() + &Self::parse_uri(uri)?;
 
 		let body =
-			serde_json::to_vec(&message).map_err(|e| StreamableHttpError::Client(HttpError::new(e)))?;
+			serde_json::to_vec(&dbg!(message)).map_err(|e| StreamableHttpError::Client(HttpError::new(e)))?;
 
 		let mut req = http::Request::builder()
 			.uri(uri)
@@ -462,6 +599,7 @@ impl StreamableHttpClient for ClientWrapper {
 			.and_then(|v| v.to_str().ok())
 			.map(|s| s.to_string());
 
+		tracing::error!("howardjohn: done with {content_type:?} {session_id:?}");
 		match content_type {
 			Some(ct) if ct.as_bytes().starts_with(EVENT_STREAM_MIME_TYPE.as_bytes()) => {
 				let event_stream = SseStream::from_byte_stream(resp.into_body().into_data_stream()).boxed();

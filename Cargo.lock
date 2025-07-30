@@ -4549,8 +4549,7 @@ dependencies = [
 
 [[package]]
 name = "rmcp"
-version = "0.3.1"
-source = "git+https://github.com/modelcontextprotocol/rust-sdk?rev=0a9a0a0b1f234bd296459fc98b41fd6215c8e3a9#0a9a0a0b1f234bd296459fc98b41fd6215c8e3a9"
+version = "0.3.0"
 dependencies = [
  "axum",
  "base64",
@@ -4583,8 +4582,7 @@ dependencies = [
 
 [[package]]
 name = "rmcp-macros"
-version = "0.3.1"
-source = "git+https://github.com/modelcontextprotocol/rust-sdk?rev=0a9a0a0b1f234bd296459fc98b41fd6215c8e3a9#0a9a0a0b1f234bd296459fc98b41fd6215c8e3a9"
+version = "0.3.0"
 dependencies = [
  "darling 0.21.0",
  "proc-macro2",

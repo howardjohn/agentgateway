@@ -15,6 +15,7 @@ binds:
       - mcp:
           targets:
           - name: everything
-            stdio:
-              cmd: npx
-              args: ["@modelcontextprotocol/server-everything"]
+            mcp:
+              host: lo
+              path: /mcp/
+              port: 3003
