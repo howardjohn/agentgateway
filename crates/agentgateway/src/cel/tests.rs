@@ -152,7 +152,7 @@ fn bench_lookup(b: Bencher) {
 
 	with_profiling("lookup", || {
 		b.bench(|| {
-			exec.eval(&expr);
+			exec.evalb(&expr);
 		});
 	})
 }

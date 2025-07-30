@@ -1,8 +1,10 @@
 // Portions of this code are heavily inspired from https://github.com/Kuadrant/wasm-shim/
 // Under Apache 2.0 license (https://github.com/Kuadrant/wasm-shim/blob/main/LICENSE)
 
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
+use std::ops::Sub;
 use std::sync::Arc;
 
 use agent_core::strng::Strng;
@@ -11,7 +13,7 @@ use bytes::Bytes;
 use cel_interpreter::extractors::{Arguments, This};
 use cel_interpreter::objects::{Key, Map, TryIntoValue, ValueType};
 use cel_interpreter::{Context, ExecutionError, FunctionContext, Program, ResolveResult, Value};
-use cel_parser::{Expression as CelExpression, ParseError};
+use cel_parser::{Expression as CelExpression, Member, ParseError};
 use http::Request;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, Serializer};
@@ -208,8 +210,20 @@ impl ContextBuilder {
 		ctx.add_variable_from_value(JWT_ATTRIBUTE, opt_to_value(jwt)?);
 		ctx.add_variable_from_value(MCP_ATTRIBUTE, opt_to_value(&mcp)?);
 		ctx.add_variable_from_value(LLM_ATTRIBUTE, opt_to_value(llm)?);
+		let rv = opt_to_value(request)?;
+		let cc = ExpressionContextD {
+			request: ExpressionContextDRequest {
+				method: idx(&rv, "method"),
+				uri: idx(&rv, "uri"),
+				headers: idx(&rv, "headers"),
+				body: idx(&rv, "body"),
+			},
+			response: to_value(response)?,
+			jwt: to_value(jwt)?,
+			llm: to_value(llm)?,
+		};
 
-		Ok(Executor { ctx })
+		Ok(Executor { ctx, cc })
 	}
 
 	pub fn build(&self) -> Result<Executor<'static>, Error> {
@@ -217,9 +231,46 @@ impl ContextBuilder {
 	}
 }
 
+fn idx(v: &Value, k: &str) -> Value {
+	match v {
+		Value::Map(m) => m.get(&Key::from(k)).cloned().unwrap_or(Value::Null),
+		_ => Value::Null,
+	}
+}
+
 impl Executor<'_> {
+	pub fn evalb<'a>(&'a self, expr: &'a Expression) -> Result<Cow<'a, Value>, Error> {
+
+		let expr = match &expr.expression {
+			CelExpression::Member(id, attr) => {
+				if let (CelExpression::Ident(id), Member::Attribute(attr)) = (id.as_ref(), attr.as_ref()) {
+					match (id.as_str(), attr.as_str()) {
+						("request", "method") => Cow::Borrowed(&self.cc.request.method),
+						_ => Cow::Owned(Value::resolve(&expr.expression, &self.ctx)?),
+					}
+				} else {
+					Cow::Owned(Value::resolve(&expr.expression, &self.ctx)?)
+				}
+			},
+			e => Cow::Owned(Value::resolve(&expr.expression, &self.ctx)?),
+		};
+		Ok(expr)
+	}
 	pub fn eval(&self, expr: &Expression) -> Result<Value, Error> {
-		Ok(Value::resolve(&expr.expression, &self.ctx)?)
+		let expr = match &expr.expression {
+			CelExpression::Member(id, attr) => {
+				if let (CelExpression::Ident(id), Member::Attribute(attr)) = (id.as_ref(), attr.as_ref()) {
+					match (id.as_str(), attr.as_str()) {
+						("request", "method") => self.cc.request.method.clone(),
+						_ => Value::resolve(&expr.expression, &self.ctx)?,
+					}
+				} else {
+					Value::resolve(&expr.expression, &self.ctx)?
+				}
+			},
+			e => Value::resolve(&expr.expression, &self.ctx)?,
+		};
+		Ok(expr)
 	}
 	pub fn eval_bool(&self, expr: &Expression) -> bool {
 		match self.eval(expr) {
@@ -231,12 +282,14 @@ impl Executor<'_> {
 
 pub struct Executor<'a> {
 	ctx: Context<'a>,
+	pub cc: ExpressionContextD,
 }
 impl Expression {
 	pub fn new(original_expression: impl Into<String>) -> Result<Self, Error> {
 		let original_expression = original_expression.into();
 		let expression = cel_parser::parse(&original_expression)?;
 
+		// panic!("{expression:#?}");
 		let mut props = Vec::with_capacity(5);
 		properties(&expression, &mut props, &mut Vec::default());
 
@@ -258,6 +311,21 @@ impl Expression {
 			original_expression,
 		})
 	}
+}
+
+#[derive(Clone, Debug)]
+pub struct ExpressionContextDRequest {
+	pub method: Value,
+	pub uri: Value,
+	pub headers: Value,
+	pub body: Value,
+}
+#[derive(Clone, Debug)]
+pub struct ExpressionContextD {
+	pub request: ExpressionContextDRequest,
+	pub response: Value,
+	pub jwt: Value,
+	pub llm: Value,
 }
 
 #[derive(Clone, Debug, Default, Serialize)]
