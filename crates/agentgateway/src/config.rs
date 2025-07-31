@@ -7,6 +7,7 @@ use std::{cmp, env};
 use agent_core::prelude::*;
 use anyhow::anyhow;
 use hickory_resolver::config::ResolveHosts;
+use serde::de::DeserializeOwned;
 
 use crate::control::caclient;
 use crate::telemetry::log::LoggingFields;
@@ -150,6 +151,9 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 		parse_duration("CONNECTION_TERMINATION_DEADLINE")?.or(raw.connection_termination_deadline);
 	let otlp = empty_to_none(parse("OTLP_ENDPOINT")?)
 		.or(raw.tracing.as_ref().map(|t| t.otlp_endpoint.clone()));
+	let otlp_protocol = parse_serde("OTLP_PROTOCOL")?
+		.or(raw.tracing.as_ref().map(|t| t.otlp_protocol))
+		.unwrap_or_default();
 	// Parse admin_addr from environment variable or config file
 	let admin_addr = parse::<String>("ADMIN_ADDR")?
 		.or(raw.admin_addr)
@@ -208,6 +212,7 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 		},
 		tracing: trc::Config {
 			endpoint: otlp,
+			protocol: otlp_protocol,
 			fields: Arc::new(
 				raw
 					.tracing
@@ -318,6 +323,15 @@ where
 			.map_err(|e: <T as FromStr>::Err| {
 				anyhow::anyhow!("invalid env var {}={} ({})", env, val, e.to_string())
 			}),
+		Err(_) => Ok(None),
+	}
+}
+
+fn parse_serde<T: DeserializeOwned>(env: &str) -> anyhow::Result<Option<T>> {
+	match env::var(env) {
+		Ok(val) => serde_json::from_str(&val)
+			.map(|v| Some(v))
+			.map_err(|e| anyhow::anyhow!("invalid env var {}={} ({})", env, val, e.to_string())),
 		Err(_) => Ok(None),
 	}
 }

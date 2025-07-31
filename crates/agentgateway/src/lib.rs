@@ -48,6 +48,8 @@ use agent_core::prelude::*;
 use control::caclient;
 use telemetry::{metrics, trc};
 
+use crate::telemetry::trc::Protocol;
+
 #[derive(serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 /// NestedRawConfig represents a subset of the config that can be passed in. This is split out from static
@@ -118,6 +120,7 @@ pub struct RawHTTP2 {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct RawTracing {
 	otlp_endpoint: String,
+	otlp_protocol: Protocol,
 	fields: Option<RawLoggingFields>,
 }
 

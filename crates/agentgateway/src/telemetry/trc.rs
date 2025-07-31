@@ -23,9 +23,19 @@ pub struct Tracer {
 	pub fields: Arc<LoggingFields>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Default, Copy, Eq, PartialEq, Clone, Debug)]
+#[serde(rename_all = "lowercase", deny_unknown_fields)]
+#[cfg_attr(feature = "schema", derive(crate::JsonSchema))]
+pub enum Protocol {
+	#[default]
+	Grpc,
+	Http,
+}
+
 #[derive(serde::Serialize, Clone, Debug)]
 pub struct Config {
 	pub endpoint: Option<String>,
+	pub protocol: Protocol,
 	pub fields: Arc<LoggingFields>,
 }
 
@@ -71,12 +81,18 @@ impl Tracer {
 					))
 					.build(),
 			)
-			.with_batch_exporter(
+			.with_batch_exporter(if cfg.protocol == Protocol::Grpc {
 				opentelemetry_otlp::SpanExporter::builder()
 					.with_tonic()
 					.with_endpoint(ep)
-					.build()?, //
-			)
+					.build()?
+			} else {
+				opentelemetry_otlp::SpanExporter::builder()
+					.with_http()
+					// For HTTP, we add the suffix ourselves
+					.with_endpoint(format!("{}/v1/traces", ep.strip_suffix("/").unwrap_or(ep)))
+					.build()?
+			})
 			.build();
 		let tracer = result.tracer("agentgateway");
 		Ok(Some(Tracer {
