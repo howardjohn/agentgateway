@@ -96,16 +96,20 @@ async fn apply_request_policies(
 			return Err(ProxyError::RateLimitExceeded);
 		}
 	}
-
+	let exec = log
+		.cel
+		.ctx()
+		.build()
+		.map_err(|_| ProxyError::ProcessingString("failed to build cel context".to_string()))?;
 	let lrl = if let Some(rrl) = &policies.remote_rate_limit {
-		rrl.check(client, req).await?
+		rrl.check(client, req, &exec).await?
 	} else {
 		http::PolicyResponse::default()
 	};
 	let policy_resp = ext_auth.merge(lrl);
 
 	if let Some(j) = &policies.transformation {
-		j.apply_request(req, log.cel.ctx())
+		j.apply_request(req, &exec)
 			.map_err(|_| ProxyError::TransformationFailure)?;
 	}
 
@@ -288,6 +292,7 @@ impl HTTPProxy {
 		log: &mut RequestLog,
 	) -> Result<Response, ProxyError> {
 		log.tls_info = connection.get::<TLSConnectionInfo>().cloned();
+		log.cel.ctx().with_source(&log.tcp_info, log.tls_info.as_ref());
 		let selected_listener = self.selected_listener.clone();
 		let upstream = self.inputs.upstream.clone();
 		let inputs = self.inputs.clone();

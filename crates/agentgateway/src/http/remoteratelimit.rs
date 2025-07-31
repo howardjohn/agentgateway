@@ -14,6 +14,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::ReceiverStream;
 
+use crate::cel::{Executor, Expression};
 use crate::client::{Client, Transport};
 use crate::control::AuthSource;
 use crate::http::backendtls::BackendTLS;
@@ -22,7 +23,9 @@ use crate::http::filters::DirectResponse;
 use crate::http::remoteratelimit::proto::RateLimitDescriptor;
 use crate::http::remoteratelimit::proto::rate_limit_descriptor::Entry;
 use crate::http::remoteratelimit::proto::rate_limit_service_client::RateLimitServiceClient;
+use crate::http::transformation_cel::Transformation;
 use crate::http::{HeaderName, HeaderValue, PolicyResponse, Request, Response};
+use crate::mcp::rbac::PolicySet;
 use crate::proxy::ProxyError;
 use crate::proxy::httpproxy::PolicyClient;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
@@ -39,17 +42,46 @@ pub mod proto {
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteRateLimit {
+	pub domain: String,
 	pub target: Arc<SimpleBackendReference>,
-	pub descriptors: HashMap<String, Descriptor>,
+	pub descriptors: Arc<DescriptorSet>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Descriptor(String, cel::Expression);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub enum Descriptor {
-	#[serde(serialize_with = "ser_display", deserialize_with = "de_parse")]
-	RequestHeader(#[cfg_attr(feature = "schema", schemars(with = "String"))] HeaderName),
-	Static(Strng),
+pub struct DescriptorSet(
+	#[serde(deserialize_with = "de_descriptors")]
+	#[cfg_attr(feature = "schema", schemars(with = "Vec<Vec<KV>>"))]
+	Arc<Vec<Vec<Descriptor>>>,
+);
+
+#[derive(serde::Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+struct KV {
+	key: String,
+	value: String,
+}
+
+fn de_descriptors<'de: 'a, 'a, D>(deserializer: D) -> Result<Arc<Vec<Vec<Descriptor>>>, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	let raw = Vec::<Vec<KV>>::deserialize(deserializer)?;
+	let parsed: Vec<_> = raw
+		.into_iter()
+		.map(|r| {
+			r.into_iter()
+				.map(|i| cel::Expression::new(i.value).map(|v| Descriptor(i.key, v)))
+				.collect::<Result<Vec<_>, _>>()
+		})
+		.collect::<Result<_, _>>()
+		.map_err(|e| serde::de::Error::custom(e.to_string()))?;
+	Ok(Arc::new(parsed))
 }
 
 impl RemoteRateLimit {
@@ -57,35 +89,21 @@ impl RemoteRateLimit {
 		&self,
 		client: PolicyClient,
 		req: &mut Request,
+		exec: &Executor<'_>,
 	) -> Result<PolicyResponse, ProxyError> {
-		let mut entries = Vec::with_capacity(self.descriptors.len());
-		for (k, lookup) in &self.descriptors {
-			let value = match lookup {
-				Descriptor::RequestHeader(k) => {
-					let Some(hv) = req.headers().get(k) else {
-						// If not found, its not a match
-						return Ok(Default::default());
-					};
-					hv.to_str()
-						.map_err(|_| ProxyError::InvalidRequest)?
-						.to_string()
-				},
-				Descriptor::Static(v) => v.to_string(),
-			};
-			let entry = Entry {
-				key: k.clone(),
-				value,
-			};
-			entries.push(entry);
+		let mut descriptors = Vec::with_capacity(self.descriptors.0.len());
+		for entries in self.descriptors.0.iter() {
+			if let Some(rl_entries) = Self::eval_descriptor(exec, entries) {
+				descriptors.push(RateLimitDescriptor {
+					entries: rl_entries,
+					limit: None,
+					hits_addend: None,
+				});
+			}
 		}
 		let request = proto::RateLimitRequest {
-			domain: "crd".to_string(),
-			descriptors: vec![RateLimitDescriptor {
-				// TODO: do we ever need multiple
-				entries,
-				limit: None,
-				hits_addend: None,
-			}],
+			domain: self.domain.clone(),
+			descriptors,
 			hits_addend: 0,
 		};
 
@@ -125,6 +143,27 @@ impl RemoteRateLimit {
 			res.response_headers = Some(hm);
 		}
 		Ok(res)
+	}
+
+	fn eval_descriptor(exec: &Executor, entries: &Vec<Descriptor>) -> Option<Vec<Entry>> {
+		let mut rl_entries = Vec::with_capacity(entries.len());
+		for Descriptor(k, lookup) in entries {
+			// We drop the entire set if we cannot eval one
+			let value = exec.eval(lookup).ok()?;
+			let cel_interpreter::Value::String(value) = value else {
+				return None;
+			};
+			let entry = Entry {
+				key: k.clone(),
+				value: value.to_string(),
+			};
+			rl_entries.push(entry);
+		}
+		Some(rl_entries)
+	}
+
+	pub fn expressions(&self) -> impl Iterator<Item = &Expression> {
+		self.descriptors.0.iter().flatten().map(|v| &v.1)
 	}
 }
 

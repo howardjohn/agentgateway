@@ -92,12 +92,16 @@ pub struct RoutePolicies {
 
 impl RoutePolicies {
 	pub fn register_cel_expressions(&self, req: &http::Request, ctx: &mut ContextBuilder) {
-		let Some(xfm) = &self.transformation else {
-			return;
+		if let Some(xfm) = &self.transformation {
+			for expr in xfm.expressions() {
+				ctx.register_expression(expr)
+			}
 		};
-		for expr in xfm.expressions() {
-			ctx.register_expression(expr)
-		}
+		if let Some(rrl) = &self.remote_rate_limit {
+			for expr in rrl.expressions() {
+				ctx.register_expression(expr)
+			}
+		};
 	}
 }
 

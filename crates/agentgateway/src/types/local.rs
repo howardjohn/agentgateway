@@ -20,7 +20,6 @@ use serde_with::{TryFromInto, serde_as};
 use crate::http::auth::BackendAuth;
 use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
 use crate::http::jwt::{JwkError, Jwt};
-use crate::http::remoteratelimit::Descriptor;
 use crate::http::{filters, retry, timeout};
 use crate::llm::AIProvider;
 use crate::store::LocalWorkload;
@@ -731,8 +730,9 @@ async fn convert_route(
 			let (bref, backend) =
 				to_simple_backend_and_ref(strng::format!("{}/ratelimit", key), &p.target);
 			let pol = http::remoteratelimit::RemoteRateLimit {
+				domain: p.domain,
 				target: Arc::new(bref),
-				descriptors: p.descriptors,
+				descriptors: Arc::new(p.descriptors),
 			};
 			backend
 				.into_iter()
@@ -887,7 +887,8 @@ pub struct LocalExtAuthz {
 
 #[apply(schema!)]
 pub struct LocalRemoteRateLimit {
+	pub domain: String,
 	#[serde(flatten)]
 	pub target: SimpleLocalBackend,
-	pub descriptors: HashMap<String, Descriptor>,
+	pub descriptors: crate::http::remoteratelimit::DescriptorSet,
 }

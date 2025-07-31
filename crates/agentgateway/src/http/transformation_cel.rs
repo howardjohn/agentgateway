@@ -171,10 +171,10 @@ impl Transformation {
 	pub fn apply_request(
 		&self,
 		req: &mut crate::http::Request,
-		ctx: &ContextBuilder,
+		exec: &cel::Executor<'_>,
 	) -> anyhow::Result<()> {
 		let (mut parts, mut body) = std::mem::take(req).into_parts();
-		let res = Self::apply(&mut parts.headers, &mut body, self.request.as_ref(), ctx);
+		let res = Self::apply(&mut parts.headers, &mut body, self.request.as_ref(), exec);
 		*req = http::Request::from_parts(parts, body);
 		res
 	}
@@ -184,7 +184,12 @@ impl Transformation {
 		ctx: &ContextBuilder,
 	) -> anyhow::Result<()> {
 		let (mut parts, mut body) = std::mem::take(req).into_parts();
-		let res = Self::apply(&mut parts.headers, &mut body, self.response.as_ref(), ctx);
+		let res = Self::apply(
+			&mut parts.headers,
+			&mut body,
+			self.response.as_ref(),
+			&ctx.build()?,
+		);
 		*req = http::Response::from_parts(parts, body);
 		res
 	}
@@ -192,12 +197,11 @@ impl Transformation {
 		headers: &mut crate::http::HeaderMap,
 		body: &mut http::Body,
 		cfg: &TransformerConfig,
-		ctx: &ContextBuilder,
+		exec: &cel::Executor<'_>,
 	) -> anyhow::Result<()> {
-		let exec = ctx.build()?;
 		for (k, v) in &cfg.add {
 			// If it fails, skip the header
-			if let Ok(v) = eval_header_value(&exec, v) {
+			if let Ok(v) = eval_header_value(exec, v) {
 				headers.append(k.clone(), v);
 			} else {
 				// Need to sanitize it, so a failed execution cannot mean the user can set arbitrary headers.
@@ -205,7 +209,7 @@ impl Transformation {
 			}
 		}
 		for (k, v) in &cfg.set {
-			if let Ok(v) = eval_header_value(&exec, v) {
+			if let Ok(v) = eval_header_value(exec, v) {
 				headers.insert(k.clone(), v);
 			}
 		}
@@ -214,7 +218,7 @@ impl Transformation {
 		}
 		if let Some(b) = &cfg.body {
 			// If it fails, set an empty body
-			let b = eval_body(&exec, b).unwrap_or_default();
+			let b = eval_body(exec, b).unwrap_or_default();
 			*body = http::Body::from(b);
 			headers.remove(&header::CONTENT_LENGTH);
 		}

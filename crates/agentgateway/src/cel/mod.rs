@@ -3,6 +3,7 @@
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
+use std::net::IpAddr;
 use std::sync::Arc;
 
 use agent_core::strng::Strng;
@@ -23,6 +24,7 @@ use crate::llm::{LLMRequest, LLMResponse};
 use crate::serdes::*;
 use crate::telemetry::log::CelLogging;
 use crate::{json, llm};
+use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -40,6 +42,7 @@ impl From<Box<dyn std::error::Error>> for Error {
 	}
 }
 
+pub const SOURCE_ATTRIBUTE: &str = "source";
 pub const REQUEST_ATTRIBUTE: &str = "request";
 pub const REQUEST_BODY_ATTRIBUTE: &str = "request.body";
 pub const LLM_ATTRIBUTE: &str = "llm";
@@ -122,6 +125,7 @@ impl ContextBuilder {
 			// TODO: split headers and the rest?
 			headers: req.headers().clone(),
 			uri: req.uri().clone(),
+			path: req.uri().path().to_string(),
 			body: None,
 		});
 		self.attributes.contains(REQUEST_BODY_ATTRIBUTE)
@@ -140,6 +144,16 @@ impl ContextBuilder {
 			return;
 		}
 		self.context.jwt = Some(info.clone())
+	}
+
+	pub fn with_source(&mut self, tcp: &TCPConnectionInfo, tls: Option<&TLSConnectionInfo>) {
+		if !self.attributes.contains(JWT_ATTRIBUTE) {
+			return;
+		}
+		self.context.source = Some(SourceContext {
+			address: tcp.peer_addr.ip(),
+			port: tcp.peer_addr.port(),
+		})
 	}
 
 	pub fn with_llm_request(&mut self, info: &LLMRequest) -> bool {
@@ -201,6 +215,7 @@ impl ContextBuilder {
 			response,
 			jwt,
 			llm,
+			source,
 		} = &self.context;
 
 		ctx.add_variable_from_value(REQUEST_ATTRIBUTE, opt_to_value(request)?);
@@ -208,6 +223,7 @@ impl ContextBuilder {
 		ctx.add_variable_from_value(JWT_ATTRIBUTE, opt_to_value(jwt)?);
 		ctx.add_variable_from_value(MCP_ATTRIBUTE, opt_to_value(&mcp)?);
 		ctx.add_variable_from_value(LLM_ATTRIBUTE, opt_to_value(llm)?);
+		ctx.add_variable_from_value(SOURCE_ATTRIBUTE, opt_to_value(source)?);
 
 		Ok(Executor { ctx })
 	}
@@ -267,6 +283,7 @@ pub struct ExpressionContext {
 	pub response: Option<ResponseContext>,
 	pub jwt: Option<Claims>,
 	pub llm: Option<LLMContext>,
+	pub source: Option<SourceContext>
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -279,6 +296,8 @@ pub struct RequestContext {
 	#[serde(with = "http_serde::uri")]
 	#[cfg_attr(feature = "schema", schemars(with = "String"))]
 	pub uri: ::http::Uri,
+
+	pub path: String,
 
 	#[serde(with = "http_serde::header_map")]
 	#[cfg_attr(
@@ -296,6 +315,14 @@ pub struct ResponseContext {
 	#[serde(with = "http_serde::status_code")]
 	#[cfg_attr(feature = "schema", schemars(with = "u16"))]
 	pub code: ::http::StatusCode,
+}
+
+
+#[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct SourceContext {
+	address: IpAddr,
+	port: u16,
 }
 
 #[derive(Clone, Debug, Serialize)]
