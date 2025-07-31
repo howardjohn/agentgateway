@@ -25,6 +25,7 @@ This folder contains JSON schemas for various parts of the project
 |`config.workerThreads`||
 |`config.tracing`||
 |`config.tracing.otlpEndpoint`||
+|`config.tracing.otlpProtocol`||
 |`config.tracing.fields`||
 |`config.tracing.fields.remove`||
 |`config.tracing.fields.add`||
@@ -251,6 +252,7 @@ This folder contains JSON schemas for various parts of the project
 |`request`||
 |`request.method`||
 |`request.uri`||
+|`request.path`||
 |`request.headers`||
 |`request.body`||
 |`response`||
@@ -269,3 +271,6 @@ This folder contains JSON schemas for various parts of the project
 |`llm.prompt[].role`||
 |`llm.prompt[].content`||
 |`llm.completion`||
+|`source`||
+|`source.address`||
+|`source.port`||

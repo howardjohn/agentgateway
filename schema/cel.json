@@ -15,6 +15,9 @@
         "uri": {
           "type": "string"
         },
+        "path": {
+          "type": "string"
+        },
         "headers": {
           "type": "object",
           "additionalProperties": {
@@ -38,6 +41,7 @@
       "required": [
         "method",
         "uri",
+        "path",
         "headers"
       ]
     },
@@ -151,6 +155,28 @@
         "request_model",
         "provider",
         "input_tokens"
+      ]
+    },
+    "source": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "address": {
+          "type": "string",
+          "format": "ip"
+        },
+        "port": {
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "address",
+        "port"
       ]
     }
   }

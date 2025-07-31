@@ -120,6 +120,14 @@
             "otlpEndpoint": {
               "type": "string"
             },
+            "otlpProtocol": {
+              "type": "string",
+              "enum": [
+                "grpc",
+                "http"
+              ],
+              "default": "grpc"
+            },
             "fields": {
               "type": [
                 "object",
@@ -1161,38 +1169,35 @@
                               {
                                 "type": "object",
                                 "properties": {
+                                  "domain": {
+                                    "type": "string"
+                                  },
                                   "descriptors": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                      "oneOf": [
-                                        {
-                                          "type": "object",
-                                          "properties": {
-                                            "requestHeader": {
-                                              "type": "string"
-                                            }
+                                    "type": "array",
+                                    "items": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string"
                                           },
-                                          "required": [
-                                            "requestHeader"
-                                          ],
-                                          "additionalProperties": false
+                                          "value": {
+                                            "type": "string"
+                                          }
                                         },
-                                        {
-                                          "type": "object",
-                                          "properties": {
-                                            "static": {
-                                              "type": "string"
-                                            }
-                                          },
-                                          "required": [
-                                            "static"
-                                          ],
-                                          "additionalProperties": false
-                                        }
-                                      ]
+                                        "required": [
+                                          "key",
+                                          "value"
+                                        ]
+                                      }
                                     }
                                   }
                                 },
+                                "required": [
+                                  "domain",
+                                  "descriptors"
+                                ],
                                 "unevaluatedProperties": false,
                                 "oneOf": [
                                   {
@@ -1251,9 +1256,6 @@
                                       "host"
                                     ]
                                   }
-                                ],
-                                "required": [
-                                  "descriptors"
                                 ]
                               },
                               {

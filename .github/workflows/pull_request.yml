@@ -116,6 +116,8 @@ jobs:
       run: make test
     - name: Validate
       run: make validate
+    - name: Generation
+      run: make gen check-clean-repo
 
   docker:
     strategy:
@@ -135,37 +137,3 @@ jobs:
       env:
         DOCKER_BUILDER: "docker buildx"
       run: make docker
-
-  check-code-gen:
-    if: ${{ !github.event.pull_request.draft }}
-    timeout-minutes: 20
-    name: Check Generated Code
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version-file: go.mod
-    - name: Install Protoc
-      uses: arduino/setup-protoc@v3
-      with:
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Generate and Check Diff
-      id: generate
-      run: |
-        make gen
-    - name: Create Diff
-      if: failure()
-      run: |
-        mkdir -p _output
-        git add -N .
-        git --no-pager diff >> _output/code-gen.diff
-    - name: Upload diff
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: code-gen.diff
-        path: _output/code-gen.diff
