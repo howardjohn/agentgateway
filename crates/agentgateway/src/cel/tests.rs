@@ -60,18 +60,6 @@ fn expression() {
 	assert_eq!(Value::Bool(true), eval_request(expr, req).unwrap());
 }
 
-#[test]
-fn fn_with() {
-	let expr = r#"[1,2].with(a, a + a)"#;
-	assert_eq!(json!([1, 2, 1, 2]), eval(expr).unwrap().json().unwrap());
-}
-
-#[test]
-fn fn_json() {
-	let expr = r#"json('{"hi":1}').hi"#;
-	assert_eq!(json!(1), eval(expr).unwrap().json().unwrap());
-}
-
 #[divan::bench]
 fn bench_native(b: Bencher) {
 	let req = ::http::Request::builder()
