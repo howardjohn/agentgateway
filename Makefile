@@ -44,7 +44,7 @@ objects := $(wildcard examples/*/config.json)
 
 .PHONY: install-go-tools
 install-go-tools:
-	go install github.com/golang/protobuf/protoc-gen-go
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.6
 
 .PHONY: check-clean-repo
 check-clean-repo:
