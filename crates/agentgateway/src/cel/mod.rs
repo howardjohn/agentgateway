@@ -28,6 +28,9 @@ use crate::{json, llm};
 
 pub use cel_interpreter::Value;
 
+mod functions;
+mod strings;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
 	#[error("execution: {0}")]
@@ -79,8 +82,7 @@ impl Debug for Expression {
 
 fn root_context() -> Arc<Context<'static>> {
 	let mut ctx = Context::default();
-	ctx.add_function("json", fns::json_parse);
-	ctx.add_function("with", fns::with);
+	functions::insert_all(&mut ctx);
 	Arc::new(ctx)
 }
 
@@ -477,38 +479,6 @@ fn opt_to_value<S: Serialize>(v: &Option<S>) -> Result<Value, Error> {
 
 fn to_value(v: impl Serialize) -> Result<Value, Error> {
 	cel_interpreter::to_value(v).map_err(|e| Error::Variable(e.to_string()))
-}
-
-mod fns {
-	use std::sync::Arc;
-
-	use cel_interpreter::extractors::{Identifier, This};
-	use cel_interpreter::objects::ValueType;
-	use cel_interpreter::{ExecutionError, FunctionContext, ResolveResult, Value};
-	use cel_parser::Expression;
-
-	use crate::cel::to_value;
-
-	pub fn with(
-		ftx: &FunctionContext,
-		This(this): This<Value>,
-		ident: Identifier,
-		expr: Expression,
-	) -> ResolveResult {
-		let mut ptx = ftx.ptx.new_inner_scope();
-		ptx.add_variable_from_value(&ident, this);
-		ptx.resolve(&expr)
-	}
-
-	pub fn json_parse(ftx: &FunctionContext, v: Value) -> ResolveResult {
-		let sv = match v {
-			Value::String(b) => serde_json::from_str(b.as_str()),
-			Value::Bytes(b) => serde_json::from_slice(b.as_ref()),
-			_ => return Err(ftx.error("invalid type")),
-		};
-		let sv: serde_json::Value = sv.map_err(|e| ftx.error(e))?;
-		to_value(sv).map_err(|e| ftx.error(e))
-	}
 }
 
 #[cfg(any(test, feature = "internal_benches"))]

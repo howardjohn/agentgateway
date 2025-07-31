@@ -114,11 +114,11 @@ serde_urlencoded.workspace = true
 percent-encoding.workspace = true
 http-serde.workspace = true
 cel-parser.workspace = true
-cel-interpreter = { workspace = true, features = ["json", "regex", "chrono"] }
+cel-interpreter.workspace = true
 tikv-jemallocator = {workspace = true, optional = true}
 jemalloc_pprof = {workspace = true, optional = true}
 frozen-collections = "0.8.0"
-value-bag = { workspace = true, features = ["value-bag-serde1"] }
+value-bag.workspace = true
 net2 = "0.2.39"
 core_affinity = "0.8.3"
 macro_rules_attribute = "0.2.2"
