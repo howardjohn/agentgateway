@@ -120,6 +120,7 @@ pub struct RawHTTP2 {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct RawTracing {
 	otlp_endpoint: String,
+	#[serde(default)]
 	otlp_protocol: Protocol,
 	fields: Option<RawLoggingFields>,
 }
