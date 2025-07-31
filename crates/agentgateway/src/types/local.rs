@@ -5,6 +5,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use ::http::Uri;
 use agent_core::prelude::Strng;
 use anyhow::{Error, anyhow, bail};
 use itertools::Itertools;
@@ -174,45 +175,68 @@ pub enum LocalBackend {
 }
 
 impl LocalBackend {
-	pub fn as_backends(&self, name: BackendName) -> Vec<Backend> {
-		match self {
-			LocalBackend::Service { .. } => vec![], // These stay as references
-			LocalBackend::Opaque(tgt) => vec![Backend::Opaque(name, tgt.clone())],
-			LocalBackend::Dynamic { .. } => vec![Backend::Dynamic {}],
+	pub fn as_backends(
+		&self,
+		name: BackendName,
+	) -> anyhow::Result<(Vec<Backend>, Vec<TargetedPolicy>)> {
+		Ok(match self {
+			LocalBackend::Service { .. } => (vec![], vec![]), // These stay as references
+			LocalBackend::Opaque(tgt) => (vec![Backend::Opaque(name, tgt.clone())], vec![]),
+			LocalBackend::Dynamic { .. } => (vec![Backend::Dynamic {}], vec![]),
 			LocalBackend::MCP(tgt) => {
 				let mut targets = vec![];
 				let mut backends = vec![];
+				let mut policies = vec![];
 				for (idx, t) in tgt.targets.iter().enumerate() {
-					let spec = match t.spec.clone() {
-						LocalMcpTargetSpec::Sse { backend, path } => {
-							let name = strng::format!("mcp/{}/{}", name.clone(), idx);
-							let (bref, be) = to_simple_backend_and_ref(name, &backend);
-							be.into_iter().for_each(|b| backends.push(b));
-							McpTargetSpec::Sse(SseTargetSpec {
-								backend: bref,
-								path: path.clone(),
-							})
-						},
-						LocalMcpTargetSpec::Mcp { backend, path } => {
-							let name = strng::format!("mcp/{}/{}", name.clone(), idx);
-							let (bref, be) = to_simple_backend_and_ref(name, &backend);
-							be.into_iter().for_each(|b| backends.push(b));
-							McpTargetSpec::Mcp(StreamableHTTPTargetSpec {
-								backend: bref,
-								path: path.clone(),
-							})
-						},
-						LocalMcpTargetSpec::Stdio { cmd, args, env } => McpTargetSpec::Stdio { cmd, args, env },
-						LocalMcpTargetSpec::OpenAPI { backend, schema } => {
-							let name = strng::format!("mcp/{}/{}", name.clone(), idx);
+					let name = strng::format!("mcp/{}/{}", name.clone(), idx);
+					let (spec, tls) = match t.spec.clone() {
+						LocalMcpTargetSpec::Sse { backend } => {
+							let (backend, path, tls) = backend.process()?;
 							let (bref, be) = to_simple_backend_and_ref(name.clone(), &backend);
 							be.into_iter().for_each(|b| backends.push(b));
-							McpTargetSpec::OpenAPI(OpenAPITarget {
-								backend: bref,
-								schema,
-							})
+							(
+								McpTargetSpec::Sse(SseTargetSpec {
+									backend: bref,
+									path: path.clone(),
+								}),
+								tls,
+							)
+						},
+						LocalMcpTargetSpec::Mcp { backend } => {
+							let (backend, path, tls) = backend.process()?;
+							let (bref, be) = to_simple_backend_and_ref(name.clone(), &backend);
+							be.into_iter().for_each(|b| backends.push(b));
+							(
+								McpTargetSpec::Mcp(StreamableHTTPTargetSpec {
+									backend: bref,
+									path: path.clone(),
+								}),
+								tls,
+							)
+						},
+						LocalMcpTargetSpec::Stdio { cmd, args, env } => {
+							(McpTargetSpec::Stdio { cmd, args, env }, false)
+						},
+						LocalMcpTargetSpec::OpenAPI { backend, schema } => {
+							let (backend, _, tls) = backend.process()?;
+							let (bref, be) = to_simple_backend_and_ref(name.clone(), &backend);
+							be.into_iter().for_each(|b| backends.push(b));
+							(
+								McpTargetSpec::OpenAPI(OpenAPITarget {
+									backend: bref,
+									schema,
+								}),
+								tls,
+							)
 						},
 					};
+					if tls {
+						policies.push(TargetedPolicy {
+							name: strng::format!("implicit-tls/{}", name),
+							target: PolicyTarget::Backend(name.clone()),
+							policy: Policy::BackendTLS(LocalBackendTLS::default().try_into()?),
+						});
+					}
 					let t = McpTarget {
 						name: t.name.clone(),
 						spec,
@@ -221,11 +245,11 @@ impl LocalBackend {
 				}
 				let m = McpBackend { targets };
 				backends.push(Backend::MCP(name, m));
-				backends
+				(backends, policies)
 			},
-			LocalBackend::AI(tgt) => vec![Backend::AI(name, tgt.clone())],
-			LocalBackend::Invalid => vec![Backend::Invalid],
-		}
+			LocalBackend::AI(tgt) => (vec![Backend::AI(name, tgt.clone())], vec![]),
+			LocalBackend::Invalid => (vec![Backend::Invalid], vec![]),
+		})
 	}
 }
 
@@ -242,18 +266,45 @@ pub struct LocalMcpTarget {
 }
 
 #[apply(schema!)]
+// Ideally this would be an enum of Simple|Explicit, but serde bug prevents it:
+// https://github.com/serde-rs/serde/issues/1600
 pub struct McpBackendHost {
-	pub host: String,
-	pub port: u16,
+	host: String,
+	port: Option<u16>,
+	path: Option<String>,
 }
 
-impl TryFrom<McpBackendHost> for SimpleLocalBackend {
-	type Error = anyhow::Error;
-	fn try_from(value: McpBackendHost) -> Result<Self, Self::Error> {
-		Ok(SimpleLocalBackend::Opaque(Target::try_from((
-			value.host.as_str(),
-			value.port,
-		))?))
+impl McpBackendHost {
+	pub fn process(&self) -> anyhow::Result<(SimpleLocalBackend, String, bool)> {
+		let McpBackendHost { host, port, path } = self;
+		Ok(match (host, port, path) {
+			(host, Some(port), Some(path)) => {
+				let b = SimpleLocalBackend::Opaque(Target::try_from((host.as_str(), *port))?);
+				(b, path.clone(), false)
+			},
+			(host, None, None) => {
+				let uri = Uri::try_from(host.as_str())?;
+				let Some(host) = uri.host() else {
+					anyhow::bail!("no host")
+				};
+				let scheme = uri.scheme().unwrap_or(&http::Scheme::HTTP);
+				let port = uri.port_u16();
+				let path = uri.path();
+				let port = match (scheme, port) {
+					(s, p) if s == &http::Scheme::HTTP => p.unwrap_or(80),
+					(s, p) if s == &http::Scheme::HTTPS => p.unwrap_or(443),
+					(s, _) => {
+						anyhow::bail!("invalid scheme: {:?}", scheme);
+					},
+				};
+
+				let b = SimpleLocalBackend::Opaque(Target::try_from((host, port))?);
+				(b, path.to_string(), scheme == &http::Scheme::HTTPS)
+			},
+			_ => {
+				anyhow::bail!("if port or path is set, both must be set; otherwise, use only host")
+			},
+		})
 	}
 }
 
@@ -262,16 +313,12 @@ pub enum LocalMcpTargetSpec {
 	#[serde(rename = "sse")]
 	Sse {
 		#[serde(flatten)]
-		#[serde_as(deserialize_as = "TryFromInto<McpBackendHost>")]
-		backend: SimpleLocalBackend,
-		path: String,
+		backend: McpBackendHost,
 	},
 	#[serde(rename = "mcp")]
 	Mcp {
 		#[serde(flatten)]
-		#[serde_as(deserialize_as = "TryFromInto<McpBackendHost>")]
-		backend: SimpleLocalBackend,
-		path: String,
+		backend: McpBackendHost,
 	},
 	#[serde(rename = "stdio")]
 	Stdio {
@@ -284,8 +331,7 @@ pub enum LocalMcpTargetSpec {
 	#[serde(rename = "openapi")]
 	OpenAPI {
 		#[serde(flatten)]
-		#[serde_as(deserialize_as = "TryFromInto<McpBackendHost>")]
-		backend: SimpleLocalBackend,
+		backend: McpBackendHost,
 		#[serde(deserialize_with = "types::agent::de_openapi")]
 		#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
 		schema: Arc<OpenAPI>,
@@ -593,34 +639,34 @@ async fn convert_route(
 		}
 	};
 
-	let (refs, external_backends): (Vec<_>, Vec<Vec<Backend>>) = backends
-		.into_iter()
-		.map(|b| {
-			let bref = match &b.backend {
-				LocalBackend::Service { name, port } => BackendReference::Service {
-					name: name.clone(),
-					port: *port,
-				},
-				LocalBackend::Invalid => BackendReference::Invalid,
-				_ => BackendReference::Backend(key.clone()),
-			};
-			let backends = b.backend.as_backends(bref.name());
-			let bref = RouteBackendReference {
-				weight: b.weight,
-				backend: bref,
-				filters: vec![],
-				// filters: b.filters,
-			};
-			(bref, backends)
-		})
-		.unzip();
-	let mut external_backends = external_backends.into_iter().flatten().collect_vec();
+	let mut backend_refs = Vec::new();
+	let mut external_backends = Vec::new();
+	for b in backends {
+		let bref = match &b.backend {
+			LocalBackend::Service { name, port } => BackendReference::Service {
+				name: name.clone(),
+				port: *port,
+			},
+			LocalBackend::Invalid => BackendReference::Invalid,
+			_ => BackendReference::Backend(key.clone()),
+		};
+		let (backends, policies_from_backends) = b.backend.as_backends(bref.name())?;
+		let bref = RouteBackendReference {
+			weight: b.weight,
+			backend: bref,
+			filters: vec![],
+			// filters: b.filters,
+		};
+		backend_refs.push(bref);
+		external_backends.extend_from_slice(&backends);
+		external_policies.extend_from_slice(&policies_from_backends);
+	}
 	let mut be_pol = 0;
 	let mut backend_tgt = |p: Policy| {
-		if refs.len() != 1 {
+		if backend_refs.len() != 1 {
 			anyhow::bail!("backend policies currently only work with exactly 1 backend")
 		}
-		let be = refs.first().unwrap();
+		let be = backend_refs.first().unwrap();
 		be_pol += 1;
 		Ok(TargetedPolicy {
 			name: format!("{key}/backend-{be_pol}").into(),
@@ -754,7 +800,7 @@ async fn convert_route(
 		hostnames,
 		matches,
 		filters,
-		backends: refs,
+		backends: backend_refs,
 		policies: Some(traffic_policy),
 	};
 	Ok((route, external_policies, external_backends))

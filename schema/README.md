@@ -118,6 +118,7 @@ This folder contains JSON schemas for various parts of the project
 |`binds[].listeners[].routes[].policies.mcpAuthorization`|Authorization policies for MCP access.|
 |`binds[].listeners[].routes[].policies.mcpAuthorization.rules`||
 |`binds[].listeners[].routes[].policies.mcpAuthentication`|Authentication for MCP clients.|
+|`binds[].listeners[].routes[].policies.mcpAuthentication.mode`||
 |`binds[].listeners[].routes[].policies.mcpAuthentication.issuer`||
 |`binds[].listeners[].routes[].policies.mcpAuthentication.scopes`||
 |`binds[].listeners[].routes[].policies.mcpAuthentication.audience`||
@@ -147,6 +148,7 @@ This folder contains JSON schemas for various parts of the project
 |`binds[].listeners[].routes[].policies.remoteRateLimit.(any)(1)service.port`||
 |`binds[].listeners[].routes[].policies.remoteRateLimit.(any)(1)host`||
 |`binds[].listeners[].routes[].policies.jwtAuth`|Authenticate incoming JWT requests.|
+|`binds[].listeners[].routes[].policies.jwtAuth.mode`||
 |`binds[].listeners[].routes[].policies.jwtAuth.issuer`||
 |`binds[].listeners[].routes[].policies.jwtAuth.audiences`||
 |`binds[].listeners[].routes[].policies.jwtAuth.jwks`||
@@ -188,30 +190,22 @@ This folder contains JSON schemas for various parts of the project
 |`binds[].listeners[].routes[].backends[].(1)mcp`||
 |`binds[].listeners[].routes[].backends[].(1)mcp.targets`||
 |`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)sse`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)sse.(1)service`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)sse.(1)service.name`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)sse.(1)service.name.namespace`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)sse.(1)service.name.hostname`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)sse.(1)service.port`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)sse.(1)host`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)sse.host`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)sse.port`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)sse.path`||
 |`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)mcp`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)mcp.(1)service`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)mcp.(1)service.name`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)mcp.(1)service.name.namespace`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)mcp.(1)service.name.hostname`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)mcp.(1)service.port`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)mcp.(1)host`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)mcp.host`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)mcp.port`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)mcp.path`||
 |`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)stdio`||
 |`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)stdio.cmd`||
 |`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)stdio.args`||
 |`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)stdio.env`||
 |`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)openapi`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)openapi.(1)service`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)openapi.(1)service.name`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)openapi.(1)service.name.namespace`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)openapi.(1)service.name.hostname`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)openapi.(1)service.port`||
-|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)openapi.(1)host`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)openapi.host`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)openapi.port`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)openapi.path`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].(1)openapi.schema`||
 |`binds[].listeners[].routes[].backends[].(1)ai`||
 |`binds[].listeners[].routes[].backends[].(1)ai.provider`||
 |`binds[].listeners[].routes[].backends[].(1)ai.provider.(1)openAI`||

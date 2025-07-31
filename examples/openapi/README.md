@@ -19,8 +19,7 @@ name: openapi
 openapi:
   schema:
     file: ./examples/openapi/openapi.json
-  host: localhost
-  port: 8080
+  host: localhost:8080
 ```
 
 This will expose each method in the openapi specification as MCP tools, and proxy them to the petstore application (on `localhost:8080`).

@@ -10,5 +10,4 @@ binds:
             openapi:
               schema:
                 file: ./examples/openapi/openapi.json
-              host: localhost
-              port: 8080
+              host: localhost:8080
