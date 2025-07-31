@@ -23,8 +23,8 @@ use crate::http::jwt::Claims;
 use crate::llm::{LLMRequest, LLMResponse};
 use crate::serdes::*;
 use crate::telemetry::log::CelLogging;
-use crate::{json, llm};
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
+use crate::{json, llm};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -147,7 +147,7 @@ impl ContextBuilder {
 	}
 
 	pub fn with_source(&mut self, tcp: &TCPConnectionInfo, tls: Option<&TLSConnectionInfo>) {
-		if !self.attributes.contains(JWT_ATTRIBUTE) {
+		if !self.attributes.contains(SOURCE_ATTRIBUTE) {
 			return;
 		}
 		self.context.source = Some(SourceContext {
@@ -283,7 +283,7 @@ pub struct ExpressionContext {
 	pub response: Option<ResponseContext>,
 	pub jwt: Option<Claims>,
 	pub llm: Option<LLMContext>,
-	pub source: Option<SourceContext>
+	pub source: Option<SourceContext>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -316,7 +316,6 @@ pub struct ResponseContext {
 	#[cfg_attr(feature = "schema", schemars(with = "u16"))]
 	pub code: ::http::StatusCode,
 }
-
 
 #[derive(Clone, Debug, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]

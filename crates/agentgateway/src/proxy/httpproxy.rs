@@ -292,7 +292,10 @@ impl HTTPProxy {
 		log: &mut RequestLog,
 	) -> Result<Response, ProxyError> {
 		log.tls_info = connection.get::<TLSConnectionInfo>().cloned();
-		log.cel.ctx().with_source(&log.tcp_info, log.tls_info.as_ref());
+		log
+			.cel
+			.ctx()
+			.with_source(&log.tcp_info, log.tls_info.as_ref());
 		let selected_listener = self.selected_listener.clone();
 		let upstream = self.inputs.upstream.clone();
 		let inputs = self.inputs.clone();
