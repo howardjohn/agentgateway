@@ -1075,6 +1075,7 @@ pub struct McpAuthorization(RuleSet);
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct McpAuthentication {
+	pub mode: http::jwt::Mode,
 	pub issuer: String,
 	pub scopes: Vec<String>,
 	pub audience: String,
@@ -1084,6 +1085,7 @@ pub struct McpAuthentication {
 impl McpAuthentication {
 	pub fn as_jwt(&self) -> anyhow::Result<http::jwt::LocalJwtConfig> {
 		Ok(http::jwt::LocalJwtConfig {
+			mode: self.mode,
 			issuer: self.issuer.clone(),
 			audiences: vec![self.audience.clone()],
 			jwks: FileInlineOrRemote::Remote {

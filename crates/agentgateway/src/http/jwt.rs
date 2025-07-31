@@ -59,6 +59,7 @@ pub enum JwkError {
 
 #[derive(Clone)]
 pub struct Jwt {
+	mode: Mode,
 	keys: HashMap<String, Jwk>,
 }
 
@@ -68,7 +69,16 @@ impl serde::Serialize for Jwt {
 	where
 		S: serde::Serializer,
 	{
-		self.keys.keys().collect::<Vec<_>>().serialize(serializer)
+		#[derive(serde::Serialize)]
+		pub struct Serde<'a> {
+			mode: Mode,
+			keys: Vec<&'a str>,
+		}
+		Serde {
+			mode: self.mode,
+			keys: self.keys.keys().map(|x| x.as_str()).collect::<Vec<_>>(),
+		}
+		.serialize(serializer)
 	}
 }
 
@@ -82,9 +92,27 @@ impl Debug for Jwt {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct LocalJwtConfig {
+	#[serde(default)]
+	pub mode: Mode,
 	pub issuer: String,
 	pub audiences: Vec<String>,
 	pub jwks: serdes::FileInlineOrRemote,
+}
+
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum Mode {
+	/// A valid token, issued by a configured issuer, must be present.
+	Strict,
+	/// If a token exists, validate it.
+	/// This is the default option.
+	/// Warning: this allows requests without a JWT token!
+	#[default]
+	Optional,
+	/// Requests are never rejected. This is useful for usage of claims in later steps (authorization, logging, etc).
+	/// Warning: this allows requests without a JWT token!
+	Permissive,
 }
 
 impl LocalJwtConfig {
@@ -126,6 +154,7 @@ impl LocalJwtConfig {
 
 				let mut validation = Validation::new(key_alg);
 				validation.set_audience(self.audiences.as_slice());
+				validation.set_issuer(&[self.issuer.clone()]);
 
 				keys.insert(
 					kid,
@@ -142,7 +171,10 @@ impl LocalJwtConfig {
 			}
 		}
 
-		Ok(Jwt { keys })
+		Ok(Jwt {
+			mode: self.mode,
+			keys,
+		})
 	}
 }
 
@@ -175,11 +207,21 @@ impl Jwt {
 			.extract_parts::<TypedHeader<Authorization<Bearer>>>()
 			.await
 		else {
-			// No token, so don't attempt to authenticate.
-			// TODO: we need authorization policies to allow requiring it
+			// In strict mode, we require a token
+			if self.mode == Mode::Strict {
+				return Err(TokenError::Missing);
+			}
+			// Otherwise with no, don't attempt to authenticate.
 			return Ok(());
 		};
-		let claims = self.validate_claims(bearer.token())?;
+		let claims = match self.validate_claims(bearer.token()) {
+			Ok(claims) => claims,
+			Err(e) if self.mode == Mode::Permissive => {
+				debug!("token verification failed ({e}), continue due to permissive mode");
+				return Ok(());
+			},
+			Err(e) => return Err(e),
+		};
 		if let Some(serde_json::Value::String(sub)) = claims.inner.get("sub") {
 			log.jwt_sub = Some(sub.to_string());
 		};
@@ -191,8 +233,7 @@ impl Jwt {
 		Ok(())
 	}
 
-	pub fn validate_claims(&self, token: &str) -> Result<Claims, TokenError>
-where {
+	pub fn validate_claims(&self, token: &str) -> Result<Claims, TokenError> {
 		let header = decode_header(token).map_err(|error| {
 			debug!(?error, "Received token with invalid header.");
 
