@@ -67,30 +67,6 @@ jobs:
       run: make build
       env:
         CARGO_BUILD_ARGS: "--target ${{ matrix.target }} -F ${{ matrix.features }}"
-  lint:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Install Protoc
-      uses: arduino/setup-protoc@v3
-      with:
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Lint
-      run: make lint
 
   test:
     runs-on: ubuntu-latest
@@ -121,6 +97,8 @@ jobs:
       run: make validate
     - name: Generation
       run: make gen check-clean-repo
+    - name: Lint
+      run: make lint
 
   docker:
     strategy:
@@ -132,11 +110,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     - name: Build
       env:
         DOCKER_BUILDER: "docker buildx"
+        DOCKER_BUILD_ARGS: "--cache-from type=registry,ref=ghcr.io/agentgateway/agentgateway:buildcache,mode=max"
       run: make docker
