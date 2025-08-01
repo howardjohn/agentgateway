@@ -31,6 +31,6 @@ impl BuildInfo {
 impl Display for BuildInfo {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
 		let s = serde_json::to_string_pretty(self).map_err(|_| fmt::Error)?;
-		write!(f, "{}", s)
+		write!(f, "{s}")
 	}
 }
