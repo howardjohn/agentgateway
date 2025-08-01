@@ -8,6 +8,7 @@ fn main() {
 		.split(std::path::MAIN_SEPARATOR)
 		.nth_back(3)
 		.unwrap();
+	let target = env::var("TARGET").unwrap();
 
 	match Command::new("../../common/scripts/report_build_info.sh").output() {
 		Ok(output) => {
@@ -31,4 +32,5 @@ fn main() {
 		rustc_version::version().unwrap()
 	);
 	println!("cargo:rustc-env=AGENTGATEWAY_BUILD_PROFILE_NAME={profile_name}");
+	println!("cargo:rustc-env=AGENTGATEWAY_BUILD_TARGET={target}");
 }

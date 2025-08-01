@@ -37,7 +37,7 @@ type TCPCounter = Family<TCPLabels, prometheus_client::metrics::counter::Counter
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, EncodeLabelSet)]
 pub struct BuildLabel {
-	tag: String,
+	tag: &'static str,
 }
 
 #[derive(Debug)]
@@ -52,7 +52,7 @@ impl Metrics {
 			"build",
 			"Agentgateway build information",
 			Info::new(BuildLabel {
-				tag: version::BuildInfo::new().git_tag,
+				tag: version::BuildInfo::new().version,
 			}),
 		);
 		Metrics {

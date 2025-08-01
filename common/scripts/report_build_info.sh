@@ -19,8 +19,5 @@ HUB=${HUB:-"ghcr.io/kagent-dev/mcp-relay"}
 # used by common/scripts/gobuild.sh
 echo "agentgateway.dev.buildVersion=${VERSION:-$BUILD_GIT_REVISION}"
 echo "agentgateway.dev.buildGitRevision=${BUILD_GIT_REVISION}"
-echo "agentgateway.dev.buildStatus=${tree_status}"
-echo "agentgateway.dev.buildTag=${GIT_DESCRIBE_TAG}"
-echo "agentgateway.dev.buildHub=${HUB}"
 echo "agentgateway.dev.buildOS=$(uname -s)"
 echo "agentgateway.dev.buildArch=$(uname -m)"

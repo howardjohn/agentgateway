@@ -117,11 +117,21 @@ checkDesiredVersion() {
   fi
 }
 
+# Different versions have different format
+function current-version() {
+  output=$($1 --version)
+  if echo "$output" | jq -e . >/dev/null 2>&1; then
+      echo "$output" | jq -r '.version'
+  else
+      echo "$output" | sed -n 's/.*GitTag:"\([^"]*\)".*/\1/p'
+  fi
+}
+
 # checkAgentGatewayInstalledVersion checks which version of    is installed and
 # if it needs to be changed.
 checkAgentGatewayInstalledVersion() {
   if [[ -f "${AGENTGATEWAY_INSTALL_DIR}/${BINARY_NAME}" ]]; then
-    local version="$("${AGENTGATEWAY_INSTALL_DIR}/${BINARY_NAME}" --version | sed -n 's/.*GitTag:"\([^"]*\)".*/\1/p')"
+    local version="$(current-version "${AGENTGATEWAY_INSTALL_DIR}/${BINARY_NAME}")"
     if [[ "$version" == "$TAG" ]]; then
       echo "agentgateway ${version} is already ${DESIRED_VERSION:-latest}"
       return 0

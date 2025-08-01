@@ -1,6 +1,7 @@
 // Originally derived from https://github.com/istio/ztunnel (Apache 2.0 licensed)
 
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::Arc;
 
 use agent_core::{telemetry, version};
@@ -17,11 +18,13 @@ lazy_static::lazy_static! {
 	// for the version string. This is necessary because the version string is used in a
 	// context that requires a 'static lifetime.
 	static ref LONG_VERSION: &'static str = Box::leak(version::BuildInfo::new().to_string().into_boxed_str());
+	static ref SHORT_VERSION: &'static str = version::BuildInfo::new().version;
 }
 
 #[derive(Parser, Debug)]
 #[command(about, long_about = None)]
-#[command(version = *LONG_VERSION, long_version = *LONG_VERSION)]
+#[command(disable_version_flag = true)]
+// #[command(version = *SHORT_VERSION, long_version = *LONG_VERSION)]
 struct Args {
 	/// Use config from bytes
 	#[arg(short, long, value_name = "config")]
@@ -33,23 +36,41 @@ struct Args {
 
 	#[arg(long, value_name = "validate-only")]
 	validate_only: bool,
+
+	/// Print version (as a simple version string)
+	#[arg(short = 'V', value_name = "version")]
+	version_short: bool,
+
+	/// Print version (as JSON)
+	#[arg(long = "version")]
+	version_long: bool,
 }
 
 fn main() -> anyhow::Result<()> {
 	let _log_flush = telemetry::setup_logging();
 
 	let args = Args::parse();
+	let Args {
+		config,
+		file,
+		validate_only,
+		version_short,
+		version_long,
+	} = args;
 
+	if version_short {
+		println!("{}", version::BuildInfo::new().version);
+		return Ok(());
+	}
+	if version_long {
+		println!("{}", version::BuildInfo::new());
+		return Ok(());
+	}
 	tokio::runtime::Builder::new_current_thread()
 		.enable_all()
 		.build()
 		.unwrap()
 		.block_on(async move {
-			let Args {
-				config,
-				file,
-				validate_only,
-			} = args;
 
 			let (contents, filename) = match (config, file) {
 				(Some(_), Some(_)) => {

@@ -14,9 +14,9 @@ KIND_CLUSTER_NAME ?= agentgateway
 docker:
 	$(DOCKER_BUILDER) build $(DOCKER_BUILD_ARGS) -t $(IMAGE_FULL_NAME) . --progress=plain
 
-.PHONY: docker-ext
-docker-ext:
-	$(DOCKER_BUILDER) build $(DOCKER_BUILD_ARGS) -t $(IMAGE_FULL_NAME)-ext -f Dockerfile.ext .
+.PHONY: docker-musl
+docker-musl:
+	$(DOCKER_BUILDER) build $(DOCKER_BUILD_ARGS) -t $(IMAGE_FULL_NAME)-musl --build-arg=BUILDER=musl . --progress=plain
 
 CARGO_BUILD_ARGS ?=
 # build
