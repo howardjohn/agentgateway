@@ -91,7 +91,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ${{ runner.temp }}/digests
-          pattern: digests-*
+          pattern: digests-linux-*
           merge-multiple: true
 
       - name: Login to GitHub Container Registry
@@ -206,7 +206,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ${{ runner.temp }}/digests-musl
-          pattern: digests-*
+          pattern: digests-musl*
           merge-multiple: true
 
       - name: Login to GitHub Container Registry
@@ -230,7 +230,7 @@ jobs:
             type=semver,pattern={{version}},value=${{ github.event.inputs.version }}
 
       - name: Create manifest list and push
-        working-directory: ${{ runner.temp }}/digests
+        working-directory: ${{ runner.temp }}/digests-musl
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
