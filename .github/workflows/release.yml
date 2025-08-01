@@ -173,7 +173,8 @@ jobs:
         outputs: type=image,push-by-digest=true,name-canonical=true,push=true
         cache-from: type=registry,ref=${{ env.REGISTRY_IMAGE }}:buildcache-musl
         cache-to: type=registry,ref=${{ env.REGISTRY_IMAGE }}:buildcache-musl,mode=max
-        build-args: ["BUILDER=musl"]
+        build-args: |
+          BUILDER=musl
 
     - name: Export digest
       run: |
