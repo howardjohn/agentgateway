@@ -186,7 +186,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: digests-musl-${{ env.PLATFORM_PAIR }}
-        path: ${{ runner.temp }}/digests/*
+        path: ${{ runner.temp }}/digests-musl/*
         if-no-files-found: error
         retention-days: 1
 
