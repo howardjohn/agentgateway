@@ -1,7 +1,6 @@
 // Originally derived from https://github.com/istio/ztunnel (Apache 2.0 licensed)
 
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::Arc;
 
 use agent_core::{telemetry, version};
@@ -24,7 +23,6 @@ lazy_static::lazy_static! {
 #[derive(Parser, Debug)]
 #[command(about, long_about = None)]
 #[command(disable_version_flag = true)]
-// #[command(version = *SHORT_VERSION, long_version = *LONG_VERSION)]
 struct Args {
 	/// Use config from bytes
 	#[arg(short, long, value_name = "config")]
@@ -71,7 +69,6 @@ fn main() -> anyhow::Result<()> {
 		.build()
 		.unwrap()
 		.block_on(async move {
-
 			let (contents, filename) = match (config, file) {
 				(Some(_), Some(_)) => {
 					anyhow::bail!("only one of --config or --file")

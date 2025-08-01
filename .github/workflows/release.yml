@@ -58,8 +58,8 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         tags: ${{ env.REGISTRY_IMAGE }}
         outputs: type=image,push-by-digest=true,name-canonical=true,push=true
-        cache-from: type=registry,ref=user/app:buildcache
-        cache-to: type=registry,ref=user/app:buildcache,mode=max
+        cache-from: type=registry,ref=${{ env.REGISTRY_IMAGE }}:buildcache
+        cache-to: type=registry,ref=${{ env.REGISTRY_IMAGE }}:buildcache,mode=max
 
     - name: Export digest
       run: |
@@ -171,8 +171,8 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         tags: ${{ env.REGISTRY_IMAGE }}-musl
         outputs: type=image,push-by-digest=true,name-canonical=true,push=true
-        cache-from: type=registry,ref=user/app:buildcache-musl
-        cache-to: type=registry,ref=user/app:buildcache-musl,mode=max
+        cache-from: type=registry,ref=${{ env.REGISTRY_IMAGE }}:buildcache-musl
+        cache-to: type=registry,ref=${{ env.REGISTRY_IMAGE }}:buildcache-musl,mode=max
         build-args: ["BUILDER=musl"]
 
     - name: Export digest
