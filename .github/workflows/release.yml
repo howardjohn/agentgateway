@@ -223,7 +223,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY_IMAGE }}-musl
+          images: ${{ env.REGISTRY_IMAGE }}
           tags: | 
             type=semver,pattern={{version}}
             # use custom value instead of git tag
