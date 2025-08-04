@@ -123,6 +123,16 @@ pub struct RawTracing {
 	#[serde(default)]
 	otlp_protocol: Protocol,
 	fields: Option<RawLoggingFields>,
+	/// Expression to determine the amount of *random sampling*.
+	/// Random sampling will initiate a new trace span if the incoming request does not have a trace already.
+	/// This should evaluate to either a float between 0.0-1.0 (0-100%) or true/false.
+	/// This defaults to 'false'.
+	random_sampling: Option<String>,
+	/// Expression to determine the amount of *client sampling*.
+	/// Client sampling determines whether to initiate a new trace span if the incoming request does have a trace already.
+	/// This should evaluate to either a float between 0.0-1.0 (0-100%) or true/false.
+	/// This defaults to 'true'.
+	client_sampling: Option<String>
 }
 
 #[derive(serde::Deserialize, Clone, Debug)]

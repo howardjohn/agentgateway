@@ -12,7 +12,7 @@ use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use tokio::io::AsyncWriteExt;
 pub use traceparent::TraceParent;
-
+use crate::cel;
 use crate::http::Request;
 use crate::telemetry::log::{CelLoggingExecutor, LoggingFields, RequestLog};
 
@@ -37,6 +37,8 @@ pub struct Config {
 	pub endpoint: Option<String>,
 	pub protocol: Protocol,
 	pub fields: Arc<LoggingFields>,
+	pub random_sampling: Option<Arc<cel::Expression>>,
+	pub client_sampling: Option<Arc<cel::Expression>>,
 }
 
 mod semconv {
