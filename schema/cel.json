@@ -148,13 +148,61 @@
           "items": {
             "type": "string"
           }
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "temperature": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            },
+            "top_p": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            },
+            "frequency_penalty": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            },
+            "presence_penalty": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            },
+            "seed": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            },
+            "max_tokens": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
         }
       },
       "required": [
         "streaming",
         "request_model",
         "provider",
-        "input_tokens"
+        "input_tokens",
+        "params"
       ]
     },
     "source": {

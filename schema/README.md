@@ -25,10 +25,19 @@ This folder contains JSON schemas for various parts of the project
 |`config.workerThreads`||
 |`config.tracing`||
 |`config.tracing.otlpEndpoint`||
+|`config.tracing.headers`||
 |`config.tracing.otlpProtocol`||
 |`config.tracing.fields`||
 |`config.tracing.fields.remove`||
 |`config.tracing.fields.add`||
+|`config.tracing.randomSampling`|Expression to determine the amount of *random sampling*.
+Random sampling will initiate a new trace span if the incoming request does not have a trace already.
+This should evaluate to either a float between 0.0-1.0 (0-100%) or true/false.
+This defaults to 'false'.|
+|`config.tracing.clientSampling`|Expression to determine the amount of *client sampling*.
+Client sampling determines whether to initiate a new trace span if the incoming request does have a trace already.
+This should evaluate to either a float between 0.0-1.0 (0-100%) or true/false.
+This defaults to 'true'.|
 |`config.logging`||
 |`config.logging.filter`||
 |`config.logging.fields`||
@@ -271,6 +280,13 @@ This folder contains JSON schemas for various parts of the project
 |`llm.prompt[].role`||
 |`llm.prompt[].content`||
 |`llm.completion`||
+|`llm.params`||
+|`llm.params.temperature`||
+|`llm.params.top_p`||
+|`llm.params.frequency_penalty`||
+|`llm.params.presence_penalty`||
+|`llm.params.seed`||
+|`llm.params.max_tokens`||
 |`source`||
 |`source.address`||
 |`source.port`||
