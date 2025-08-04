@@ -169,7 +169,7 @@ jobs:
       with:
         platforms: ${{ matrix.platform }}
         labels: ${{ steps.meta.outputs.labels }}
-        tags: ${{ env.REGISTRY_IMAGE }}-musl
+        tags: ${{ env.REGISTRY_IMAGE }}
         outputs: type=image,push-by-digest=true,name-canonical=true,push=true
         cache-from: type=registry,ref=${{ env.REGISTRY_IMAGE }}:buildcache-musl
         cache-to: type=registry,ref=${{ env.REGISTRY_IMAGE }}:buildcache-musl,mode=max
@@ -232,7 +232,7 @@ jobs:
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests-musl
         run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + . + "-musl") | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
 
       - name: Sign the container image
