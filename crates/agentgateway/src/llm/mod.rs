@@ -65,6 +65,24 @@ pub struct LLMRequest {
 	pub request_model: Strng,
 	pub provider: Strng,
 	pub streaming: bool,
+	pub params: llm::LLMRequestParams,
+}
+
+#[derive(Default, Clone, Debug, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct LLMRequestParams {
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub temperature: Option<f64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub top_p: Option<f64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub frequency_penalty: Option<f64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub presence_penalty: Option<f64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub seed: Option<i64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub max_tokens: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -462,6 +480,14 @@ impl AIProvider {
 			request_model: req.model.as_str().into(),
 			provider: self.provider(),
 			streaming: req.stream.unwrap_or_default(),
+			params: LLMRequestParams {
+				temperature: req.temperature,
+				top_p: req.top_p,
+				frequency_penalty: req.frequency_penalty,
+				presence_penalty: req.presence_penalty,
+				seed: req.seed,
+				max_tokens: req.max_tokens,
+			},
 		};
 		Ok(llm)
 	}

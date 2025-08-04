@@ -27,6 +27,10 @@ use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 use crate::{json, llm};
 
 pub use cel_interpreter::Value;
+pub use functions::FLATTEN_LIST;
+pub use functions::FLATTEN_LIST_RECURSIVE;
+pub use functions::FLATTEN_MAP;
+pub use functions::FLATTEN_MAP_RECURSIVE;
 
 mod functions;
 mod strings;
@@ -56,6 +60,17 @@ pub const LLM_COMPLETION_ATTRIBUTE: &str = "llm.completion";
 pub const RESPONSE_ATTRIBUTE: &str = "response";
 pub const JWT_ATTRIBUTE: &str = "jwt";
 pub const MCP_ATTRIBUTE: &str = "mcp";
+pub const ALL_ATTRIBUTES: &[&'static str] = &[
+	SOURCE_ATTRIBUTE,
+	REQUEST_ATTRIBUTE,
+	REQUEST_BODY_ATTRIBUTE,
+	LLM_ATTRIBUTE,
+	LLM_PROMPT_ATTRIBUTE,
+	LLM_COMPLETION_ATTRIBUTE,
+	RESPONSE_ATTRIBUTE,
+	JWT_ATTRIBUTE,
+	MCP_ATTRIBUTE,
+];
 
 pub struct Expression {
 	attributes: HashSet<String>,
@@ -170,6 +185,7 @@ impl ContextBuilder {
 			request_model: info.request_model.clone(),
 			provider: info.provider.clone(),
 			input_tokens: info.input_tokens,
+			params: info.params.clone(),
 
 			response_model: None,
 			output_tokens: None,
@@ -260,6 +276,7 @@ impl Expression {
 		let mut props = Vec::with_capacity(5);
 		properties(&expression, &mut props, &mut Vec::default());
 
+		let include_all = expression.references().functions().contains(&"variables");
 		// For now we only look at the first level. We could be more precise
 		let mut attributes: HashSet<String> = props
 			.into_iter()
@@ -271,6 +288,11 @@ impl Expression {
 				_ => None,
 			})
 			.collect();
+		if include_all {
+			ALL_ATTRIBUTES.iter().for_each(|attr| {
+				attributes.insert(attr.to_string());
+			});
+		}
 
 		Ok(Self {
 			attributes,
@@ -345,6 +367,7 @@ pub struct LLMContext {
 	prompt: Option<Vec<llm::SimpleChatCompletionMessage>>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	completion: Option<Vec<String>>,
+	params: llm::LLMRequestParams,
 }
 
 fn create_context<'a>() -> Context<'a> {

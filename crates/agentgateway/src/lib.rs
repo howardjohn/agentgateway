@@ -1,6 +1,6 @@
 // For now, the entire package is not linked up to anything so squash the warnings
 #![allow(unused)]
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display};
 use std::fs::File;
 use std::io::Read;
@@ -121,6 +121,8 @@ pub struct RawHTTP2 {
 pub struct RawTracing {
 	otlp_endpoint: String,
 	#[serde(default)]
+	headers: HashMap<String, String>,
+	#[serde(default)]
 	otlp_protocol: Protocol,
 	fields: Option<RawLoggingFields>,
 	/// Expression to determine the amount of *random sampling*.
@@ -132,7 +134,7 @@ pub struct RawTracing {
 	/// Client sampling determines whether to initiate a new trace span if the incoming request does have a trace already.
 	/// This should evaluate to either a float between 0.0-1.0 (0-100%) or true/false.
 	/// This defaults to 'true'.
-	client_sampling: Option<String>
+	client_sampling: Option<String>,
 }
 
 #[derive(serde::Deserialize, Clone, Debug)]

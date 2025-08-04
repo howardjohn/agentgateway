@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
@@ -212,7 +213,7 @@ impl<'a> CelLoggingExecutor<'a> {
 		}
 	}
 
-	pub fn eval(&self, fields: &'a Arc<LoggingFields>) -> Vec<(&str, Option<Value>)> {
+	pub fn eval(&self, fields: &'a Arc<LoggingFields>) -> Vec<(Cow<str>, Option<Value>)> {
 		let mut raws = Vec::with_capacity(fields.add.len());
 		for (k, v) in fields.add.iter() {
 			let field = self.executor.eval(v.as_ref());
@@ -221,15 +222,73 @@ impl<'a> CelLoggingExecutor<'a> {
 			}
 			let celv = field
 				.ok()
-				.filter(|v| !matches!(v, cel_interpreter::Value::Null))
-				.and_then(|v| v.json().ok());
+				.filter(|v| !matches!(v, cel_interpreter::Value::Null));
 
-			raws.push((k.as_ref(), celv));
+			// We return Option here to match the schema but don't bother adding None values since they
+			// will be dropped anyways
+			if let Some(celv) = celv {
+				Self::resolve_value(&mut raws, Cow::Borrowed(k.as_ref()), &celv, false);
+			}
 		}
 		raws
 	}
 
-	fn eval_additions(&self) -> Vec<(&str, Option<Value>)> {
+	fn resolve_value(
+		raws: &mut Vec<(Cow<'a, str>, Option<Value>)>,
+		k: Cow<'a, str>,
+		celv: &cel::Value,
+		always_flatten: bool,
+	) {
+		if let cel::Value::Map(m) = celv
+			&& let Some(cel::Value::List(li)) = m.map.get(&cel::FLATTEN_LIST)
+		{
+			raws.reserve(li.len());
+			for (idx, v) in li.as_ref().iter().enumerate() {
+				Self::resolve_value(raws, Cow::Owned(format!("{k}.{idx}")), v, false);
+			}
+		} else if let cel::Value::Map(m) = celv
+			&& let Some(cel::Value::List(li)) = m.map.get(&cel::FLATTEN_LIST_RECURSIVE)
+		{
+			raws.reserve(li.len());
+			for (idx, v) in li.as_ref().iter().enumerate() {
+				Self::resolve_value(raws, Cow::Owned(format!("{k}.{idx}")), v, true);
+			}
+		} else if let cel::Value::Map(m) = celv
+			&& let Some(cel::Value::Map(m)) = m.map.get(&cel::FLATTEN_MAP)
+		{
+			raws.reserve(m.map.len());
+			for (mk, mv) in m.map.as_ref() {
+				Self::resolve_value(raws, Cow::Owned(format!("{k}.{mk}")), mv, false);
+			}
+		} else if let cel::Value::Map(m) = celv
+			&& let Some(cel::Value::Map(m)) = m.map.get(&cel::FLATTEN_MAP_RECURSIVE)
+		{
+			raws.reserve(m.map.len());
+			for (mk, mv) in m.map.as_ref() {
+				Self::resolve_value(raws, Cow::Owned(format!("{k}.{mk}")), mv, true);
+			}
+		} else if always_flatten {
+			match celv {
+				cel::Value::List(li) => {
+					for (idx, v) in li.as_ref().iter().enumerate() {
+						let nk = Cow::Owned(format!("{k}.{idx}"));
+						Self::resolve_value(raws, nk, v, true);
+					}
+				},
+				cel::Value::Map(m) => {
+					for (mk, mv) in m.map.as_ref() {
+						let nk = Cow::Owned(format!("{k}.{mk}"));
+						Self::resolve_value(raws, nk, mv, true);
+					}
+				},
+				_ => raws.push((k, celv.json().ok())),
+			}
+		} else {
+			raws.push((k, celv.json().ok()));
+		}
+	}
+
+	fn eval_additions(&self) -> Vec<(Cow<str>, Option<Value>)> {
 		self.eval(self.fields)
 	}
 }

@@ -151,6 +151,11 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 		parse_duration("CONNECTION_TERMINATION_DEADLINE")?.or(raw.connection_termination_deadline);
 	let otlp = empty_to_none(parse("OTLP_ENDPOINT")?)
 		.or(raw.tracing.as_ref().map(|t| t.otlp_endpoint.clone()));
+	let otlp_headers = raw
+		.tracing
+		.as_ref()
+		.map(|t| t.headers.clone())
+		.unwrap_or_default();
 	let otlp_protocol = parse_serde("OTLP_PROTOCOL")?
 		.or(raw.tracing.as_ref().map(|t| t.otlp_protocol))
 		.unwrap_or_default();
@@ -212,6 +217,7 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 		},
 		tracing: trc::Config {
 			endpoint: otlp,
+			headers: otlp_headers,
 			protocol: otlp_protocol,
 
 			fields: Arc::new(
