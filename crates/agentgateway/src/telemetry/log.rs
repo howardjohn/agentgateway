@@ -239,43 +239,44 @@ impl<'a> CelLoggingExecutor<'a> {
 		celv: &cel::Value,
 		always_flatten: bool,
 	) {
-		if let cel::Value::Map(m) = celv
-			&& let Some(cel::Value::List(li)) = m.map.get(&cel::FLATTEN_LIST)
-		{
-			raws.reserve(li.len());
-			for (idx, v) in li.as_ref().iter().enumerate() {
-				Self::resolve_value(raws, Cow::Owned(format!("{k}.{idx}")), v, false);
+		if let cel::Value::Map(m) = celv {
+			if let Some(cel::Value::List(li)) = m.map.get(&cel::FLATTEN_LIST) {
+				raws.reserve(li.len());
+				for (idx, v) in li.as_ref().iter().enumerate() {
+					Self::resolve_value(raws, Cow::Owned(format!("{k}.{idx}")), v, false);
+				}
+				return;
+			} else if let Some(cel::Value::List(li)) = m.map.get(&cel::FLATTEN_LIST_RECURSIVE) {
+				raws.reserve(li.len());
+				for (idx, v) in li.as_ref().iter().enumerate() {
+					Self::resolve_value(raws, Cow::Owned(format!("{k}.{idx}")), v, true);
+				}
+				return;
+			} else if let Some(cel::Value::Map(m)) = m.map.get(&cel::FLATTEN_MAP) {
+				raws.reserve(m.map.len());
+				for (mk, mv) in m.map.as_ref() {
+					Self::resolve_value(raws, Cow::Owned(format!("{k}.{mk}")), mv, false);
+				}
+				return;
+			} else if let Some(v @ cel::Value::Map(m)) = m.map.get(&cel::FLATTEN_MAP_RECURSIVE) {
+				raws.reserve(m.map.len());
+				for (mk, mv) in m.map.as_ref() {
+					Self::resolve_value(raws, Cow::Owned(format!("{k}.{mk}")), mv, true);
+				}
+				return;
 			}
-		} else if let cel::Value::Map(m) = celv
-			&& let Some(cel::Value::List(li)) = m.map.get(&cel::FLATTEN_LIST_RECURSIVE)
-		{
-			raws.reserve(li.len());
-			for (idx, v) in li.as_ref().iter().enumerate() {
-				Self::resolve_value(raws, Cow::Owned(format!("{k}.{idx}")), v, true);
-			}
-		} else if let cel::Value::Map(m) = celv
-			&& let Some(cel::Value::Map(m)) = m.map.get(&cel::FLATTEN_MAP)
-		{
-			raws.reserve(m.map.len());
-			for (mk, mv) in m.map.as_ref() {
-				Self::resolve_value(raws, Cow::Owned(format!("{k}.{mk}")), mv, false);
-			}
-		} else if let cel::Value::Map(m) = celv
-			&& let Some(cel::Value::Map(m)) = m.map.get(&cel::FLATTEN_MAP_RECURSIVE)
-		{
-			raws.reserve(m.map.len());
-			for (mk, mv) in m.map.as_ref() {
-				Self::resolve_value(raws, Cow::Owned(format!("{k}.{mk}")), mv, true);
-			}
-		} else if always_flatten {
+		}
+		if always_flatten {
 			match celv {
 				cel::Value::List(li) => {
+					raws.reserve(li.len());
 					for (idx, v) in li.as_ref().iter().enumerate() {
 						let nk = Cow::Owned(format!("{k}.{idx}"));
 						Self::resolve_value(raws, nk, v, true);
 					}
 				},
 				cel::Value::Map(m) => {
+					raws.reserve(m.map.len());
 					for (mk, mv) in m.map.as_ref() {
 						let nk = Cow::Owned(format!("{k}.{mk}"));
 						Self::resolve_value(raws, nk, mv, true);
