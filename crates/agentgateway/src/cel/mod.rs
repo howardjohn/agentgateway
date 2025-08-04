@@ -11,7 +11,7 @@ use axum_core::body::Body;
 use bytes::Bytes;
 use cel_interpreter::extractors::{Arguments, This};
 use cel_interpreter::objects::{Key, Map, TryIntoValue, ValueType};
-use cel_interpreter::{Context, ExecutionError, FunctionContext, Program, ResolveResult, Value};
+use cel_interpreter::{Context, ExecutionError, FunctionContext, Program, ResolveResult};
 use cel_parser::{Expression as CelExpression, ParseError};
 use http::Request;
 use once_cell::sync::Lazy;
@@ -25,6 +25,8 @@ use crate::serdes::*;
 use crate::telemetry::log::CelLogging;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 use crate::{json, llm};
+
+pub use cel_interpreter::Value;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

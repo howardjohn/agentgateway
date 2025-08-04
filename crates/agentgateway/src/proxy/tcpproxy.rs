@@ -42,10 +42,10 @@ impl TCPProxy {
 			.ext::<TCPConnectionInfo>()
 			.expect("tcp connection must be set");
 		let mut log: DropOnLog = RequestLog::new(
-			log::CelLogging::new(self.inputs.cfg.logging.clone()),
-			self.inputs.metrics.clone(),
-			start,
-			tcp.clone(),
+        log::CelLogging::new(self.inputs.cfg.logging.clone(), self.inputs.cfg.tracing.clone()),
+        self.inputs.metrics.clone(),
+        start,
+        tcp.clone(),
 		)
 		.into();
 		let ret = self.proxy_internal(connection, log.as_mut().unwrap()).await;

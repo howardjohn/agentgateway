@@ -1,3 +1,4 @@
+use std::cmp;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 use std::hash::BuildHasher;
@@ -18,9 +19,10 @@ use serde_json::Value;
 use tracing::log::Log;
 use tracing::{Level, event, log, trace};
 
-use crate::cel::{ContextBuilder, Expression};
+use crate::cel::{ContextBuilder, Error, Expression};
 use crate::telemetry::metrics::{HTTPLabels, Metrics};
 use crate::telemetry::trc;
+use crate::telemetry::trc::TraceParent;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::agent::{
 	BackendName, BindName, GatewayName, ListenerName, RouteName, RouteRuleName, Target,
@@ -150,10 +152,17 @@ impl LoggingFields {
 }
 
 #[derive(Debug)]
+pub struct TraceSampler {
+	pub random_sampling: Option<Arc<cel::Expression>>,
+	pub client_sampling: Option<Arc<cel::Expression>>,
+}
+
+#[derive(Debug)]
 pub struct CelLogging {
 	pub cel_context: cel::ContextBuilder,
 	pub filter: Option<Arc<cel::Expression>>,
 	pub fields: Arc<LoggingFields>,
+	pub tracing_sampler: TraceSampler,
 }
 
 pub struct CelLoggingExecutor<'a> {
@@ -167,6 +176,39 @@ impl<'a> CelLoggingExecutor<'a> {
 		match self.filter.as_deref() {
 			Some(f) => self.executor.eval_bool(f),
 			None => true,
+		}
+	}
+
+	/// eval_rng evaluates a float (0.0-1.0) or a bool and evaluates to a bool. If a float is returned,
+	/// it represents the likelihood true is returned.
+	fn eval_rng(&self, x: &Expression) -> bool {
+		match self.executor.eval(x) {
+			Ok(cel::Value::Bool(b)) => b,
+			Ok(cel::Value::Float(f)) => {
+				// Clamp this down to 0-1 rang; random_bool can panic
+				let f = if f > 1.0 {
+					1.0
+				} else if f < 0.0 {
+					0.0
+				} else {
+					f
+				};
+
+				rand::random_bool(f)
+			},
+			Ok(cel::Value::Int(f)) => {
+				// Clamp this down to 0-1 rang; random_bool can panic
+				let f = if f > 1 {
+					1
+				} else if f < 0 {
+					0
+				} else {
+					f
+				};
+
+				rand::random_bool(f as f64)
+			},
+			_ => false,
 		}
 	}
 
@@ -193,7 +235,7 @@ impl<'a> CelLoggingExecutor<'a> {
 }
 
 impl CelLogging {
-	pub fn new(cfg: Config) -> Self {
+	pub fn new(cfg: Config, tracing_config: trc::Config) -> Self {
 		let mut cel_context = cel::ContextBuilder::new();
 		if let Some(f) = &cfg.filter {
 			cel_context.register_expression(f.as_ref());
@@ -201,10 +243,15 @@ impl CelLogging {
 		for v in cfg.fields.add.values_unordered() {
 			cel_context.register_expression(v.as_ref());
 		}
+
 		Self {
 			cel_context,
 			filter: cfg.filter,
 			fields: cfg.fields,
+			tracing_sampler: TraceSampler {
+				random_sampling: tracing_config.random_sampling,
+				client_sampling: tracing_config.client_sampling,
+			},
 		}
 	}
 
@@ -223,6 +270,7 @@ impl CelLogging {
 			cel_context,
 			filter,
 			fields,
+			tracing_sampler: _,
 		} = self;
 		let executor = cel_context.build()?;
 		Ok(CelLoggingExecutor {
@@ -340,6 +388,32 @@ pub struct RequestLog {
 	pub a2a_method: Option<&'static str>,
 
 	pub inference_pool: Option<SocketAddr>,
+}
+
+impl RequestLog {
+	pub fn trace_sampled(&self, tp: Option<&TraceParent>) -> bool {
+		let TraceSampler {
+			random_sampling,
+			client_sampling,
+		} = &self.cel.tracing_sampler;
+		let expr = if tp.is_some() {
+			let Some(cs) = client_sampling else {
+				// If client_sampling is not set, default to include it
+				return true;
+			};
+			cs
+		} else {
+			let Some(rs) = random_sampling else {
+				// If random_sampling is not set, default to NOT include it
+				return false;
+			};
+			rs
+		};
+		let Ok(exec) = self.cel.build() else {
+			return false;
+		};
+		exec.eval_rng(expr.as_ref())
+	}
 }
 
 impl Drop for DropOnLog {

@@ -263,7 +263,10 @@ impl HTTPProxy {
 			.get::<TCPConnectionInfo>()
 			.expect("tcp connection must be set");
 		let mut log: DropOnLog = RequestLog::new(
-			log::CelLogging::new(self.inputs.cfg.logging.clone()),
+			log::CelLogging::new(
+				self.inputs.cfg.logging.clone(),
+				self.inputs.cfg.tracing.clone(),
+			),
 			self.inputs.metrics.clone(),
 			start,
 			tcp.clone(),
@@ -330,30 +333,6 @@ impl HTTPProxy {
 		sensitive_headers(&mut req);
 		let mut req_upgrade = hop_by_hop_headers(&mut req);
 
-		const ALWAYS_TRACE: bool = false; // todo configurable percentage
-		if let Some(tp) = trc::TraceParent::from_request(&req) {
-			// User has a span
-			// We will make a new span and report
-			// TODO: allow us to start a span from scratch
-			log.tracer = self.inputs.tracer.clone();
-			let ns = tp.new_span();
-
-			log.incoming_span = Some(tp);
-			ns.insert_header(&mut req);
-			req.extensions_mut().insert(ns.clone());
-			log.outgoing_span = Some(ns);
-		} else if ALWAYS_TRACE {
-			log.tracer = self.inputs.tracer.clone();
-			let mut ns = TraceParent::new();
-			ns.flags = 1;
-			ns.insert_header(&mut req);
-			req.extensions_mut().insert(ns.clone());
-			log.outgoing_span = Some(ns);
-		}
-		if let Some(tracer) = &log.tracer {
-			log.cel.register(tracer.fields.as_ref());
-		}
-
 		let host = http::get_host(&req)?.to_string();
 		log.host = Some(host.clone());
 		log.method = Some(req.method().clone());
@@ -364,6 +343,33 @@ impl HTTPProxy {
 			if let Ok(body) = crate::http::inspect_body(req.body_mut()).await {
 				log.cel.ctx().with_request_body(body);
 			}
+		}
+
+		let trace_parent = trc::TraceParent::from_request(&req);
+		let trace_sampled = log.trace_sampled(trace_parent.as_ref());
+		if trace_sampled {
+			log.tracer = self.inputs.tracer.clone();
+			let ns = match trace_parent {
+				Some(tp) => {
+					// Build a new span off the existing trace
+					let ns = tp.new_span();
+					log.incoming_span = Some(tp);
+					ns
+				},
+				None => {
+					// Build an entirely new trace
+					let mut ns = TraceParent::new();
+					ns.flags = 1;
+					ns
+				},
+			};
+			ns.insert_header(&mut req);
+			req.extensions_mut().insert(ns.clone());
+			log.outgoing_span = Some(ns);
+		}
+
+		if let Some(tracer) = &log.tracer {
+			log.cel.register(tracer.fields.as_ref());
 		}
 
 		let selected_listener = selected_listener
