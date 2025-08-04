@@ -178,6 +178,11 @@ impl Tracer {
 				true,
 				TraceState::default(),
 			);
+			sb = sb.with_links(vec![opentelemetry::trace::Link::new(
+				parent.clone(),
+				vec![],
+				0,
+			)]);
 		}
 		sb.start(self.tracer.as_ref()).end()
 	}
