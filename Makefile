@@ -23,6 +23,9 @@ CARGO_BUILD_ARGS ?=
 .PHONY: build
 build:
 	cargo build --release --features ui $(CARGO_BUILD_ARGS)
+.PHONY: build-target
+build-target:
+	cargo build --release --features ui $(CARGO_BUILD_ARGS) --target $(TARGET)
 
 # lint
 .PHONY: lint

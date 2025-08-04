@@ -14,12 +14,14 @@ FROM docker.io/library/rust:1.88.0-slim-bookworm AS musl-builder
 
 ARG TARGETARCH
 
+ENV TARGET=x86_64-unknown-linux-musl
+
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
     echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache && \
     apt-get update && apt-get install -y --no-install-recommends \
-    protobuf-compiler make libssl-dev pkg-config
+    protobuf-compiler make libssl-dev pkg-config musl-tools
 
 RUN <<EOF
 if [ "$TARGETARCH" = "arm64" ]; then
@@ -30,6 +32,8 @@ fi
 EOF
 
 FROM docker.io/library/rust:1.88.0-slim-bookworm AS base-builder
+
+ENV TARGET=x86_64-unknown-linux-gnu
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
@@ -53,9 +57,9 @@ RUN --mount=type=cache,id=cargo,target=/usr/local/cargo/registry \
     cargo fetch --locked
 RUN --mount=type=cache,target=/app/target \
     --mount=type=cache,id=cargo,target=/usr/local/cargo/registry \
-    make build &&  \
+    make build-target &&  \
     mkdir /out && \
-    mv /app/target/release/agentgateway /out
+    mv /app/target/${TARGET}/release/agentgateway /out
 
 FROM gcr.io/distroless/cc-debian12 AS runner 
 
