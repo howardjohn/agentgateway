@@ -34,6 +34,8 @@ EOF
 
 FROM docker.io/library/rust:1.88.0-slim-bookworm AS base-builder
 
+ARG TARGETARCH
+
 RUN <<EOF
 mkdir /build
 if [ "$TARGETARCH" = "arm64" ]; then
@@ -41,6 +43,7 @@ if [ "$TARGETARCH" = "arm64" ]; then
 else
   echo x86_64-unknown-linux-gnu > /build/target
 fi
+echo "Building $(cat /build/target)"
 EOF
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
