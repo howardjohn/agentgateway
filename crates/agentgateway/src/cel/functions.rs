@@ -48,11 +48,10 @@ pub fn base64_encode(This(this): This<Arc<String>>) -> String {
 
 pub fn base64_decode(ftx: &FunctionContext, This(this): This<Arc<String>>) -> ResolveResult {
 	use base64::Engine;
-	dbg!(
-		dbg!(base64::prelude::BASE64_STANDARD.decode(this.as_ref()))
-			.map(|v| Value::Bytes(Arc::new(v)))
-			.map_err(|e| ftx.error(e))
-	)
+	base64::prelude::BASE64_STANDARD
+		.decode(this.as_ref())
+		.map(|v| Value::Bytes(Arc::new(v)))
+		.map_err(|e| ftx.error(e))
 }
 
 fn with(
