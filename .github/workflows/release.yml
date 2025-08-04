@@ -12,7 +12,6 @@ on:
 
 env:
   REGISTRY_IMAGE: ghcr.io/agentgateway/agentgateway
-  VERSION: ${{ github.event.inputs.version || github.event.release.tag_name }}
 
 jobs:
   build-image:
@@ -33,7 +32,7 @@ jobs:
       run: |
         platform=${{ matrix.platform }}
         echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
-        echo "VERSION=${VERSION#v}" >> $GITHUB_ENV
+        echo "VERSION=${GITHUB_REF##*/v}" >> $GITHUB_ENV
 
     - name: Docker meta
       id: meta
@@ -146,7 +145,7 @@ jobs:
       run: |
         platform=${{ matrix.platform }}
         echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
-        echo "VERSION=${VERSION#v}" >> $GITHUB_ENV
+        echo "VERSION=${GITHUB_REF##*/v}" >> $GITHUB_ENV
 
     - name: Docker meta
       id: meta
@@ -262,7 +261,7 @@ jobs:
     steps:
     - name: Prepare
       run: |
-        echo "VERSION=${VERSION#v}" >> $GITHUB_ENV
+        echo "VERSION=${GITHUB_REF##*/v}" >> $GITHUB_ENV
     - name: Checkout Repository
       uses: actions/checkout@v4
     - uses: actions/setup-node@v4
