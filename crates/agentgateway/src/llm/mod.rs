@@ -96,6 +96,7 @@ pub struct LLMResponse {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum RequestResult {
 	Success(Request, LLMRequest),
 	Rejected(Response),

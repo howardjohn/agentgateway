@@ -60,7 +60,7 @@ pub const LLM_COMPLETION_ATTRIBUTE: &str = "llm.completion";
 pub const RESPONSE_ATTRIBUTE: &str = "response";
 pub const JWT_ATTRIBUTE: &str = "jwt";
 pub const MCP_ATTRIBUTE: &str = "mcp";
-pub const ALL_ATTRIBUTES: &[&'static str] = &[
+pub const ALL_ATTRIBUTES: &[&str] = &[
 	SOURCE_ATTRIBUTE,
 	REQUEST_ATTRIBUTE,
 	REQUEST_BODY_ATTRIBUTE,

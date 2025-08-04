@@ -160,20 +160,25 @@ impl Tracer {
 		// To avoid lifetime issues need to store the expression before we give it to ValueBag reference.
 		// TODO: we could allow log() to take a list of borrows and then a list of OwnedValueBag
 		let raws = cel_exec.eval(&self.fields);
+		let mut span_name = None;
 		for (k, v) in &raws {
 			// TODO: convert directly instead of via json()
-			if let Some(eval) = v.as_ref().map(ValueBag::capture_serde1) {
+			if k == "span.name"
+				&& let Some(serde_json::Value::String(s)) = v
+			{
+				span_name = Some(s.clone());
+			} else if let Some(eval) = v.as_ref().map(ValueBag::capture_serde1) {
 				attributes.push(KeyValue::new(Key::new(k.to_string()), to_otel(&eval)));
 			}
 		}
 
-		let span_name = match (&request.method, &request.path) {
+		let span_name = span_name.unwrap_or_else(|| match (&request.method, &request.path) {
 			(Some(method), Some(path)) => {
 				// TODO: should be path match, not the path!
 				format!("{method} {path}")
 			},
 			_ => "unknown".to_string(),
-		};
+		});
 
 		let out_span = request.outgoing_span.as_ref().unwrap();
 		let mut sb = self

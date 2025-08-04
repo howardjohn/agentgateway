@@ -148,9 +148,7 @@ pub fn map_values(
 				let value = ptx.resolve(&expr)?;
 				res.insert(key.clone(), value);
 			}
-			Value::Map(cel_interpreter::objects::Map {
-				map: Arc::new(res.into()),
-			})
+			Value::Map(cel_interpreter::objects::Map { map: Arc::new(res) })
 		},
 		_ => return Err(this.error_expected_type(ValueType::Map)),
 	}

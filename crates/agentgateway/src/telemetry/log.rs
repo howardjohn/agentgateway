@@ -187,26 +187,12 @@ impl<'a> CelLoggingExecutor<'a> {
 			Ok(cel::Value::Bool(b)) => b,
 			Ok(cel::Value::Float(f)) => {
 				// Clamp this down to 0-1 rang; random_bool can panic
-				let f = if f > 1.0 {
-					1.0
-				} else if f < 0.0 {
-					0.0
-				} else {
-					f
-				};
-
+				let f = f.clamp(0.0, 1.0);
 				rand::random_bool(f)
 			},
 			Ok(cel::Value::Int(f)) => {
 				// Clamp this down to 0-1 rang; random_bool can panic
-				let f = if f > 1 {
-					1
-				} else if f < 0 {
-					0
-				} else {
-					f
-				};
-
+				let f = f.clamp(0, 1);
 				rand::random_bool(f as f64)
 			},
 			_ => false,
