@@ -1,14 +1,16 @@
-use crate::cel;
-use crate::cel::to_value;
+use std::collections::HashMap;
+use std::string::ToString;
+use std::sync::Arc;
+
 use ::cel::extractors::{Identifier, This};
 use ::cel::objects::{Key, Map, ValueType};
 use ::cel::parser::Expression;
 use ::cel::{Context, ExecutionError, FunctionContext, ResolveResult, Value};
 use base64::Engine;
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
-use std::string::ToString;
-use std::sync::Arc;
+
+use crate::cel;
+use crate::cel::to_value;
 
 pub fn insert_all(ctx: &mut Context<'_>) {
 	use super::strings;

@@ -2,9 +2,10 @@
 // under Apache 2.0 license (https://github.com/Kuadrant/wasm-shim/blob/main/LICENSE)
 // TODO: https://github.com/cel-rust/cel-rust/issues/103, have this upstreamed
 
+use std::sync::Arc;
+
 use ::cel::extractors::{Arguments, This};
 use ::cel::{ExecutionError, ResolveResult, Value};
-use std::sync::Arc;
 
 pub fn char_at(This(this): This<Arc<String>>, arg: i64) -> ResolveResult {
 	match this.chars().nth(arg as usize) {

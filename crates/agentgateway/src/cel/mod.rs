@@ -9,12 +9,14 @@ use std::sync::Arc;
 use agent_core::strng::Strng;
 use axum_core::body::Body;
 use bytes::Bytes;
-use cel::ParseError;
 pub use cel::Value;
 use cel::common::ast::Expr;
 use cel::extractors::{Arguments, This};
 use cel::objects::{Key, Map, TryIntoValue, ValueType};
-use cel::{Context, ExecutionError, FunctionContext, ParseErrors, Program, ResolveResult};
+use cel::{
+	Context, ExecutionError, FunctionContext, ParseError, ParseErrors, Program, ResolveResult,
+};
+pub use functions::{FLATTEN_LIST, FLATTEN_LIST_RECURSIVE, FLATTEN_MAP, FLATTEN_MAP_RECURSIVE};
 use http::Request;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, Serializer};
@@ -27,11 +29,6 @@ use crate::serdes::*;
 use crate::telemetry::log::CelLogging;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 use crate::{json, llm};
-
-pub use functions::FLATTEN_LIST;
-pub use functions::FLATTEN_LIST_RECURSIVE;
-pub use functions::FLATTEN_MAP;
-pub use functions::FLATTEN_MAP_RECURSIVE;
 
 mod functions;
 mod strings;

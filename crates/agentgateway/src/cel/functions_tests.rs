@@ -1,6 +1,7 @@
-use crate::cel::{ContextBuilder, Error, Expression};
 use cel::Value;
 use serde_json::json;
+
+use crate::cel::{ContextBuilder, Error, Expression};
 
 fn eval(expr: &str) -> Result<Value, Error> {
 	let mut cb = ContextBuilder::new();

@@ -3,9 +3,6 @@ use std::ops::Sub;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use crate::cel;
-use crate::http::Request;
-use crate::telemetry::log::{CelLoggingExecutor, LoggingFields, RequestLog};
 use agent_core::telemetry::{OptionExt, ValueBag};
 use http::{HeaderMap, HeaderName, HeaderValue, Version};
 use itertools::Itertools;
@@ -17,6 +14,10 @@ use opentelemetry_sdk::trace::SdkTracerProvider;
 use tokio::io::AsyncWriteExt;
 use tonic::metadata::MetadataMap;
 pub use traceparent::TraceParent;
+
+use crate::cel;
+use crate::http::Request;
+use crate::telemetry::log::{CelLoggingExecutor, LoggingFields, RequestLog};
 
 #[derive(Clone, Debug)]
 pub struct Tracer {
