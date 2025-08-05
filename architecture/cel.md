@@ -35,8 +35,19 @@ This is critical for `body`, which is super expensive, but also useful for `head
 The variables available to users is auto-generated into a [JSON schema](../schema/cel.json) and [rendered to markdown](../schema/README.md#cel-context).
 Additionally, custom functions are available:
 
-|Function|Purpose|
-|-|-|
-|`json`|Parse a string or bytes as JSON. Example: `json(request.body).some_field`.
-|`with`|CEL does not allow variable bindings. `with` alows doing this. Example: `json(request.body).with(b, b.field_a + b.field_b)`
+| Function            | Purpose                                                                                                                                                                                                                                                                          |
+|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `json`              | Parse a string or bytes as JSON. Example: `json(request.body).some_field`.                                                                                                                                                                                                       |
+| `with`              | CEL does not allow variable bindings. `with` alows doing this. Example: `json(request.body).with(b, b.field_a + b.field_b)`                                                                                                                                                      |
+| `variables`         | `variables` exposes all of the variables available as a value. CEL otherwise does not allow accessing all variables without knowing them ahead of time. Warning: this automatically enables all fields to be captured.                                                           |
+| `map_values`        | `map_values` applies a function to all values in a map. `map` in CEL only applies to map keys.                                                                                                                                                                                   |
+| `flatten`           | Usable only for logging and tracing. `flatten` will flatten a list or struct into many fields. For example, defining `headers: 'flatten(request.headers)'` would log many keys like `headers.user-agent: "curl"`, etc.                                                           |
+| `flatten_recursive` | Usable only for logging and tracing. Like `flatten` but recursively flattens multiple levels.                                                                                                                                                                                    |
+| `base64_encode`     | Encodes a string to a base64 string. Example: `base64_encode("hello")`.                                                                                                                                                                                                          |
+| `base64_decode`     | Decodes a string in base64 format. Example: `string(base64_decode("aGVsbG8K"))`. Warning: this returns `bytes`, not a `String`. Various parts of agentgateway will display bytes in base64 format, which may appear like the function does nothing if not converted to a string. |
+
+Additionally, the following standard functions are available:
+* `contains`, `size`, `has`, `map`, `filter`, `all`, `max`, `startsWith`, `endsWith`, `string`, `bytes`, `double`, `exists`, `exists_one`, `int`, `uint`, `matches`.
+* Duration/time functions: `duration`, `timestamp`, `getFullYear`, `getMonth`, `getDayOfYear`, `getDayOfMonth`, `getDate`, `getDayOfWeek`, `getHours`, `getMinutes`, `getSeconds`, `getMilliseconds`.
+* From the [strings extension](https://pkg.go.dev/github.com/google/cel-go/ext#Strings): `charAt`, `indexOf`, `join`, `lastIndexOf`, `lowerAscii`, `upperAscii`, `trim`, `replace`, `split`, `substring`.
 

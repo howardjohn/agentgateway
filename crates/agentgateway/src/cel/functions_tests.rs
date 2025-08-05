@@ -29,3 +29,9 @@ fn base64() {
 	let expr = r#"string("hello".base64_encode().base64_decode())"#;
 	assert_eq!(json!("hello"), eval(expr).unwrap().json().unwrap());
 }
+
+#[test]
+fn map_values() {
+	let expr = r#"{"a": 1, "b": 2}.map_values(v, v * 2)"#;
+	assert_eq!(json!({"a": 2, "b": 4}), eval(expr).unwrap().json().unwrap());
+}

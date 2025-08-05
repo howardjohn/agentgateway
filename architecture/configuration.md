@@ -20,7 +20,7 @@ Others are more broad differences, allow things like fetching JWKS from URLs, or
 
 ## XDS Configuration
 
-**XDS configuration allows** the proxy to be configured by a remote control plane. 
+**XDS configuration** allows the proxy to be configured by a remote control plane. 
 We use the [XDS Transport Protocol](https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol), but do not use the Envoy types (Listener, Cluster, etc), and instead use [purpose-built types](../crates/agentgateway/proto/resource.proto).
 Like the local configuration, these map into the same shared IR.
 
