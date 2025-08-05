@@ -185,3 +185,37 @@ fn bench(b: Bencher) {
 		exec.eval(&expr)
 	});
 }
+
+#[test]
+fn test_properties() {
+	let test = |e: &str, want: &[&str]| {
+		let p = cel_parser::parse(e).unwrap();
+		let mut props = Vec::with_capacity(5);
+		properties(&p, &mut props, &mut Vec::default());
+		let want = HashSet::from_iter(want.iter().map(|s| s.to_string()));
+		let got = props
+			.into_iter()
+			.map(|p| p.join("."))
+			.collect::<HashSet<_>>();
+		assert_eq!(want, got, "expression: {e}");
+	};
+
+	test(r#"foo.bar.baz"#, &["foo.bar.baz"]);
+	test(r#"foo["bar"]"#, &["foo"]);
+	test(r#"foo.baz["bar"]"#, &["foo.baz"]);
+	// This is not quite right but maybe good enough.
+	test(r#"foo.map(x, x.body)"#, &["foo", "x", "x.body"]);
+
+	test(r#"fn(bar.baz)"#, &["bar.baz"]);
+	test(r#"{"key":val, "listkey":[a.b]}"#, &["val", "a.b"]);
+	test(r#"{"key":val, "listkey":[a.b]}"#, &["val", "a.b"]);
+	test(r#"a? b: c"#, &["a", "b", "c"]);
+	test(r#"a || b"#, &["a", "b"]);
+	test(r#"!a.b"#, &["a.b"]);
+	test(r#"a.b < c"#, &["a.b", "c"]);
+	test(r#"a.b + c + 2"#, &["a.b", "c"]);
+	// This is not right! Should just be 'a' probably
+	test(r#"a["b"].c"#, &["a.c"]);
+	test(r#"a.b[0]"#, &["a.b"]);
+	test(r#"{"a":"b"}.a"#, &[]);
+}

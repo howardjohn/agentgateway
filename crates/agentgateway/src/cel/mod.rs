@@ -378,11 +378,15 @@ fn properties<'e>(exp: &'e CelExpression, all: &mut Vec<Vec<&'e str>>, path: &mu
 	match exp {
 		CelExpression::Arithmetic(e1, _, e2)
 		| CelExpression::Relation(e1, _, e2)
-		| CelExpression::Ternary(e1, _, e2)
 		| CelExpression::Or(e1, e2)
 		| CelExpression::And(e1, e2) => {
 			properties(e1, all, path);
 			properties(e2, all, path);
+		},
+		CelExpression::Ternary(e1, e2, e3) => {
+			properties(e1, all, path);
+			properties(e2, all, path);
+			properties(e3, all, path);
 		},
 		CelExpression::Unary(_, e) => {
 			properties(e, all, path);
