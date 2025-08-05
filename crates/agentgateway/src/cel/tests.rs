@@ -168,21 +168,23 @@ fn bench_with_response(b: Bencher) {
 }
 
 #[divan::bench]
-fn bench(b: Bencher) {
+fn benchmark_register_build(b: Bencher) {
 	let expr = Arc::new(Expression::new(r#"1 + 2 == 3"#).unwrap());
-	b.with_inputs(|| {
-		::http::Response::builder()
-			.status(200)
-			.header("x-example", "value")
-			.body(Body::empty())
-			.unwrap()
-	})
-	.bench_refs(|r| {
-		let mut cb = ContextBuilder::new();
-		cb.register_expression(&expr);
-		cb.with_response(r);
-		let exec = cb.build()?;
-		exec.eval(&expr)
+	with_profiling("full", || {
+		b.with_inputs(|| {
+			::http::Response::builder()
+				.status(200)
+				.header("x-example", "value")
+				.body(Body::empty())
+				.unwrap()
+		})
+		.bench_refs(|r| {
+			let mut cb = ContextBuilder::new();
+			cb.register_expression(&expr);
+			cb.with_response(r);
+			let exec = cb.build()?;
+			exec.eval(&expr)
+		});
 	});
 }
 
@@ -206,6 +208,7 @@ fn test_properties() {
 	// This is not quite right but maybe good enough.
 	test(r#"foo.with(x, x.body)"#, &["foo", "x", "x.body"]);
 	test(r#"foo.map(x, x.body)"#, &["foo", "x", "x.body"]);
+	test(r#"foo.bar.map(x, x.body)"#, &["foo.bar", "x", "x.body"]);
 
 	test(r#"fn(bar.baz)"#, &["bar.baz"]);
 	test(r#"{"key":val, "listkey":[a.b]}"#, &["val", "a.b"]);

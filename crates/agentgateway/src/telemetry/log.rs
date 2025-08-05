@@ -206,9 +206,7 @@ impl<'a> CelLoggingExecutor<'a> {
 			if let Err(err) = &field {
 				trace!(target: "cel", ?err, expression=?v, "expression failed");
 			}
-			let celv = field
-				.ok()
-				.filter(|v| !matches!(v, cel::Value::Null));
+			let celv = field.ok().filter(|v| !matches!(v, cel::Value::Null));
 
 			// We return Option here to match the schema but don't bother adding None values since they
 			// will be dropped anyways

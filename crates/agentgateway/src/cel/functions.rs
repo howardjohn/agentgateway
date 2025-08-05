@@ -1,10 +1,10 @@
 use crate::cel;
 use crate::cel::to_value;
-use base64::Engine;
 use ::cel::extractors::{Identifier, This};
-use ::cel::objects::{Map, ValueType, Key};
-use ::cel::{Context, ExecutionError, FunctionContext, ResolveResult, Value, };
+use ::cel::objects::{Key, Map, ValueType};
 use ::cel::parser::Expression;
+use ::cel::{Context, ExecutionError, FunctionContext, ResolveResult, Value};
+use base64::Engine;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::string::ToString;
@@ -66,14 +66,12 @@ fn with(
 
 pub static FLATTEN_LIST: Lazy<Key> =
 	Lazy::new(|| Key::String(Arc::new("$_meta_flatten_list".to_string())));
-pub static FLATTEN_LIST_RECURSIVE: Lazy<Key> = Lazy::new(|| {
-	Key::String(Arc::new("$_meta_flatten_list_recursive".to_string()))
-});
+pub static FLATTEN_LIST_RECURSIVE: Lazy<Key> =
+	Lazy::new(|| Key::String(Arc::new("$_meta_flatten_list_recursive".to_string())));
 pub static FLATTEN_MAP: Lazy<Key> =
 	Lazy::new(|| Key::String(Arc::new("$_meta_flatten_map".to_string())));
-pub static FLATTEN_MAP_RECURSIVE: Lazy<Key> = Lazy::new(|| {
-	Key::String(Arc::new("$_meta_flatten_map_recursive".to_string()))
-});
+pub static FLATTEN_MAP_RECURSIVE: Lazy<Key> =
+	Lazy::new(|| Key::String(Arc::new("$_meta_flatten_map_recursive".to_string())));
 
 fn flatten(ftx: &FunctionContext, v: Value) -> ResolveResult {
 	let res = match v {

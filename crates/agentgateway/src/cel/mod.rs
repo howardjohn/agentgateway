@@ -11,6 +11,7 @@ use axum_core::body::Body;
 use bytes::Bytes;
 use cel::ParseError;
 pub use cel::Value;
+use cel::common::ast::Expr;
 use cel::extractors::{Arguments, This};
 use cel::objects::{Key, Map, TryIntoValue, ValueType};
 use cel::{Context, ExecutionError, FunctionContext, ParseErrors, Program, ResolveResult};
@@ -386,7 +387,6 @@ fn properties<'e>(
 	path: &mut Vec<&'e str>,
 ) {
 	use cel::common::ast::Expr::*;
-	eprintln!("{:#?}", exp);
 	match exp {
 		Unspecified => {},
 		Call(call) => {
@@ -404,6 +404,15 @@ fn properties<'e>(
 		},
 		Comprehension(call) => {
 			properties(&call.iter_range.expr, all, path);
+			{
+				let v = &call.iter_var;
+				if !v.starts_with("@") {
+					path.insert(0, v.as_str());
+					all.push(path.clone());
+					path.clear();
+				}
+			}
+			properties(&call.loop_step.expr, all, path);
 		},
 		List(e) => {
 			for elem in &e.elements {
@@ -436,9 +445,11 @@ fn properties<'e>(
 		},
 		Literal(_) => {},
 		Ident(v) => {
-			path.insert(0, v.as_str());
-			all.push(path.clone());
-			path.clear();
+			if !v.starts_with("@") {
+				path.insert(0, v.as_str());
+				all.push(path.clone());
+				path.clear();
+			}
 		},
 	}
 }
