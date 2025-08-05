@@ -278,6 +278,7 @@ impl TryFrom<&proto::agent::Backend> for Backend {
 			Some(proto::agent::backend::Kind::Ai(a)) => Backend::AI(
 				name.clone(),
 				AIBackend {
+					tokenize: false,
 					host_override: a
 						.r#override
 						.as_ref()

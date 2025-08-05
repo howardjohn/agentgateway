@@ -82,12 +82,20 @@ impl RateLimit {
 		}
 		self.ratelimit.try_wait().is_ok()
 	}
-	// TODO: add true-up for the response toke usage
+
 	pub fn check_llm_request(&self, req: &LLMRequest) -> bool {
 		if self.limit_type != RateLimitType::Tokens {
 			return true;
 		}
-		self.ratelimit.try_wait_n(req.input_tokens).is_ok()
+		if let Some(it) = req.input_tokens {
+			// If we tokenized the request, check to make sure we permit that many tokens
+			// We will add the response tokens in `amend_tokens`
+			self.ratelimit.try_wait_n(it).is_ok()
+		} else {
+			// Otherwise, make sure at least 1 token is allowed.
+			// Note this may lead to large over-allowance, especially with fast fill_intervals.
+			self.ratelimit.available_refill() > 0
+		}
 	}
 
 	/// Remove tokens from the rate limiter after the fact. This is useful for true-up
@@ -173,6 +181,12 @@ mod ratelimit {
 
 		/// Returns the number of tokens currently available.
 		pub fn available(&self) -> u64 {
+			self.available.load(Ordering::Relaxed)
+		}
+
+		/// Returns the number of tokens currently available. This will refill if needed;
+		pub fn available_refill(&self) -> u64 {
+			let _ = self.refill(Instant::now());
 			self.available.load(Ordering::Relaxed)
 		}
 

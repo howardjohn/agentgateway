@@ -762,11 +762,12 @@ async fn make_backend_call(
 						llm: None,
 						inference_routing: None,
 						// Attach LLM provider, but don't use default setup
-						llm_provider: Some((ai.provider.clone(), false)),
+						llm_provider: Some((ai.provider.clone(), false, ai.tokenize)),
 					}),
 				),
 				None => {
-					let (tgt, pol) = ai.provider.default_connector();
+					let (tgt, mut pol) = ai.provider.default_connector();
+					pol.llm_provider = Some((ai.provider.clone(), true, ai.tokenize));
 					(tgt, Some(pol))
 				},
 			};
@@ -870,14 +871,14 @@ async fn make_backend_call(
 	if let a2a::RequestType::Call(method) = a2a_type {
 		log.add(|l| l.a2a_method = Some(method));
 	}
-	if let Some((llm, true)) = &policies.llm_provider {
+	if let Some((llm, true, _)) = &policies.llm_provider {
 		llm
 			.setup_request(&mut req)
 			.map_err(ProxyError::Processing)?;
 	}
-	let (mut req, llm_request) = if let Some((llm, _)) = &policies.llm_provider {
+	let (mut req, llm_request) = if let Some((llm, _, tokenize)) = &policies.llm_provider {
 		let r = llm
-			.process_request(client, policies.llm.as_ref(), req, &mut log)
+			.process_request(client, policies.llm.as_ref(), req, *tokenize, &mut log)
 			.await
 			.map_err(|e| ProxyError::Processing(e.into()))?;
 		let (mut req, llm_request) = match r {
@@ -910,21 +911,21 @@ async fn make_backend_call(
 		a2a::apply_to_response(policies.a2a.as_ref(), a2a_type, &mut resp)
 			.await
 			.map_err(ProxyError::Processing)?;
-		let mut resp = if let (Some((llm, _)), Some(llm_request)) = (policies.llm_provider, llm_request)
-		{
-			llm
-				.process_response(
-					llm_request,
-					rate_limit,
-					llm_response_log.expect("must be set"),
-					include_completion_in_log,
-					resp,
-				)
-				.await
-				.map_err(|e| ProxyError::Processing(e.into()))?
-		} else {
-			resp
-		};
+		let mut resp =
+			if let (Some((llm, _, _)), Some(llm_request)) = (policies.llm_provider, llm_request) {
+				llm
+					.process_response(
+						llm_request,
+						rate_limit,
+						llm_response_log.expect("must be set"),
+						include_completion_in_log,
+						resp,
+					)
+					.await
+					.map_err(|e| ProxyError::Processing(e.into()))?
+			} else {
+				resp
+			};
 		maybe_inference.mutate_response(&mut resp).await?;
 		Ok(resp)
 	}))

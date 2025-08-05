@@ -506,16 +506,10 @@ impl Drop for DropOnLog {
 		let dur = format!("{}ms", log.start.elapsed().as_millis());
 		let grpc = log.grpc_status.load();
 
-		if let (Some(req), Some(resp)) = (log.llm_request.as_ref(), llm_response.as_ref()) {
-			if Some(req.input_tokens) != resp.input_tokens_from_response {
-				// TODO: remove this, just for dev
-				tracing::warn!("maybe bug: mismatch in tokens {req:?}, {resp:?}");
-			}
-		}
 		let input_tokens = llm_response
 			.as_ref()
 			.and_then(|t| t.input_tokens_from_response)
-			.or_else(|| log.llm_request.as_ref().map(|req| req.input_tokens));
+			.or_else(|| log.llm_request.as_ref().and_then(|req| req.input_tokens));
 
 		let mcp = log.mcp_status.take();
 

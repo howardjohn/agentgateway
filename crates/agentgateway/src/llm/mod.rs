@@ -42,6 +42,11 @@ pub mod vertex;
 pub struct AIBackend {
 	pub provider: AIProvider,
 	pub host_override: Option<Target>,
+	/// Whether to tokenize on the request flow. This enables us to do more accurate rate limits,
+	/// since we know (part of) the cost of the request upfront.
+	/// This comes with the cost of an expensive operation.
+	#[serde(default)]
+	pub tokenize: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -61,7 +66,8 @@ trait Provider {
 
 #[derive(Debug, Clone)]
 pub struct LLMRequest {
-	pub input_tokens: u64,
+	/// Input tokens derived by tokenizing the request. Not always enabled
+	pub input_tokens: Option<u64>,
 	pub request_model: Strng,
 	pub provider: Strng,
 	pub streaming: bool,
@@ -120,7 +126,7 @@ impl AIProvider {
 			a2a: None,
 			llm: None,
 			inference_routing: None,
-			llm_provider: Some((self.clone(), true)),
+			llm_provider: None,
 		};
 		match self {
 			AIProvider::OpenAI(_) => (Target::Hostname(openai::DEFAULT_HOST, 443), btls),
@@ -132,7 +138,7 @@ impl AIProvider {
 					a2a: None,
 					llm: None,
 					inference_routing: None,
-					llm_provider: Some((self.clone(), true)),
+					llm_provider: None,
 				};
 				(Target::Hostname(p.get_host(), 443), bp)
 			},
@@ -144,7 +150,7 @@ impl AIProvider {
 					a2a: None,
 					llm: None,
 					inference_routing: None,
-					llm_provider: Some((self.clone(), true)),
+					llm_provider: None,
 				};
 				(Target::Hostname(p.get_host(), 443), bp)
 			},
@@ -220,6 +226,7 @@ impl AIProvider {
 		client: client::Client,
 		policies: Option<&Policy>,
 		req: Request,
+		tokenize: bool,
 		mut log: &mut Option<&mut RequestLog>,
 	) -> (Result<RequestResult, AIError>) {
 		// Buffer the body, max 2mb
@@ -245,7 +252,7 @@ impl AIProvider {
 				return Ok(RequestResult::Rejected(dr));
 			}
 		}
-		let llm_info = self.to_llm_request(&req).await?;
+		let llm_info = self.to_llm_request(&req, tokenize).await?;
 		if let Some(log) = log {
 			let needs_prompt = log.cel.cel_context.with_llm_request(&llm_info);
 			if needs_prompt {
@@ -468,16 +475,24 @@ impl AIProvider {
 	pub async fn to_llm_request(
 		&self,
 		req: &universal::ChatCompletionRequest,
+		tokenize: bool,
 	) -> Result<LLMRequest, AIError> {
-		let req2 = req.clone(); // TODO: avoid clone, we need it for spawn_blocking though
-		let tokens = tokio::task::spawn_blocking(move || {
-			let res = num_tokens_from_messages(&req2.model, &req2.messages)?;
-			Ok::<_, AIError>(res)
-		})
-		.await??;
+		let input_tokens = if tokenize {
+			// TODO: avoid clone, we need it for spawn_blocking though
+			let msg = req.clone().messages.clone();
+			let model = req.clone().model.clone();
+			let tokens = tokio::task::spawn_blocking(move || {
+				let res = num_tokens_from_messages(&model, &msg)?;
+				Ok::<_, AIError>(res)
+			})
+			.await??;
+			Some(tokens)
+		} else {
+			None
+		};
 		// Pass the original body through
 		let llm = LLMRequest {
-			input_tokens: tokens,
+			input_tokens,
 			request_model: req.model.as_str().into(),
 			provider: self.provider(),
 			streaming: req.stream.unwrap_or_default(),
@@ -587,10 +602,17 @@ pub enum AIError {
 fn amend_tokens(rate_limit: &[RateLimit], llm_resp: &LLMResponse) {
 	for lrl in rate_limit {
 		let base = llm_resp.request.input_tokens;
-		let input_mismatch = llm_resp
-			.input_tokens_from_response
-			.map(|real| (real as i64) - (base as i64))
-			.unwrap_or_default();
+		let input_mismatch = match (
+			llm_resp.request.input_tokens,
+			llm_resp.input_tokens_from_response,
+		) {
+			// Already counted 'req'
+			(Some(req), Some(resp)) => (resp as i64) - (req as i64),
+			// No request or response count... this is probably an issue.
+			(_, None) => 0,
+			// No request counted, so count the full response
+			(_, Some(resp)) => resp as i64,
+		};
 		let response = llm_resp.output_tokens.unwrap_or_default();
 		let tokens_to_remove = input_mismatch + (response as i64);
 		lrl.amend_tokens(tokens_to_remove)

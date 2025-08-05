@@ -212,7 +212,7 @@ impl ContextBuilder {
 			o.total_tokens = info.total_tokens;
 			if let Some(pt) = info.input_tokens_from_response {
 				// Better info, override
-				o.input_tokens = pt;
+				o.input_tokens = Some(pt);
 			}
 			o.response_model = info.provider_model.clone();
 			// Not always set
@@ -362,7 +362,8 @@ pub struct LLMContext {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	response_model: Option<Strng>,
 	provider: Strng,
-	input_tokens: u64,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	input_tokens: Option<u64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	output_tokens: Option<u64>,
 	#[serde(skip_serializing_if = "Option::is_none")]

@@ -55,7 +55,8 @@ pub struct BackendPolicies {
 	pub backend_auth: Option<BackendAuth>,
 	pub a2a: Option<A2aPolicy>,
 	// bool represents "should use default settings for provider"
-	pub llm_provider: Option<(llm::AIProvider, bool)>,
+	// second bool represents "tokenize"
+	pub llm_provider: Option<(llm::AIProvider, bool, bool)>,
 	pub llm: Option<llm::Policy>,
 	pub inference_routing: Option<InferenceRouting>,
 }
