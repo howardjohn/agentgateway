@@ -136,9 +136,9 @@ impl ContextBuilder {
 		r.body = Some(body);
 	}
 	pub fn with_request(&mut self, req: &crate::http::Request) -> bool {
-		// if !self.attributes.contains(REQUEST_ATTRIBUTE) {
-		// 	return false;
-		// }
+		if !self.attributes.contains(REQUEST_ATTRIBUTE) {
+			return false;
+		}
 		self.context.request = Some(RequestContext {
 			method: req.method().clone(),
 			// TODO: split headers and the rest?
