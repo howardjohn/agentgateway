@@ -21,7 +21,9 @@ async fn classify_request(req: &mut Request<Body>) -> RequestType {
 	// Possible options are POST a JSON-RPC message or GET /.well-known/agent.json
 	// For agent card, we will process only on the response
 	match (req.method(), req.uri().path()) {
-		(m, "/.well-known/agent.json") if m == http::Method::GET => {
+		// agent-card.json: v0.3.0+
+		// agent.json: older versions
+		(m, "/.well-known/agent.json" | "/.well-known/agent-card.json") if m == http::Method::GET => {
 			// In case of rewrite, use the original so we know where to send them back to
 			let uri = req
 				.extensions()
@@ -77,9 +79,10 @@ pub async fn apply_to_response(
 			};
 			// Keep the original URL the found the agent at, but strip the agent card suffix.
 			// Note: this won't work in the case they are hosting their agent in other locations.
-			let new_uri = uri
-				.path()
-				.strip_suffix("/.well-known/agent.json")
+			let path = uri.path();
+			let path = path.strip_suffix("/.well-known/agent.json").unwrap_or(path);
+			let path = path.strip_suffix("/.well-known/agent-card.json");
+			let new_uri = path
 				.map(|p| uri.to_string().replace(uri.path(), p))
 				.unwrap_or(uri.to_string());
 
