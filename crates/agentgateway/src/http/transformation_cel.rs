@@ -149,8 +149,8 @@ where
 
 fn eval_header_value(exec: &Executor, expr: &Expression) -> anyhow::Result<HeaderValue> {
 	Ok(match exec.eval(expr) {
-		Ok(cel_interpreter::Value::String(b)) => HeaderValue::from_str(b.as_str())?,
-		Ok(cel_interpreter::Value::Bytes(b)) => HeaderValue::from_bytes(b.as_slice())?,
+		Ok(cel::Value::String(b)) => HeaderValue::from_str(b.as_str())?,
+		Ok(cel::Value::Bytes(b)) => HeaderValue::from_bytes(b.as_slice())?,
 		// Probably we could support this by parsing it
 		Ok(v) => anyhow::bail!("invalid response type: {v:?}"),
 		Err(e) => anyhow::bail!("invalid response: {}", e),

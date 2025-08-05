@@ -150,7 +150,7 @@ impl RemoteRateLimit {
 		for Descriptor(k, lookup) in entries {
 			// We drop the entire set if we cannot eval one
 			let value = exec.eval(lookup).ok()?;
-			let cel_interpreter::Value::String(value) = value else {
+			let cel::Value::String(value) = value else {
 				return None;
 			};
 			let entry = Entry {

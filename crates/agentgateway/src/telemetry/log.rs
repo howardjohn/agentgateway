@@ -208,7 +208,7 @@ impl<'a> CelLoggingExecutor<'a> {
 			}
 			let celv = field
 				.ok()
-				.filter(|v| !matches!(v, cel_interpreter::Value::Null));
+				.filter(|v| !matches!(v, cel::Value::Null));
 
 			// We return Option here to match the schema but don't bother adding None values since they
 			// will be dropped anyways

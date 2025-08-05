@@ -1,5 +1,5 @@
 use crate::cel::{ContextBuilder, Error, Expression};
-use cel_interpreter::Value;
+use cel::Value;
 use serde_json::json;
 
 fn eval(expr: &str) -> Result<Value, Error> {

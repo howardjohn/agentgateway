@@ -9,10 +9,11 @@ use std::sync::Arc;
 use agent_core::strng::Strng;
 use axum_core::body::Body;
 use bytes::Bytes;
-use cel_interpreter::extractors::{Arguments, This};
-use cel_interpreter::objects::{Key, Map, TryIntoValue, ValueType};
-use cel_interpreter::{Context, ExecutionError, FunctionContext, Program, ResolveResult};
-use cel_parser::{Expression as CelExpression, ParseError};
+use cel::ParseError;
+pub use cel::Value;
+use cel::extractors::{Arguments, This};
+use cel::objects::{Key, Map, TryIntoValue, ValueType};
+use cel::{Context, ExecutionError, FunctionContext, ParseErrors, Program, ResolveResult};
 use http::Request;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, Serializer};
@@ -26,7 +27,6 @@ use crate::telemetry::log::CelLogging;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 use crate::{json, llm};
 
-pub use cel_interpreter::Value;
 pub use functions::FLATTEN_LIST;
 pub use functions::FLATTEN_LIST_RECURSIVE;
 pub use functions::FLATTEN_MAP;
@@ -41,6 +41,8 @@ pub enum Error {
 	Resolve(#[from] ExecutionError),
 	#[error("parse: {0}")]
 	Parse(#[from] ParseError),
+	#[error("parse: {0}")]
+	Parses(#[from] ParseErrors),
 	#[error("variable: {0}")]
 	Variable(String),
 }
@@ -74,7 +76,7 @@ pub const ALL_ATTRIBUTES: &[&str] = &[
 
 pub struct Expression {
 	attributes: HashSet<String>,
-	expression: CelExpression,
+	expression: Program,
 	original_expression: String,
 }
 
@@ -136,9 +138,9 @@ impl ContextBuilder {
 		r.body = Some(body);
 	}
 	pub fn with_request(&mut self, req: &crate::http::Request) -> bool {
-		if !self.attributes.contains(REQUEST_ATTRIBUTE) {
-			return false;
-		}
+		// if !self.attributes.contains(REQUEST_ATTRIBUTE) {
+		// 	return false;
+		// }
 		self.context.request = Some(RequestContext {
 			method: req.method().clone(),
 			// TODO: split headers and the rest?
@@ -255,7 +257,7 @@ impl ContextBuilder {
 
 impl Executor<'_> {
 	pub fn eval(&self, expr: &Expression) -> Result<Value, Error> {
-		Ok(Value::resolve(&expr.expression, &self.ctx)?)
+		Ok(expr.expression.execute(&self.ctx)?)
 	}
 	pub fn eval_bool(&self, expr: &Expression) -> bool {
 		match self.eval(expr) {
@@ -271,10 +273,14 @@ pub struct Executor<'a> {
 impl Expression {
 	pub fn new(original_expression: impl Into<String>) -> Result<Self, Error> {
 		let original_expression = original_expression.into();
-		let expression = cel_parser::parse(&original_expression)?;
+		let expression = Program::compile(&original_expression)?;
 
-		let mut props = Vec::with_capacity(5);
-		properties(&expression, &mut props, &mut Vec::default());
+		let mut props: Vec<Vec<&str>> = Vec::with_capacity(5);
+		properties(
+			&expression.expression().expr,
+			&mut props,
+			&mut Vec::default(),
+		);
 
 		let include_all = expression.references().functions().contains(&"variables");
 		// For now we only look at the first level. We could be more precise
@@ -374,52 +380,62 @@ fn create_context<'a>() -> Context<'a> {
 	Context::default()
 }
 
-fn properties<'e>(exp: &'e CelExpression, all: &mut Vec<Vec<&'e str>>, path: &mut Vec<&'e str>) {
+fn properties<'e>(
+	exp: &'e cel::common::ast::Expr,
+	all: &mut Vec<Vec<&'e str>>,
+	path: &mut Vec<&'e str>,
+) {
+	use cel::common::ast::Expr::*;
+	eprintln!("{:#?}", exp);
 	match exp {
-		CelExpression::Arithmetic(e1, _, e2)
-		| CelExpression::Relation(e1, _, e2)
-		| CelExpression::Or(e1, e2)
-		| CelExpression::And(e1, e2) => {
-			properties(e1, all, path);
-			properties(e2, all, path);
-		},
-		CelExpression::Ternary(e1, e2, e3) => {
-			properties(e1, all, path);
-			properties(e2, all, path);
-			properties(e3, all, path);
-		},
-		CelExpression::Unary(_, e) => {
-			properties(e, all, path);
-		},
-		CelExpression::Member(e, a) => {
-			if let cel_parser::Member::Attribute(attr) = &**a {
-				path.insert(0, attr.as_str())
+		Unspecified => {},
+		Call(call) => {
+			if let Some(t) = &call.target {
+				properties(&t.expr, all, path)
 			}
-			properties(e, all, path);
-		},
-		CelExpression::FunctionCall(_, target, args) => {
-			// The attributes of the values returned by functions are skipped.
-			path.clear();
-			if let Some(target) = target {
-				properties(target, all, path);
-			}
-			for e in args {
-				properties(e, all, path);
+			for arg in &call.args {
+				properties(&arg.expr, all, path)
 			}
 		},
-		CelExpression::List(e) => {
-			for e in e {
-				properties(e, all, path);
+		Struct(e) => {},
+		Select(e) => {
+			path.insert(0, e.field.as_str());
+			properties(&e.operand.expr, all, path);
+		},
+		Comprehension(call) => {
+			properties(&call.iter_range.expr, all, path);
+		},
+		List(e) => {
+			for elem in &e.elements {
+				properties(&elem.expr, all, path);
 			}
 		},
-		CelExpression::Map(v) => {
-			for (e1, e2) in v {
-				properties(e1, all, path);
-				properties(e2, all, path);
+		Map(v) => {
+			for entry in &v.entries {
+				match &entry.expr {
+					cel::common::ast::EntryExpr::StructField(field) => {
+						properties(&field.value.expr, all, path);
+					},
+					cel::common::ast::EntryExpr::MapEntry(map_entry) => {
+						properties(&map_entry.value.expr, all, path);
+					},
+				}
 			}
 		},
-		CelExpression::Atom(_) => {},
-		CelExpression::Ident(v) => {
+		Struct(v) => {
+			for entry in &v.entries {
+				match &entry.expr {
+					cel::common::ast::EntryExpr::StructField(field) => {
+						properties(&field.value.expr, all, path);
+					},
+					cel::common::ast::EntryExpr::MapEntry(map_entry) => {
+						properties(&map_entry.value.expr, all, path);
+					},
+				}
+			}
+		},
+		Literal(_) => {},
+		Ident(v) => {
 			path.insert(0, v.as_str());
 			all.push(path.clone());
 			path.clear();
@@ -505,7 +521,7 @@ fn opt_to_value<S: Serialize>(v: &Option<S>) -> Result<Value, Error> {
 }
 
 fn to_value(v: impl Serialize) -> Result<Value, Error> {
-	cel_interpreter::to_value(v).map_err(|e| Error::Variable(e.to_string()))
+	cel::to_value(v).map_err(|e| Error::Variable(e.to_string()))
 }
 
 #[cfg(any(test, feature = "internal_benches"))]

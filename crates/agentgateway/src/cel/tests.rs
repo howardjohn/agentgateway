@@ -189,9 +189,9 @@ fn bench(b: Bencher) {
 #[test]
 fn test_properties() {
 	let test = |e: &str, want: &[&str]| {
-		let p = cel_parser::parse(e).unwrap();
+		let p = Program::compile(e).unwrap();
 		let mut props = Vec::with_capacity(5);
-		properties(&p, &mut props, &mut Vec::default());
+		properties(&p.expression().expr, &mut props, &mut Vec::default());
 		let want = HashSet::from_iter(want.iter().map(|s| s.to_string()));
 		let got = props
 			.into_iter()
@@ -204,6 +204,7 @@ fn test_properties() {
 	test(r#"foo["bar"]"#, &["foo"]);
 	test(r#"foo.baz["bar"]"#, &["foo.baz"]);
 	// This is not quite right but maybe good enough.
+	test(r#"foo.with(x, x.body)"#, &["foo", "x", "x.body"]);
 	test(r#"foo.map(x, x.body)"#, &["foo", "x", "x.body"]);
 
 	test(r#"fn(bar.baz)"#, &["bar.baz"]);
