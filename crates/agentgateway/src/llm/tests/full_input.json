@@ -38,6 +38,7 @@
     "type": "json_object"
   },
   "seed": 42,
+  "tool_choice": {"type": "function", "function": {"name": "my_function"}},
   "tools": [
     {
       "type": "function",
@@ -61,7 +62,6 @@
       }
     }
   ],
-  "tool_choice": "auto",
   "functions": [
     {
       "name": "calculate_fibonacci",

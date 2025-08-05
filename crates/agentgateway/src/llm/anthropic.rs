@@ -275,6 +275,32 @@ pub(super) fn translate_request(req: ChatCompletionRequest) -> types::MessagesRe
 		})
 		.collect();
 
+	let tools = if let Some(tools) = req.tools {
+		let mapped_tools: Vec<_> = tools
+			.iter()
+			.map(|tool| types::Tool {
+				name: tool.function.name.clone(),
+				description: tool.function.description.clone(),
+				input_schema: tool.function.parameters.clone().unwrap_or_default(),
+			})
+			.collect();
+		Some(mapped_tools)
+	} else {
+		None
+	};
+	let metadata = req.user.map(|user| types::Metadata {
+		fields: HashMap::from([("user_id".to_string(), user)]),
+	});
+
+	let tool_choice = match req.tool_choice {
+		Some(universal::ToolChoiceType::ToolChoice { r#type, function }) => Some(types::ToolChoice::Tool {
+			name: function.name,
+		}),
+		Some(universal::ToolChoiceType::Auto) => Some(types::ToolChoice::Auto),
+		Some(universal::ToolChoiceType::Required) => Some(types::ToolChoice::Any),
+		Some(universal::ToolChoiceType::None) => Some(types::ToolChoice::None),
+		None => None,
+	};
 	types::MessagesRequest {
 		messages,
 		system,
@@ -285,6 +311,9 @@ pub(super) fn translate_request(req: ChatCompletionRequest) -> types::MessagesRe
 		temperature: req.temperature,
 		top_p: req.top_p,
 		top_k: None, // OpenAI doesn't have top_k
+		tools,
+		tool_choice,
+		metadata,
 	}
 }
 
@@ -321,7 +350,7 @@ pub(super) mod types {
 		pub content: Vec<ContentBlock>,
 	}
 
-	#[derive(Clone, Serialize, Default, Debug, PartialEq)]
+	#[derive(Serialize, Default, Debug)]
 	pub struct MessagesRequest {
 		/// The User/Assistent prompts.
 		pub messages: Vec<Message>,
@@ -358,6 +387,15 @@ pub(super) mod types {
 		/// Recommended for advanced use cases only. You usually only need to use temperature.
 		#[serde(skip_serializing_if = "Option::is_none")]
 		pub top_k: Option<usize>,
+		/// Tools that the model may use
+		#[serde(skip_serializing_if = "Option::is_none")]
+		pub tools: Option<Vec<Tool>>,
+		/// How the model should use tools
+		#[serde(skip_serializing_if = "Option::is_none")]
+		pub tool_choice: Option<ToolChoice>,
+		/// Request metadata
+		#[serde(skip_serializing_if = "Option::is_none")]
+		pub metadata: Option<Metadata>,
 	}
 
 	/// Response body for the Messages API.
@@ -508,5 +546,57 @@ pub(super) mod types {
 
 		/// The number of output tokens which were used.
 		pub output_tokens: usize,
+	}
+
+	/// Tool definition
+	#[derive(Debug, Serialize, Deserialize)]
+	pub struct Tool {
+		/// Name of the tool
+		pub name: String,
+		/// Description of the tool
+		#[serde(skip_serializing_if = "Option::is_none")]
+		pub description: Option<String>,
+		/// JSON schema for tool input
+		pub input_schema: serde_json::Value,
+	}
+
+	/// Tool choice configuration
+	#[derive(Debug, Serialize, Deserialize)]
+	#[serde(tag = "type")]
+	pub enum ToolChoice {
+		/// Let model choose whether to use tools
+		#[serde(rename = "auto")]
+		Auto,
+		/// Model must use one of the provided tools
+		#[serde(rename = "any")]
+		Any,
+		/// Model must use a specific tool
+		#[serde(rename = "tool")]
+		Tool { name: String },
+		/// Model must not use any tools
+		#[serde(rename = "none")]
+		None,
+	}
+
+	/// Configuration for extended thinking
+	#[derive(Debug, Deserialize, Serialize)]
+	pub struct Thinking {
+		/// Must be at least 1024 tokens
+		pub budget_tokens: usize,
+		#[serde(rename = "type")]
+		pub type_: ThinkingType,
+	}
+
+	#[derive(Debug, Deserialize, Serialize)]
+	pub enum ThinkingType {
+		#[serde(rename = "enabled")]
+		Enabled,
+	}
+	/// Message metadata
+	#[derive(Debug, Serialize, Deserialize, Default)]
+	pub struct Metadata {
+		/// Custom metadata fields
+		#[serde(flatten)]
+		pub fields: std::collections::HashMap<String, String>,
 	}
 }

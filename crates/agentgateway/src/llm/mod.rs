@@ -660,12 +660,15 @@ mod universal {
 	use serde_json::Value;
 
 	#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-	#[serde(rename_all = "snake_case")]
+	#[serde(rename_all = "snake_case", untagged)]
 	pub enum ToolChoiceType {
 		None,
 		Auto,
 		Required,
-		ToolChoice { tool: Tool },
+		ToolChoice {
+			r#type: ToolType,
+			function: Function,
+		},
 	}
 
 	#[derive(Debug, Serialize, Deserialize, Clone)]
@@ -975,10 +978,10 @@ mod universal {
 			Some(ToolChoiceType::None) => serializer.serialize_str("none"),
 			Some(ToolChoiceType::Auto) => serializer.serialize_str("auto"),
 			Some(ToolChoiceType::Required) => serializer.serialize_str("required"),
-			Some(ToolChoiceType::ToolChoice { tool }) => {
+			Some(ToolChoiceType::ToolChoice { r#type, function }) => {
 				let mut map = serializer.serialize_map(Some(2))?;
-				map.serialize_entry("type", &tool.r#type)?;
-				map.serialize_entry("function", &tool.function)?;
+				map.serialize_entry("type", &r#type)?;
+				map.serialize_entry("function", &function)?;
 				map.end()
 			},
 			None => serializer.serialize_none(),
@@ -1009,17 +1012,8 @@ mod universal {
 		pub name: String,
 		#[serde(skip_serializing_if = "Option::is_none")]
 		pub description: Option<String>,
-		pub parameters: FunctionParameters,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-	pub struct FunctionParameters {
-		#[serde(rename = "type")]
-		pub schema_type: JSONSchemaType,
 		#[serde(skip_serializing_if = "Option::is_none")]
-		pub properties: Option<HashMap<String, Box<JSONSchemaDefine>>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub required: Option<Vec<String>>,
+		pub parameters: Option<serde_json::Value>,
 	}
 
 	#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
