@@ -92,9 +92,7 @@ async fn apply_request_policies(
 	}
 
 	for lrl in &policies.local_rate_limit {
-		if !lrl.check_request(req) {
-			return Err(ProxyError::RateLimitExceeded);
-		}
+		lrl.check_request(req)?;
 	}
 	let exec = log
 		.cel
@@ -107,6 +105,9 @@ async fn apply_request_policies(
 		http::PolicyResponse::default()
 	};
 	let policy_resp = ext_auth.merge(lrl);
+	if policy_resp.should_short_circuit() {
+		return Ok(policy_resp);
+	}
 
 	if let Some(j) = &policies.transformation {
 		j.apply_request(req, &exec)
@@ -121,9 +122,7 @@ fn apply_llm_request_policies(
 	req: &LLMRequest,
 ) -> Result<(), ProxyError> {
 	for lrl in &policies.local_rate_limit {
-		if !lrl.check_llm_request(req) {
-			return Err(ProxyError::RateLimitExceeded);
-		}
+		lrl.check_llm_request(req)?;
 	}
 	Ok(())
 }

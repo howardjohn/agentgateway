@@ -3,6 +3,7 @@ use serde::ser::SerializeMap;
 
 use crate::http::Request;
 use crate::llm::LLMRequest;
+use crate::proxy::ProxyError;
 use crate::types::agent::{HostRedirect, PathRedirect};
 use crate::*;
 
@@ -76,25 +77,50 @@ impl TryFrom<RateLimitSerde> for RateLimit {
 }
 
 impl RateLimit {
-	pub fn check_request(&self, req: &Request) -> bool {
+	pub fn check_request(&self, req: &Request) -> Result<(), ProxyError> {
 		if self.limit_type != RateLimitType::Requests {
-			return true;
+			return Ok(());
 		}
-		self.ratelimit.try_wait().is_ok()
+		// TODO: return headers on success, not just failure
+		self
+			.ratelimit
+			.try_wait()
+			.map_err(|(limit, remaining, reset)| ProxyError::RateLimitExceeded {
+				limit,
+				remaining,
+				reset_seconds: reset.as_secs(),
+			})
 	}
 
-	pub fn check_llm_request(&self, req: &LLMRequest) -> bool {
+	pub fn check_llm_request(&self, req: &LLMRequest) -> Result<(), ProxyError> {
 		if self.limit_type != RateLimitType::Tokens {
-			return true;
+			return Ok(());
 		}
 		if let Some(it) = req.input_tokens {
 			// If we tokenized the request, check to make sure we permit that many tokens
 			// We will add the response tokens in `amend_tokens`
-			self.ratelimit.try_wait_n(it).is_ok()
+			self
+				.ratelimit
+				.try_wait_n(it)
+				.map_err(|(limit, remaining, reset)| ProxyError::RateLimitExceeded {
+					limit,
+					remaining,
+					reset_seconds: reset.as_secs(),
+				})
 		} else {
 			// Otherwise, make sure at least 1 token is allowed.
 			// Note this may lead to large over-allowance, especially with fast fill_intervals.
-			self.ratelimit.available_refill() > 0
+			let avail = self.ratelimit.available_refill();
+			if avail > 0 {
+				Ok(())
+			} else {
+				Err(ProxyError::RateLimitExceeded {
+					limit: self.ratelimit.max_tokens(),
+					remaining: avail,
+					reset_seconds: (self.ratelimit.next_refill() - clocksource::precise::Instant::now())
+						.as_secs(),
+				})
+			}
 		}
 	}
 
@@ -283,16 +309,20 @@ mod ratelimit {
 		/// Non-blocking function to "wait" for a single token. On success, a single
 		/// token has been acquired. On failure, a `Duration` hinting at when the
 		/// next refill would occur is returned.
-		pub fn try_wait(&self) -> Result<(), core::time::Duration> {
+		pub fn try_wait(&self) -> Result<(), (u64, u64, core::time::Duration)> {
 			self.try_wait_n(1)
 		}
 
 		/// Non-blocking function to "wait" for multiple tokens. On success, all requested
 		/// tokens have been acquired. On failure, a `Duration` hinting at when the
 		/// next refill would occur is returned. Either all tokens are acquired or none.
-		pub fn try_wait_n(&self, n: u64) -> Result<(), core::time::Duration> {
+		pub fn try_wait_n(&self, n: u64) -> Result<(), (u64, u64, core::time::Duration)> {
 			if n == 0 || n > self.parameters.capacity {
-				return Err(core::time::Duration::from_nanos(0));
+				return Err((
+					self.parameters.capacity,
+					self.available.load(Ordering::Acquire),
+					core::time::Duration::from_nanos(0),
+				));
 			}
 
 			// We have an outer loop that drives the refilling of the token bucket.
@@ -327,7 +357,7 @@ mod ratelimit {
 								// Refill failed and there weren't enough tokens already
 								// available. We return the error which contains a
 								// duration until the next refill.
-								return Err(e);
+								return Err((self.parameters.capacity, available, e));
 							},
 						}
 					}

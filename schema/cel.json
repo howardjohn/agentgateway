@@ -99,7 +99,10 @@
           "type": "string"
         },
         "input_tokens": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "format": "uint64",
           "minimum": 0
         },
@@ -201,7 +204,6 @@
         "streaming",
         "request_model",
         "provider",
-        "input_tokens",
         "params"
       ]
     },

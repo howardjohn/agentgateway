@@ -601,7 +601,6 @@ pub enum AIError {
 
 fn amend_tokens(rate_limit: &[RateLimit], llm_resp: &LLMResponse) {
 	for lrl in rate_limit {
-		let base = llm_resp.request.input_tokens;
 		let input_mismatch = match (
 			llm_resp.request.input_tokens,
 			llm_resp.input_tokens_from_response,

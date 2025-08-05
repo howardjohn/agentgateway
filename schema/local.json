@@ -1978,6 +1978,11 @@
                                         "string",
                                         "null"
                                       ]
+                                    },
+                                    "tokenize": {
+                                      "description": "Whether to tokenize on the request flow. This enables us to do more accurate rate limits,\nsince we know (part of) the cost of the request upfront.\nThis comes with the cost of an expensive operation.",
+                                      "type": "boolean",
+                                      "default": false
                                     }
                                   },
                                   "required": [
