@@ -719,7 +719,10 @@ pub struct GetTaskPushNotificationConfigParams {
 	pub id: String,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
-	#[serde(rename = "pushNotificationConfigId", skip_serializing_if = "Option::is_none")]
+	#[serde(
+		rename = "pushNotificationConfigId",
+		skip_serializing_if = "Option::is_none"
+	)]
 	pub push_notification_config_id: Option<String>,
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
