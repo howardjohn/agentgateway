@@ -333,8 +333,9 @@ impl UpstreamTarget {
 					.call_tool(request.name.as_ref(), request.arguments)
 					.await?;
 				Ok(CallToolResult {
-					content: vec![Content::text(res)],
+					content: Some(vec![Content::text(res)]),
 					is_error: None,
+					structured_content: None,
 				})
 			},
 		}

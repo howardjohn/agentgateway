@@ -61,7 +61,7 @@ futures = "0.3"
 futures-channel = "0.3"
 futures-core = "0.3"
 futures-util = "0.3"
-google-cloud-auth = "0.21"
+google-cloud-auth = "0.22.2"
 h2 = "0.4"
 headers = "0.4"
 hex = "0.4"
@@ -83,7 +83,7 @@ lazy_static = "1.4"
 libc = "0.2"
 minijinja = { version = "2.10", features = ["loader"] }
 notify = "8.0"
-notify-debouncer-full = "0.5"
+notify-debouncer-full = "0.6.0"
 num_cpus = "1.17"
 once_cell = "1.21"
 openapiv3 = "2.2"
@@ -116,8 +116,7 @@ reqwest = { version = "0.12", default-features = false, features = [
     "rustls-tls",
 ] }
 # Use release version once 0.3.2 comes out
-#rmcp = { version = "0.3", features = [
-rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", rev = "0a9a0a0b1f234bd296459fc98b41fd6215c8e3a9", features = [
+rmcp = { version = "0.4", features = [
     "client",
     "transport-sse-server",
     "transport-sse-client",

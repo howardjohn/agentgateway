@@ -400,9 +400,9 @@ pub(crate) fn parse_openapi_schema(
 										.to_string(),
 								)),
 								input_schema: Arc::new(final_json),
+								output_schema: None, // TODO
 							};
 							let upstream = UpstreamOpenAPICall {
-								// method: Method::from_bytes(method.as_ref()).expect("todo"),
 								method: method.to_string(),
 								path: path.clone(),
 							};

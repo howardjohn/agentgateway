@@ -502,6 +502,7 @@ impl ServerHandler for Relay {
 								name: Cow::Owned(self.resource_name(_name.as_str(), &t.name)),
 								description: t.description,
 								input_schema: t.input_schema,
+								output_schema: t.output_schema,
 							})
 							.collect::<Vec<_>>(),
 					),
