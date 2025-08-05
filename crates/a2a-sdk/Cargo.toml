@@ -1,8 +1,8 @@
 [package]
 name = "a2a-sdk"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2024"
-description = "Unofficial Google A2A SDK"
+description = "Unofficial Google A2A SDK. Currently supports v0.3.0 of the specification."
 license = "MIT"
 repository = "https://github.com/agentgateway/agentgateway"
 homepage = "http://a2aproject.github.io/A2A/"

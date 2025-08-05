@@ -30,7 +30,7 @@ license = "Apache-2.0"
 publish = false
 
 [workspace.dependencies]
-a2a-sdk = { version = "0.6.1", path = "crates/a2a-sdk" }
+a2a-sdk = { version = "0.7.0", path = "crates/a2a-sdk" }
 agent-core = { path = "crates/core" }
 agent-hbone = { path = "crates/hbone" }
 agent-xds = { path = "crates/xds" }

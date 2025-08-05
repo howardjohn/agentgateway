@@ -76,6 +76,7 @@ pub enum A2aRequest {
 	TaskResubscriptionRequest(TaskResubscriptionRequest),
 	ListTaskPushNotificationConfigRequest(ListTaskPushNotificationConfigRequest),
 	DeleteTaskPushNotificationConfigRequest(DeleteTaskPushNotificationConfigRequest),
+	GetAuthenticatedExtendedCardRequest(GetAuthenticatedExtendedCardRequest),
 }
 
 impl A2aRequest {
@@ -95,6 +96,7 @@ impl A2aRequest {
 			A2aRequest::TaskResubscriptionRequest(i) => i.method.as_string(),
 			A2aRequest::ListTaskPushNotificationConfigRequest(i) => i.method.as_string(),
 			A2aRequest::DeleteTaskPushNotificationConfigRequest(i) => i.method.as_string(),
+			A2aRequest::GetAuthenticatedExtendedCardRequest(i) => i.method.as_string(),
 		}
 	}
 }
@@ -216,6 +218,8 @@ pub struct AgentCard {
 		skip_serializing_if = "std::collections::HashMap::is_empty"
 	)]
 	pub security_schemes: std::collections::HashMap<String, SecurityScheme>,
+	#[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+	pub signatures: ::std::vec::Vec<AgentCardSignature>,
 	pub skills: Vec<AgentSkill>,
 	#[serde(
 		rename = "supportsAuthenticatedExtendedCard",
@@ -227,6 +231,13 @@ pub struct AgentCard {
 	pub version: String,
 }
 
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct AgentCardSignature {
+	#[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+	pub header: serde_json::Map<String, serde_json::Value>,
+	pub protected: String,
+	pub signature: String,
+}
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct AgentProvider {
 	pub organization: String,
@@ -400,6 +411,8 @@ pub struct AgentSkill {
 	pub input_modes: Vec<String>,
 	#[serde(rename = "outputModes", default, skip_serializing_if = "Vec::is_empty")]
 	pub output_modes: Vec<String>,
+	#[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+	pub security: Vec<std::collections::HashMap<String, Vec<String>>>,
 	pub tags: Vec<String>,
 }
 
@@ -610,7 +623,7 @@ pub type SetTaskPushNotificationConfigRequest =
 
 const_string!(GetTaskPushNotificationConfigRequestMethod = "tasks/pushNotificationConfig/get");
 pub type GetTaskPushNotificationConfigRequest =
-	Request<GetTaskPushNotificationConfigRequestMethod, TaskIdParams>;
+	Request<GetTaskPushNotificationConfigRequestMethod, GetTaskPushNotificationConfigParams>;
 
 const_string!(TaskResubscriptionRequestMethod = "tasks/resubscribe");
 pub type TaskResubscriptionRequest = Request<TaskResubscriptionRequestMethod, TaskIdParams>;
@@ -623,7 +636,11 @@ const_string!(
 	DeleteTaskPushNotificationConfigRequestMethod = "tasks/pushNotificationConfig/delete"
 );
 pub type DeleteTaskPushNotificationConfigRequest =
-	Request<DeleteTaskPushNotificationConfigRequestMethod, TaskIdParams>;
+	Request<DeleteTaskPushNotificationConfigRequestMethod, DeleteTaskPushNotificationConfigParams>;
+
+const_string!(GetAuthenticatedExtendedCardRequestMethod = "agent/getAuthenticatedExtendedCard");
+pub type GetAuthenticatedExtendedCardRequest =
+	Request<GetAuthenticatedExtendedCardRequestMethod, ()>;
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 #[serde(untagged)]
@@ -672,6 +689,22 @@ pub struct TaskIdParams {
 	pub id: String,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
+}
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct DeleteTaskPushNotificationConfigParams {
+	pub id: String,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
+	#[serde(rename = "pushNotificationConfigId")]
+	pub push_notification_config_id: String,
+}
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct GetTaskPushNotificationConfigParams {
+	pub id: String,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
+	#[serde(rename = "pushNotificationConfigId", skip_serializing_if = "Option::is_none")]
+	pub push_notification_config_id: Option<String>,
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct TaskNotCancelableError {
