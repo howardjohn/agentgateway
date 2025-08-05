@@ -273,6 +273,8 @@ pub enum SecurityScheme {
 	OAuth2(Box<OAuth2SecurityScheme>),
 	#[serde(rename = "openIdConnect")]
 	OpenIdConnect(OpenIdConnectSecurityScheme),
+	#[serde(rename = "mutualTLS")]
+	MutualTlsSecurityScheme(MutualTlsSecurityScheme),
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
@@ -312,6 +314,12 @@ pub struct OAuth2SecurityScheme {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub description: Option<String>,
 	pub flows: OAuthFlows,
+	#[serde(
+		rename = "oauth2MetadataUrl",
+		default,
+		skip_serializing_if = "::std::option::Option::is_none"
+	)]
+	pub oauth2_metadata_url: Option<String>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
@@ -394,6 +402,14 @@ pub struct OpenIdConnectSecurityScheme {
 	pub description: Option<String>,
 	#[serde(rename = "openIdConnectUrl")]
 	pub open_id_connect_url: String,
+	#[serde(rename = "type")]
+	pub type_: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct MutualTlsSecurityScheme {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub description: Option<String>,
 	#[serde(rename = "type")]
 	pub type_: String,
 }
