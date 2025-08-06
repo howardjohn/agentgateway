@@ -14,10 +14,12 @@ fn test_response<T: DeserializeOwned>(
 
 	// Read input JSON
 	let input_path = test_dir.join(format!("{test_name}.json"));
-	let provider_str = &fs::read_to_string(&input_path).expect("Failed to read input file");
-	let provider_raw: Value =
-		serde_json::from_str(provider_str).expect("Failed to parse provider json");
-	let provider: T = serde_json::from_str(provider_str).expect("Failed to parse provider JSON");
+	let provider_str = &fs::read_to_string(&input_path)
+		.unwrap_or_else(|_| panic!("{test_name}: Failed to read input file"));
+	let provider_raw: Value = serde_json_path_to_error::from_str(provider_str)
+		.unwrap_or_else(|_| panic!("{test_name}: Failed to parse provider json"));
+	let provider: T = serde_json_path_to_error::from_str(provider_str)
+		.unwrap_or_else(|_| panic!("{test_name}: Failed to parse provider JSON"));
 
 	let openai_response =
 		xlate(provider).expect("Failed to translate provider response to OpenAI format");
@@ -88,6 +90,7 @@ fn test_bedrock() {
 fn test_anthropic() {
 	let response = |i| Ok(anthropic::translate_response(i));
 	test_response::<anthropic::types::MessagesResponse>("basic_anthropic", response);
+	test_response::<anthropic::types::MessagesResponse>("anthropic_tool_result", response);
 
 	let request = |i| Ok(anthropic::translate_request(i));
 	test_request("anthropic", "basic_input", request);

@@ -8,7 +8,8 @@ use serde_json::Value;
 
 use crate::http::Response;
 use crate::llm::anthropic::types::{
-	ContentBlockDelta, MessagesErrorResponse, MessagesRequest, MessagesResponse, MessagesStreamEvent,
+	ContentBlock, ContentBlockDelta, MessagesErrorResponse, MessagesRequest, MessagesResponse,
+	MessagesStreamEvent, StopReason,
 };
 use crate::llm::universal::{ChatCompletionChoiceStream, ChatCompletionRequest, Usage};
 use crate::llm::{AIError, LLMRequest, LLMResponse, universal};
@@ -112,9 +113,11 @@ impl Provider {
 						},
 						MessagesStreamEvent::MessageDelta { usage, delta } => {
 							finish_reason = delta.stop_reason.map(|reason| match reason {
-								types::StopReason::EndTurn => universal::FinishReason::stop,
-								types::StopReason::MaxTokens => universal::FinishReason::length,
-								types::StopReason::StopSequence => universal::FinishReason::stop,
+								StopReason::EndTurn => universal::FinishReason::stop,
+								StopReason::MaxTokens => universal::FinishReason::length,
+								StopReason::StopSequence => universal::FinishReason::stop,
+								StopReason::ToolUse => universal::FinishReason::tool_calls,
+								StopReason::Refusal => universal::FinishReason::content_filter,
 							});
 							log.non_atomic_mutate(|r| {
 								r.output_tokens = Some(usage.output_tokens as u64);
@@ -167,35 +170,56 @@ pub(super) fn translate_error(
 
 pub(super) fn translate_response(resp: MessagesResponse) -> universal::ChatCompletionResponse {
 	// Convert Anthropic content blocks to OpenAI message content
-	let choices = resp
-		.content
-		.iter()
-		.filter_map(|block| {
-			let text = match block {
-				types::ContentBlock::Text { text } => Some(text.clone()),
-				types::ContentBlock::Image { .. } => return None, // Skip images in response for now
-			};
-			let message = universal::ChatCompletionMessageForResponse {
-				role: universal::MessageRole::assistant,
-				content: text,
-				tool_calls: None,
-			};
-			let finish_reason = resp.stop_reason.map(|reason| match reason {
-				types::StopReason::EndTurn => universal::FinishReason::stop,
-				types::StopReason::MaxTokens => universal::FinishReason::length,
-				types::StopReason::StopSequence => universal::FinishReason::stop,
-			});
-			// Only one choice for anthropic
-			let choice = universal::ChatCompletionChoice {
-				index: 0,
-				message,
-				finish_reason,
-				finish_details: None,
-			};
-			Some(choice)
-		})
-		.collect::<Vec<_>>();
+	let mut tool_calls: Vec<universal::ToolCall> = Vec::new();
+	let mut content = None;
+	for block in resp.content {
+		match block {
+			types::ContentBlock::Text { text } => content = Some(text.clone()),
+			types::ContentBlock::Image { .. } => continue, // Skip images in response for now
+			ContentBlock::ToolUse { id, name, input } => {
+				let Some(args) = serde_json::to_string(&input).ok() else {
+					continue;
+				};
+				tool_calls.push(universal::ToolCall {
+					id: id.clone(),
+					r#type: universal::ToolType::Function,
+					function: universal::ToolCallFunction {
+						name: name.clone(),
+						arguments: args,
+					},
+				});
+			},
+			ContentBlock::ToolResult { .. } => {
+				// Should be on the request path, not the response path
+				continue;
+			},
+		}
+	}
+	let message = universal::ChatCompletionMessageForResponse {
+		role: universal::MessageRole::assistant,
+		content,
+		tool_calls: if tool_calls.is_empty() {
+			None
+		} else {
+			Some(tool_calls)
+		},
+	};
+	let finish_reason = resp.stop_reason.map(|reason| match reason {
+		StopReason::EndTurn => universal::FinishReason::stop,
+		StopReason::MaxTokens => universal::FinishReason::length,
+		StopReason::StopSequence => universal::FinishReason::stop,
+		StopReason::ToolUse => universal::FinishReason::tool_calls,
+		StopReason::Refusal => universal::FinishReason::content_filter,
+	});
+	// Only one choice for anthropic
+	let choice = universal::ChatCompletionChoice {
+		index: 0,
+		message,
+		finish_reason,
+		finish_details: None,
+	};
 
+	let choices = vec![choice];
 	// Convert usage from Anthropic format to OpenAI format
 	let usage = universal::Usage {
 		prompt_tokens: resp.usage.input_tokens as i32,
@@ -340,6 +364,19 @@ pub(super) mod types {
 			source: String,
 			media_type: String,
 			data: String,
+		},
+		/// Tool use content
+		#[serde(rename = "tool_use")]
+		ToolUse {
+			id: String,
+			name: String,
+			input: serde_json::Value,
+		},
+		/// Tool result content
+		#[serde(rename = "tool_result")]
+		ToolResult {
+			tool_use_id: String,
+			content: String,
 		},
 	}
 
@@ -536,6 +573,8 @@ pub(super) mod types {
 		MaxTokens,
 		/// One of the provided custom stop_sequences was generated.
 		StopSequence,
+		ToolUse,
+		Refusal,
 	}
 
 	/// Billing and rate-limit usage.

@@ -112,7 +112,7 @@ pub(super) fn translate_response(
 	let mut tool_calls: Vec<universal::ToolCall> = Vec::new();
 	let mut content = None;
 	for block in &message.content {
-		let text = match block {
+		match block {
 			types::ContentBlock::Text(text) => {
 				content = Some(text.clone());
 			},
@@ -161,7 +161,6 @@ pub(super) fn translate_response(
 		finish_reason,
 		finish_details: None,
 	};
-	// Only 1 choice
 	let choices = vec![choice];
 
 	// Convert usage from Bedrock format to OpenAI format
