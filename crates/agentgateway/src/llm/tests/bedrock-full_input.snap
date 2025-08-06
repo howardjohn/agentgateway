@@ -32,6 +32,10 @@ info:
   response_format:
     type: json_object
   seed: 42
+  tool_choice:
+    type: function
+    function:
+      name: my_function
   tools:
     - type: function
       function:
@@ -50,7 +54,6 @@ info:
                 - fahrenheit
           required:
             - location
-  tool_choice: auto
   functions:
     - name: calculate_fibonacci
       description: Calculate the nth Fibonacci number using an optimized algorithm
@@ -107,5 +110,44 @@ info:
       "\n\n",
       "END"
     ]
+  },
+  "toolConfig": {
+    "tools": [
+      {
+        "toolSpec": {
+          "name": "get_weather",
+          "description": "Get the current weather in a given location",
+          "inputSchema": {
+            "json": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string",
+                  "description": "The city and state, e.g. San Francisco, CA"
+                },
+                "unit": {
+                  "type": "string",
+                  "enum": [
+                    "celsius",
+                    "fahrenheit"
+                  ]
+                }
+              },
+              "required": [
+                "location"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "tool_choice": {
+      "tool": {
+        "name": "my_function"
+      }
+    }
+  },
+  "requestMetadata": {
+    "user_id": "user_12345"
   }
 }

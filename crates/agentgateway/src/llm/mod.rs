@@ -654,6 +654,7 @@ mod universal {
 	use std::collections::HashMap;
 	use std::fmt;
 
+	use crate::llm::universal;
 	use serde::de::{self, MapAccess, SeqAccess, Visitor};
 	use serde::ser::SerializeMap;
 	use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -859,10 +860,6 @@ mod universal {
 		#[serde(skip_serializing_if = "Option::is_none")]
 		pub content: Option<String>,
 		#[serde(skip_serializing_if = "Option::is_none")]
-		pub reasoning_content: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub name: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
 		pub tool_calls: Option<Vec<ToolCall>>,
 	}
 
@@ -955,16 +952,14 @@ mod universal {
 	#[derive(Debug, Deserialize, Serialize, Clone)]
 	pub struct ToolCall {
 		pub id: String,
-		pub r#type: String,
+		pub r#type: ToolType,
 		pub function: ToolCallFunction,
 	}
 
 	#[derive(Debug, Deserialize, Serialize, Clone)]
 	pub struct ToolCallFunction {
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub name: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub arguments: Option<String>,
+		pub name: String,
+		pub arguments: String,
 	}
 
 	fn serialize_tool_choice<S>(

@@ -71,6 +71,7 @@ fn test_request<T: Serialize>(
 fn test_bedrock() {
 	let response = |i| bedrock::translate_response(i, &strng::new("fake-model"));
 	test_response::<bedrock::types::ConverseResponse>("basic_bedrock", response);
+	test_response::<bedrock::types::ConverseResponse>("tool_bedrock", response);
 	let provider = bedrock::Provider {
 		model: Some(strng::new("test-model")),
 		region: strng::new("us-east-1"),
@@ -80,6 +81,7 @@ fn test_bedrock() {
 	let request = |i| Ok(bedrock::translate_request(i, &provider));
 	test_request("bedrock", "basic_input", request);
 	test_request("bedrock", "full_input", request);
+	test_request("bedrock", "tool_call_input", request);
 }
 
 #[test]
@@ -90,4 +92,5 @@ fn test_anthropic() {
 	let request = |i| Ok(anthropic::translate_request(i));
 	test_request("anthropic", "basic_input", request);
 	test_request("anthropic", "full_input", request);
+	test_request("anthropic", "tool_call_input", request);
 }

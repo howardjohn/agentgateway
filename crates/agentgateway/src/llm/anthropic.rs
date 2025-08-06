@@ -178,8 +178,6 @@ pub(super) fn translate_response(resp: MessagesResponse) -> universal::ChatCompl
 			let message = universal::ChatCompletionMessageForResponse {
 				role: universal::MessageRole::assistant,
 				content: text,
-				reasoning_content: None,
-				name: None,
 				tool_calls: None,
 			};
 			let finish_reason = resp.stop_reason.map(|reason| match reason {
@@ -293,9 +291,11 @@ pub(super) fn translate_request(req: ChatCompletionRequest) -> types::MessagesRe
 	});
 
 	let tool_choice = match req.tool_choice {
-		Some(universal::ToolChoiceType::ToolChoice { r#type, function }) => Some(types::ToolChoice::Tool {
-			name: function.name,
-		}),
+		Some(universal::ToolChoiceType::ToolChoice { r#type, function }) => {
+			Some(types::ToolChoice::Tool {
+				name: function.name,
+			})
+		},
 		Some(universal::ToolChoiceType::Auto) => Some(types::ToolChoice::Auto),
 		Some(universal::ToolChoiceType::Required) => Some(types::ToolChoice::Any),
 		Some(universal::ToolChoiceType::None) => Some(types::ToolChoice::None),

@@ -6,7 +6,9 @@ use itertools::Itertools;
 use serde::Serialize;
 use tracing::trace;
 
-use crate::llm::bedrock::types::{ConverseErrorResponse, ConverseRequest, ConverseResponse};
+use crate::llm::bedrock::types::{
+	ContentBlock, ConverseErrorResponse, ConverseRequest, ConverseResponse, StopReason,
+};
 use crate::llm::universal::ChatCompletionRequest;
 use crate::llm::{AIError, universal};
 use crate::*;
@@ -104,38 +106,63 @@ pub(super) fn translate_response(
 		types::ConverseOutput::Message(msg) => msg,
 		types::ConverseOutput::Unknown => return Err(AIError::IncompleteResponse),
 	};
-
+	// Bedrock has a vec of possible content types, while openai allows 1 text content and many tool calls
+	// Assume the bedrock response has only one text
 	// Convert Bedrock content blocks to OpenAI message content
-	let choices = message
-		.content
-		.iter()
-		.filter_map(|block| {
-			let text = match block {
-				types::ContentBlock::Text(text) => Some(text.clone()),
-				types::ContentBlock::Image { .. } => return None, // Skip images in response for now
-			};
-			let message = universal::ChatCompletionMessageForResponse {
-				role: universal::MessageRole::assistant,
-				content: text,
-				reasoning_content: None,
-				name: None,
-				tool_calls: None,
-			};
-			let finish_reason = Some(match resp.stop_reason {
-				types::StopReason::EndTurn => universal::FinishReason::stop,
-				types::StopReason::MaxTokens => universal::FinishReason::length,
-				types::StopReason::StopSequence => universal::FinishReason::stop,
-			});
-			// Only one choice for Bedrock
-			let choice = universal::ChatCompletionChoice {
-				index: 0,
-				message,
-				finish_reason,
-				finish_details: None,
-			};
-			Some(choice)
-		})
-		.collect::<Vec<_>>();
+	let mut tool_calls: Vec<universal::ToolCall> = Vec::new();
+	let mut content = None;
+	for block in &message.content {
+		let text = match block {
+			types::ContentBlock::Text(text) => {
+				content = Some(text.clone());
+			},
+			types::ContentBlock::Image { .. } => continue, // Skip images in response for now
+			ContentBlock::ToolResult(_) => {
+				// There should not be a ToolResult in the response, only in the request
+				continue;
+			},
+			ContentBlock::ToolUse(tu) => {
+				let Some(args) = serde_json::to_string(&tu.input).ok() else {
+					continue;
+				};
+				tool_calls.push(universal::ToolCall {
+					id: tu.tool_use_id.clone(),
+					r#type: universal::ToolType::Function,
+					function: universal::ToolCallFunction {
+						name: tu.name.clone(),
+						arguments: args,
+					},
+				});
+			}, // TODO: guard content, reasoning
+		};
+	}
+
+	let message = universal::ChatCompletionMessageForResponse {
+		role: universal::MessageRole::assistant,
+		content,
+		tool_calls: if tool_calls.is_empty() {
+			None
+		} else {
+			Some(tool_calls)
+		},
+	};
+	let finish_reason = Some(match resp.stop_reason {
+		StopReason::EndTurn => universal::FinishReason::stop,
+		StopReason::MaxTokens => universal::FinishReason::length,
+		StopReason::StopSequence => universal::FinishReason::stop,
+		StopReason::ContentFiltered => universal::FinishReason::content_filter,
+		StopReason::GuardrailIntervened => universal::FinishReason::stop,
+		StopReason::ToolUse => universal::FinishReason::tool_calls,
+	});
+	// Only one choice for Bedrock
+	let choice = universal::ChatCompletionChoice {
+		index: 0,
+		message,
+		finish_reason,
+		finish_details: None,
+	};
+	// Only 1 choice
+	let choices = vec![choice];
 
 	// Convert usage from Bedrock format to OpenAI format
 	let usage = if let Some(token_usage) = resp.usage {
@@ -270,30 +297,22 @@ pub(super) fn translate_request(
 		Some(universal::ToolChoiceType::None) => None,
 		None => None,
 	};
-	let tools = if let Some(tools) = req.tools {
-		Some(
-			tools
-				.into_iter()
-				.filter_map(|tool| {
-					let tool_spec = types::ToolSpecification {
-						name: tool.function.name,
-						description: tool.function.description,
-						input_schema: tool.function.parameters.map(types::ToolInputSchema::Json),
-					};
+	let tools = req.tools.map(|tools| {
+		tools
+			.into_iter()
+			.map(|tool| {
+				let tool_spec = types::ToolSpecification {
+					name: tool.function.name,
+					description: tool.function.description,
+					input_schema: tool.function.parameters.map(types::ToolInputSchema::Json),
+				};
 
-					Some(types::Tool::ToolSpec(tool_spec))
-				})
-				.collect_vec(),
-		)
-	} else {
-		None
-	};
-	let tool_config = if let Some(tools) = tools {
-		Some(types::ToolConfiguration { tools, tool_choice })
-	} else {
-		None
-	};
-    types::ConverseRequest {
+				types::Tool::ToolSpec(tool_spec)
+			})
+			.collect_vec()
+	});
+	let tool_config = tools.map(|tools| types::ToolConfiguration { tools, tool_choice });
+	types::ConverseRequest {
 		model_id: req.model,
 		messages,
 		system: if system.is_empty() {
@@ -317,16 +336,16 @@ pub(super) mod types {
 
 	use serde::{Deserialize, Serialize};
 
-	#[derive(Copy, Clone, Deserialize, Serialize, Debug, PartialEq, Eq, Default)]
-	#[serde(rename_all = "snake_case")]
+	#[derive(Copy, Clone, Deserialize, Serialize, Debug, Default)]
+	#[serde(rename_all = "camelCase")]
 	pub enum Role {
 		#[default]
 		User,
 		Assistant,
 	}
 
-	#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
-	#[serde(rename_all = "snake_case")]
+	#[derive(Clone, Deserialize, Serialize, Debug)]
+	#[serde(rename_all = "camelCase")]
 	pub enum ContentBlock {
 		Text(String),
 		Image {
@@ -334,17 +353,55 @@ pub(super) mod types {
 			media_type: String,
 			data: String,
 		},
+		ToolResult(ToolResultBlock),
+		ToolUse(ToolUseBlock),
+	}
+	#[derive(Clone, Deserialize, Serialize, Debug)]
+	#[serde(rename_all = "camelCase")]
+	pub struct ToolResultBlock {
+		/// <p>The ID of the tool request that this is the result for.</p>
+		pub tool_use_id: ::std::string::String,
+		/// <p>The content for tool result content block.</p>
+		pub content: ::std::vec::Vec<ToolResultContentBlock>,
+		/// <p>The status for the tool result content block.</p><note>
+		/// <p>This field is only supported Anthropic Claude 3 models.</p>
+		/// </note>
+		pub status: ::std::option::Option<ToolResultStatus>,
 	}
 
-	#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
-	#[serde(rename_all = "snake_case")]
+	#[derive(Clone, Deserialize, Serialize, Debug)]
+	#[serde(rename_all = "camelCase")]
+	pub enum ToolResultStatus {
+		Error,
+		Success,
+	}
+
+	#[derive(Clone, Deserialize, Serialize, Debug)]
+	#[serde(rename_all = "camelCase")]
+	pub struct ToolUseBlock {
+		/// <p>The ID for the tool request.</p>
+		pub tool_use_id: ::std::string::String,
+		/// <p>The name of the tool that the model wants to use.</p>
+		pub name: ::std::string::String,
+		/// <p>The input to pass to the tool.</p>
+		pub input: serde_json::Value,
+	}
+
+	#[derive(Clone, Deserialize, Serialize, Debug)]
+	#[serde(rename_all = "camelCase")]
+	pub enum ToolResultContentBlock {
+		/// <p>A tool result that is text.</p>
+		Text(::std::string::String),
+	}
+	#[derive(Clone, Deserialize, Serialize, Debug)]
+	#[serde(rename_all = "camelCase")]
 	#[serde(untagged)]
 	pub enum SystemContentBlock {
 		Text { text: String },
 	}
 
-	#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
-	#[serde(rename_all = "snake_case")]
+	#[derive(Clone, Deserialize, Serialize, Debug)]
+	#[serde(rename_all = "camelCase")]
 	pub struct Message {
 		pub role: Role,
 		pub content: Vec<ContentBlock>,
@@ -469,13 +526,13 @@ pub(super) mod types {
 		// TODO: Implement prompt variable values
 	}
 
-	#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+	#[derive(Clone, Serialize, Deserialize, Debug)]
 	pub struct PerformanceConfiguration {
 		// TODO: Implement performance configuration
 	}
 
 	/// The actual response from the Bedrock Converse API (matches AWS SDK ConverseOutput)
-	#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+	#[derive(Debug, Deserialize, Clone)]
 	pub struct ConverseResponse {
 		/// The result from the call to Converse
 		pub output: Option<ConverseOutput>,
@@ -496,14 +553,14 @@ pub(super) mod types {
 		pub performance_config: Option<PerformanceConfiguration>,
 	}
 
-	#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+	#[derive(Debug, Deserialize, Clone)]
 	pub struct ConverseErrorResponse {
 		pub message: String,
 	}
 
 	/// The actual content output from the model
-	#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
-	#[serde(rename_all = "snake_case")]
+	#[derive(Debug, Deserialize, Clone)]
+	#[serde(rename_all = "camelCase")]
 	pub enum ConverseOutput {
 		Message(Message),
 		#[serde(other)]
@@ -511,7 +568,7 @@ pub(super) mod types {
 	}
 
 	/// Token usage information
-	#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+	#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 	pub struct TokenUsage {
 		/// The number of input tokens which were used
 		#[serde(rename = "inputTokens")]
@@ -525,7 +582,7 @@ pub(super) mod types {
 	}
 
 	/// Metrics for the Converse call
-	#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+	#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 	pub struct ConverseMetrics {
 		/// Latency in milliseconds
 		#[serde(rename = "latencyMs")]
@@ -533,7 +590,7 @@ pub(super) mod types {
 	}
 
 	/// Trace information for Guardrail behavior
-	#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+	#[derive(Clone, Debug, Serialize, Deserialize)]
 	pub struct ConverseTrace {
 		/// Guardrail trace information
 		#[serde(rename = "guardrail", skip_serializing_if = "Option::is_none")]
@@ -541,15 +598,15 @@ pub(super) mod types {
 	}
 
 	/// Reason for stopping the response generation.
-	#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+	#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 	#[serde(rename_all = "snake_case")]
 	pub enum StopReason {
-		/// The model reached a natural stopping point.
+		ContentFiltered,
 		EndTurn,
-		/// The requested max_tokens or the model's maximum was exceeded.
+		GuardrailIntervened,
 		MaxTokens,
-		/// One of the provided custom stop_sequences was generated.
 		StopSequence,
+		ToolUse,
 	}
 
 	#[derive(Clone, Debug, Serialize)]
