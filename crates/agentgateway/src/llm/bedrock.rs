@@ -71,7 +71,10 @@ impl Provider {
 	}
 
 	pub fn get_path_for_model(&self, model: &str) -> Strng {
-		strng::format!("/model/{}/converse", model)
+		match self.model.as_ref() {
+			Some(model) => strng::format!("/model/{}/converse", model),
+			None => strng::format!("/model/{}/converse", model),
+		}
 	}
 
 	pub fn get_host(&self) -> Strng {
