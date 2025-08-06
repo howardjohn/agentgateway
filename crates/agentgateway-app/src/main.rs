@@ -42,6 +42,10 @@ struct Args {
 	/// Print version (as JSON)
 	#[arg(long = "version")]
 	version_long: bool,
+
+	/// Copy our own binary to a destination.
+	#[arg(long = "copy-self", hide = true)]
+	copy_self: Option<PathBuf>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -54,6 +58,7 @@ fn main() -> anyhow::Result<()> {
 		validate_only,
 		version_short,
 		version_long,
+		copy_self,
 	} = args;
 
 	if version_short {
@@ -63,6 +68,9 @@ fn main() -> anyhow::Result<()> {
 	if version_long {
 		println!("{}", version::BuildInfo::new());
 		return Ok(());
+	}
+	if let Some(copy_self) = copy_self {
+		return copy_binary(copy_self);
 	}
 	tokio::runtime::Builder::new_current_thread()
 		.enable_all()
@@ -86,6 +94,25 @@ fn main() -> anyhow::Result<()> {
 			let config = agentgateway::config::parse_config(contents, filename)?;
 			proxy(Arc::new(config)).await
 		})
+}
+#[cfg(not(target_env = "musl"))]
+fn copy_binary(_copy_self: PathBuf) -> anyhow::Result<()> {
+	// This is a pretty sketchy command, only allow it in environments will use it
+	anyhow::bail!("--copy-self is not supported in this build");
+}
+
+#[cfg(target_env = "musl")]
+fn copy_binary(copy_self: PathBuf) -> anyhow::Result<()> {
+	let Some(our_binary) = std::env::args().next() else {
+		anyhow::bail!("no argv[0] set")
+	};
+
+	info!("copying our binary ({our_binary}) to {copy_self:?}");
+	if let Some(parent) = copy_self.parent() {
+		std::fs::create_dir_all(parent)?;
+	}
+	std::fs::copy(&our_binary, &copy_self)?;
+	return Ok(());
 }
 
 async fn validate(contents: String, filename: Option<PathBuf>) -> anyhow::Result<()> {
