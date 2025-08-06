@@ -33,7 +33,8 @@ pin_project! {
 pub fn parser<D, E, F, T>(body: http::Body, decoder: D, encoder: E, handler: F) -> http::Body
 where
 	D: Decoder + Send + 'static,
-	D::Error: Send + Into<axum_core::BoxError> + 'static,
+	D::Item: Debug,
+	D::Error: Send + Into<axum_core::BoxError> + 'static + Debug,
 	F: FnMut(D::Item) -> Option<T> + Send + 'static,
 	E: Encoder<T> + Send + 'static,
 	E::Error: Send + Into<axum_core::BoxError> + 'static,
@@ -54,7 +55,8 @@ where
 impl<D, E, F, T> Body for TransformedBody<D, E, F, T>
 where
 	D: Decoder + Send + 'static,
-	D::Error: Send + Into<axum_core::BoxError> + 'static,
+	D::Item: Debug,
+	D::Error: Send + Into<axum_core::BoxError> + 'static + Debug,
 	E: Encoder<T> + Send + 'static,
 	E::Error: Send + Into<axum_core::BoxError> + 'static,
 	F: FnMut(D::Item) -> Option<T> + Send + 'static,
@@ -85,12 +87,13 @@ where
 		                      encoder: &mut E,
 		                      encode_buf: &mut BytesMut| {
 			loop {
+				tracing::error!("howardjohn: got bytes {:?}", buf);
 				let decode = if finished {
 					decoder.decode_eof(buf)
 				} else {
 					decoder.decode(buf)
 				};
-				match decode {
+				match dbg!(decode) {
 					Ok(Some(decoded_item)) => {
 						if let Some(transformed_item) = (handler)(decoded_item) {
 							match encoder.encode(transformed_item, encode_buf) {

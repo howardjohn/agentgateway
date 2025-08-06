@@ -116,6 +116,7 @@ dependencies = [
  "aws-config",
  "aws-credential-types",
  "aws-sigv4",
+ "aws_event_stream_parser",
  "axum",
  "axum-core",
  "axum-extra",
@@ -358,7 +359,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "typed-arena",
- "uuid",
+ "uuid 1.17.0",
 ]
 
 [[package]]
@@ -384,6 +385,12 @@ dependencies = [
 
 [[package]]
 name = "arrayvec"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
+
+[[package]]
+name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
@@ -397,7 +404,7 @@ dependencies = [
  "asn1-rs-derive",
  "asn1-rs-impl",
  "displaydoc",
- "nom",
+ "nom 7.1.3",
  "num-traits",
  "rusticata-macros",
  "thiserror 2.0.12",
@@ -574,7 +581,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "tracing",
- "uuid",
+ "uuid 1.17.0",
 ]
 
 [[package]]
@@ -836,6 +843,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "aws_event_stream_parser"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "895663380ac0ff4abb2731941f629c103eef84ffbe6d0309b6cf2c9d1aecf358"
+dependencies = [
+ "byteorder",
+ "bytes",
+ "chrono",
+ "crc",
+ "nom 5.1.3",
+ "tokio-util",
+ "uuid 0.8.2",
+]
+
+[[package]]
 name = "axum"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1085,6 +1107,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "build_const"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ae4235e6dac0694637c763029ecea1a2ec9e4e06ec2729bd21ba4d9c863eb7"
+
+[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1141,7 +1169,7 @@ dependencies = [
  "base64",
  "chrono",
  "lazy_static",
- "nom",
+ "nom 7.1.3",
  "paste",
  "regex",
  "serde",
@@ -1155,7 +1183,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
 dependencies = [
- "nom",
+ "nom 7.1.3",
 ]
 
 [[package]]
@@ -1390,6 +1418,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crc"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d663548de7f5cca343f1e0a48d14dcfb0e9eb4e079ec58883b7251539fa10aeb"
+dependencies = [
+ "build_const",
+]
+
+[[package]]
 name = "crc32fast"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1612,7 +1649,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef552e6f588e446098f6ba40d89ac146c8c7b64aade83c051ee00bb5d2bc18d"
 dependencies = [
- "uuid",
+ "uuid 1.17.0",
 ]
 
 [[package]]
@@ -1623,7 +1660,7 @@ checksum = "07da5016415d5a3c4dd39b11ed26f915f52fc4e0dc197d87908bc916e51bc1a6"
 dependencies = [
  "asn1-rs",
  "displaydoc",
- "nom",
+ "nom 7.1.3",
  "num-bigint",
  "num-traits",
  "rusticata-macros",
@@ -2954,6 +2991,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
+name = "lexical-core"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6607c62aa161d23d17a9072cc5da0be67cdfc89d3afb1e8d9c842bebc2525ffe"
+dependencies = [
+ "arrayvec 0.5.2",
+ "bitflags 1.3.2",
+ "cfg-if 1.0.1",
+ "ryu",
+ "static_assertions",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.174"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3224,7 +3274,7 @@ dependencies = [
  "smallvec",
  "tagptr",
  "thiserror 1.0.69",
- "uuid",
+ "uuid 1.17.0",
 ]
 
 [[package]]
@@ -3287,6 +3337,17 @@ name = "no-std-net"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43794a0ace135be66a25d3ae77d41b91615fb68ae937f904090203e81f755b65"
+
+[[package]]
+name = "nom"
+version = "5.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08959a387a676302eebf4ddbcbc611da04285579f76f88ee0506c63b1a61dd4b"
+dependencies = [
+ "lexical-core",
+ "memchr",
+ "version_check",
+]
 
 [[package]]
 name = "nom"
@@ -3717,7 +3778,7 @@ dependencies = [
  "bincode",
  "either",
  "fnv",
- "nom",
+ "nom 7.1.3",
  "once_cell",
  "quick-xml",
  "regex",
@@ -4520,7 +4581,7 @@ dependencies = [
  "tower-service",
  "tracing",
  "url",
- "uuid",
+ "uuid 1.17.0",
 ]
 
 [[package]]
@@ -4541,7 +4602,7 @@ version = "1.37.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b203a6425500a03e0919c42d3c47caca51e79f1132046626d2c8871c5092035d"
 dependencies = [
- "arrayvec",
+ "arrayvec 0.7.6",
  "num-traits",
 ]
 
@@ -4578,7 +4639,7 @@ version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf0c4a6ece9950b9abdb62b1cfcf2a68b3b67a10ba445b3bb85be2a293d0632"
 dependencies = [
- "nom",
+ "nom 7.1.3",
 ]
 
 [[package]]
@@ -5087,6 +5148,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5207,7 +5274,7 @@ dependencies = [
  "debugid",
  "memmap2",
  "stable_deref_trait",
- "uuid",
+ "uuid 1.17.0",
 ]
 
 [[package]]
@@ -5916,6 +5983,12 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
+
+[[package]]
+name = "uuid"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3cf4199d1e5d15ddd86a694e4d0dffa9c323ce759fea589f00fef9d81cc1931d"
@@ -6604,7 +6677,7 @@ dependencies = [
  "data-encoding",
  "der-parser",
  "lazy_static",
- "nom",
+ "nom 7.1.3",
  "oid-registry",
  "rusticata-macros",
  "thiserror 2.0.12",

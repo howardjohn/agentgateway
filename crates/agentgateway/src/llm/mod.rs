@@ -208,7 +208,7 @@ impl AIProvider {
 			},
 			AIProvider::Bedrock(provider) => {
 				// For Bedrock, use a default model path - the actual model will be specified in the request body
-				let path = provider.get_path_for_model(llm_request.request_model.as_str());
+				let path = provider.get_path_for_model(llm_request.streaming, llm_request.request_model.as_str());
 				http::modify_req(req, |req| {
 					http::modify_uri(req, |uri| {
 						uri.path_and_query = Some(PathAndQuery::from_str(&path)?);
@@ -411,7 +411,7 @@ impl AIProvider {
 		log.store(Some(llmresp));
 		let resp = match self {
 			AIProvider::Anthropic(p) => p.process_streaming(log, resp).await,
-			AIProvider::Bedrock(p) => return Err(AIError::StreamingUnsupported),
+			AIProvider::Bedrock(p) => p.process_streaming(log, resp).await,
 			_ => {
 				self
 					.default_process_streaming(log, include_completion_in_log, rate_limit, resp)

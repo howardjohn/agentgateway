@@ -6,11 +6,14 @@ use itertools::Itertools;
 use serde::Serialize;
 use tracing::trace;
 
+use crate::http::Response;
 use crate::llm::bedrock::types::{
-	ContentBlock, ConverseErrorResponse, ConverseRequest, ConverseResponse, StopReason,
+	ContentBlock, ContentBlockDelta, ConverseErrorResponse, ConverseRequest, ConverseResponse,
+	ConverseStreamOutput, StopReason,
 };
-use crate::llm::universal::ChatCompletionRequest;
-use crate::llm::{AIError, universal};
+use crate::llm::universal::{ChatCompletionChoiceStream, ChatCompletionRequest, Usage};
+use crate::llm::{AIError, LLMResponse, universal};
+use crate::telemetry::log::AsyncLog;
 use crate::*;
 
 #[derive(Debug, Clone)]
@@ -45,6 +48,7 @@ impl Provider {
 			req.model = provider_model.to_string();
 		}
 		let bedrock_request = translate_request(req, self);
+		error!("howardjohn: {bedrock_request:#?}");
 
 		Ok(bedrock_request)
 	}
@@ -70,10 +74,65 @@ impl Provider {
 		translate_error(resp)
 	}
 
-	pub fn get_path_for_model(&self, model: &str) -> Strng {
-		match self.model.as_ref() {
-			Some(model) => strng::format!("/model/{}/converse", model),
-			None => strng::format!("/model/{}/converse", model),
+	pub(super) async fn process_streaming(
+		&self,
+		log: AsyncLog<LLMResponse>,
+		resp: Response,
+	) -> Response {
+		resp.map(|b| {
+			let mut message_id = None;
+			let mut model = String::new();
+			let mut created = chrono::Utc::now().timestamp();
+			let mut current_content = String::new();
+			let mut input_tokens = 0;
+			parse::aws_sse::transform::<universal::ChatCompletionStreamResponse>(b, move |f| {
+				let res = dbg!(types::ConverseStreamOutput::deserialize(f)).ok()?;
+				let mk = |choices: Vec<ChatCompletionChoiceStream>, usage: Option<Usage>| {
+					Some(universal::ChatCompletionStreamResponse {
+						id: message_id.clone(),
+						model: model.clone(),
+						object: "chat.completion.chunk".to_string(),
+						system_fingerprint: None,
+						created,
+						choices,
+						usage,
+					})
+				};
+
+				match res {
+					ConverseStreamOutput::ContentBlockDelta(d) => match d.delta {
+						Some(ContentBlockDelta::Text(s)) => {
+							let choice = universal::ChatCompletionChoiceStream {
+								index: 0,
+								delta: universal::ChatCompletionMessageForResponseDelta {
+									role: None,
+									content: Some(s),
+									refusal: None,
+									name: None,
+									tool_calls: None,
+								},
+								finish_reason: None,
+							};
+							mk(vec![choice], None)
+						},
+						_ => None,
+					},
+					ConverseStreamOutput::ContentBlockStart(_) => None,
+					ConverseStreamOutput::ContentBlockStop(_) => None,
+					ConverseStreamOutput::MessageStart(_) => None,
+					ConverseStreamOutput::MessageStop(_) => None,
+					ConverseStreamOutput::Metadata(_) => None,
+				}
+			})
+		})
+	}
+
+	pub fn get_path_for_model(&self, streaming: bool, model: &str) -> Strng {
+		let model = self.model.as_deref().unwrap_or(model);
+		if streaming {
+			strng::format!("/model/{model}/converse-stream")
+		} else {
+			strng::format!("/model/{model}/converse")
 		}
 	}
 
@@ -116,10 +175,10 @@ pub(super) fn translate_response(
 	let mut content = None;
 	for block in &message.content {
 		match block {
-			types::ContentBlock::Text(text) => {
+			ContentBlock::Text(text) => {
 				content = Some(text.clone());
 			},
-			types::ContentBlock::Image { .. } => continue, // Skip images in response for now
+			ContentBlock::Image { .. } => continue, // Skip images in response for now
 			ContentBlock::ToolResult(_) => {
 				// There should not be a ToolResult in the response, only in the request
 				continue;
@@ -168,14 +227,14 @@ pub(super) fn translate_response(
 
 	// Convert usage from Bedrock format to OpenAI format
 	let usage = if let Some(token_usage) = resp.usage {
-		universal::Usage {
+		Usage {
 			prompt_tokens: token_usage.input_tokens as i32,
 			completion_tokens: token_usage.output_tokens as i32,
 			total_tokens: token_usage.total_tokens as i32,
 		}
 	} else {
 		// Fallback if usage is not provided
-		universal::Usage {
+		Usage {
 			prompt_tokens: 0,
 			completion_tokens: 0,
 			total_tokens: 0,
@@ -238,20 +297,20 @@ pub(super) fn translate_request(
 
 			let content = match &msg.content {
 				universal::Content::Text(text) => {
-					vec![types::ContentBlock::Text(text.clone())]
+					vec![ContentBlock::Text(text.clone())]
 				},
 				universal::Content::ImageUrl(urls) => {
 					urls
 						.iter()
 						.map(|img_url| {
 							if let Some(url) = &img_url.image_url {
-								types::ContentBlock::Image {
+								ContentBlock::Image {
 									source: url.url.clone(),
 									media_type: "image/jpeg".to_string(), // Default to JPEG
 									data: "".to_string(),                 // Base64 data would go here if using base64
 								}
 							} else {
-								types::ContentBlock::Text(img_url.text.clone().unwrap_or_default())
+								ContentBlock::Text(img_url.text.clone().unwrap_or_default())
 							}
 						})
 						.collect()
@@ -314,7 +373,7 @@ pub(super) fn translate_request(
 			.collect_vec()
 	});
 	let tool_config = tools.map(|tools| types::ToolConfiguration { tools, tool_choice });
-	types::ConverseRequest {
+	ConverseRequest {
 		model_id: req.model,
 		messages,
 		system: if system.is_empty() {
@@ -361,14 +420,14 @@ pub(super) mod types {
 	#[derive(Clone, Deserialize, Serialize, Debug)]
 	#[serde(rename_all = "camelCase")]
 	pub struct ToolResultBlock {
-		/// <p>The ID of the tool request that this is the result for.</p>
-		pub tool_use_id: ::std::string::String,
-		/// <p>The content for tool result content block.</p>
-		pub content: ::std::vec::Vec<ToolResultContentBlock>,
-		/// <p>The status for the tool result content block.</p><note>
-		/// <p>This field is only supported Anthropic Claude 3 models.</p>
-		/// </note>
-		pub status: ::std::option::Option<ToolResultStatus>,
+		/// The ID of the tool request that this is the result for.
+		pub tool_use_id: String,
+		/// The content for tool result content block.
+		pub content: Vec<ToolResultContentBlock>,
+		/// The status for the tool result content block.
+		/// This field is only supported Anthropic Claude 3 models.
+		///
+		pub status: Option<ToolResultStatus>,
 	}
 
 	#[derive(Clone, Deserialize, Serialize, Debug)]
@@ -381,19 +440,19 @@ pub(super) mod types {
 	#[derive(Clone, Deserialize, Serialize, Debug)]
 	#[serde(rename_all = "camelCase")]
 	pub struct ToolUseBlock {
-		/// <p>The ID for the tool request.</p>
-		pub tool_use_id: ::std::string::String,
-		/// <p>The name of the tool that the model wants to use.</p>
-		pub name: ::std::string::String,
-		/// <p>The input to pass to the tool.</p>
+		/// The ID for the tool request.
+		pub tool_use_id: String,
+		/// The name of the tool that the model wants to use.
+		pub name: String,
+		/// The input to pass to the tool.
 		pub input: serde_json::Value,
 	}
 
 	#[derive(Clone, Deserialize, Serialize, Debug)]
 	#[serde(rename_all = "camelCase")]
 	pub enum ToolResultContentBlock {
-		/// <p>A tool result that is text.</p>
-		Text(::std::string::String),
+		/// A tool result that is text.
+		Text(String),
 	}
 	#[derive(Clone, Deserialize, Serialize, Debug)]
 	#[serde(rename_all = "camelCase")]
@@ -646,5 +705,136 @@ pub(super) mod types {
 	#[serde(rename_all = "camelCase")]
 	pub enum ToolInputSchema {
 		Json(serde_json::Value),
+	}
+
+	// This is NOT deserialized directly, see the associated method
+	#[derive(Clone, Debug)]
+	pub enum ConverseStreamOutput {
+		/// The messages output content block delta.
+		ContentBlockDelta(ContentBlockDeltaEvent),
+		/// Start information for a content block.
+		ContentBlockStart(ContentBlockStartEvent),
+		/// Stop information for a content block.
+		ContentBlockStop(ContentBlockStopEvent),
+		/// Message start information.
+		MessageStart(MessageStartEvent),
+		/// Message stop information.
+		MessageStop(MessageStopEvent),
+		/// Metadata for the converse output stream.
+		Metadata(ConverseStreamMetadataEvent),
+	}
+
+	impl ConverseStreamOutput {
+		pub fn deserialize(m: aws_event_stream_parser::Message) -> anyhow::Result<Self> {
+			let Some(v) = m
+				.headers
+				.headers
+				.iter()
+				.find(|h| h.key.as_str() == ":event-type")
+				.and_then(|v| match &v.value {
+					aws_event_stream_parser::HeaderValue::String(s) => Some(s.to_string()),
+					_ => None,
+				})
+			else {
+				anyhow::bail!("no event type header")
+			};
+			Ok(match v.as_str() {
+				"contentBlockDelta" => ConverseStreamOutput::ContentBlockDelta(serde_json::from_slice::<
+					ContentBlockDeltaEvent,
+				>(&m.body)?),
+				"contentBlockStart" => ConverseStreamOutput::ContentBlockStart(serde_json::from_slice::<
+					ContentBlockStartEvent,
+				>(&m.body)?),
+				"contentBlockStop" => ConverseStreamOutput::ContentBlockStop(serde_json::from_slice::<
+					ContentBlockStopEvent,
+				>(&m.body)?),
+				"messageStart" => {
+					ConverseStreamOutput::MessageStart(serde_json::from_slice::<MessageStartEvent>(&m.body)?)
+				},
+				"messageStop" => {
+					ConverseStreamOutput::MessageStop(serde_json::from_slice::<MessageStopEvent>(&m.body)?)
+				},
+				"metadata" => ConverseStreamOutput::Metadata(serde_json::from_slice::<
+					ConverseStreamMetadataEvent,
+				>(&m.body)?),
+				m => anyhow::bail!("unexpected event type: {m}"),
+			})
+		}
+	}
+
+	#[derive(Clone, Debug, Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub struct ContentBlockDeltaEvent {
+		/// The delta for a content block delta event.
+		pub delta: Option<ContentBlockDelta>,
+		/// The block index for a content block delta event.
+		pub content_block_index: i32,
+	}
+
+	#[derive(Clone, Debug, Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub struct ContentBlockStartEvent {
+		/// Start information about a content block start event.
+		pub start: Option<ContentBlockStart>,
+		/// The index for a content block start event.
+		pub content_block_index: i32,
+	}
+
+	#[derive(Clone, Debug, Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub struct ContentBlockStopEvent {
+		/// The index for a content block.
+		pub content_block_index: i32,
+	}
+
+	#[derive(Clone, Debug, Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub struct MessageStartEvent {
+		/// The role for the message.
+		pub role: Role,
+	}
+
+	#[derive(Clone, Debug, Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub struct MessageStopEvent {
+		/// The reason why the model stopped generating output.
+		pub stop_reason: StopReason,
+		/// The additional model response fields.
+		pub additional_model_response_fields: Option<serde_json::Value>,
+	}
+
+	#[derive(Clone, Debug, Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub struct ConverseStreamMetadataEvent {
+		/// Usage information for the conversation stream event.
+		pub usage: Option<TokenUsage>,
+		/// The metrics for the conversation stream metadata event.
+		pub metrics: Option<ConverseMetrics>,
+		/// Model performance configuration metadata for the conversation stream event.
+		pub performance_config: Option<PerformanceConfiguration>,
+	}
+
+	#[derive(Clone, Debug, Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub enum ContentBlockDelta {
+		/// The content text.
+		Text(String),
+		// TODO: tool use, reasoning
+	}
+
+	#[derive(Clone, Debug, Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub enum ContentBlockStart {
+		/// Information about a tool that the model is requesting to use.
+		ToolUse(ToolUseBlockStart),
+	}
+
+	#[derive(Clone, Debug, Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub struct ToolUseBlockStart {
+		/// The ID for the tool request.
+		pub tool_use_id: String,
+		/// The name of the tool that the model is requesting to use.
+		pub name: String,
 	}
 }

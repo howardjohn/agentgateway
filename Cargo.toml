@@ -41,6 +41,7 @@ arcstr = { version = "1.2", features = ["serde"] }
 assert_matches = "1.5.0"
 async-stream = "0.3"
 async-trait = "0.1"
+aws_event_stream_parser = "0.1"
 aws-config = "1.8"
 aws-credential-types = "1.2"
 aws-sigv4 = "1.3"
