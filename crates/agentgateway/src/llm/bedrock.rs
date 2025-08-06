@@ -2,6 +2,7 @@ use agent_core::prelude::Strng;
 use agent_core::strng;
 use bytes::Bytes;
 use chrono;
+use itertools::Itertools;
 use serde::Serialize;
 use tracing::trace;
 
@@ -35,7 +36,7 @@ impl super::Provider for Provider {
 impl Provider {
 	pub async fn process_request(
 		&self,
-		mut req: universal::ChatCompletionRequest,
+		mut req: ChatCompletionRequest,
 	) -> Result<ConverseRequest, AIError> {
 		// Use provider's model if configured, otherwise keep the request model
 		if let Some(provider_model) = &self.model {
@@ -176,7 +177,7 @@ pub(super) fn translate_response(
 pub(super) fn translate_request(
 	req: ChatCompletionRequest,
 	provider: &Provider,
-) -> types::ConverseRequest {
+) -> ConverseRequest {
 	// Bedrock has system prompts in a separate field. Join them
 	let system = req
 		.messages
@@ -254,7 +255,45 @@ pub(super) fn translate_request(
 		None
 	};
 
-	types::ConverseRequest {
+	let metadata = req
+		.user
+		.map(|user| HashMap::from([("user_id".to_string(), user)]));
+
+	let tool_choice = match req.tool_choice {
+		Some(universal::ToolChoiceType::ToolChoice { r#type, function }) => {
+			Some(types::ToolChoice::Tool {
+				name: function.name,
+			})
+		},
+		Some(universal::ToolChoiceType::Auto) => Some(types::ToolChoice::Auto),
+		Some(universal::ToolChoiceType::Required) => Some(types::ToolChoice::Any),
+		Some(universal::ToolChoiceType::None) => None,
+		None => None,
+	};
+	let tools = if let Some(tools) = req.tools {
+		Some(
+			tools
+				.into_iter()
+				.filter_map(|tool| {
+					let tool_spec = types::ToolSpecification {
+						name: tool.function.name,
+						description: tool.function.description,
+						input_schema: tool.function.parameters.map(types::ToolInputSchema::Json),
+					};
+
+					Some(types::Tool::ToolSpec(tool_spec))
+				})
+				.collect_vec(),
+		)
+	} else {
+		None
+	};
+	let tool_config = if let Some(tools) = tools {
+		Some(types::ToolConfiguration { tools, tool_choice })
+	} else {
+		None
+	};
+    types::ConverseRequest {
 		model_id: req.model,
 		messages,
 		system: if system.is_empty() {
@@ -263,12 +302,12 @@ pub(super) fn translate_request(
 			Some(vec![types::SystemContentBlock::Text { text: system }])
 		},
 		inference_config: Some(inference_config),
-		tool_config: None, // TODO: Add tool support
+		tool_config,
 		guardrail_config,
 		additional_model_request_fields: None,
 		prompt_variables: None,
 		additional_model_response_field_paths: None,
-		request_metadata: None,
+		request_metadata: metadata,
 		performance_config: None,
 	}
 }
@@ -330,7 +369,7 @@ pub(super) mod types {
 		pub anthropic_version: Option<String>,
 	}
 
-	#[derive(Clone, Serialize, Debug, PartialEq)]
+	#[derive(Clone, Serialize, Debug)]
 	pub struct ConverseRequest {
 		/// Specifies the model or throughput with which to run inference.
 		#[serde(rename = "modelId")]
@@ -372,9 +411,44 @@ pub(super) mod types {
 		pub performance_config: Option<PerformanceConfiguration>,
 	}
 
-	#[derive(Clone, Serialize, Debug, PartialEq)]
+	#[derive(Clone, Serialize, Debug)]
 	pub struct ToolConfiguration {
-		// TODO: Implement tool configuration
+		/// An array of tools that you want to pass to a model.
+		pub tools: Vec<Tool>,
+		/// If supported by model, forces the model to request a tool.
+		pub tool_choice: Option<ToolChoice>,
+	}
+
+	#[derive(Clone, std::fmt::Debug, ::serde::Serialize)]
+	#[serde(rename_all = "camelCase")]
+	pub enum Tool {
+		/// CachePoint to include in the tool configuration.
+		CachePoint(CachePointBlock),
+		/// The specification for the tool.
+		ToolSpec(ToolSpecification),
+	}
+
+	#[derive(Clone, std::fmt::Debug, ::serde::Serialize, ::serde::Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub struct CachePointBlock {
+		/// Specifies the type of cache point within the CachePointBlock.
+		pub r#type: CachePointType,
+	}
+
+	#[derive(
+		Clone,
+		Eq,
+		Ord,
+		PartialEq,
+		PartialOrd,
+		std::fmt::Debug,
+		std::hash::Hash,
+		::serde::Serialize,
+		::serde::Deserialize,
+	)]
+	#[serde(rename_all = "camelCase")]
+	pub enum CachePointType {
+		Default,
 	}
 
 	#[derive(Clone, Serialize, Debug, PartialEq)]
@@ -476,5 +550,42 @@ pub(super) mod types {
 		MaxTokens,
 		/// One of the provided custom stop_sequences was generated.
 		StopSequence,
+	}
+
+	#[derive(Clone, Debug, Serialize)]
+	#[serde(rename_all = "camelCase")]
+	pub enum ToolChoice {
+		/// The model must request at least one tool (no text is generated).
+		Any,
+		/// (Default). The Model automatically decides if a tool should be called or whether to generate text instead.
+		Auto,
+		/// The Model must request the specified tool. Only supported by Anthropic Claude 3 models.
+		Tool { name: String },
+		/// The `Unknown` variant represents cases where new union variant was received. Consider upgrading the SDK to the latest available version.
+		/// An unknown enum variant
+		///
+		/// _Note: If you encounter this error, consider upgrading your SDK to the latest version._
+		/// The `Unknown` variant represents cases where the server sent a value that wasn't recognized
+		/// by the client. This can happen when the server adds new functionality, but the client has not been updated.
+		/// To investigate this, consider turning on debug logging to print the raw HTTP response.
+		#[non_exhaustive]
+		Unknown,
+	}
+
+	#[derive(Clone, std::fmt::Debug, ::serde::Serialize)]
+	#[serde(rename_all = "camelCase")]
+	pub struct ToolSpecification {
+		/// The name for the tool.
+		pub name: String,
+		/// The description for the tool.
+		pub description: Option<String>,
+		/// The input schema for the tool in JSON format.
+		pub input_schema: Option<ToolInputSchema>,
+	}
+
+	#[derive(Clone, Debug, Serialize)]
+	#[serde(rename_all = "camelCase")]
+	pub enum ToolInputSchema {
+		Json(serde_json::Value),
 	}
 }
