@@ -134,7 +134,6 @@ pub struct RegexRules {
 	rules: Vec<RegexRule>,
 }
 
-
 #[apply(schema!)]
 #[serde(untagged)]
 pub enum RegexRule {

@@ -22,7 +22,7 @@ pub struct LocalTransformationConfig {
 	pub response: Option<LocalTransform>,
 }
 
-
+#[derive(Default)]
 #[apply(schema_de!)]
 pub struct LocalTransform {
 	#[serde(default)]
