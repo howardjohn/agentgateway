@@ -12,14 +12,12 @@ use crate::proxy::ProxyError;
 use crate::types::agent::Target;
 use crate::*;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema!)]
 pub struct Policy {
 	prompt_guard: Option<PromptGuard>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema!)]
 pub struct PromptGuard {
 	request: Option<PromptGuardRequest>,
 }
@@ -118,8 +116,7 @@ impl Policy {
 	}
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema!)]
 pub struct PromptGuardRequest {
 	#[serde(default)]
 	response: PromptGuardResponse,
@@ -128,8 +125,7 @@ pub struct PromptGuardRequest {
 	webhook: Option<Webhook>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema!)]
 pub struct RegexRules {
 	#[serde(default)]
 	response: PromptGuardResponse,
@@ -138,14 +134,16 @@ pub struct RegexRules {
 	rules: Vec<RegexRule>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(untagged, rename_all = "camelCase")]
+
+#[apply(schema!)]
+#[serde(untagged)]
 pub enum RegexRule {
 	Builtin {
 		builtin: Builtin,
 	},
 	Regex {
 		#[serde(with = "serde_regex")]
+		#[cfg_attr(feature = "schema", schemars(with = "String"))]
 		pattern: regex::Regex,
 		name: String,
 	},
@@ -160,8 +158,7 @@ impl PromptGuardResponse {
 	}
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema!)]
 pub enum Builtin {
 	#[serde(rename = "ssn")]
 	Ssn,
@@ -170,29 +167,29 @@ pub enum Builtin {
 	Email,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema!)]
 pub struct Rule<T> {
 	action: Action,
 	rule: T,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema!)]
 pub struct NamedRegex {
 	#[serde(with = "serde_regex")]
+	#[cfg_attr(feature = "schema", schemars(with = "String"))]
 	pattern: regex::Regex,
 	name: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema!)]
 pub struct Webhook {
 	target: Target,
 	// TODO: headers
 }
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "action", rename_all = "camelCase")]
+
+#[apply(schema!)]
+#[derive(Default)]
+#[serde(tag = "action")]
 pub enum Action {
 	#[default]
 	Mask,
@@ -202,16 +199,12 @@ pub enum Action {
 	},
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema!)]
 pub struct PromptGuardResponse {
 	#[serde(default = "default_body", serialize_with = "ser_string_or_bytes")]
 	body: Bytes,
-	#[serde(
-		default = "default_code",
-		serialize_with = "ser_display",
-		deserialize_with = "de_parse"
-	)]
+	#[serde(default = "default_code", with = "http_serde::status_code")]
+	#[cfg_attr(feature = "schema", schemars(with = "std::num::NonZeroU16"))]
 	status: StatusCode,
 }
 
@@ -224,8 +217,7 @@ impl Default for PromptGuardResponse {
 	}
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema!)]
 pub struct PromptGuardRegex {}
 fn default_code() -> StatusCode {
 	StatusCode::FORBIDDEN

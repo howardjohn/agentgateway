@@ -38,10 +38,6 @@ use crate::types::agent::{
 use crate::types::discovery::{NamespacedHostname, Service};
 use crate::*;
 
-attribute_alias! {
-		#[apply(schema!)] = #[serde_as] #[derive(Debug, Clone, serde::Deserialize)] #[serde(rename_all = "camelCase", deny_unknown_fields)] #[cfg_attr(feature = "schema", derive(JsonSchema))];
-}
-
 impl NormalizedLocalConfig {
 	pub async fn from(client: client::Client, s: &str) -> anyhow::Result<NormalizedLocalConfig> {
 		// Avoid shell expanding the comment for schema. Probably there are better ways to do this!
@@ -64,7 +60,7 @@ pub struct NormalizedLocalConfig {
 	pub services: Vec<Service>,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 pub struct LocalConfig {
 	#[serde(default)]
 	#[cfg_attr(feature = "schema", schemars(with = "RawConfig"))]
@@ -79,13 +75,13 @@ pub struct LocalConfig {
 	services: Vec<Service>,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 struct LocalBind {
 	port: u16,
 	listeners: Vec<LocalListener>,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 struct LocalListener {
 	// User facing name
 	name: Option<Strng>,
@@ -121,7 +117,7 @@ struct LocalTLSServerConfig {
 	key: PathBuf,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 struct LocalRoute {
 	#[serde(default, skip_serializing_if = "Option::is_none", rename = "name")]
 	// User facing name of the route
@@ -140,7 +136,7 @@ struct LocalRoute {
 	backends: Vec<LocalRouteBackend>,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 pub struct LocalRouteBackend {
 	#[serde(default = "default_weight")]
 	pub weight: usize,
@@ -155,7 +151,7 @@ fn default_weight() -> usize {
 	1
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 pub enum LocalBackend {
 	// This one is a reference
 	Service {
@@ -256,7 +252,7 @@ impl LocalBackend {
 	}
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 #[derive(Default)]
 pub enum McpStatefulMode {
 	Stateless,
@@ -264,21 +260,21 @@ pub enum McpStatefulMode {
 	Stateful,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 pub struct LocalMcpBackend {
 	pub targets: Vec<Arc<LocalMcpTarget>>,
 	#[serde(default)]
 	pub stateful_mode: McpStatefulMode,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 pub struct LocalMcpTarget {
 	pub name: McpTargetName,
 	#[serde(flatten)]
 	pub spec: LocalMcpTargetSpec,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 // Ideally this would be an enum of Simple|Explicit, but serde bug prevents it:
 // https://github.com/serde-rs/serde/issues/1600
 pub struct McpBackendHost {
@@ -321,7 +317,7 @@ impl McpBackendHost {
 	}
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 pub enum LocalMcpTargetSpec {
 	#[serde(rename = "sse")]
 	Sse {
@@ -360,7 +356,7 @@ fn default_matches() -> Vec<RouteMatch> {
 	}]
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 struct LocalTCPRoute {
 	#[serde(default, skip_serializing_if = "Option::is_none", rename = "name")]
 	// User facing name of the route
@@ -377,14 +373,14 @@ struct LocalTCPRoute {
 	backends: Vec<LocalTCPRouteBackend>,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 pub struct LocalTCPRouteBackend {
 	#[serde(default = "default_weight")]
 	pub weight: usize,
 	pub backend: SimpleLocalBackend,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 pub enum SimpleLocalBackend {
 	Service {
 		name: NamespacedHostname,
@@ -405,7 +401,7 @@ impl SimpleLocalBackend {
 	}
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 struct FilterOrPolicy {
 	// Filters. Keep in sync with RouteFilter
 	/// Headers to be modified in the request.
@@ -448,7 +444,6 @@ struct FilterOrPolicy {
 	a2a: Option<A2aPolicy>,
 	/// Mark this as LLM traffic to enable LLM processing.
 	#[serde(default)]
-	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
 	ai: Option<llm::Policy>,
 	/// Send TLS to the backend.
 	#[serde(rename = "backendTLS", default)]
@@ -458,7 +453,6 @@ struct FilterOrPolicy {
 	backend_auth: Option<BackendAuth>,
 	/// Rate limit incoming requests. State is kept local.
 	#[serde(default)]
-	#[cfg_attr(feature = "schema", schemars(with = "serde_json::value::RawValue"))]
 	local_rate_limit: Vec<crate::http::localratelimit::RateLimit>,
 	/// Rate limit incoming requests. State is managed by a remote server.
 	#[serde(default)]
@@ -492,7 +486,7 @@ struct FilterOrPolicy {
 	retry: Option<retry::Policy>,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 struct TCPFilterOrPolicy {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	backend_tls: Option<LocalBackendTLS>,
@@ -930,14 +924,14 @@ fn convert_tls_server(tls: LocalTLSServerConfig) -> anyhow::Result<TLSConfig> {
 	})
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 pub struct LocalRequestMirror {
 	pub backend: SimpleLocalBackend,
 	// 0.0-1.0
 	pub percentage: f64,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 pub struct LocalExtAuthz {
 	#[serde(flatten)]
 	pub target: SimpleLocalBackend,
@@ -945,7 +939,7 @@ pub struct LocalExtAuthz {
 	pub context: Option<HashMap<String, String>>, // TODO: gRPC vs HTTP, fail open, include body,
 }
 
-#[apply(schema!)]
+#[apply(schema_de!)]
 pub struct LocalRemoteRateLimit {
 	pub domain: String,
 	#[serde(flatten)]

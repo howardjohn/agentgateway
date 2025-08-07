@@ -13,9 +13,8 @@ use serde_with::{SerializeAs, TryFromInto, serde_as};
 use crate::cel::{Attribute, ContextBuilder, Executor, Expression, ExpressionContext};
 use crate::{cel, *};
 
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[derive(Default)]
+#[apply(schema_de!)]
 pub struct LocalTransformationConfig {
 	#[serde(default)]
 	pub request: Option<LocalTransform>,
@@ -23,10 +22,8 @@ pub struct LocalTransformationConfig {
 	pub response: Option<LocalTransform>,
 }
 
-#[serde_as]
-#[derive(Default, Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+
+#[apply(schema_de!)]
 pub struct LocalTransform {
 	#[serde(default)]
 	#[serde_as(as = "serde_with::Map<_, _>")]

@@ -137,6 +137,19 @@ This defaults to 'true'.|
 |`binds[].listeners[].routes[].policies.mcpAuthentication.provider.(any)(1)keycloak`||
 |`binds[].listeners[].routes[].policies.a2a`|Mark this traffic as A2A to enable A2A processing and telemetry.|
 |`binds[].listeners[].routes[].policies.ai`|Mark this as LLM traffic to enable LLM processing.|
+|`binds[].listeners[].routes[].policies.ai.promptGuard`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.response`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.response.body`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.response.status`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.(any)(1)action`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.(any)(1)response`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.(any)(1)response.body`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.(any)(1)response.status`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.(any)(1)action`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.webhook`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.webhook.target`||
 |`binds[].listeners[].routes[].policies.backendTLS`|Send TLS to the backend.|
 |`binds[].listeners[].routes[].policies.backendTLS.cert`||
 |`binds[].listeners[].routes[].policies.backendTLS.key`||
@@ -150,6 +163,10 @@ This defaults to 'true'.|
 |`binds[].listeners[].routes[].policies.backendAuth.(any)(1)gcp`||
 |`binds[].listeners[].routes[].policies.backendAuth.(any)(1)aws`||
 |`binds[].listeners[].routes[].policies.localRateLimit`|Rate limit incoming requests. State is kept local.|
+|`binds[].listeners[].routes[].policies.localRateLimit[].maxTokens`||
+|`binds[].listeners[].routes[].policies.localRateLimit[].tokensPerFill`||
+|`binds[].listeners[].routes[].policies.localRateLimit[].fillInterval`||
+|`binds[].listeners[].routes[].policies.localRateLimit[].type`||
 |`binds[].listeners[].routes[].policies.remoteRateLimit`|Rate limit incoming requests. State is managed by a remote server.|
 |`binds[].listeners[].routes[].policies.remoteRateLimit.(any)(1)service`||
 |`binds[].listeners[].routes[].policies.remoteRateLimit.(any)(1)service.name`||
@@ -276,12 +293,12 @@ This comes with the cost of an expensive operation.|
 |`jwt.inner`||
 |`llm`||
 |`llm.streaming`||
-|`llm.request_model`||
-|`llm.response_model`||
+|`llm.requestModel`||
+|`llm.responseModel`||
 |`llm.provider`||
-|`llm.input_tokens`||
-|`llm.output_tokens`||
-|`llm.total_tokens`||
+|`llm.inputTokens`||
+|`llm.outputTokens`||
+|`llm.totalTokens`||
 |`llm.prompt`||
 |`llm.prompt[].role`||
 |`llm.prompt[].content`||

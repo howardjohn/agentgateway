@@ -7,7 +7,9 @@ use crate::proxy::ProxyError;
 use crate::types::agent::{HostRedirect, PathRedirect};
 use crate::*;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(with = "RateLimitSerde"))]
 pub struct RateLimit {
 	ratelimit: Arc<ratelimit::Ratelimiter>,
 	pub limit_type: RateLimitType,
@@ -32,28 +34,22 @@ impl<'de> serde::Deserialize<'de> for RateLimit {
 	}
 }
 
-impl Debug for RateLimit {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("RateLimit").finish()
-	}
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[apply(schema!)]
 pub struct RateLimitSerde {
 	#[serde(default)]
 	pub max_tokens: u64,
 	#[serde(default)]
 	pub tokens_per_fill: u64,
 	#[serde(with = "serde_dur")]
+	#[cfg_attr(feature = "schema", schemars(with = "String"))]
 	pub fill_interval: Duration,
 	#[serde(default)]
 	#[serde(rename = "type")]
 	pub limit_type: RateLimitType,
 }
 
-#[derive(Default, Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema!)]
+#[derive(Default, Eq, PartialEq)]
 pub enum RateLimitType {
 	#[serde(rename = "requests")]
 	#[default]
@@ -162,6 +158,7 @@ mod ratelimit {
 		refill_interval: Duration,
 	}
 
+	#[derive(Debug)]
 	pub struct Ratelimiter {
 		available: AtomicU64,
 		dropped: AtomicU64,

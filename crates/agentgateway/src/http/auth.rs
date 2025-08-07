@@ -1,3 +1,4 @@
+use macro_rules_attribute::apply;
 use once_cell::sync::Lazy;
 use secrecy::{ExposeSecret, SecretString};
 use tracing::trace;
@@ -9,10 +10,7 @@ use crate::proxy::ProxyError;
 use crate::serdes::deser_key_from_file;
 use crate::*;
 
-// TODO: xds support
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub enum BackendAuth {
 	Passthrough {},
 	Key(

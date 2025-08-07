@@ -47,6 +47,17 @@ pub mod yamlviajson {
 	}
 }
 
+pub use macro_rules_attribute::attribute_alias;
+pub use macro_rules_attribute::apply;
+
+#[macro_export]
+attribute_alias! {
+		#[apply(schema_de!)] = #[serde_with::serde_as] #[derive(Debug, Clone, serde::Deserialize)] #[serde(rename_all = "camelCase", deny_unknown_fields)] #[cfg_attr(feature = "schema", derive(JsonSchema))];
+		#[apply(schema_ser!)] = #[serde_with::serde_as] #[derive(Debug, Clone, serde::Serialize)] #[serde(rename_all = "camelCase", deny_unknown_fields)] #[cfg_attr(feature = "schema", derive(JsonSchema))];
+		#[apply(schema!)] = #[serde_with::serde_as] #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)] #[serde(rename_all = "camelCase", deny_unknown_fields)] #[cfg_attr(feature = "schema", derive(JsonSchema))];
+}
+
+
 pub fn is_default<T: Default + PartialEq>(t: &T) -> bool {
 	*t == Default::default()
 }

@@ -43,8 +43,7 @@ pub mod proto {
 	tonic::include_proto!("envoy.service.auth.v3");
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
+#[apply(schema_ser!)]
 pub struct ExtAuthz {
 	pub target: Arc<SimpleBackendReference>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]

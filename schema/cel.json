@@ -38,6 +38,7 @@
           }
         }
       },
+      "additionalProperties": false,
       "required": [
         "method",
         "uri",
@@ -58,6 +59,7 @@
           "maximum": 65535
         }
       },
+      "additionalProperties": false,
       "required": [
         "code"
       ]
@@ -86,10 +88,10 @@
         "streaming": {
           "type": "boolean"
         },
-        "request_model": {
+        "requestModel": {
           "type": "string"
         },
-        "response_model": {
+        "responseModel": {
           "type": [
             "string",
             "null"
@@ -98,7 +100,7 @@
         "provider": {
           "type": "string"
         },
-        "input_tokens": {
+        "inputTokens": {
           "type": [
             "integer",
             "null"
@@ -106,7 +108,7 @@
           "format": "uint64",
           "minimum": 0
         },
-        "output_tokens": {
+        "outputTokens": {
           "type": [
             "integer",
             "null"
@@ -114,7 +116,7 @@
           "format": "uint64",
           "minimum": 0
         },
-        "total_tokens": {
+        "totalTokens": {
           "type": [
             "integer",
             "null"
@@ -200,9 +202,10 @@
           }
         }
       },
+      "additionalProperties": false,
       "required": [
         "streaming",
-        "request_model",
+        "requestModel",
         "provider",
         "params"
       ]
@@ -224,10 +227,12 @@
           "maximum": 65535
         }
       },
+      "additionalProperties": false,
       "required": [
         "address",
         "port"
       ]
     }
-  }
+  },
+  "additionalProperties": false
 }

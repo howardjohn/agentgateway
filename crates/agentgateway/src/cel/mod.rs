@@ -306,8 +306,8 @@ impl Expression {
 	}
 }
 
-#[derive(Clone, Debug, Default, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[derive(Default)]
+#[apply(schema_ser!)]
 pub struct ExpressionContext {
 	pub request: Option<RequestContext>,
 	pub response: Option<ResponseContext>,
@@ -316,8 +316,7 @@ pub struct ExpressionContext {
 	pub source: Option<SourceContext>,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema_ser!)]
 pub struct RequestContext {
 	#[serde(with = "http_serde::method")]
 	#[cfg_attr(feature = "schema", schemars(with = "String"))]
@@ -339,23 +338,20 @@ pub struct RequestContext {
 	pub body: Option<Bytes>,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema_ser!)]
 pub struct ResponseContext {
 	#[serde(with = "http_serde::status_code")]
 	#[cfg_attr(feature = "schema", schemars(with = "u16"))]
 	pub code: ::http::StatusCode,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema_ser!)]
 pub struct SourceContext {
 	address: IpAddr,
 	port: u16,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema_ser!)]
 pub struct LLMContext {
 	streaming: bool,
 	request_model: Strng,

@@ -12,6 +12,7 @@ use std::{cmp, net};
 use anyhow::anyhow;
 use indexmap::IndexMap;
 use itertools::Itertools;
+use macro_rules_attribute::apply;
 use once_cell::sync::Lazy;
 use openapiv3::OpenAPI;
 use prometheus_client::encoding::EncodeLabelValue;
@@ -414,9 +415,7 @@ impl TryFrom<Backend> for SimpleBackend {
 	}
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema_ser!)]
 pub enum SimpleBackendReference {
 	Service { name: NamespacedHostname, port: u16 },
 	Backend(BackendName), // Hostname or IP
@@ -1062,19 +1061,13 @@ pub enum Policy {
 	Transformation(crate::http::transformation_cel::Transformation),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct A2aPolicy {}
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct McpAuthorization(RuleSet);
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct McpAuthentication {
 	pub mode: http::jwt::Mode,
 	pub issuer: String,
@@ -1104,9 +1097,7 @@ impl McpAuthentication {
 	}
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub enum McpIDP {
 	Auth0 {},
 	Keycloak {},
