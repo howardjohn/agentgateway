@@ -208,7 +208,8 @@ impl AIProvider {
 			},
 			AIProvider::Bedrock(provider) => {
 				// For Bedrock, use a default model path - the actual model will be specified in the request body
-				let path = provider.get_path_for_model(llm_request.streaming, llm_request.request_model.as_str());
+				let path =
+					provider.get_path_for_model(llm_request.streaming, llm_request.request_model.as_str());
 				http::modify_req(req, |req| {
 					http::modify_uri(req, |uri| {
 						uri.path_and_query = Some(PathAndQuery::from_str(&path)?);
@@ -376,7 +377,10 @@ impl AIProvider {
 				AIProvider::Gemini(p) => p.process_response(bytes).await?,
 				AIProvider::Vertex(p) => p.process_response(bytes).await?,
 				AIProvider::Anthropic(p) => p.process_response(bytes).await?,
-				AIProvider::Bedrock(p) => p.process_response(req.request_model.clone(), bytes).await?,
+				AIProvider::Bedrock(p) => {
+					p.process_response(req.request_model.as_str(), bytes)
+						.await?
+				},
 			};
 			Ok(Ok(openai_response))
 		} else {
@@ -399,6 +403,7 @@ impl AIProvider {
 		include_completion_in_log: bool,
 		resp: Response,
 	) -> Result<Response, AIError> {
+		let model = req.request_model.clone();
 		// Store an empty response, as we stream in info we will parse into it
 		let mut llmresp = llm::LLMResponse {
 			request: req,
@@ -411,7 +416,7 @@ impl AIProvider {
 		log.store(Some(llmresp));
 		let resp = match self {
 			AIProvider::Anthropic(p) => p.process_streaming(log, resp).await,
-			AIProvider::Bedrock(p) => p.process_streaming(log, resp).await,
+			AIProvider::Bedrock(p) => p.process_streaming(log, resp, model.as_str()).await,
 			_ => {
 				self
 					.default_process_streaming(log, include_completion_in_log, rate_limit, resp)

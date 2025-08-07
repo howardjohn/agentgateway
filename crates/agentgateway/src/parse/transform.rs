@@ -87,13 +87,12 @@ where
 		                      encoder: &mut E,
 		                      encode_buf: &mut BytesMut| {
 			loop {
-				tracing::error!("howardjohn: got bytes {:?}", buf);
 				let decode = if finished {
 					decoder.decode_eof(buf)
 				} else {
 					decoder.decode(buf)
 				};
-				match dbg!(decode) {
+				match decode {
 					Ok(Some(decoded_item)) => {
 						if let Some(transformed_item) = (handler)(decoded_item) {
 							match encoder.encode(transformed_item, encode_buf) {

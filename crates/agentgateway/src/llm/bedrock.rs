@@ -48,21 +48,21 @@ impl Provider {
 			req.model = provider_model.to_string();
 		}
 		let bedrock_request = translate_request(req, self);
-		error!("howardjohn: {bedrock_request:#?}");
 
 		Ok(bedrock_request)
 	}
 
 	pub async fn process_response(
 		&self,
-		model: Strng,
+		model: &str,
 		bytes: &Bytes,
 	) -> Result<universal::ChatCompletionResponse, AIError> {
+		let model = self.model.as_deref().unwrap_or(model);
 		let resp =
 			serde_json::from_slice::<ConverseResponse>(bytes).map_err(AIError::ResponseParsing)?;
 
 		// Bedrock response doesn't contain the model, so we pass through the model from the request into the response
-		translate_response(resp, model.as_str())
+		translate_response(resp, model)
 	}
 
 	pub async fn process_error(
@@ -78,15 +78,20 @@ impl Provider {
 		&self,
 		log: AsyncLog<LLMResponse>,
 		resp: Response,
+		model: &str,
 	) -> Response {
-		resp.map(|b| {
-			let mut message_id = None;
-			let mut model = String::new();
+		let model = self.model.as_deref().unwrap_or(model).to_string();
+		// Bedrock doesn't return an ID, so get one from the request... if we can
+		let message_id = resp
+			.headers()
+			.get(http::x_headers::X_RATELIMIT_RESET)
+			.and_then(|s| s.to_str().ok().map(|s| s.to_owned()));
+		resp.map(move |b| {
 			let mut created = chrono::Utc::now().timestamp();
 			let mut current_content = String::new();
 			let mut input_tokens = 0;
 			parse::aws_sse::transform::<universal::ChatCompletionStreamResponse>(b, move |f| {
-				let res = dbg!(types::ConverseStreamOutput::deserialize(f)).ok()?;
+				let res = types::ConverseStreamOutput::deserialize(f).ok()?;
 				let mk = |choices: Vec<ChatCompletionChoiceStream>, usage: Option<Usage>| {
 					Some(universal::ChatCompletionStreamResponse {
 						id: message_id.clone(),
@@ -117,11 +122,78 @@ impl Provider {
 						},
 						_ => None,
 					},
-					ConverseStreamOutput::ContentBlockStart(_) => None,
-					ConverseStreamOutput::ContentBlockStop(_) => None,
-					ConverseStreamOutput::MessageStart(_) => None,
-					ConverseStreamOutput::MessageStop(_) => None,
-					ConverseStreamOutput::Metadata(_) => None,
+					ConverseStreamOutput::ContentBlockStart(_) => {
+						// TODO support tool calls
+						None
+					},
+					ConverseStreamOutput::ContentBlockStop(_) => {
+						// No need to send anything here
+						None
+					},
+					ConverseStreamOutput::MessageStart(start) => {
+						// Just send a blob with the role
+						let choice = universal::ChatCompletionChoiceStream {
+							index: 0,
+							delta: universal::ChatCompletionMessageForResponseDelta {
+								role: Some(match start.role {
+									types::Role::Assistant => universal::MessageRole::assistant,
+									types::Role::User => universal::MessageRole::user,
+									_ => universal::MessageRole::system,
+								}),
+								content: None,
+								refusal: None,
+								name: None,
+								tool_calls: None,
+							},
+							finish_reason: None,
+						};
+						mk(vec![choice], None)
+					},
+					ConverseStreamOutput::MessageStop(stop) => {
+						let finish_reason = Some(match stop.stop_reason {
+							StopReason::EndTurn => universal::FinishReason::stop,
+							StopReason::MaxTokens => universal::FinishReason::length,
+							StopReason::StopSequence => universal::FinishReason::stop,
+							StopReason::ContentFiltered => universal::FinishReason::content_filter,
+							StopReason::GuardrailIntervened => universal::FinishReason::stop,
+							StopReason::ToolUse => universal::FinishReason::tool_calls,
+						});
+
+						// Just send a blob with the finish reason
+						let choice = universal::ChatCompletionChoiceStream {
+							index: 0,
+							delta: universal::ChatCompletionMessageForResponseDelta {
+								role: None,
+								content: None,
+								refusal: None,
+								name: None,
+								tool_calls: None,
+							},
+							finish_reason,
+						};
+						mk(vec![choice], None)
+					},
+					ConverseStreamOutput::Metadata(metadata) => {
+						// Handle usage information similar to Anthropic's MessageDelta
+						if let Some(usage) = metadata.usage {
+							log.non_atomic_mutate(|r| {
+								r.output_tokens = Some(usage.output_tokens as u64);
+								r.input_tokens_from_response = Some(usage.input_tokens as u64);
+								r.total_tokens = Some(usage.total_tokens as u64);
+							});
+
+							mk(
+								vec![],
+								Some(Usage {
+									prompt_tokens: usage.input_tokens as i32,
+									completion_tokens: usage.output_tokens as i32,
+									total_tokens: usage.total_tokens as i32,
+								}),
+							)
+						} else {
+							None
+						}
+					},
 				}
 			})
 		})
