@@ -58,6 +58,7 @@ impl Provider {
 			let mut created = chrono::Utc::now().timestamp();
 			let mut finish_reason = None;
 			let mut input_tokens = 0;
+			let mut saw_token = false;
 			// https://docs.anthropic.com/en/docs/build-with-claude/streaming
 			parse::sse::json_transform::<MessagesStreamEvent, universal::ChatCompletionStreamResponse>(
 				b,
@@ -96,6 +97,12 @@ impl Provider {
 							None
 						},
 						MessagesStreamEvent::ContentBlockDelta { delta, .. } => {
+							if !saw_token {
+								saw_token = true;
+								log.non_atomic_mutate(|r| {
+									r.first_token = Some(Instant::now());
+								});
+							}
 							let ContentBlockDelta::TextDelta { text } = delta;
 							let choice = universal::ChatCompletionChoiceStream {
 								index: 0,

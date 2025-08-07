@@ -1,7 +1,10 @@
-use std::fmt::{Display, Write};
+use std::fmt::{Display, Error, Write};
 use std::mem;
+use std::sync::Arc;
 
-use prometheus_client::encoding::{EncodeLabelValue, LabelValueEncoder};
+use prometheus_client::encoding::{
+	EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelValueEncoder,
+};
 use prometheus_client::registry::Registry;
 use tracing::error;
 use tracing::field::{DisplayValue, display};
@@ -209,5 +212,21 @@ impl<T: Display> From<T> for EncodeDisplay<T> {
 impl<T: Display> From<Option<T>> for DefaultedUnknown<EncodeDisplay<T>> {
 	fn from(t: Option<T>) -> Self {
 		DefaultedUnknown(t.map(EncodeDisplay::from))
+	}
+}
+
+#[derive(Default, Hash, PartialEq, Eq, Clone, Debug)]
+// EncodeArc is a wrapper around a type to make Arc<T> encodable if T is
+pub struct EncodeArc<T>(pub Arc<T>);
+
+impl<T: EncodeLabelSet> EncodeLabelSet for EncodeArc<T> {
+	fn encode(&self, encoder: LabelSetEncoder) -> Result<(), Error> {
+		self.0.encode(encoder)
+	}
+}
+
+impl<T: EncodeLabelSet> From<Arc<T>> for EncodeArc<T> {
+	fn from(value: Arc<T>) -> Self {
+		EncodeArc(value)
 	}
 }

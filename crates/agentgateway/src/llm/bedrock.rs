@@ -89,6 +89,7 @@ impl Provider {
 		// This is static for all chunks!
 		let mut created = chrono::Utc::now().timestamp();
 		resp.map(move |b| {
+			let mut saw_token = false;
 			parse::aws_sse::transform::<universal::ChatCompletionStreamResponse>(b, move |f| {
 				let res = types::ConverseStreamOutput::deserialize(f).ok()?;
 				let mk = |choices: Vec<ChatCompletionChoiceStream>, usage: Option<Usage>| {
@@ -104,22 +105,30 @@ impl Provider {
 				};
 
 				match res {
-					ConverseStreamOutput::ContentBlockDelta(d) => match d.delta {
-						Some(ContentBlockDelta::Text(s)) => {
-							let choice = universal::ChatCompletionChoiceStream {
-								index: 0,
-								delta: universal::ChatCompletionMessageForResponseDelta {
-									role: None,
-									content: Some(s),
-									refusal: None,
-									name: None,
-									tool_calls: None,
-								},
-								finish_reason: None,
-							};
-							mk(vec![choice], None)
-						},
-						_ => None,
+					ConverseStreamOutput::ContentBlockDelta(d) => {
+						if !saw_token {
+							saw_token = true;
+							log.non_atomic_mutate(|r| {
+								r.first_token = Some(Instant::now());
+							});
+						}
+						match d.delta {
+							Some(ContentBlockDelta::Text(s)) => {
+								let choice = universal::ChatCompletionChoiceStream {
+									index: 0,
+									delta: universal::ChatCompletionMessageForResponseDelta {
+										role: None,
+										content: Some(s),
+										refusal: None,
+										name: None,
+										tool_calls: None,
+									},
+									finish_reason: None,
+								};
+								mk(vec![choice], None)
+							},
+							_ => None,
+						}
 					},
 					ConverseStreamOutput::ContentBlockStart(_) => {
 						// TODO support tool calls
@@ -496,7 +505,6 @@ pub(super) mod types {
 		pub content: Vec<ToolResultContentBlock>,
 		/// The status for the tool result content block.
 		/// This field is only supported Anthropic Claude 3 models.
-		///
 		pub status: Option<ToolResultStatus>,
 	}
 

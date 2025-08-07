@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::task::{Context, Poll, ready};
 use std::time::{Instant, SystemTime};
 
+use agent_core::strng;
 use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
 use crossbeam::atomic::AtomicCell;
 use frozen_collections::maps::Values;
@@ -21,7 +22,7 @@ use tracing::log::Log;
 use tracing::{Level, event, log, trace};
 
 use crate::cel::{ContextBuilder, Error, Expression};
-use crate::telemetry::metrics::{HTTPLabels, Metrics};
+use crate::telemetry::metrics::{GenAILabels, GenAILabelsTokenUsage, HTTPLabels, Metrics};
 use crate::telemetry::trc;
 use crate::telemetry::trc::TraceParent;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
@@ -488,10 +489,66 @@ impl Drop for DropOnLog {
 			return;
 		}
 
+		let end_time = Instant::now();
+		let duration = end_time - log.start;
+
 		let llm_response = log.llm_response.take();
 		if let Some(llm_response) = &llm_response {
 			// Since this is async, we add it to the context here. A bit awkward but gets the job done.
 			log.cel.cel_context.with_llm_response(llm_response);
+
+			let gen_ai_labels = Arc::new(GenAILabels {
+				gen_ai_operation_name: strng::literal!("chat").into(),
+				// TODO: map this properly
+				gen_ai_system: llm_response.request.provider.clone().into(),
+				gen_ai_request_model: llm_response.request.request_model.clone().into(),
+				gen_ai_response_model: llm_response.provider_model.clone().into(),
+			});
+			if let Some(it) = llm_response.input_tokens() {
+				log
+					.metrics
+					.gen_ai_token_usage
+					.get_or_create(&GenAILabelsTokenUsage {
+						gen_ai_token_type: strng::literal!("input").into(),
+						common: gen_ai_labels.clone().into(),
+					})
+					.observe(it as f64)
+			}
+			if let Some(ot) = llm_response.output_tokens {
+				log
+					.metrics
+					.gen_ai_token_usage
+					.get_or_create(&GenAILabelsTokenUsage {
+						gen_ai_token_type: strng::literal!("output").into(),
+						common: gen_ai_labels.clone().into(),
+					})
+					.observe(ot as f64)
+			}
+			log
+				.metrics
+				.gen_ai_request_duration
+				.get_or_create(&gen_ai_labels)
+				.observe(duration.as_secs_f64());
+			if let Some(ft) = llm_response.first_token {
+				let ttft = ft - log.start;
+				// Duration from start of request to first token
+				// This is the start of when WE got the request, but it should probably be when we SENT the upstream.
+				log
+					.metrics
+					.gen_ai_time_to_first_token
+					.get_or_create(&gen_ai_labels)
+					.observe(ttft.as_secs_f64());
+
+				if let Some(ot) = llm_response.output_tokens {
+					let first_to_last = end_time - ft;
+					let throughput = first_to_last.as_secs_f64() / (ot as f64);
+					log
+						.metrics
+						.gen_ai_time_per_output_token
+						.get_or_create(&gen_ai_labels)
+						.observe(throughput);
+				}
+			}
 		}
 
 		let Ok(cel_exec) = log.cel.build() else {
@@ -503,13 +560,10 @@ impl Drop for DropOnLog {
 			return;
 		}
 
-		let dur = format!("{}ms", log.start.elapsed().as_millis());
+		let dur = format!("{}ms", duration.as_millis());
 		let grpc = log.grpc_status.load();
 
-		let input_tokens = llm_response
-			.as_ref()
-			.and_then(|t| t.input_tokens_from_response)
-			.or_else(|| log.llm_request.as_ref().and_then(|req| req.input_tokens));
+		let input_tokens = llm_response.as_ref().and_then(|l| l.input_tokens());
 
 		let mcp = log.mcp_status.take();
 

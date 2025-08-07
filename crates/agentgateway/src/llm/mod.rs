@@ -99,6 +99,16 @@ pub struct LLMResponse {
 	pub total_tokens: Option<u64>,
 	pub provider_model: Option<Strng>,
 	pub completion: Option<Vec<String>>,
+	// Time to get the first token. Only used for streaming.
+	pub first_token: Option<Instant>,
+}
+
+impl LLMResponse {
+	pub fn input_tokens(&self) -> Option<u64> {
+		self
+			.input_tokens_from_response
+			.or(self.request.input_tokens)
+	}
 }
 
 #[derive(Debug)]
@@ -338,6 +348,7 @@ impl AIProvider {
 					} else {
 						None
 					},
+					first_token: Default::default(),
 				};
 				let body = Body::from(serde_json::to_vec(&success).map_err(AIError::ResponseMarshal)?);
 				(llm_resp, body)
@@ -350,6 +361,7 @@ impl AIProvider {
 					total_tokens: None,
 					provider_model: None,
 					completion: None,
+					first_token: None,
 				};
 				let body = Body::from(serde_json::to_vec(&err).map_err(AIError::ResponseMarshal)?);
 				(llm_resp, body)
@@ -412,6 +424,7 @@ impl AIProvider {
 			total_tokens: Default::default(),
 			provider_model: Default::default(),
 			completion: Default::default(),
+			first_token: Default::default(),
 		};
 		log.store(Some(llmresp));
 		let resp = match self {
@@ -440,6 +453,7 @@ impl AIProvider {
 		};
 		resp.map(|b| {
 			let mut seen_provider = false;
+			let mut saw_token = false;
 			parse::sse::json_passthrough::<universal::ChatCompletionStreamResponse>(b, move |f| {
 				match f {
 					Some(Ok(f)) => {
@@ -447,6 +461,12 @@ impl AIProvider {
 							if let Some(delta) = f.choices.first().and_then(|c| c.delta.content.as_deref()) {
 								c.push_str(delta);
 							}
+						}
+						if !saw_token {
+							saw_token = true;
+							log.non_atomic_mutate(|r| {
+								r.first_token = Some(Instant::now());
+							});
 						}
 						if !seen_provider {
 							seen_provider = true;
@@ -659,11 +679,12 @@ mod universal {
 	use std::collections::HashMap;
 	use std::fmt;
 
-	use crate::llm::universal;
 	use serde::de::{self, MapAccess, SeqAccess, Visitor};
 	use serde::ser::SerializeMap;
 	use serde::{Deserialize, Deserializer, Serialize, Serializer};
 	use serde_json::Value;
+
+	use crate::llm::universal;
 
 	#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 	#[serde(rename_all = "snake_case", untagged)]
