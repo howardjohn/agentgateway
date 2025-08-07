@@ -86,10 +86,9 @@ impl Provider {
 			.headers()
 			.get(http::x_headers::X_RATELIMIT_RESET)
 			.and_then(|s| s.to_str().ok().map(|s| s.to_owned()));
+		// This is static for all chunks!
+		let mut created = chrono::Utc::now().timestamp();
 		resp.map(move |b| {
-			let mut created = chrono::Utc::now().timestamp();
-			let mut current_content = String::new();
-			let mut input_tokens = 0;
 			parse::aws_sse::transform::<universal::ChatCompletionStreamResponse>(b, move |f| {
 				let res = types::ConverseStreamOutput::deserialize(f).ok()?;
 				let mk = |choices: Vec<ChatCompletionChoiceStream>, usage: Option<Usage>| {
@@ -174,7 +173,6 @@ impl Provider {
 						mk(vec![choice], None)
 					},
 					ConverseStreamOutput::Metadata(metadata) => {
-						// Handle usage information similar to Anthropic's MessageDelta
 						if let Some(usage) = metadata.usage {
 							log.non_atomic_mutate(|r| {
 								r.output_tokens = Some(usage.output_tokens as u64);

@@ -56,7 +56,6 @@ impl Provider {
 			let mut message_id = None;
 			let mut model = String::new();
 			let mut created = chrono::Utc::now().timestamp();
-			let mut current_content = String::new();
 			let mut finish_reason = None;
 			let mut input_tokens = 0;
 			// https://docs.anthropic.com/en/docs/build-with-claude/streaming
