@@ -33,8 +33,7 @@ pin_project! {
 pub fn parser<D, E, F, T>(body: http::Body, decoder: D, encoder: E, handler: F) -> http::Body
 where
 	D: Decoder + Send + 'static,
-	D::Item: Debug,
-	D::Error: Send + Into<axum_core::BoxError> + 'static + Debug,
+	D::Error: Send + Into<axum_core::BoxError> + 'static,
 	F: FnMut(D::Item) -> Option<T> + Send + 'static,
 	E: Encoder<T> + Send + 'static,
 	E::Error: Send + Into<axum_core::BoxError> + 'static,
@@ -55,8 +54,7 @@ where
 impl<D, E, F, T> Body for TransformedBody<D, E, F, T>
 where
 	D: Decoder + Send + 'static,
-	D::Item: Debug,
-	D::Error: Send + Into<axum_core::BoxError> + 'static + Debug,
+	D::Error: Send + Into<axum_core::BoxError> + 'static,
 	E: Encoder<T> + Send + 'static,
 	E::Error: Send + Into<axum_core::BoxError> + 'static,
 	F: FnMut(D::Item) -> Option<T> + Send + 'static,
