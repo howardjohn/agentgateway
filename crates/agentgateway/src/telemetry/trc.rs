@@ -160,7 +160,7 @@ impl Tracer {
 
 		// To avoid lifetime issues need to store the expression before we give it to ValueBag reference.
 		// TODO: we could allow log() to take a list of borrows and then a list of OwnedValueBag
-		let raws = cel_exec.eval(&self.fields);
+		let raws = cel_exec.eval(&self.fields.add);
 		let mut span_name = None;
 		for (k, v) in &raws {
 			// TODO: convert directly instead of via json()

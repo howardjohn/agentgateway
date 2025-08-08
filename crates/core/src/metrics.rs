@@ -230,3 +230,22 @@ impl<T: EncodeLabelSet> From<Arc<T>> for EncodeArc<T> {
 		EncodeArc(value)
 	}
 }
+
+#[derive(Hash, PartialEq, Eq, Clone, Debug, Default)]
+pub struct CustomField(Arc<[(RichStrng, DefaultedUnknown<RichStrng>)]>);
+
+impl CustomField {
+	pub fn new<K: Into<Strng>, V: Into<Strng>>(i: impl Iterator<Item = (K, Option<V>)>) -> Self {
+		Self(
+			i.into_iter()
+				.map(|(k, v)| (RichStrng::from(k), DefaultedUnknown(v.map(RichStrng::from))))
+				.collect(),
+		)
+	}
+}
+
+impl EncodeLabelSet for CustomField {
+	fn encode(&self, encoder: LabelSetEncoder) -> Result<(), Error> {
+		self.0.as_ref().encode(encoder)
+	}
+}

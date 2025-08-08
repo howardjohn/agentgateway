@@ -10,7 +10,7 @@ use hickory_resolver::config::ResolveHosts;
 use serde::de::DeserializeOwned;
 
 use crate::control::caclient;
-use crate::telemetry::log::LoggingFields;
+use crate::telemetry::log::{LoggingFields, MetricFields};
 use crate::telemetry::trc;
 use crate::types::discovery::Identity;
 use crate::{
@@ -268,6 +268,22 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 					.map(|fields| {
 						Ok::<_, anyhow::Error>(LoggingFields {
 							remove: fields.remove.into_iter().collect(),
+							add: fields
+								.add
+								.iter()
+								.map(|(k, v)| cel::Expression::new(v).map(|v| (k.clone(), Arc::new(v))))
+								.collect::<Result<_, _>>()?,
+						})
+					})
+					.transpose()?
+					.unwrap_or_default(),
+			),
+			metric_fields: Arc::new(
+				raw
+					.metrics
+					.and_then(|f| f.fields)
+					.map(|fields| {
+						Ok::<_, anyhow::Error>(MetricFields {
 							add: fields
 								.add
 								.iter()

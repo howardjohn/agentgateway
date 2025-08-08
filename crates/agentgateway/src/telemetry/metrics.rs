@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use agent_core::metrics::{DefaultedUnknown, EncodeArc, EncodeDisplay};
+use agent_core::metrics::{CustomField, DefaultedUnknown, EncodeArc, EncodeDisplay};
 use agent_core::strng::RichStrng;
 use agent_core::version;
 use prometheus_client::encoding::{EncodeLabelSet, EncodeMetric};
@@ -24,6 +24,9 @@ pub struct HTTPLabels {
 
 	pub method: DefaultedUnknown<EncodeDisplay<http::Method>>,
 	pub status: DefaultedUnknown<EncodeDisplay<u16>>,
+
+	#[prometheus(flatten)]
+	pub custom: CustomField,
 }
 
 #[derive(Clone, Hash, Default, Debug, PartialEq, Eq, EncodeLabelSet)]
@@ -32,6 +35,9 @@ pub struct GenAILabels {
 	pub gen_ai_system: DefaultedUnknown<RichStrng>,
 	pub gen_ai_request_model: DefaultedUnknown<RichStrng>,
 	pub gen_ai_response_model: DefaultedUnknown<RichStrng>,
+
+	#[prometheus(flatten)]
+	pub custom: CustomField,
 }
 
 #[derive(Clone, Hash, Default, Debug, PartialEq, Eq, EncodeLabelSet)]

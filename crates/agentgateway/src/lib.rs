@@ -98,13 +98,12 @@ pub struct RawConfig {
 
 	tracing: Option<RawTracing>,
 	logging: Option<RawLogging>,
+	metrics: Option<RawMetrics>,
 
 	http2: Option<RawHTTP2>,
 }
 
-#[derive(serde::Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema_de!)]
 pub struct RawHTTP2 {
 	window_size: Option<u32>,
 	connection_window_size: Option<u32>,
@@ -115,9 +114,7 @@ pub struct RawHTTP2 {
 	pool_unused_release_timeout: Option<Duration>,
 }
 
-#[derive(serde::Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema_de!)]
 pub struct RawTracing {
 	otlp_endpoint: String,
 	#[serde(default)]
@@ -137,17 +134,28 @@ pub struct RawTracing {
 	client_sampling: Option<String>,
 }
 
-#[derive(serde::Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema_de!)]
 pub struct RawLogging {
 	filter: Option<String>,
 	fields: Option<RawLoggingFields>,
 }
 
-#[derive(serde::Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema_de!)]
+pub struct RawMetrics {
+	fields: Option<RawMetricFields>,
+}
+
+#[apply(schema_de!)]
+pub struct RawMetricFields {
+	#[serde(default)]
+	#[cfg_attr(
+		feature = "schema",
+		schemars(with = "std::collections::HashMap<String, String>")
+	)]
+	add: IndexMap<String, String>,
+}
+
+#[apply(schema_de!)]
 pub struct RawLoggingFields {
 	#[serde(default)]
 	remove: Vec<String>,

@@ -9,6 +9,17 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::task::{Context, Poll, ready};
 use std::time::{Instant, SystemTime};
 
+use crate::cel::{ContextBuilder, Error, Expression};
+use crate::telemetry::metrics::{GenAILabels, GenAILabelsTokenUsage, HTTPLabels, Metrics};
+use crate::telemetry::trc;
+use crate::telemetry::trc::TraceParent;
+use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
+use crate::types::agent::{
+	BackendName, BindName, GatewayName, ListenerName, RouteName, RouteRuleName, Target,
+};
+use crate::types::discovery::NamespacedHostname;
+use crate::{cel, llm, mcp};
+use agent_core::metrics::CustomField;
 use agent_core::strng;
 use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
 use crossbeam::atomic::AtomicCell;
@@ -20,17 +31,6 @@ use serde::{Serialize, Serializer};
 use serde_json::Value;
 use tracing::log::Log;
 use tracing::{Level, event, log, trace};
-
-use crate::cel::{ContextBuilder, Error, Expression};
-use crate::telemetry::metrics::{GenAILabels, GenAILabelsTokenUsage, HTTPLabels, Metrics};
-use crate::telemetry::trc;
-use crate::telemetry::trc::TraceParent;
-use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
-use crate::types::agent::{
-	BackendName, BindName, GatewayName, ListenerName, RouteName, RouteRuleName, Target,
-};
-use crate::types::discovery::NamespacedHostname;
-use crate::{cel, llm, mcp};
 
 /// AsyncLog is a wrapper around an item that can be atomically set.
 /// The intent is to provide additional info to the log after we have lost the RequestLog reference,
@@ -83,11 +83,16 @@ impl<T: Debug> Debug for AsyncLog<T> {
 pub struct Config {
 	pub filter: Option<Arc<cel::Expression>>,
 	pub fields: Arc<LoggingFields>,
+	pub metric_fields: Arc<MetricFields>,
 }
 
 #[derive(serde::Serialize, Default, Clone, Debug)]
 pub struct LoggingFields {
 	pub remove: FzHashSet<String>,
+	pub add: OrderedStringMap<Arc<cel::Expression>>,
+}
+#[derive(serde::Serialize, Default, Clone, Debug)]
+pub struct MetricFields {
 	pub add: OrderedStringMap<Arc<cel::Expression>>,
 }
 
@@ -164,6 +169,7 @@ pub struct CelLogging {
 	pub cel_context: cel::ContextBuilder,
 	pub filter: Option<Arc<cel::Expression>>,
 	pub fields: Arc<LoggingFields>,
+	pub metric_fields: Arc<MetricFields>,
 	pub tracing_sampler: TraceSampler,
 }
 
@@ -171,6 +177,7 @@ pub struct CelLoggingExecutor<'a> {
 	pub executor: cel::Executor<'a>,
 	pub filter: &'a Option<Arc<cel::Expression>>,
 	pub fields: &'a Arc<LoggingFields>,
+	pub metric_fields: &'a Arc<MetricFields>,
 }
 
 impl<'a> CelLoggingExecutor<'a> {
@@ -200,9 +207,20 @@ impl<'a> CelLoggingExecutor<'a> {
 		}
 	}
 
-	pub fn eval(&self, fields: &'a Arc<LoggingFields>) -> Vec<(Cow<str>, Option<Value>)> {
-		let mut raws = Vec::with_capacity(fields.add.len());
-		for (k, v) in fields.add.iter() {
+	pub fn eval(
+		&self,
+		fields: &'a OrderedStringMap<Arc<Expression>>,
+	) -> Vec<(Cow<str>, Option<Value>)> {
+		self.eval_keep_empty(fields, false)
+	}
+
+	pub fn eval_keep_empty(
+		&self,
+		fields: &'a OrderedStringMap<Arc<Expression>>,
+		keep_empty: bool,
+	) -> Vec<(Cow<str>, Option<Value>)> {
+		let mut raws = Vec::with_capacity(fields.len());
+		for (k, v) in fields.iter() {
 			let field = self.executor.eval(v.as_ref());
 			if let Err(err) = &field {
 				trace!(target: "cel", ?err, expression=?v, "expression failed");
@@ -213,6 +231,8 @@ impl<'a> CelLoggingExecutor<'a> {
 			// will be dropped anyways
 			if let Some(celv) = celv {
 				Self::resolve_value(&mut raws, Cow::Borrowed(k.as_ref()), &celv, false);
+			} else if keep_empty {
+				raws.push((Cow::Borrowed(k.as_ref()), None));
 			}
 		}
 		raws
@@ -275,7 +295,7 @@ impl<'a> CelLoggingExecutor<'a> {
 	}
 
 	fn eval_additions(&self) -> Vec<(Cow<str>, Option<Value>)> {
-		self.eval(self.fields)
+		self.eval(&self.fields.add)
 	}
 }
 
@@ -288,11 +308,15 @@ impl CelLogging {
 		for v in cfg.fields.add.values_unordered() {
 			cel_context.register_expression(v.as_ref());
 		}
+		for v in cfg.metric_fields.add.values_unordered() {
+			cel_context.register_expression(v.as_ref());
+		}
 
 		Self {
 			cel_context,
 			filter: cfg.filter,
 			fields: cfg.fields,
+			metric_fields: cfg.metric_fields,
 			tracing_sampler: TraceSampler {
 				random_sampling: tracing_config.random_sampling,
 				client_sampling: tracing_config.client_sampling,
@@ -315,6 +339,7 @@ impl CelLogging {
 			cel_context,
 			filter,
 			fields,
+			metric_fields,
 			tracing_sampler: _,
 		} = self;
 		let executor = cel_context.build()?;
@@ -322,6 +347,7 @@ impl CelLogging {
 			executor,
 			filter,
 			fields,
+			metric_fields,
 		})
 	}
 }
@@ -467,25 +493,26 @@ impl Drop for DropOnLog {
 			return;
 		};
 
-		log
-			.metrics
-			.requests
-			.get_or_create(&HTTPLabels {
-				bind: (&log.bind_name).into(),
-				gateway: (&log.gateway_name).into(),
-				listener: (&log.listener_name).into(),
-				route: (&log.route_name).into(),
-				route_rule: (&log.route_rule_name).into(),
-				backend: (&log.backend_name).into(),
-				method: log.method.clone().into(),
-				status: log.status.as_ref().map(|s| s.as_u16()).into(),
-			})
-			.inc();
+		let mut http_labels = HTTPLabels {
+			bind: (&log.bind_name).into(),
+			gateway: (&log.gateway_name).into(),
+			listener: (&log.listener_name).into(),
+			route: (&log.route_name).into(),
+			route_rule: (&log.route_rule_name).into(),
+			backend: (&log.backend_name).into(),
+			method: log.method.clone().into(),
+			status: log.status.as_ref().map(|s| s.as_u16()).into(),
+			custom: CustomField::default(),
+		};
+
+		let enable_custom_metrics = log.cel.metric_fields.add.len() > 0;
 
 		let enable_trace = log.tracer.is_some();
 		// We will later check it also matches a filter, but filter is slower
 		let maybe_enable_log = agent_core::telemetry::enabled("request", &Level::INFO);
-		if !maybe_enable_log && !enable_trace {
+		if !maybe_enable_log && !enable_trace && !enable_custom_metrics {
+			// Report our non-customized metrics
+			log.metrics.requests.get_or_create(&http_labels).inc();
 			return;
 		}
 
@@ -496,13 +523,39 @@ impl Drop for DropOnLog {
 		if let Some(llm_response) = &llm_response {
 			// Since this is async, we add it to the context here. A bit awkward but gets the job done.
 			log.cel.cel_context.with_llm_response(llm_response);
+		}
 
+		let Ok(cel_exec) = log.cel.build() else {
+			tracing::warn!("failed to build CEL context");
+			return;
+		};
+
+		let custom_metric_fields = CustomField::new(
+			// For metrics, keep empty values which will become 'unknown'
+			cel_exec
+				.eval_keep_empty(&cel_exec.metric_fields.add, true)
+				.into_iter()
+				.map(|(k, v)| {
+					(
+						strng::new(k),
+						v.and_then(|v| match v {
+							Value::String(s) => Some(strng::new(s)),
+							_ => None,
+						}),
+					)
+				}),
+		);
+		http_labels.custom = custom_metric_fields.clone();
+		log.metrics.requests.get_or_create(&http_labels).inc();
+
+		if let Some(llm_response) = &llm_response {
 			let gen_ai_labels = Arc::new(GenAILabels {
 				gen_ai_operation_name: strng::literal!("chat").into(),
 				// TODO: map this properly
 				gen_ai_system: llm_response.request.provider.clone().into(),
 				gen_ai_request_model: llm_response.request.request_model.clone().into(),
 				gen_ai_response_model: llm_response.provider_model.clone().into(),
+				custom: custom_metric_fields.clone(),
 			});
 			if let Some(it) = llm_response.input_tokens() {
 				log
@@ -551,10 +604,6 @@ impl Drop for DropOnLog {
 			}
 		}
 
-		let Ok(cel_exec) = log.cel.build() else {
-			tracing::warn!("failed to build CEL context");
-			return;
-		};
 		let enable_logs = maybe_enable_log && cel_exec.eval_filter();
 		if !enable_logs && !enable_trace {
 			return;
