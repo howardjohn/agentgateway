@@ -43,6 +43,9 @@ This defaults to 'true'.|
 |`config.logging.fields`||
 |`config.logging.fields.remove`||
 |`config.logging.fields.add`||
+|`config.metrics`||
+|`config.metrics.fields`||
+|`config.metrics.fields.add`||
 |`config.http2`||
 |`config.http2.windowSize`||
 |`config.http2.connectionWindowSize`||

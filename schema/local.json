@@ -216,6 +216,31 @@
           },
           "additionalProperties": false
         },
+        "metrics": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "fields": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "add": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {}
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
         "http2": {
           "type": [
             "object",
