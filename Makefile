@@ -64,7 +64,7 @@ generate-schema:
 # Code generation for xds apis
 .PHONY: generate-apis
 generate-apis:
-	@buf generate --path crates/agentgateway/proto/resource.proto --path crates/agentgateway/proto/workload.proto.PHONY: run-validation-deps
+	@PATH=./common/tools:$(PATH) buf generate --path crates/agentgateway/proto/resource.proto --path crates/agentgateway/proto/workload.proto.PHONY: run-validation-deps
 
 .PHONY: run-validation-deps
 run-validation-deps:
