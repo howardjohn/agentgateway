@@ -432,9 +432,13 @@ pub(super) fn translate_request(
 				name: function.name,
 			})
 		},
-		Some(universal::ToolChoiceType::Auto) => Some(types::ToolChoice::Auto),
-		Some(universal::ToolChoiceType::Required) => Some(types::ToolChoice::Any),
-		Some(universal::ToolChoiceType::None) => None,
+		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::Auto)) => {
+			Some(types::ToolChoice::Auto)
+		},
+		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::Required)) => {
+			Some(types::ToolChoice::Any)
+		},
+		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::None)) => None,
 		None => None,
 	};
 	let tools = req.tools.map(|tools| {

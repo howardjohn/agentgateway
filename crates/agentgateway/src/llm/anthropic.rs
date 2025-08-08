@@ -326,9 +326,15 @@ pub(super) fn translate_request(req: ChatCompletionRequest) -> types::MessagesRe
 				name: function.name,
 			})
 		},
-		Some(universal::ToolChoiceType::Auto) => Some(types::ToolChoice::Auto),
-		Some(universal::ToolChoiceType::Required) => Some(types::ToolChoice::Any),
-		Some(universal::ToolChoiceType::None) => Some(types::ToolChoice::None),
+		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::Auto)) => {
+			Some(types::ToolChoice::Auto)
+		},
+		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::Required)) => {
+			Some(types::ToolChoice::Any)
+		},
+		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::None)) => {
+			Some(types::ToolChoice::None)
+		},
 		None => None,
 	};
 	types::MessagesRequest {

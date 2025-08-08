@@ -686,12 +686,22 @@ mod universal {
 
 	use crate::llm::universal;
 
+	/// Simple tool-choice modes.
+	#[derive(Debug, Serialize, Deserialize, Clone, Copy, Eq, PartialEq)]
+	#[serde(rename_all = "snake_case")]
+	pub enum ToolChoiceMode {
+		/// The model will not call any tool and instead generates a message.
+		None,
+		/// The model can pick between generating a message or calling one or more tools.
+		Auto,
+		/// The model must call one or more tools.
+		Required,
+	}
+
 	#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 	#[serde(rename_all = "snake_case", untagged)]
 	pub enum ToolChoiceType {
-		None,
-		Auto,
-		Required,
+		Mode(ToolChoiceMode),
 		ToolChoice {
 			r#type: ToolType,
 			function: Function,
@@ -996,9 +1006,9 @@ mod universal {
 		S: Serializer,
 	{
 		match value {
-			Some(ToolChoiceType::None) => serializer.serialize_str("none"),
-			Some(ToolChoiceType::Auto) => serializer.serialize_str("auto"),
-			Some(ToolChoiceType::Required) => serializer.serialize_str("required"),
+			Some(ToolChoiceType::Mode(ToolChoiceMode::None)) => serializer.serialize_str("none"),
+			Some(ToolChoiceType::Mode(ToolChoiceMode::Auto)) => serializer.serialize_str("auto"),
+			Some(ToolChoiceType::Mode(ToolChoiceMode::Required)) => serializer.serialize_str("required"),
 			Some(ToolChoiceType::ToolChoice { r#type, function }) => {
 				let mut map = serializer.serialize_map(Some(2))?;
 				map.serialize_entry("type", &r#type)?;
