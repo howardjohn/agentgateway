@@ -143,11 +143,15 @@ This defaults to 'true'.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.response.body`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.response.status`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex`||
-|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.(any)(1)action`||
-|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.(any)(1)response`||
-|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.(any)(1)response.body`||
-|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.(any)(1)response.status`||
-|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.(any)(1)action`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.action`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.action.(1)reject`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.action.(1)reject.response`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.action.(1)reject.response.body`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.action.(1)reject.response.status`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.rules`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.rules[].(any)builtin`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.rules[].(any)pattern`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.rules[].(any)name`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.webhook`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.webhook.target`||
 |`binds[].listeners[].routes[].policies.backendTLS`|Send TLS to the backend.|
@@ -157,13 +161,15 @@ This defaults to 'true'.|
 |`binds[].listeners[].routes[].policies.backendTLS.insecure`||
 |`binds[].listeners[].routes[].policies.backendTLS.insecureHost`||
 |`binds[].listeners[].routes[].policies.backendAuth`|Authenticate to the backend.|
-|`binds[].listeners[].routes[].policies.backendAuth.(any)(any)(any)file`||
-|`binds[].listeners[].routes[].policies.backendAuth.(any)(any)(1)explicitConfig`||
-|`binds[].listeners[].routes[].policies.backendAuth.(any)(any)(1)explicitConfig.accessKeyId`||
-|`binds[].listeners[].routes[].policies.backendAuth.(any)(any)(1)explicitConfig.secretAccessKey`||
-|`binds[].listeners[].routes[].policies.backendAuth.(any)(any)(1)explicitConfig.region`||
-|`binds[].listeners[].routes[].policies.backendAuth.(any)(any)(1)explicitConfig.sessionToken`||
-|`binds[].listeners[].routes[].policies.backendAuth.(any)(any)(1)implicit`||
+|`binds[].listeners[].routes[].policies.backendAuth.(any)(1)passthrough`||
+|`binds[].listeners[].routes[].policies.backendAuth.(any)(1)key`||
+|`binds[].listeners[].routes[].policies.backendAuth.(any)(1)key.(any)file`||
+|`binds[].listeners[].routes[].policies.backendAuth.(any)(1)gcp`||
+|`binds[].listeners[].routes[].policies.backendAuth.(any)(1)aws`||
+|`binds[].listeners[].routes[].policies.backendAuth.(any)(1)aws.(any)accessKeyId`||
+|`binds[].listeners[].routes[].policies.backendAuth.(any)(1)aws.(any)secretAccessKey`||
+|`binds[].listeners[].routes[].policies.backendAuth.(any)(1)aws.(any)region`||
+|`binds[].listeners[].routes[].policies.backendAuth.(any)(1)aws.(any)sessionToken`||
 |`binds[].listeners[].routes[].policies.localRateLimit`|Rate limit incoming requests. State is kept local.|
 |`binds[].listeners[].routes[].policies.localRateLimit[].maxTokens`||
 |`binds[].listeners[].routes[].policies.localRateLimit[].tokensPerFill`||

@@ -128,8 +128,6 @@ pub struct PromptGuardRequest {
 #[apply(schema!)]
 pub struct RegexRules {
 	#[serde(default)]
-	response: PromptGuardResponse,
-	#[serde(default, flatten)]
 	action: Action,
 	rules: Vec<RegexRule>,
 }
@@ -188,7 +186,6 @@ pub struct Webhook {
 
 #[apply(schema!)]
 #[derive(Default)]
-#[serde(tag = "action")]
 pub enum Action {
 	#[default]
 	Mask,

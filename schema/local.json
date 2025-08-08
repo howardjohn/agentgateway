@@ -1118,146 +1118,112 @@
                                         }
                                       },
                                       "regex": {
-                                        "anyOf": [
-                                          {
-                                            "type": "object",
-                                            "properties": {
-                                              "response": {
-                                                "type": "object",
-                                                "properties": {
-                                                  "body": {
-                                                    "type": [
-                                                      "array",
-                                                      "string"
-                                                    ],
-                                                    "items": {
-                                                      "type": "integer",
-                                                      "format": "uint8",
-                                                      "minimum": 0,
-                                                      "maximum": 255
-                                                    },
-                                                    "default": "The request was rejected due to inappropriate content"
-                                                  },
-                                                  "status": {
-                                                    "type": "integer",
-                                                    "format": "uint16",
-                                                    "minimum": 1,
-                                                    "maximum": 65535,
-                                                    "default": 403
-                                                  }
-                                                },
-                                                "additionalProperties": false,
-                                                "default": {
-                                                  "body": "The request was rejected due to inappropriate content",
-                                                  "status": 403
-                                                }
-                                              },
-                                              "rules": {
-                                                "type": "array",
-                                                "items": {
-                                                  "anyOf": [
-                                                    {
-                                                      "type": "object",
-                                                      "properties": {
-                                                        "builtin": {
-                                                          "type": "string",
-                                                          "enum": [
-                                                            "ssn",
-                                                            "creditCard",
-                                                            "phoneNumber",
-                                                            "email"
-                                                          ]
-                                                        }
-                                                      },
-                                                      "additionalProperties": false,
-                                                      "required": [
-                                                        "builtin"
-                                                      ]
-                                                    },
-                                                    {
-                                                      "type": "object",
-                                                      "properties": {
-                                                        "pattern": {
-                                                          "type": "string"
-                                                        },
-                                                        "name": {
-                                                          "type": "string"
-                                                        }
-                                                      },
-                                                      "additionalProperties": false,
-                                                      "required": [
-                                                        "pattern",
-                                                        "name"
-                                                      ]
-                                                    }
-                                                  ]
-                                                }
-                                              }
-                                            },
-                                            "unevaluatedProperties": false,
+                                        "type": [
+                                          "object",
+                                          "null"
+                                        ],
+                                        "properties": {
+                                          "action": {
                                             "oneOf": [
                                               {
-                                                "type": "object",
-                                                "properties": {
-                                                  "action": {
-                                                    "type": "string",
-                                                    "const": "mask"
-                                                  }
-                                                },
-                                                "required": [
-                                                  "action"
+                                                "type": "string",
+                                                "enum": [
+                                                  "mask"
                                                 ]
                                               },
                                               {
                                                 "type": "object",
                                                 "properties": {
-                                                  "response": {
+                                                  "reject": {
                                                     "type": "object",
                                                     "properties": {
-                                                      "body": {
-                                                        "type": [
-                                                          "array",
-                                                          "string"
-                                                        ],
-                                                        "items": {
-                                                          "type": "integer",
-                                                          "format": "uint8",
-                                                          "minimum": 0,
-                                                          "maximum": 255
+                                                      "response": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "body": {
+                                                            "type": [
+                                                              "array",
+                                                              "string"
+                                                            ],
+                                                            "items": {
+                                                              "type": "integer",
+                                                              "format": "uint8",
+                                                              "minimum": 0,
+                                                              "maximum": 255
+                                                            },
+                                                            "default": "The request was rejected due to inappropriate content"
+                                                          },
+                                                          "status": {
+                                                            "type": "integer",
+                                                            "format": "uint16",
+                                                            "minimum": 1,
+                                                            "maximum": 65535,
+                                                            "default": 403
+                                                          }
                                                         },
-                                                        "default": "The request was rejected due to inappropriate content"
-                                                      },
-                                                      "status": {
-                                                        "type": "integer",
-                                                        "format": "uint16",
-                                                        "minimum": 1,
-                                                        "maximum": 65535,
-                                                        "default": 403
+                                                        "additionalProperties": false,
+                                                        "default": {
+                                                          "body": "The request was rejected due to inappropriate content",
+                                                          "status": 403
+                                                        }
                                                       }
                                                     },
-                                                    "additionalProperties": false,
-                                                    "default": {
-                                                      "body": "The request was rejected due to inappropriate content",
-                                                      "status": 403
-                                                    }
-                                                  },
-                                                  "action": {
-                                                    "type": "string",
-                                                    "const": "reject"
+                                                    "additionalProperties": false
                                                   }
                                                 },
                                                 "required": [
-                                                  "action"
-                                                ]
+                                                  "reject"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             ],
-                                            "required": [
-                                              "rules"
-                                            ]
+                                            "default": "mask"
                                           },
-                                          {
-                                            "type": "null"
+                                          "rules": {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "builtin": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "ssn",
+                                                        "creditCard",
+                                                        "phoneNumber",
+                                                        "email"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "additionalProperties": false,
+                                                  "required": [
+                                                    "builtin"
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "pattern": {
+                                                      "type": "string"
+                                                    },
+                                                    "name": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "additionalProperties": false,
+                                                  "required": [
+                                                    "pattern",
+                                                    "name"
+                                                  ]
+                                                }
+                                              ]
+                                            }
                                           }
+                                        },
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "rules"
                                         ]
                                       },
                                       "webhook": {
@@ -1325,40 +1291,67 @@
                             "description": "Authenticate to the backend.",
                             "anyOf": [
                               {
-                                "anyOf": [
+                                "oneOf": [
                                   {
                                     "type": "object",
+                                    "properties": {
+                                      "passthrough": {
+                                        "type": "object",
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "passthrough"
+                                    ],
                                     "additionalProperties": false
                                   },
                                   {
-                                    "anyOf": [
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "file": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "file": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "file"
+                                            ]
+                                          },
+                                          {
                                             "type": "string"
                                           }
-                                        },
-                                        "required": [
-                                          "file"
                                         ]
-                                      },
-                                      {
-                                        "type": "string"
                                       }
-                                    ]
-                                  },
-                                  {
-                                    "type": "object",
+                                    },
+                                    "required": [
+                                      "key"
+                                    ],
                                     "additionalProperties": false
                                   },
                                   {
-                                    "oneOf": [
-                                      {
-                                        "description": "Use explicit AWS credentials",
+                                    "type": "object",
+                                    "properties": {
+                                      "gcp": {
                                         "type": "object",
-                                        "properties": {
-                                          "explicitConfig": {
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "gcp"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "aws": {
+                                        "anyOf": [
+                                          {
+                                            "description": "Use explicit AWS credentials",
                                             "type": "object",
                                             "properties": {
                                               "accessKeyId": {
@@ -1377,32 +1370,25 @@
                                                 ]
                                               }
                                             },
+                                            "additionalProperties": false,
                                             "required": [
                                               "accessKeyId",
                                               "secretAccessKey",
                                               "region"
                                             ]
+                                          },
+                                          {
+                                            "description": "Use implicit AWS authentication (environment variables, IAM roles, etc.)",
+                                            "type": "object",
+                                            "additionalProperties": false
                                           }
-                                        },
-                                        "required": [
-                                          "explicitConfig"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "description": "Use implicit AWS authentication (environment variables, IAM roles, etc.)",
-                                        "type": "object",
-                                        "properties": {
-                                          "implicit": {
-                                            "type": "object"
-                                          }
-                                        },
-                                        "required": [
-                                          "implicit"
-                                        ],
-                                        "additionalProperties": false
+                                        ]
                                       }
-                                    ]
+                                    },
+                                    "required": [
+                                      "aws"
+                                    ],
+                                    "additionalProperties": false
                                   }
                                 ]
                               },

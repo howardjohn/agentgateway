@@ -10,9 +10,8 @@ use crate::proxy::ProxyError;
 use crate::serdes::deser_key_from_file;
 use crate::*;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
+#[serde(untagged)]
 pub enum AwsAuth {
 	/// Use explicit AWS credentials
 	#[serde(rename_all = "camelCase")]
@@ -33,9 +32,7 @@ pub enum AwsAuth {
 	Implicit {},
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub enum BackendAuth {
 	Passthrough {},
 	Key(
