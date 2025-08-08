@@ -89,8 +89,8 @@ fn test_bedrock() {
 #[test]
 fn test_anthropic() {
 	let response = |i| Ok(anthropic::translate_response(i));
-	test_response::<anthropic::types::MessageResponse>("basic_anthropic", response);
-	test_response::<anthropic::types::MessageResponse>("anthropic_tool_result", response);
+	test_response::<anthropic::types::CreateMessagesResponse>("basic_anthropic", response);
+	test_response::<anthropic::types::CreateMessagesResponse>("anthropic_tool_result", response);
 
 	let request = |i| Ok(anthropic::translate_request(i));
 	test_request("anthropic", "basic_input", request);

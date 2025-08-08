@@ -1000,7 +1000,7 @@ mod universal {
 		Function,
 	}
 
-	#[derive(Debug, Deserialize, Serialize)]
+	#[derive(Debug, Default, Deserialize, Serialize)]
 	pub struct Usage {
 		pub prompt_tokens: i32,
 		pub completion_tokens: i32,
