@@ -1,39 +1,13 @@
-pub mod types {
-	pub use async_anthropic::types::{
-		ContentBlock,
-		ContentBlockDelta,
-		ErrorResponse as MessagesErrorResponse,
-		ImageSource,
-		Message as AnthropicMessage,
-		MessageRequest as MessagesRequest,
-		MessageResponse,
-		MessagesStreamEvent,
-		Metadata,
-		Role,
-		StopReason,
-		Tool,
-		ToolChoice,
-	};
-}
-
 use agent_core::prelude::Strng;
 use agent_core::strng;
+use async_anthropic::types::{CreateMessagesResponse, MessageContent};
 use bytes::Bytes;
 use chrono;
 use itertools::Itertools;
 use serde::Serialize;
 use serde_json::Value;
 
-use self::types::{
-	AnthropicMessage,
-	ContentBlock,
-	ContentBlockDelta,
-	MessagesErrorResponse,
-	MessagesRequest,
-	MessageResponse as MessagesResponse,
-	MessagesStreamEvent,
-	StopReason,
-};
+use self::types::*;
 use crate::http::Response;
 use crate::llm::universal::{ChatCompletionChoiceStream, ChatCompletionRequest, Usage};
 use crate::llm::{AIError, LLMRequest, LLMResponse, universal};
@@ -59,7 +33,7 @@ impl Provider {
 	pub async fn process_request(
 		&self,
 		mut req: universal::ChatCompletionRequest,
-	) -> Result<MessagesRequest, AIError> {
+	) -> Result<CreateMessagesRequest, AIError> {
 		if let Some(model) = &self.model {
 			req.model = model.to_string();
 		}
@@ -71,7 +45,7 @@ impl Provider {
 		bytes: &Bytes,
 	) -> Result<universal::ChatCompletionResponse, AIError> {
 		let resp =
-			serde_json::from_slice::<MessagesResponse>(bytes).map_err(AIError::ResponseParsing)?;
+			serde_json::from_slice::<CreateMessagesResponse>(bytes).map_err(AIError::ResponseParsing)?;
 		let openai = translate_response(resp);
 		Ok(openai)
 	}
@@ -111,8 +85,8 @@ impl Provider {
 								log.non_atomic_mutate(|r| {
 									r.output_tokens = Some(usage.output_tokens.unwrap_or(0) as u64);
 									r.input_tokens_from_response = Some(usage.input_tokens.unwrap_or(0) as u64);
-								r.provider_model = Some(strng::new(&message.model))
-							});
+									r.provider_model = Some(strng::new(&message.model))
+								});
 							}
 							// no need to respond with anything yet
 							None
@@ -138,12 +112,12 @@ impl Provider {
 							mk(vec![choice], None)
 						},
 						MessagesStreamEvent::MessageDelta { usage, delta } => {
-							finish_reason = delta.stop_reason.map(|reason| match reason {
-									StopReason::EndTurn => universal::FinishReason::stop,
-									StopReason::MaxTokens => universal::FinishReason::length,
-									StopReason::StopSequence => universal::FinishReason::stop,
-									StopReason::ToolUse => universal::FinishReason::tool_calls,
-								});
+							finish_reason = delta.stop_reason.map(|reason| match reason.as_str() {
+								MAX_TOKENS => universal::FinishReason::length,
+								TOOL_USE => universal::FinishReason::tool_calls,
+								REFUSAL => universal::FinishReason::content_filter,
+								END_TURN | STOP_SEQUENCE | PAUSE_TURN | _ => universal::FinishReason::stop,
+							});
 							if let Some(usage) = usage {
 								log.non_atomic_mutate(|r| {
 									r.output_tokens = Some(usage.output_tokens.unwrap_or(0) as u64);
@@ -152,12 +126,12 @@ impl Provider {
 									}
 								});
 								mk(
-										vec![],
-										Some(universal::Usage {
-											prompt_tokens: usage.output_tokens.unwrap_or(0) as i32,
-											completion_tokens: input_tokens as i32,
+									vec![],
+									Some(universal::Usage {
+										prompt_tokens: usage.output_tokens.unwrap_or(0) as i32,
+										completion_tokens: input_tokens as i32,
 										total_tokens: (input_tokens + usage.output_tokens.unwrap_or(0)) as i32,
-										}),
+									}),
 								)
 							} else {
 								None
@@ -196,15 +170,15 @@ pub(super) fn translate_error(
 	})
 }
 
-pub(super) fn translate_response(resp: MessagesResponse) -> universal::ChatCompletionResponse {
+pub(super) fn translate_response(resp: CreateMessagesResponse) -> universal::ChatCompletionResponse {
 	// Convert Anthropic content blocks to OpenAI message content
 	let mut tool_calls: Vec<universal::ToolCall> = Vec::new();
 	let mut content = None;
 	for block in resp.content {
 		match block {
-			ContentBlock::Text { text } => content = Some(text.clone()),
-			ContentBlock::Image { .. } => continue, // Skip images in response for now
-			ContentBlock::ToolUse { id, name, input } => {
+			MessageContent::Text { text } => content = Some(text.clone()),
+			_ => continue, // Skip images in response for now
+			MessageContent::ToolUse { id, name, input } => {
 				let Some(args) = serde_json::to_string(&input).ok() else {
 					continue;
 				};
@@ -217,7 +191,7 @@ pub(super) fn translate_response(resp: MessagesResponse) -> universal::ChatCompl
 					},
 				});
 			},
-			ContentBlock::ToolResult { .. } => {
+			MessageContent::ToolResult { .. } => {
 				// Should be on the request path, not the response path
 				continue;
 			},
@@ -266,7 +240,7 @@ pub(super) fn translate_response(resp: MessagesResponse) -> universal::ChatCompl
 	}
 }
 
-pub(super) fn translate_request(req: ChatCompletionRequest) -> MessagesRequest {
+pub(super) fn translate_request(req: ChatCompletionRequest) -> CreateMessagesRequest {
 	// Anthropic has all system prompts in a single field. Join them
 	let system = req
 		.messages
@@ -299,7 +273,7 @@ pub(super) fn translate_request(req: ChatCompletionRequest) -> MessagesRequest {
 			let content = match &msg.content {
 				universal::Content::Text(text) => {
 					vec![types::ContentBlock::Text { text: text.clone() }]
-				}
+				},
 				universal::Content::ImageUrl(urls) => urls
 					.iter()
 					.map(|img_url| {
@@ -308,7 +282,7 @@ pub(super) fn translate_request(req: ChatCompletionRequest) -> MessagesRequest {
 								source: types::ImageSource {
 									media_type: "image/jpeg".to_string(),
 									data: String::new(),
-								source_type: "base64".to_string(),
+									source_type: "base64".to_string(),
 								},
 							}
 						} else {
@@ -344,7 +318,7 @@ pub(super) fn translate_request(req: ChatCompletionRequest) -> MessagesRequest {
 	let tool_choice = match req.tool_choice {
 		Some(universal::ToolChoiceType::ToolChoice { r#type, function }) => {
 			Some(types::ToolChoice::Tool(function.name))
-		}
+		},
 		Some(universal::ToolChoiceType::Auto) => Some(types::ToolChoice::Auto),
 		Some(universal::ToolChoiceType::Required) => Some(types::ToolChoice::Any),
 		Some(universal::ToolChoiceType::None) => None,
@@ -363,5 +337,31 @@ pub(super) fn translate_request(req: ChatCompletionRequest) -> MessagesRequest {
 		tools,
 		tool_choice,
 		metadata,
+	}
+}
+pub mod types {
+	pub use async_anthropic::types::{
+		ContentBlockDelta, CreateMessagesRequest, Message as AnthropicMessage,
+		MessageContent as MessagesRequest, MessagesStreamEvent, ToolChoice,
+	};
+	use serde::Deserialize;
+
+	pub const END_TURN: &'static str = "end_turn";
+	pub const MAX_TOKENS: &'static str = "max_tokens";
+	pub const STOP_SEQUENCE: &'static str = "stop_sequence";
+	pub const TOOL_USE: &'static str = "tool_use";
+	pub const PAUSE_TURN: &'static str = "pause_turn";
+	pub const REFUSAL: &'static str = "refusal";
+
+	#[derive(Debug, Deserialize, Clone)]
+	pub struct MessagesErrorResponse {
+		pub r#type: String,
+		pub error: MessagesError,
+	}
+
+	#[derive(Debug, Deserialize, Clone)]
+	pub struct MessagesError {
+		pub r#type: String,
+		pub message: String,
 	}
 }
