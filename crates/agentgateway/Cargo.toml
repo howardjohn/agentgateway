@@ -23,7 +23,6 @@ agent-hbone.workspace = true
 agent-xds.workspace = true
 anyhow.workspace = true
 arc-swap.workspace = true
-async-anthropic.workspace = true
 async-openai.workspace = true
 async-trait.workspace = true
 aws_event_stream_parser.workspace = true

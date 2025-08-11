@@ -113,7 +113,6 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "assert_matches",
- "async-anthropic",
  "async-openai",
  "async-trait",
  "aws-config",
@@ -456,27 +455,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
 
 [[package]]
-name = "async-anthropic"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b55f84bfda9889ff5e5052bbe16e681e90142eeb28e4c61cf380b1fed104dc73"
-dependencies = [
- "backoff",
- "derive_builder",
- "reqwest",
- "reqwest-eventsource",
- "secrecy",
- "serde",
- "serde_json",
- "thiserror 2.0.12",
- "tokio",
- "tokio-stream",
- "tracing",
-]
-
-[[package]]
 name = "async-openai"
 version = "0.29.0"
+source = "git+https://github.com/howardjohn/async-openai?rev=c95098beac2c65132c8a7b7c7bf39a9ad6479acb#c95098beac2c65132c8a7b7c7bf39a9ad6479acb"
 dependencies = [
  "async-openai-macros",
  "backoff",
@@ -501,6 +482,7 @@ dependencies = [
 [[package]]
 name = "async-openai-macros"
 version = "0.1.0"
+source = "git+https://github.com/howardjohn/async-openai?rev=c95098beac2c65132c8a7b7c7bf39a9ad6479acb#c95098beac2c65132c8a7b7c7bf39a9ad6479acb"
 dependencies = [
  "proc-macro2",
  "quote",

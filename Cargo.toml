@@ -1,6 +1,6 @@
 [patch.crates-io]
 schemars = {git = "https://github.com/howardjohn/schemars", rev = "4364354fa41897a0c2001d891c0a9a38eafedb82"}
-async-openai = { path = "/home/john/git/async-openai/async-openai" }
+async-openai = {git = "https://github.com/howardjohn/async-openai", rev = "c95098beac2c65132c8a7b7c7bf39a9ad6479acb"}
 
 [workspace]
 resolver = "2"
@@ -40,7 +40,6 @@ anyhow = "1.0"
 arc-swap = "1.7.1"
 arcstr = { version = "1.2", features = ["serde"] }
 assert_matches = "1.5.0"
-async-anthropic = { version = "0.6.0" , default-features = false}
 async-openai = { version = "0.29.0", default-features = false }
 async-stream = "0.3"
 async-trait = "0.1"
