@@ -2,12 +2,13 @@ use std::num::NonZeroU8;
 use std::ops::Deref;
 
 use ::http::HeaderMap;
+use async_openai::types::ChatCompletionRequestMessage;
 use bytes::Bytes;
 
 use crate::http::{PolicyResponse, Response, StatusCode};
-use crate::llm::policy::webhook::{MaskActionBody, RequestAction};
-use crate::llm::universal::{ChatCompletionMessage, ChatCompletionRequest, Content, MessageRole};
-use crate::llm::{anthropic, bedrock, gemini, openai, pii, vertex};
+use crate::llm::policy::webhook::{MaskActionBody, Message, RequestAction};
+use crate::llm::universal::MessageRole;
+use crate::llm::{anthropic, bedrock, gemini, openai, pii, universal, vertex};
 use crate::proxy::ProxyError;
 use crate::types::agent::Target;
 use crate::*;
@@ -25,7 +26,7 @@ impl Policy {
 	pub async fn apply(
 		&self,
 		client: client::Client,
-		req: &mut ChatCompletionRequest,
+		req: &mut universal::Request,
 		http_headers: &HeaderMap,
 	) -> anyhow::Result<Option<Response>> {
 		let Some(g) = self.prompt_guard.as_ref().and_then(|g| g.request.as_ref()) else {
@@ -45,23 +46,7 @@ impl Policy {
 						anyhow::bail!("invalid webhook response");
 					};
 					let msgs = body.messages;
-					req.messages = msgs
-						.into_iter()
-						.map(|r| ChatCompletionMessage {
-							role: match r.role.as_str() {
-								"user" => MessageRole::user,
-								"system" => MessageRole::system,
-								"assistant" => MessageRole::assistant,
-								"function" => MessageRole::function,
-								"tool" => MessageRole::tool,
-								_ => MessageRole::user,
-							},
-							content: Content::Text(r.content),
-							name: None,
-							tool_calls: None,
-							tool_call_id: None,
-						})
-						.collect();
+					req.messages = msgs.into_iter().map(|r| Self::convert_message(r)).collect();
 				},
 				RequestAction::Reject(rej) => {
 					debug!(
@@ -88,7 +73,12 @@ impl Policy {
 			}
 		}
 		for msg in &mut req.messages {
-			let mut content = msg.content.must_as_text().to_string();
+			let content = {
+				let Some(content) = universal::message_text(msg) else {
+					continue;
+				};
+				content.to_string()
+			};
 			if let Some(rgx) = &g.regex {
 				for r in &rgx.rules {
 					match r {
@@ -103,9 +93,12 @@ impl Policy {
 								if let Action::Reject { response } = &rgx.action {
 									return Ok(Some(response.as_response()));
 								}
-								let mut new_content = content.clone();
+								let mut new_content = content.to_string();
 								new_content.replace_range(m.range(), &format!("<{name}>"));
-								msg.content = Content::Text(new_content);
+								*msg = Self::convert_message(Message {
+									role: universal::message_role(msg).to_string(),
+									content: new_content,
+								});
 							}
 						},
 					}
@@ -113,6 +106,25 @@ impl Policy {
 			}
 		}
 		Ok(None)
+	}
+
+	fn convert_message(r: Message) -> ChatCompletionRequestMessage {
+		match r.role.as_str() {
+			"system" => universal::RequestMessage::from(universal::RequestSystemMessage::from(r.content)),
+			"assistant" => {
+				universal::RequestMessage::from(universal::RequestAssistantMessage::from(r.content))
+			},
+			// TODO: the webhook API cannot express functions or tools...
+			"function" => universal::RequestMessage::from(universal::RequestFunctionMessage {
+				content: Some(r.content),
+				name: "".to_string(),
+			}),
+			"tool" => universal::RequestMessage::from(universal::RequestToolMessage {
+				content: universal::RequestToolMessageContent::from(r.content),
+				tool_call_id: "".to_string(),
+			}),
+			"user" | _ => universal::RequestMessage::from(universal::RequestUserMessage::from(r.content)),
+		}
 	}
 }
 
@@ -229,7 +241,7 @@ mod webhook {
 	use serde::{Deserialize, Serialize};
 
 	use crate::client::Client;
-	use crate::llm::universal::ChatCompletionRequest;
+	use crate::llm::universal::Request;
 	use crate::types::agent::Target;
 	use crate::*;
 
@@ -358,16 +370,17 @@ mod webhook {
 	fn build_request_for_request(
 		target: &Target,
 		http_headers: &HeaderMap,
-		i: &ChatCompletionRequest,
+		i: &Request,
 	) -> anyhow::Result<crate::http::Request> {
 		let body = GuardrailsPromptRequest {
 			body: PromptMessages {
 				messages: i
 					.messages
 					.iter()
-					.map(|m| Message {
-						role: format!("{:?}", m.role),
-						content: m.content.must_as_text().to_string(),
+					.filter_map(|m| {
+						let role = llm::universal::message_role(m).to_string();
+						let content = llm::universal::message_text(m).map(|s| s.to_string());
+						content.map(|content| Message { role, content })
 					})
 					.collect(),
 			},
@@ -394,7 +407,7 @@ mod webhook {
 		client: Client,
 		target: &Target,
 		http_headers: &HeaderMap,
-		req: &ChatCompletionRequest,
+		req: &Request,
 	) -> anyhow::Result<GuardrailsPromptResponse> {
 		let whr = build_request_for_request(target, http_headers, req)?;
 		let res = client

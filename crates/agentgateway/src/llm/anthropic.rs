@@ -1,8 +1,10 @@
 use agent_core::prelude::Strng;
 use agent_core::strng;
+use async_openai::types::FinishReason;
 use bytes::Bytes;
 use chrono;
 use itertools::Itertools;
+use rand::Rng;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -11,7 +13,6 @@ use crate::llm::anthropic::types::{
 	ContentBlock, ContentBlockDelta, MessagesErrorResponse, MessagesRequest, MessagesResponse,
 	MessagesStreamEvent, StopReason,
 };
-use crate::llm::universal::{ChatCompletionChoiceStream, ChatCompletionRequest, Usage};
 use crate::llm::{AIError, LLMRequest, LLMResponse, universal};
 use crate::telemetry::log::AsyncLog;
 use crate::{llm, parse, *};
@@ -33,7 +34,7 @@ pub const DEFAULT_PATH: &str = "/v1/messages";
 impl Provider {
 	pub async fn process_request(
 		&self,
-		mut req: universal::ChatCompletionRequest,
+		mut req: universal::Request,
 	) -> Result<MessagesRequest, AIError> {
 		if let Some(model) = &self.model {
 			req.model = model.to_string();
@@ -41,10 +42,7 @@ impl Provider {
 		let anthropic_message = translate_request(req);
 		Ok(anthropic_message)
 	}
-	pub async fn process_response(
-		&self,
-		bytes: &Bytes,
-	) -> Result<universal::ChatCompletionResponse, AIError> {
+	pub async fn process_response(&self, bytes: &Bytes) -> Result<universal::Response, AIError> {
 		let resp =
 			serde_json::from_slice::<MessagesResponse>(bytes).map_err(AIError::ResponseParsing)?;
 		let openai = translate_response(resp);
@@ -55,97 +53,94 @@ impl Provider {
 		resp.map(|b| {
 			let mut message_id = None;
 			let mut model = String::new();
-			let mut created = chrono::Utc::now().timestamp();
+			let mut created = chrono::Utc::now().timestamp() as u32;
 			let mut finish_reason = None;
 			let mut input_tokens = 0;
 			let mut saw_token = false;
 			// https://docs.anthropic.com/en/docs/build-with-claude/streaming
-			parse::sse::json_transform::<MessagesStreamEvent, universal::ChatCompletionStreamResponse>(
-				b,
-				move |f| {
-					let mk = |choices: Vec<ChatCompletionChoiceStream>, usage: Option<Usage>| {
-						Some(universal::ChatCompletionStreamResponse {
-							id: message_id.clone(),
-							model: model.clone(),
-							object: "chat.completion.chunk".to_string(),
-							system_fingerprint: None,
-							created,
-							choices,
-							usage,
-						})
-					};
-					// ignore errors... what else can we do?
-					let f = f.ok()?;
+			parse::sse::json_transform::<MessagesStreamEvent, universal::StreamResponse>(b, move |f| {
+				let mk = |choices: Vec<universal::ChatChoiceStream>, usage: Option<universal::Usage>| {
+					Some(universal::StreamResponse {
+						id: message_id.clone().unwrap_or_else(|| "unknown".to_string()),
+						model: model.clone(),
+						object: "chat.completion.chunk".to_string(),
+						system_fingerprint: None,
+						service_tier: None,
+						created,
+						choices,
+						usage,
+					})
+				};
+				// ignore errors... what else can we do?
+				let f = f.ok()?;
 
-					// Extract info we need
-					match f {
-						MessagesStreamEvent::MessageStart { message } => {
-							message_id = Some(message.id);
-							model = message.model.clone();
-							input_tokens = message.usage.input_tokens;
+				// Extract info we need
+				match f {
+					MessagesStreamEvent::MessageStart { message } => {
+						message_id = Some(message.id);
+						model = message.model.clone();
+						input_tokens = message.usage.input_tokens;
+						log.non_atomic_mutate(|r| {
+							r.output_tokens = Some(message.usage.output_tokens as u64);
+							r.input_tokens_from_response = Some(message.usage.input_tokens as u64);
+							r.provider_model = Some(strng::new(&message.model))
+						});
+						// no need to respond with anything yet
+						None
+					},
+
+					MessagesStreamEvent::ContentBlockStart { .. } => {
+						// There is never(?) any content here
+						None
+					},
+					MessagesStreamEvent::ContentBlockDelta { delta, .. } => {
+						if !saw_token {
+							saw_token = true;
 							log.non_atomic_mutate(|r| {
-								r.output_tokens = Some(message.usage.output_tokens as u64);
-								r.input_tokens_from_response = Some(message.usage.input_tokens as u64);
-								r.provider_model = Some(strng::new(&message.model))
+								r.first_token = Some(Instant::now());
 							});
-							// no need to respond with anything yet
-							None
-						},
-
-						MessagesStreamEvent::ContentBlockStart { .. } => {
-							// There is never(?) any content here
-							None
-						},
-						MessagesStreamEvent::ContentBlockDelta { delta, .. } => {
-							if !saw_token {
-								saw_token = true;
-								log.non_atomic_mutate(|r| {
-									r.first_token = Some(Instant::now());
-								});
+						}
+						let ContentBlockDelta::TextDelta { text } = delta;
+						let choice = universal::ChatChoiceStream {
+							index: 0,
+							logprobs: None,
+							delta: universal::StreamResponseDelta {
+								role: None,
+								content: Some(text),
+								refusal: None,
+								#[allow(deprecated)]
+								function_call: None,
+								tool_calls: None,
+							},
+							finish_reason: None,
+						};
+						mk(vec![choice], None)
+					},
+					MessagesStreamEvent::MessageDelta { usage, delta } => {
+						finish_reason = delta.stop_reason.as_ref().map(translate_stop_reason);
+						log.non_atomic_mutate(|r| {
+							r.output_tokens = Some(usage.output_tokens as u64);
+							if let Some(inp) = r.input_tokens_from_response {
+								r.total_tokens = Some(inp + usage.output_tokens as u64)
 							}
-							let ContentBlockDelta::TextDelta { text } = delta;
-							let choice = universal::ChatCompletionChoiceStream {
-								index: 0,
-								delta: universal::ChatCompletionMessageForResponseDelta {
-									role: None,
-									content: Some(text),
-									refusal: None,
-									name: None,
-									tool_calls: None,
-								},
-								finish_reason: None,
-							};
-							mk(vec![choice], None)
-						},
-						MessagesStreamEvent::MessageDelta { usage, delta } => {
-							finish_reason = delta.stop_reason.map(|reason| match reason {
-								StopReason::EndTurn => universal::FinishReason::stop,
-								StopReason::MaxTokens => universal::FinishReason::length,
-								StopReason::StopSequence => universal::FinishReason::stop,
-								StopReason::ToolUse => universal::FinishReason::tool_calls,
-								StopReason::Refusal => universal::FinishReason::content_filter,
-							});
-							log.non_atomic_mutate(|r| {
-								r.output_tokens = Some(usage.output_tokens as u64);
-								if let Some(inp) = r.input_tokens_from_response {
-									r.total_tokens = Some(inp + usage.output_tokens as u64)
-								}
-							});
-							mk(
-								vec![],
-								Some(universal::Usage {
-									prompt_tokens: usage.output_tokens as i32,
-									completion_tokens: input_tokens as i32,
-									total_tokens: (input_tokens + usage.output_tokens) as i32,
-								}),
-							)
-						},
-						MessagesStreamEvent::ContentBlockStop { .. } => None,
-						MessagesStreamEvent::MessageStop => None,
-						MessagesStreamEvent::Ping => None,
-					}
-				},
-			)
+						});
+						mk(
+							vec![],
+							Some(universal::Usage {
+								prompt_tokens: usage.output_tokens as u32,
+								completion_tokens: input_tokens as u32,
+								total_tokens: (input_tokens + usage.output_tokens) as u32,
+
+								prompt_tokens_details: None,
+								completion_tokens_details: None,
+							}),
+						)
+					},
+					MessagesStreamEvent::ContentBlockStop { .. } => None,
+					MessagesStreamEvent::MessageStop => None,
+					MessagesStreamEvent::Ping => None,
+				}
+			})
 		})
 	}
 
@@ -174,9 +169,9 @@ pub(super) fn translate_error(
 	})
 }
 
-pub(super) fn translate_response(resp: MessagesResponse) -> universal::ChatCompletionResponse {
+pub(super) fn translate_response(resp: MessagesResponse) -> universal::Response {
 	// Convert Anthropic content blocks to OpenAI message content
-	let mut tool_calls: Vec<universal::ToolCall> = Vec::new();
+	let mut tool_calls: Vec<universal::MessageToolCall> = Vec::new();
 	let mut content = None;
 	for block in resp.content {
 		match block {
@@ -186,10 +181,10 @@ pub(super) fn translate_response(resp: MessagesResponse) -> universal::ChatCompl
 				let Some(args) = serde_json::to_string(&input).ok() else {
 					continue;
 				};
-				tool_calls.push(universal::ToolCall {
+				tool_calls.push(universal::MessageToolCall {
 					id: id.clone(),
 					r#type: universal::ToolType::Function,
-					function: universal::ToolCallFunction {
+					function: universal::FunctionCall {
 						name: name.clone(),
 						arguments: args,
 					},
@@ -201,61 +196,61 @@ pub(super) fn translate_response(resp: MessagesResponse) -> universal::ChatCompl
 			},
 		}
 	}
-	let message = universal::ChatCompletionMessageForResponse {
-		role: universal::MessageRole::assistant,
+	let message = universal::ResponseMessage {
+		role: universal::Role::Assistant,
 		content,
 		tool_calls: if tool_calls.is_empty() {
 			None
 		} else {
 			Some(tool_calls)
 		},
+		#[allow(deprecated)]
+		function_call: None,
+		refusal: None,
+		audio: None,
 	};
-	let finish_reason = resp.stop_reason.map(|reason| match reason {
-		StopReason::EndTurn => universal::FinishReason::stop,
-		StopReason::MaxTokens => universal::FinishReason::length,
-		StopReason::StopSequence => universal::FinishReason::stop,
-		StopReason::ToolUse => universal::FinishReason::tool_calls,
-		StopReason::Refusal => universal::FinishReason::content_filter,
-	});
+	let finish_reason = resp.stop_reason.as_ref().map(translate_stop_reason);
 	// Only one choice for anthropic
-	let choice = universal::ChatCompletionChoice {
+	let choice = universal::ChatChoice {
 		index: 0,
 		message,
 		finish_reason,
-		finish_details: None,
+		logprobs: None,
 	};
 
 	let choices = vec![choice];
 	// Convert usage from Anthropic format to OpenAI format
 	let usage = universal::Usage {
-		prompt_tokens: resp.usage.input_tokens as i32,
-		completion_tokens: resp.usage.output_tokens as i32,
-		total_tokens: (resp.usage.input_tokens + resp.usage.output_tokens) as i32,
+		prompt_tokens: resp.usage.input_tokens as u32,
+		completion_tokens: resp.usage.output_tokens as u32,
+		total_tokens: (resp.usage.input_tokens + resp.usage.output_tokens) as u32,
+		prompt_tokens_details: None,
+		completion_tokens_details: None,
 	};
 
-	universal::ChatCompletionResponse {
-		id: Some(resp.id),
+	universal::Response {
+		id: resp.id,
 		object: "chat.completion".to_string(),
 		// No date in anthropic response so just call it "now"
-		created: chrono::Utc::now().timestamp(),
+		created: chrono::Utc::now().timestamp() as u32,
 		model: resp.model,
 		choices,
-		usage,
+		usage: Some(usage),
+		service_tier: None,
 		system_fingerprint: None,
 	}
 }
 
-pub(super) fn translate_request(req: ChatCompletionRequest) -> types::MessagesRequest {
+pub(super) fn translate_request(req: universal::Request) -> types::MessagesRequest {
+	let max_tokens = universal::max_tokens(&req);
+	let stop_sequences = universal::stop_sequence(&req);
 	// Anthropic has all system prompts in a single field. Join them
 	let system = req
 		.messages
 		.iter()
 		.filter_map(|msg| {
-			if msg.role == universal::MessageRole::system {
-				match &msg.content {
-					universal::Content::Text(text) => Some(text.clone()),
-					_ => None, // Skip non-text system messages
-				}
+			if universal::message_role(msg) == universal::SYSTEM_ROLE {
+				universal::message_text(msg).map(|s| s.to_string())
 			} else {
 				None
 			}
@@ -267,39 +262,21 @@ pub(super) fn translate_request(req: ChatCompletionRequest) -> types::MessagesRe
 	let messages = req
 		.messages
 		.iter()
-		.filter(|msg| msg.role != universal::MessageRole::system)
-		.map(|msg| {
-			let role = match msg.role {
-				universal::MessageRole::user => types::Role::User,
-				universal::MessageRole::assistant => types::Role::Assistant,
-				_ => types::Role::User, // Default to user for other roles
+		.filter(|msg| universal::message_role(msg) != universal::SYSTEM_ROLE)
+		.filter_map(|msg| {
+			let role = match universal::message_role(msg) {
+				universal::ASSISTANT_ROLE => types::Role::Assistant,
+				// Default to user for other roles
+				_ => types::Role::User,
 			};
 
-			let content = match &msg.content {
-				universal::Content::Text(text) => {
-					vec![types::ContentBlock::Text { text: text.clone() }]
-				},
-				universal::Content::ImageUrl(urls) => {
-					urls
-						.iter()
-						.map(|img_url| {
-							if let Some(url) = &img_url.image_url {
-								types::ContentBlock::Image {
-									source: url.url.clone(),
-									media_type: "image/jpeg".to_string(), // Default to JPEG
-									data: "".to_string(),                 // Base64 data would go here if using base64
-								}
-							} else {
-								types::ContentBlock::Text {
-									text: img_url.text.clone().unwrap_or_default(),
-								}
-							}
-						})
-						.collect()
-				},
-			};
-
-			types::Message { role, content }
+			universal::message_text(msg)
+				.map(|s| {
+					vec![types::ContentBlock::Text {
+						text: s.to_string(),
+					}]
+				})
+				.map(|content| types::Message { role, content })
 		})
 		.collect();
 
@@ -321,31 +298,25 @@ pub(super) fn translate_request(req: ChatCompletionRequest) -> types::MessagesRe
 	});
 
 	let tool_choice = match req.tool_choice {
-		Some(universal::ToolChoiceType::ToolChoice { r#type, function }) => {
+		Some(universal::ToolChoiceOption::Named(universal::NamedToolChoice { r#type, function })) => {
 			Some(types::ToolChoice::Tool {
 				name: function.name,
 			})
 		},
-		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::Auto)) => {
-			Some(types::ToolChoice::Auto)
-		},
-		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::Required)) => {
-			Some(types::ToolChoice::Any)
-		},
-		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::None)) => {
-			Some(types::ToolChoice::None)
-		},
+		Some(universal::ToolChoiceOption::Auto) => Some(types::ToolChoice::Auto),
+		Some(universal::ToolChoiceOption::Required) => Some(types::ToolChoice::Any),
+		Some(universal::ToolChoiceOption::None) => Some(types::ToolChoice::None),
 		None => None,
 	};
 	types::MessagesRequest {
 		messages,
 		system,
 		model: req.model,
-		max_tokens: req.max_tokens.unwrap_or(4096) as usize,
-		stop_sequences: req.stop.unwrap_or_default(),
+		max_tokens,
+		stop_sequences,
 		stream: req.stream.unwrap_or(false),
-		temperature: req.temperature,
-		top_p: req.top_p,
+		temperature: req.temperature.map(Into::into),
+		top_p: req.top_p.map(Into::into),
 		top_k: None, // OpenAI doesn't have top_k
 		tools,
 		tool_choice,
@@ -353,6 +324,15 @@ pub(super) fn translate_request(req: ChatCompletionRequest) -> types::MessagesRe
 	}
 }
 
+fn translate_stop_reason(resp: &types::StopReason) -> FinishReason {
+	match resp {
+		StopReason::EndTurn => universal::FinishReason::Stop,
+		StopReason::MaxTokens => universal::FinishReason::Length,
+		StopReason::StopSequence => universal::FinishReason::Stop,
+		StopReason::ToolUse => universal::FinishReason::ToolCalls,
+		StopReason::Refusal => universal::FinishReason::ContentFilter,
+	}
+}
 pub(super) mod types {
 	use serde::{Deserialize, Serialize};
 

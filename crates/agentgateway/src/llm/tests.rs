@@ -8,7 +8,7 @@ use super::*;
 
 fn test_response<T: DeserializeOwned>(
 	test_name: &str,
-	xlate: impl Fn(T) -> Result<universal::ChatCompletionResponse, AIError>,
+	xlate: impl Fn(T) -> Result<universal::Response, AIError>,
 ) {
 	let test_dir = Path::new("src/llm/tests");
 
@@ -41,7 +41,7 @@ fn test_response<T: DeserializeOwned>(
 fn test_request<T: Serialize>(
 	provider_name: &str,
 	test_name: &str,
-	xlate: impl Fn(universal::ChatCompletionRequest) -> Result<T, AIError>,
+	xlate: impl Fn(universal::Request) -> Result<T, AIError>,
 ) {
 	let test_dir = Path::new("src/llm/tests");
 
@@ -49,7 +49,7 @@ fn test_request<T: Serialize>(
 	let input_path = test_dir.join(format!("{test_name}.json"));
 	let openai_str = &fs::read_to_string(&input_path).expect("Failed to read input file");
 	let openai_raw: Value = serde_json::from_str(openai_str).expect("Failed to parse openai json");
-	let openai: universal::ChatCompletionRequest =
+	let openai: universal::Request =
 		serde_json::from_str(openai_str).expect("Failed to parse openai JSON");
 
 	let provider_response =

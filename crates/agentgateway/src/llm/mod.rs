@@ -4,6 +4,7 @@ use ::http::uri::{Authority, PathAndQuery};
 use ::http::{HeaderValue, StatusCode, header};
 use agent_core::prelude::Strng;
 use agent_core::strng;
+use async_openai::types::ChatCompletionRequestMessage;
 use axum_extra::headers::authorization::Bearer;
 use headers::{Header, HeaderMapExt};
 use itertools::Itertools;
@@ -16,10 +17,8 @@ use crate::http::auth::{AwsAuth, BackendAuth};
 use crate::http::backendtls::BackendTLS;
 use crate::http::localratelimit::RateLimit;
 use crate::http::{Body, Request, Response};
-use crate::llm::universal::{
-	ChatCompletionError, ChatCompletionErrorResponse, ChatCompletionResponse, Content, MessageRole,
-	ToolCall,
-};
+
+use crate::llm::universal::{ChatCompletionError, ChatCompletionErrorResponse};
 use crate::proxy::ProxyError;
 use crate::store::{BackendPolicies, LLMRequestPolicies, LLMResponsePolicies};
 use crate::telemetry::log::{AsyncLog, RequestLog};
@@ -34,6 +33,7 @@ mod pii;
 mod policy;
 #[cfg(test)]
 mod tests;
+mod universal;
 pub mod vertex;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -88,7 +88,7 @@ pub struct LLMRequestParams {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub seed: Option<i64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub max_tokens: Option<i64>,
+	pub max_tokens: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -249,15 +249,9 @@ impl AIProvider {
 		let Ok(bytes) = axum::body::to_bytes(body, 2_097_152).await else {
 			return Err(AIError::RequestTooLarge);
 		};
-		let mut req: universal::ChatCompletionRequest =
+		let mut req: universal::Request =
 			serde_json::from_slice(bytes.as_ref()).map_err(AIError::RequestParsing)?;
-		if req
-			.messages
-			.iter()
-			.any(|m| !matches!(m.content, universal::Content::Text(_)))
-		{
-			return Err(AIError::UnsupportedContent);
-		};
+
 		if let Some(p) = policies {
 			let http_headers = &parts.headers;
 			if let Some(dr) = p.apply(client, &mut req, http_headers).await.map_err(|e| {
@@ -276,6 +270,18 @@ impl AIProvider {
 					.cel_context
 					.with_llm_prompt(req.messages.iter().map(Into::into).collect_vec())
 			}
+		}
+
+		// If a user doesn't request usage, we will not get token information which we need
+		// We always set it.
+		// TODO?: this may impact the user, if they make assumptions about the stream NOT including usage.
+		// Notably, this adds a final SSE event.
+		// We could actually go remove that on the response, but it would mean we cannot do passthrough-parsing,
+		// so unless we have a compelling use case for it, for now we keep it.
+		if req.stream.unwrap_or_default() && req.stream_options.is_none() {
+			req.stream_options = Some(universal::StreamOptions {
+				include_usage: true,
+			});
 		}
 		let resp_json = match self {
 			AIProvider::OpenAI(p) => serde_json::to_vec(&p.process_request(req).await?),
@@ -333,9 +339,9 @@ impl AIProvider {
 			Ok(success) => {
 				let llm_resp = LLMResponse {
 					request: req,
-					input_tokens_from_response: Some(success.usage.prompt_tokens as u64),
-					output_tokens: Some(success.usage.completion_tokens as u64),
-					total_tokens: Some(success.usage.total_tokens as u64),
+					input_tokens_from_response: success.usage.as_ref().map(|u| u.prompt_tokens as u64),
+					output_tokens: success.usage.as_ref().map(|u| u.completion_tokens as u64),
+					total_tokens: success.usage.as_ref().map(|u| u.total_tokens as u64),
 					provider_model: Some(strng::new(&success.model)),
 					completion: if include_completion_in_log {
 						Some(
@@ -382,7 +388,7 @@ impl AIProvider {
 		req: &LLMRequest,
 		status: StatusCode,
 		bytes: &Bytes,
-	) -> Result<Result<ChatCompletionResponse, ChatCompletionErrorResponse>, AIError> {
+	) -> Result<Result<universal::Response, ChatCompletionErrorResponse>, AIError> {
 		if status.is_success() {
 			let openai_response = match self {
 				AIProvider::OpenAI(p) => p.process_response(bytes).await?,
@@ -455,7 +461,7 @@ impl AIProvider {
 			let mut seen_provider = false;
 			let mut saw_token = false;
 			let mut rate_limit = Some(rate_limit);
-			parse::sse::json_passthrough::<universal::ChatCompletionStreamResponse>(b, move |f| {
+			parse::sse::json_passthrough::<universal::StreamResponse>(b, move |f| {
 				match f {
 					Some(Ok(f)) => {
 						if let Some(c) = completion.as_mut() {
@@ -507,7 +513,7 @@ impl AIProvider {
 
 	pub async fn to_llm_request(
 		&self,
-		req: &universal::ChatCompletionRequest,
+		req: &universal::Request,
 		tokenize: bool,
 	) -> Result<LLMRequest, AIError> {
 		let input_tokens = if tokenize {
@@ -530,12 +536,12 @@ impl AIProvider {
 			provider: self.provider(),
 			streaming: req.stream.unwrap_or_default(),
 			params: LLMRequestParams {
-				temperature: req.temperature,
-				top_p: req.top_p,
-				frequency_penalty: req.frequency_penalty,
-				presence_penalty: req.presence_penalty,
+				temperature: req.temperature.map(Into::into),
+				top_p: req.top_p.map(Into::into),
+				frequency_penalty: req.frequency_penalty.map(Into::into),
+				presence_penalty: req.presence_penalty.map(Into::into),
 				seed: req.seed,
-				max_tokens: req.max_tokens,
+				max_tokens: universal::max_tokens_option(&req),
 			},
 		};
 		Ok(llm)
@@ -545,7 +551,7 @@ impl AIProvider {
 // TODO: do we always want to spend cost of tokenizing, or just allow skipping and using the response?
 fn num_tokens_from_messages(
 	model: &str,
-	messages: &[universal::ChatCompletionMessage],
+	messages: &[universal::RequestMessage],
 ) -> Result<u64, AIError> {
 	let tokenizer = get_tokenizer(model).unwrap_or(Tokenizer::Cl100kBase);
 	if tokenizer != Tokenizer::Cl100kBase && tokenizer != Tokenizer::O200kBase {
@@ -566,13 +572,15 @@ fn num_tokens_from_messages(
 		// 	message.role
 		// )
 		// .len() as u64;
-		num_tokens += bpe
-			.encode_with_special_tokens(
-				// We filter non-text previously
-				message.content.must_as_text(),
-			)
-			.len() as u64;
-		if let Some(name) = message.name.as_ref() {
+		if let Some(t) = universal::message_text(message) {
+			num_tokens += bpe
+				.encode_with_special_tokens(
+					// We filter non-text previously
+					t,
+				)
+				.len() as u64;
+		}
+		if let Some(name) = universal::message_name(message) {
 			num_tokens += bpe.encode_with_special_tokens(name).len() as u64;
 			num_tokens += tokens_per_name;
 		}
@@ -662,462 +670,23 @@ pub struct SimpleChatCompletionMessage {
 	pub content: Strng,
 }
 
-impl From<&universal::ChatCompletionMessage> for SimpleChatCompletionMessage {
-	fn from(msg: &universal::ChatCompletionMessage) -> Self {
-		Self {
-			role: match msg.role {
-				MessageRole::user => strng::literal!("user"),
-				MessageRole::system => strng::literal!("system"),
-				MessageRole::assistant => strng::literal!("assistant"),
-				MessageRole::function => strng::literal!("function"),
-				MessageRole::tool => strng::literal!("tool"),
-			},
-			content: match &msg.content {
-				Content::Text(t) => t.into(),
-				Content::ImageUrl(t) => {
-					strng::literal!("image")
-				},
-			},
-		}
-	}
-}
-
-mod universal {
-	use std::collections::HashMap;
-	use std::fmt;
-
-	use serde::de::{self, MapAccess, SeqAccess, Visitor};
-	use serde::ser::SerializeMap;
-	use serde::{Deserialize, Deserializer, Serialize, Serializer};
-	use serde_json::Value;
-
-	use crate::llm::universal;
-
-	/// Simple tool-choice modes.
-	#[derive(Debug, Serialize, Deserialize, Clone, Copy, Eq, PartialEq)]
-	#[serde(rename_all = "snake_case")]
-	pub enum ToolChoiceMode {
-		/// The model will not call any tool and instead generates a message.
-		None,
-		/// The model can pick between generating a message or calling one or more tools.
-		Auto,
-		/// The model must call one or more tools.
-		Required,
-	}
-
-	#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-	#[serde(rename_all = "snake_case", untagged)]
-	pub enum ToolChoiceType {
-		Mode(ToolChoiceMode),
-		ToolChoice {
-			r#type: ToolType,
-			function: Function,
-		},
-	}
-
-	#[derive(Debug, Serialize, Deserialize, Clone)]
-	pub struct ChatCompletionRequest {
-		pub model: String,
-		pub messages: Vec<ChatCompletionMessage>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub temperature: Option<f64>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub top_p: Option<f64>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub n: Option<i64>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub response_format: Option<Value>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub stream: Option<bool>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub stream_options: Option<ChatCompletionStreamOptions>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub stop: Option<Vec<String>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub max_tokens: Option<i64>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub presence_penalty: Option<f64>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub frequency_penalty: Option<f64>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub logit_bias: Option<HashMap<String, i32>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub user: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub seed: Option<i64>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub tools: Option<Vec<Tool>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub parallel_tool_calls: Option<bool>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		#[serde(serialize_with = "serialize_tool_choice")]
-		pub tool_choice: Option<ToolChoiceType>,
-	}
-
-	#[derive(Debug, Serialize, Deserialize, Clone)]
-	pub struct ChatCompletionStreamOptions {
-		pub include_usage: bool,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-	#[allow(non_camel_case_types)]
-	pub enum MessageRole {
-		user,
-		system,
-		assistant,
-		function,
-		tool,
-	}
-
-	#[derive(Debug, Clone, PartialEq, Eq)]
-	pub enum Content {
-		Text(String),
-		ImageUrl(Vec<ImageUrl>),
-	}
-
-	impl Content {
-		pub fn must_as_text(&self) -> &str {
-			match self {
-				Content::Text(txt) => txt,
-				Content::ImageUrl(_) => {
-					panic!("expected text")
-				},
-			}
-		}
-	}
-
-	impl serde::Serialize for Content {
-		fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-		where
-			S: serde::Serializer,
-		{
-			match *self {
-				Content::Text(ref text) => {
-					if text.is_empty() {
-						serializer.serialize_none()
-					} else {
-						serializer.serialize_str(text)
-					}
-				},
-				Content::ImageUrl(ref image_url) => image_url.serialize(serializer),
-			}
-		}
-	}
-
-	impl<'de> Deserialize<'de> for Content {
-		fn deserialize<D>(deserializer: D) -> Result<Content, D::Error>
-		where
-			D: Deserializer<'de>,
-		{
-			struct ContentVisitor;
-
-			impl<'de> Visitor<'de> for ContentVisitor {
-				type Value = Content;
-
-				fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-					formatter.write_str("a valid content type")
-				}
-
-				fn visit_str<E>(self, value: &str) -> Result<Content, E>
-				where
-					E: de::Error,
-				{
-					Ok(Content::Text(value.to_string()))
-				}
-
-				fn visit_seq<A>(self, seq: A) -> Result<Content, A::Error>
-				where
-					A: SeqAccess<'de>,
-				{
-					let image_urls: Vec<ImageUrl> =
-						Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))?;
-					Ok(Content::ImageUrl(image_urls))
-				}
-
-				fn visit_map<M>(self, map: M) -> Result<Content, M::Error>
-				where
-					M: MapAccess<'de>,
-				{
-					let image_urls: Vec<ImageUrl> =
-						Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
-					Ok(Content::ImageUrl(image_urls))
-				}
-
-				fn visit_none<E>(self) -> Result<Self::Value, E>
-				where
-					E: de::Error,
-				{
-					Ok(Content::Text(String::new()))
-				}
-
-				fn visit_unit<E>(self) -> Result<Self::Value, E>
-				where
-					E: de::Error,
-				{
-					Ok(Content::Text(String::new()))
-				}
-			}
-
-			deserializer.deserialize_any(ContentVisitor)
-		}
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-	#[allow(non_camel_case_types)]
-	pub enum ContentType {
-		text,
-		image_url,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-	#[allow(non_camel_case_types)]
-	pub struct ImageUrlType {
-		pub url: String,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-	#[allow(non_camel_case_types)]
-	pub struct ImageUrl {
-		pub r#type: ContentType,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub text: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub image_url: Option<ImageUrlType>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone)]
-	pub struct ChatCompletionMessage {
-		pub role: MessageRole,
-		pub content: Content,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub name: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub tool_calls: Option<Vec<ToolCall>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub tool_call_id: Option<String>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone)]
-	pub struct ChatCompletionMessageForResponse {
-		pub role: MessageRole,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub content: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub tool_calls: Option<Vec<ToolCall>>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone)]
-	pub struct ChatCompletionMessageForResponseDelta {
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub role: Option<MessageRole>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub content: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub refusal: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub name: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub tool_calls: Option<Vec<ToolCall>>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize)]
-	pub struct ChatCompletionChoice {
-		pub index: i64,
-		pub message: ChatCompletionMessageForResponse,
-		pub finish_reason: Option<FinishReason>,
-		pub finish_details: Option<FinishDetails>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize)]
-	pub struct ChatCompletionChoiceStream {
-		pub index: i64,
-		pub delta: ChatCompletionMessageForResponseDelta,
-		pub finish_reason: Option<FinishReason>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize)]
-	pub struct ChatCompletionResponse {
-		pub id: Option<String>,
-		pub object: String,
-		pub created: i64,
-		pub model: String,
-		pub choices: Vec<ChatCompletionChoice>,
-		pub usage: Usage,
-		pub system_fingerprint: Option<String>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize)]
-	pub struct ChatCompletionStreamResponse {
-		pub id: Option<String>,
-		pub object: String,
-		pub created: i64,
-		pub model: String,
-		pub choices: Vec<ChatCompletionChoiceStream>,
-		pub usage: Option<Usage>,
-		pub system_fingerprint: Option<String>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize)]
-	pub struct ChatCompletionErrorResponse {
-		pub event_id: Option<String>,
-		pub error: ChatCompletionError,
-	}
-
-	#[derive(Debug, Deserialize, Serialize)]
-	pub struct ChatCompletionError {
-		pub r#type: String,
-		pub message: String,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub param: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub code: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub event_id: Option<String>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
-	#[allow(non_camel_case_types)]
-	pub enum FinishReason {
-		stop,
-		length,
-		content_filter,
-		tool_calls,
-		null,
-	}
-
-	#[derive(Debug, Deserialize, Serialize)]
-	#[allow(non_camel_case_types)]
-	pub struct FinishDetails {
-		pub r#type: FinishReason,
-		pub stop: String,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone)]
-	pub struct ToolCall {
-		pub id: String,
-		pub r#type: ToolType,
-		pub function: ToolCallFunction,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone)]
-	pub struct ToolCallFunction {
-		pub name: String,
-		pub arguments: String,
-	}
-
-	fn serialize_tool_choice<S>(
-		value: &Option<ToolChoiceType>,
-		serializer: S,
-	) -> Result<S::Ok, S::Error>
-	where
-		S: Serializer,
-	{
-		match value {
-			Some(ToolChoiceType::Mode(ToolChoiceMode::None)) => serializer.serialize_str("none"),
-			Some(ToolChoiceType::Mode(ToolChoiceMode::Auto)) => serializer.serialize_str("auto"),
-			Some(ToolChoiceType::Mode(ToolChoiceMode::Required)) => serializer.serialize_str("required"),
-			Some(ToolChoiceType::ToolChoice { r#type, function }) => {
-				let mut map = serializer.serialize_map(Some(2))?;
-				map.serialize_entry("type", &r#type)?;
-				map.serialize_entry("function", &function)?;
-				map.end()
-			},
-			None => serializer.serialize_none(),
-		}
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-	pub struct Tool {
-		pub r#type: ToolType,
-		pub function: Function,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Copy, Clone, PartialEq, Eq)]
-	#[serde(rename_all = "snake_case")]
-	pub enum ToolType {
-		Function,
-	}
-
-	#[derive(Debug, Deserialize, Serialize)]
-	pub struct Usage {
-		pub prompt_tokens: i32,
-		pub completion_tokens: i32,
-		pub total_tokens: i32,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-	pub struct Function {
-		pub name: String,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub description: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub parameters: Option<serde_json::Value>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-	#[serde(rename_all = "lowercase")]
-	pub enum JSONSchemaType {
-		Object,
-		Number,
-		String,
-		Array,
-		Null,
-		Boolean,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
-	pub struct JSONSchemaDefine {
-		#[serde(rename = "type")]
-		pub schema_type: Option<JSONSchemaType>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub description: Option<String>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub enum_values: Option<Vec<String>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub properties: Option<HashMap<String, Box<JSONSchemaDefine>>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub required: Option<Vec<String>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub items: Option<Box<JSONSchemaDefine>>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone)]
-	#[serde(tag = "type")]
-	#[serde(rename_all = "snake_case")]
-	pub enum Tools {
-		CodeInterpreter,
-		FileSearch(ToolsFileSearch),
-		Function(ToolsFunction),
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone)]
-	pub struct ToolsFileSearch {
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub file_search: Option<ToolsFileSearchObject>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone)]
-	pub struct ToolsFunction {
-		pub function: Function,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone)]
-	pub struct ToolsFileSearchObject {
-		pub max_num_results: Option<u8>,
-		pub ranking_options: Option<FileSearchRankingOptions>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone)]
-	pub struct FileSearchRankingOptions {
-		pub ranker: Option<FileSearchRanker>,
-		pub score_threshold: Option<f32>,
-	}
-
-	#[derive(Debug, Deserialize, Serialize, Clone)]
-	pub enum FileSearchRanker {
-		#[serde(rename = "auto")]
-		Auto,
-		#[serde(rename = "default_2024_08_21")]
-		Default2024_08_21,
+impl From<&universal::RequestMessage> for SimpleChatCompletionMessage {
+	fn from(msg: &universal::RequestMessage) -> Self {
+		todo!()
+		// Self {
+		// 	role: match msg.role {
+		// 		ChatCompletionRequestMessage::Developer(universal::RequestDeveloperMessageContent::Text()) =>  strng::literal!("developer"),
+		// 		ChatCompletionRequestMessage::System(_) =>  strng::literal!("system"),
+		// 		ChatCompletionRequestMessage::User(_) =>  strng::literal!("user"),
+		// 		ChatCompletionRequestMessage::Assistant(_) =>  strng::literal!("assistant"),
+		// 		ChatCompletionRequestMessage::Tool(universal::RequestToolMessageContent::Text()) =>  strng::literal!("tool"),
+		// 	},
+		// 	content: match &msg.content {
+		// 		Content::Text(t) => t.into(),
+		// 		Content::ImageUrl(t) => {
+		// 			strng::literal!("image")
+		// 		},
+		// 	},
+		// }
 	}
 }

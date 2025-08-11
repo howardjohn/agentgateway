@@ -1,8 +1,10 @@
 use agent_core::prelude::Strng;
 use agent_core::strng;
+use async_openai::types::{ChatCompletionNamedToolChoice, CompletionUsage, FinishReason};
 use bytes::Bytes;
 use chrono;
 use itertools::Itertools;
+use rand::Rng;
 use serde::Serialize;
 use tracing::trace;
 
@@ -11,7 +13,6 @@ use crate::llm::bedrock::types::{
 	ContentBlock, ContentBlockDelta, ConverseErrorResponse, ConverseRequest, ConverseResponse,
 	ConverseStreamOutput, StopReason,
 };
-use crate::llm::universal::{ChatCompletionChoiceStream, ChatCompletionRequest, Usage};
 use crate::llm::{AIError, LLMResponse, universal};
 use crate::telemetry::log::AsyncLog;
 use crate::*;
@@ -41,7 +42,7 @@ impl super::Provider for Provider {
 impl Provider {
 	pub async fn process_request(
 		&self,
-		mut req: ChatCompletionRequest,
+		mut req: universal::Request,
 	) -> Result<ConverseRequest, AIError> {
 		// Use provider's model if configured, otherwise keep the request model
 		if let Some(provider_model) = &self.model {
@@ -56,7 +57,7 @@ impl Provider {
 		&self,
 		model: &str,
 		bytes: &Bytes,
-	) -> Result<universal::ChatCompletionResponse, AIError> {
+	) -> Result<universal::Response, AIError> {
 		let model = self.model.as_deref().unwrap_or(model);
 		let resp =
 			serde_json::from_slice::<ConverseResponse>(bytes).map_err(AIError::ResponseParsing)?;
@@ -84,20 +85,22 @@ impl Provider {
 		// Bedrock doesn't return an ID, so get one from the request... if we can
 		let message_id = resp
 			.headers()
-			.get(http::x_headers::X_RATELIMIT_RESET)
-			.and_then(|s| s.to_str().ok().map(|s| s.to_owned()));
+			.get(http::x_headers::X_AMZN_REQUESTID)
+			.and_then(|s| s.to_str().ok().map(|s| s.to_owned()))
+			.unwrap_or_else(|| format!("{:016x}", rand::rng().random::<u64>()));
 		// This is static for all chunks!
-		let mut created = chrono::Utc::now().timestamp();
+		let mut created = chrono::Utc::now().timestamp() as u32;
 		resp.map(move |b| {
 			let mut saw_token = false;
-			parse::aws_sse::transform::<universal::ChatCompletionStreamResponse>(b, move |f| {
+			parse::aws_sse::transform::<universal::StreamResponse>(b, move |f| {
 				let res = types::ConverseStreamOutput::deserialize(f).ok()?;
-				let mk = |choices: Vec<ChatCompletionChoiceStream>, usage: Option<Usage>| {
-					Some(universal::ChatCompletionStreamResponse {
+				let mk = |choices: Vec<universal::ChatChoiceStream>, usage: Option<universal::Usage>| {
+					Some(universal::StreamResponse {
 						id: message_id.clone(),
 						model: model.clone(),
 						object: "chat.completion.chunk".to_string(),
 						system_fingerprint: None,
+						service_tier: None,
 						created,
 						choices,
 						usage,
@@ -114,13 +117,15 @@ impl Provider {
 						}
 						match d.delta {
 							Some(ContentBlockDelta::Text(s)) => {
-								let choice = universal::ChatCompletionChoiceStream {
+								let choice = universal::ChatChoiceStream {
 									index: 0,
-									delta: universal::ChatCompletionMessageForResponseDelta {
+									logprobs: None,
+									delta: universal::StreamResponseDelta {
 										role: None,
 										content: Some(s),
 										refusal: None,
-										name: None,
+										#[allow(deprecated)]
+										function_call: None,
 										tool_calls: None,
 									},
 									finish_reason: None,
@@ -140,17 +145,19 @@ impl Provider {
 					},
 					ConverseStreamOutput::MessageStart(start) => {
 						// Just send a blob with the role
-						let choice = universal::ChatCompletionChoiceStream {
+						let choice = universal::ChatChoiceStream {
 							index: 0,
-							delta: universal::ChatCompletionMessageForResponseDelta {
+							logprobs: None,
+							delta: universal::StreamResponseDelta {
 								role: Some(match start.role {
-									types::Role::Assistant => universal::MessageRole::assistant,
-									types::Role::User => universal::MessageRole::user,
-									_ => universal::MessageRole::system,
+									types::Role::Assistant => universal::Role::Assistant,
+									types::Role::User => universal::Role::User,
+									_ => universal::Role::System,
 								}),
 								content: None,
 								refusal: None,
-								name: None,
+								#[allow(deprecated)]
+								function_call: None,
 								tool_calls: None,
 							},
 							finish_reason: None,
@@ -158,23 +165,18 @@ impl Provider {
 						mk(vec![choice], None)
 					},
 					ConverseStreamOutput::MessageStop(stop) => {
-						let finish_reason = Some(match stop.stop_reason {
-							StopReason::EndTurn => universal::FinishReason::stop,
-							StopReason::MaxTokens => universal::FinishReason::length,
-							StopReason::StopSequence => universal::FinishReason::stop,
-							StopReason::ContentFiltered => universal::FinishReason::content_filter,
-							StopReason::GuardrailIntervened => universal::FinishReason::stop,
-							StopReason::ToolUse => universal::FinishReason::tool_calls,
-						});
+						let finish_reason = Some(translate_stop_reason(&stop.stop_reason));
 
 						// Just send a blob with the finish reason
-						let choice = universal::ChatCompletionChoiceStream {
+						let choice = universal::ChatChoiceStream {
 							index: 0,
-							delta: universal::ChatCompletionMessageForResponseDelta {
+							logprobs: None,
+							delta: universal::StreamResponseDelta {
 								role: None,
 								content: None,
 								refusal: None,
-								name: None,
+								#[allow(deprecated)]
+								function_call: None,
 								tool_calls: None,
 							},
 							finish_reason,
@@ -191,10 +193,12 @@ impl Provider {
 
 							mk(
 								vec![],
-								Some(Usage {
-									prompt_tokens: usage.input_tokens as i32,
-									completion_tokens: usage.output_tokens as i32,
-									total_tokens: usage.total_tokens as i32,
+								Some(universal::Usage {
+									prompt_tokens: usage.input_tokens as u32,
+									completion_tokens: usage.output_tokens as u32,
+									total_tokens: usage.total_tokens as u32,
+									prompt_tokens_details: None,
+									completion_tokens_details: None,
 								}),
 							)
 						} else {
@@ -238,7 +242,7 @@ pub(super) fn translate_error(
 pub(super) fn translate_response(
 	resp: ConverseResponse,
 	model: &str,
-) -> Result<universal::ChatCompletionResponse, AIError> {
+) -> Result<universal::Response, AIError> {
 	// Get the output content from the response
 	let output = resp.output.ok_or(AIError::IncompleteResponse)?;
 
@@ -250,7 +254,7 @@ pub(super) fn translate_response(
 	// Bedrock has a vec of possible content types, while openai allows 1 text content and many tool calls
 	// Assume the bedrock response has only one text
 	// Convert Bedrock content blocks to OpenAI message content
-	let mut tool_calls: Vec<universal::ToolCall> = Vec::new();
+	let mut tool_calls: Vec<universal::MessageToolCall> = Vec::new();
 	let mut content = None;
 	for block in &message.content {
 		match block {
@@ -266,10 +270,10 @@ pub(super) fn translate_response(
 				let Some(args) = serde_json::to_string(&tu.input).ok() else {
 					continue;
 				};
-				tool_calls.push(universal::ToolCall {
+				tool_calls.push(universal::MessageToolCall {
 					id: tu.tool_use_id.clone(),
 					r#type: universal::ToolType::Function,
-					function: universal::ToolCallFunction {
+					function: universal::FunctionCall {
 						name: tu.name.clone(),
 						arguments: args,
 					},
@@ -278,46 +282,42 @@ pub(super) fn translate_response(
 		};
 	}
 
-	let message = universal::ChatCompletionMessageForResponse {
-		role: universal::MessageRole::assistant,
+	let message = universal::ResponseMessage {
+		role: universal::Role::Assistant,
 		content,
 		tool_calls: if tool_calls.is_empty() {
 			None
 		} else {
 			Some(tool_calls)
 		},
+		#[allow(deprecated)]
+		function_call: None,
+		refusal: None,
+		audio: None,
 	};
-	let finish_reason = Some(match resp.stop_reason {
-		StopReason::EndTurn => universal::FinishReason::stop,
-		StopReason::MaxTokens => universal::FinishReason::length,
-		StopReason::StopSequence => universal::FinishReason::stop,
-		StopReason::ContentFiltered => universal::FinishReason::content_filter,
-		StopReason::GuardrailIntervened => universal::FinishReason::stop,
-		StopReason::ToolUse => universal::FinishReason::tool_calls,
-	});
+	let finish_reason = Some(translate_stop_reason(&resp.stop_reason));
 	// Only one choice for Bedrock
-	let choice = universal::ChatCompletionChoice {
+	let choice = universal::ChatChoice {
 		index: 0,
 		message,
 		finish_reason,
-		finish_details: None,
+		logprobs: None,
 	};
 	let choices = vec![choice];
 
 	// Convert usage from Bedrock format to OpenAI format
 	let usage = if let Some(token_usage) = resp.usage {
-		Usage {
-			prompt_tokens: token_usage.input_tokens as i32,
-			completion_tokens: token_usage.output_tokens as i32,
-			total_tokens: token_usage.total_tokens as i32,
+		universal::Usage {
+			prompt_tokens: token_usage.input_tokens as u32,
+			completion_tokens: token_usage.output_tokens as u32,
+			total_tokens: token_usage.total_tokens as u32,
+
+			prompt_tokens_details: None,
+			completion_tokens_details: None,
 		}
 	} else {
 		// Fallback if usage is not provided
-		Usage {
-			prompt_tokens: 0,
-			completion_tokens: 0,
-			total_tokens: 0,
-		}
+		universal::Usage::default()
 	};
 
 	// Generate a unique ID since it's not provided in the response
@@ -330,31 +330,37 @@ pub(super) fn translate_response(
 		}
 	}
 
-	Ok(universal::ChatCompletionResponse {
-		id: Some(id),
+	Ok(universal::Response {
+		id,
 		object: "chat.completion".to_string(),
-		created: chrono::Utc::now().timestamp(),
+		created: chrono::Utc::now().timestamp() as u32,
 		model: model.to_string(),
 		choices,
-		usage,
+		usage: Some(usage),
+		service_tier: None,
 		system_fingerprint: None,
 	})
 }
 
-pub(super) fn translate_request(
-	req: ChatCompletionRequest,
-	provider: &Provider,
-) -> ConverseRequest {
+fn translate_stop_reason(resp: &StopReason) -> FinishReason {
+	match resp {
+		StopReason::EndTurn => universal::FinishReason::Stop,
+		StopReason::MaxTokens => universal::FinishReason::Length,
+		StopReason::StopSequence => universal::FinishReason::Stop,
+		StopReason::ContentFiltered => universal::FinishReason::ContentFilter,
+		StopReason::GuardrailIntervened => universal::FinishReason::ContentFilter,
+		StopReason::ToolUse => universal::FinishReason::ToolCalls,
+	}
+}
+
+pub(super) fn translate_request(req: universal::Request, provider: &Provider) -> ConverseRequest {
 	// Bedrock has system prompts in a separate field. Join them
 	let system = req
 		.messages
 		.iter()
 		.filter_map(|msg| {
-			if msg.role == universal::MessageRole::system {
-				match &msg.content {
-					universal::Content::Text(text) => Some(text.clone()),
-					_ => None, // Skip non-text system messages
-				}
+			if universal::message_role(msg) == universal::SYSTEM_ROLE {
+				universal::message_text(msg).map(|s| s.to_string())
 			} else {
 				None
 			}
@@ -366,46 +372,26 @@ pub(super) fn translate_request(
 	let messages = req
 		.messages
 		.iter()
-		.filter(|msg| msg.role != universal::MessageRole::system)
-		.map(|msg| {
-			let role = match msg.role {
-				universal::MessageRole::user => types::Role::User,
-				universal::MessageRole::assistant => types::Role::Assistant,
-				_ => types::Role::User, // Default to user for other roles
+		.filter(|msg| universal::message_role(msg) != universal::SYSTEM_ROLE)
+		.filter_map(|msg| {
+			let role = match universal::message_role(msg) {
+				universal::ASSISTANT_ROLE => types::Role::Assistant,
+				// Default to user for other roles
+				_ => types::Role::User,
 			};
 
-			let content = match &msg.content {
-				universal::Content::Text(text) => {
-					vec![ContentBlock::Text(text.clone())]
-				},
-				universal::Content::ImageUrl(urls) => {
-					urls
-						.iter()
-						.map(|img_url| {
-							if let Some(url) = &img_url.image_url {
-								ContentBlock::Image {
-									source: url.url.clone(),
-									media_type: "image/jpeg".to_string(), // Default to JPEG
-									data: "".to_string(),                 // Base64 data would go here if using base64
-								}
-							} else {
-								ContentBlock::Text(img_url.text.clone().unwrap_or_default())
-							}
-						})
-						.collect()
-				},
-			};
-
-			types::Message { role, content }
+			universal::message_text(msg)
+				.map(|s| vec![ContentBlock::Text(s.to_string())])
+				.map(|content| types::Message { role, content })
 		})
 		.collect();
 
 	// Build inference configuration
 	let inference_config = types::InferenceConfiguration {
-		max_tokens: req.max_tokens.unwrap_or(4096) as usize,
-		temperature: req.temperature,
-		top_p: req.top_p,
-		stop_sequences: req.stop.unwrap_or_default(),
+		max_tokens: universal::max_tokens(&req),
+		temperature: req.temperature.map(Into::into),
+		top_p: req.top_p.map(Into::into),
+		stop_sequences: universal::stop_sequence(&req),
 		anthropic_version: None, // Not used for Bedrock
 	};
 
@@ -427,18 +413,14 @@ pub(super) fn translate_request(
 		.map(|user| HashMap::from([("user_id".to_string(), user)]));
 
 	let tool_choice = match req.tool_choice {
-		Some(universal::ToolChoiceType::ToolChoice { r#type, function }) => {
+		Some(universal::ToolChoiceOption::Named(universal::NamedToolChoice { r#type, function })) => {
 			Some(types::ToolChoice::Tool {
 				name: function.name,
 			})
 		},
-		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::Auto)) => {
-			Some(types::ToolChoice::Auto)
-		},
-		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::Required)) => {
-			Some(types::ToolChoice::Any)
-		},
-		Some(universal::ToolChoiceType::Mode(universal::ToolChoiceMode::None)) => None,
+		Some(universal::ToolChoiceOption::Auto) => Some(types::ToolChoice::Auto),
+		Some(universal::ToolChoiceOption::Required) => Some(types::ToolChoice::Any),
+		Some(universal::ToolChoiceOption::None) => None,
 		None => None,
 	};
 	let tools = req.tools.map(|tools| {
