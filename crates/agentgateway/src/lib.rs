@@ -217,8 +217,7 @@ impl<'de> Deserialize<'de> for StringBoolFloat {
 				formatter.write_str("string, bool, float, or int")
 			}
 
-			fn visit_str<E>(self, value: &str) -> Result<StringBoolFloat, E>
-			{
+			fn visit_str<E>(self, value: &str) -> Result<StringBoolFloat, E> {
 				Ok(StringBoolFloat(value.to_owned()))
 			}
 
@@ -241,13 +240,13 @@ impl<'de> Deserialize<'de> for StringBoolFloat {
 
 #[cfg(feature = "schema")]
 impl schemars::JsonSchema for StringBoolFloat {
-	    fn schema_name() -> std::borrow::Cow<'static, str> {
-	        "StringBoolFloat".into()
-	    }
+	fn schema_name() -> std::borrow::Cow<'static, str> {
+		"StringBoolFloat".into()
+	}
 
-	    fn schema_id() -> std::borrow::Cow<'static, str> {
-	        "StringBoolFloat".into()
-	    }
+	fn schema_id() -> std::borrow::Cow<'static, str> {
+		"StringBoolFloat".into()
+	}
 
 	fn json_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
 		schemars::json_schema!({
