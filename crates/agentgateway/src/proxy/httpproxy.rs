@@ -47,6 +47,7 @@ use crate::http::backendtls::BackendTLS;
 use crate::http::ext_authz::ExtAuthz;
 use crate::http::ext_proc::ExtProc;
 use crate::http::jwt::{Claims, TokenError};
+use crate::http::localratelimit::RateLimitType;
 use crate::http::transformation_cel::Transformation;
 use crate::http::{
 	Authority, HeaderName, HeaderValue, PolicyResponse, Request, Response, Scheme, StatusCode, Uri,
@@ -54,7 +55,9 @@ use crate::http::{
 };
 use crate::llm::{LLMRequest, LLMResponse, RequestResult};
 use crate::proxy::{ProxyError, ProxyResponse, resolve_simple_backend};
-use crate::store::{BackendPolicies, Event, LLMRoutePolicies, RoutePolicies};
+use crate::store::{
+	BackendPolicies, Event, LLMRequestPolicies, LLMResponsePolicies, RoutePolicies,
+};
 use crate::telemetry::log;
 use crate::telemetry::log::{AsyncLog, DropOnLog, LogBody, RequestLog};
 use crate::telemetry::metrics::TCPLabels;
@@ -62,7 +65,7 @@ use crate::telemetry::trc::TraceParent;
 use crate::transport::stream::{Extension, Socket, TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::agent;
 use crate::types::proto::ProtoError;
-use crate::{ProxyInputs, *};
+use crate::{ProxyInputs, store, *};
 
 fn select_backend(route: &Route, _req: &Request) -> Option<RouteBackendReference> {
 	route
@@ -77,55 +80,83 @@ async fn apply_request_policies(
 	client: PolicyClient,
 	log: &mut RequestLog,
 	req: &mut Request,
-) -> Result<http::PolicyResponse, ProxyError> {
+	response_policies: &mut ResponsePolicies,
+) -> Result<(), ProxyResponse> {
 	if let Some(j) = &policies.jwt {
 		j.apply(log, req)
 			.await
-			.map_err(ProxyError::JwtAuthenticationFailure)?;
+			.map_err(|e| ProxyResponse::from(ProxyError::JwtAuthenticationFailure(e)))?;
 	}
-	let ext_auth = if let Some(x) = &policies.ext_authz {
+	if let Some(x) = &policies.ext_authz {
 		x.check(client.clone(), req).await?
 	} else {
 		http::PolicyResponse::default()
-	};
-	if ext_auth.should_short_circuit() {
-		return Ok(ext_auth);
 	}
+	.apply(response_policies.headers())?;
 
 	for lrl in &policies.local_rate_limit {
 		lrl.check_request(req)?;
 	}
+
 	let exec = log
 		.cel
 		.ctx()
 		.build()
 		.map_err(|_| ProxyError::ProcessingString("failed to build cel context".to_string()))?;
-	let lrl = if let Some(rrl) = &policies.remote_rate_limit {
+	if let Some(rrl) = &policies.remote_rate_limit {
 		rrl.check(client, req, &exec).await?
 	} else {
 		http::PolicyResponse::default()
-	};
-	let policy_resp = ext_auth.merge(lrl);
-	if policy_resp.should_short_circuit() {
-		return Ok(policy_resp);
 	}
+	.apply(response_policies.headers())?;
 
 	if let Some(j) = &policies.transformation {
 		j.apply_request(req, &exec)
 			.map_err(|_| ProxyError::TransformationFailure)?;
 	}
 
-	Ok(policy_resp)
+	Ok(())
 }
 
-fn apply_llm_request_policies(
-	policies: &store::LLMRoutePolicies,
-	req: &LLMRequest,
-) -> Result<(), ProxyError> {
+async fn apply_llm_request_policies(
+	policies: &store::LLMRequestPolicies,
+	client: PolicyClient,
+	log: &mut Option<&mut RequestLog>,
+	req: &mut Request,
+	llm_req: &LLMRequest,
+	response_headers: &mut HeaderMap,
+) -> Result<store::LLMResponsePolicies, ProxyResponse> {
 	for lrl in &policies.local_rate_limit {
-		lrl.check_llm_request(req)?;
+		lrl.check_llm_request(llm_req)?;
 	}
-	Ok(())
+	let (rl_resp, response) = if let Some(rrl) = &policies.remote_rate_limit
+		&& let Some(log) = log
+	{
+		let exec = log
+			.cel
+			.ctx()
+			.build()
+			.map_err(|_| ProxyError::ProcessingString("failed to build cel context".to_string()))?;
+		// For the LLM request side, request either the count of the input tokens (if tokenization was done)
+		// or 0.
+		// Either way, we will 'true up' on the response side.
+		rrl
+			.check_llm(
+				client,
+				req,
+				&exec,
+				RateLimitType::Tokens,
+				llm_req.input_tokens.unwrap_or_default(),
+			)
+			.await?
+	} else {
+		(http::PolicyResponse::default(), None)
+	};
+	rl_resp.apply(response_headers)?;
+	Ok(store::LLMResponsePolicies {
+		local_rate_limit: policies.local_rate_limit.clone(),
+		remote_rate_limit: response,
+	})
 }
 
 fn apply_request_filters(
@@ -424,9 +455,14 @@ impl HTTPProxy {
 
 		let mut response_policies = ResponsePolicies::from(route_policies.transformation.clone());
 
-		apply_request_policies(&route_policies, self.policy_client(), log, &mut req)
-			.await?
-			.apply(response_policies.headers())?;
+		apply_request_policies(
+			&route_policies,
+			self.policy_client(),
+			log,
+			&mut req,
+			&mut response_policies,
+		)
+		.await?;
 
 		apply_request_filters(
 			selected_route.as_ref().filters.as_slice(),
@@ -472,8 +508,7 @@ impl HTTPProxy {
 			Some(TrafficPolicy { retry, .. }) => retry,
 			_ => &None,
 		};
-		let late_route_policies: Arc<LLMRoutePolicies> = Arc::new(route_policies.into());
-		let response_policies = Arc::new(response_policies);
+		let late_route_policies: Arc<LLMRequestPolicies> = Arc::new(route_policies.into());
 		// attempts is the total number of attempts, not the retries
 		let attempts = retries.as_ref().map(|r| r.attempts.get() + 1).unwrap_or(1);
 		let body = if attempts > 1 {
@@ -500,7 +535,7 @@ impl HTTPProxy {
 						upstream,
 						&selected_backend,
 						&selected_route,
-						response_policies,
+						&mut response_policies,
 						req,
 					)
 					.await;
@@ -540,7 +575,7 @@ impl HTTPProxy {
 					upstream.clone(),
 					&selected_backend,
 					&selected_route,
-					response_policies.clone(),
+					&mut response_policies,
 					req,
 				)
 				.await;
@@ -565,22 +600,23 @@ impl HTTPProxy {
 		&self,
 		log: &mut RequestLog,
 		req_upgrade: &mut Option<RequestUpgrade>,
-		route_policies: Arc<store::LLMRoutePolicies>,
+		route_policies: Arc<store::LLMRequestPolicies>,
 		upstream: Client,
 		selected_backend: &RouteBackend,
 		selected_route: &Route,
-		response_policies: Arc<ResponsePolicies>,
+		response_policies: &mut ResponsePolicies,
 		mut req: Request,
 	) -> Result<Response, ProxyResponse> {
 		let inputs = self.inputs.clone();
 
 		let call = make_backend_call(
 			self.inputs.clone(),
-			&route_policies,
+			route_policies.clone(),
 			&selected_backend.backend,
 			None,
 			req,
 			Some(log),
+			&mut response_policies.response_headers,
 		)
 		.await?;
 
@@ -731,19 +767,21 @@ async fn build_transport(
 
 async fn make_backend_call(
 	inputs: Arc<ProxyInputs>,
-	route_policies: &store::LLMRoutePolicies,
+	route_policies: Arc<store::LLMRequestPolicies>,
 	backend: &Backend,
 	default_policies: Option<BackendPolicies>,
 	mut req: Request,
 	mut log: Option<&mut RequestLog>,
-) -> Result<Pin<Box<dyn Future<Output = Result<Response, ProxyError>> + Send>>, ProxyError> {
+	response_headers: &mut HeaderMap,
+) -> Result<Pin<Box<dyn Future<Output = Result<Response, ProxyError>> + Send>>, ProxyResponse> {
 	let client = inputs.upstream.clone();
+	let policy_client = PolicyClient {
+		inputs: inputs.clone(),
+	};
 
 	let policy_target = PolicyTarget::Backend(backend.name());
 	let policies = inputs.stores.read_binds().backend_policies(policy_target);
-	let mut maybe_inference = policies.build_inference(PolicyClient {
-		inputs: inputs.clone(),
-	});
+	let mut maybe_inference = policies.build_inference(policy_client.clone());
 	let override_dest = maybe_inference.mutate_request(&mut req).await?;
 	log.add(|l| l.inference_pool = override_dest);
 
@@ -787,7 +825,7 @@ async fn make_backend_call(
 				// otherwise, see if the service has this port
 				svc_target_port
 			} else {
-				return Err(ProxyError::NoHealthyEndpoints);
+				return Err(ProxyResponse::from(ProxyError::NoHealthyEndpoints));
 			};
 			let http_version_override = if svc.port_is_http2(port) {
 				Some(::http::Version::HTTP_2)
@@ -797,7 +835,7 @@ async fn make_backend_call(
 				None
 			};
 			let Some(ip) = wl.workload_ips.first() else {
-				return Err(ProxyError::NoHealthyEndpoints);
+				return Err(ProxyResponse::from(ProxyError::NoHealthyEndpoints));
 			};
 			let dest = SocketAddr::from((*ip, target_port));
 			BackendCall {
@@ -842,7 +880,7 @@ async fn make_backend_call(
 					.await
 			}));
 		},
-		Backend::Invalid => return Err(ProxyError::BackendDoesNotExist),
+		Backend::Invalid => return Err(ProxyResponse::from(ProxyError::BackendDoesNotExist)),
 	};
 
 	match backend_call.http_version_override {
@@ -869,7 +907,7 @@ async fn make_backend_call(
 		log.add(|l| l.a2a_method = Some(method));
 	}
 
-	let (mut req, llm_request) =
+	let (mut req, response_policies, llm_request) =
 		if let Some((llm, use_default_policies, tokenize)) = &policies.llm_provider {
 			let r = llm
 				.process_request(client, policies.llm.as_ref(), req, *tokenize, &mut log)
@@ -884,11 +922,19 @@ async fn make_backend_call(
 					.setup_request(&mut req, &llm_request)
 					.map_err(ProxyError::Processing)?;
 			}
-			apply_llm_request_policies(route_policies, &llm_request)?;
+			let response_policies = apply_llm_request_policies(
+				&route_policies,
+				policy_client,
+				&mut log,
+				&mut req,
+				&llm_request,
+				response_headers,
+			)
+			.await?;
 			log.add(|l| l.llm_request = Some(llm_request.clone()));
-			(req, Some(llm_request))
+			(req, response_policies, Some(llm_request))
 		} else {
-			(req, None)
+			(req, LLMResponsePolicies::default(), None)
 		};
 	// Some auth types (AWS) need to be applied after all request processing
 	auth::apply_late_backend_auth(policies.backend_auth.as_ref(), &mut req).await?;
@@ -904,7 +950,6 @@ async fn make_backend_call(
 		.as_ref()
 		.map(|l| l.cel.cel_context.needs_llm_completion())
 		.unwrap_or_default();
-	let rate_limit = route_policies.local_rate_limit.clone();
 	Ok(Box::pin(async move {
 		let mut resp = upstream.call(call).await?;
 		a2a::apply_to_response(policies.a2a.as_ref(), a2a_type, &mut resp)
@@ -915,7 +960,7 @@ async fn make_backend_call(
 				llm
 					.process_response(
 						llm_request,
-						rate_limit,
+						response_policies,
 						llm_response_log.expect("must be set"),
 						include_completion_in_log,
 						resp,
@@ -1134,13 +1179,15 @@ impl PolicyClient {
 	pub async fn call(&self, req: Request, backend: SimpleBackend) -> Result<Response, ProxyError> {
 		make_backend_call(
 			self.inputs.clone(),
-			&LLMRoutePolicies::default(),
+			Arc::new(LLMRequestPolicies::default()),
 			&backend.into(),
 			None,
 			req,
 			None,
+			&mut Default::default(),
 		)
-		.await?
+		.await
+		.map_err(ProxyResponse::downcast)?
 		.await
 	}
 	pub async fn call_with_default_policies(
@@ -1152,13 +1199,15 @@ impl PolicyClient {
 		Box::pin(
 			make_backend_call(
 				self.inputs.clone(),
-				&LLMRoutePolicies::default(),
+				Arc::new(LLMRequestPolicies::default()),
 				&backend.clone().into(),
 				Some(defaults),
 				req,
 				None,
+				&mut Default::default(),
 			)
-			.await?,
+			.await
+			.map_err(ProxyResponse::downcast)?,
 		)
 		.await
 	}

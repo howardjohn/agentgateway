@@ -20,11 +20,13 @@ use crate::control::AuthSource;
 use crate::http::backendtls::BackendTLS;
 use crate::http::ext_proc::GrpcReferenceChannel;
 use crate::http::filters::DirectResponse;
-use crate::http::remoteratelimit::proto::RateLimitDescriptor;
+use crate::http::localratelimit::RateLimitType;
 use crate::http::remoteratelimit::proto::rate_limit_descriptor::Entry;
 use crate::http::remoteratelimit::proto::rate_limit_service_client::RateLimitServiceClient;
+use crate::http::remoteratelimit::proto::{RateLimitDescriptor, RateLimitRequest};
 use crate::http::transformation_cel::Transformation;
 use crate::http::{HeaderName, HeaderValue, PolicyResponse, Request, Response};
+use crate::llm::LLMRequest;
 use crate::mcp::rbac::PolicySet;
 use crate::proxy::ProxyError;
 use crate::proxy::httpproxy::PolicyClient;
@@ -51,14 +53,18 @@ pub struct RemoteRateLimit {
 #[serde(rename_all = "camelCase")]
 struct Descriptor(String, cel::Expression);
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct DescriptorSet(
+#[apply(schema!)]
+pub struct DescriptorSet(Vec<DescriptorEntry>);
+
+#[apply(schema!)]
+pub struct DescriptorEntry {
 	#[serde(deserialize_with = "de_descriptors")]
-	#[cfg_attr(feature = "schema", schemars(with = "Vec<Vec<KV>>"))]
-	Arc<Vec<Vec<Descriptor>>>,
-);
+	#[cfg_attr(feature = "schema", schemars(with = "Vec<KV>"))]
+	entries: Arc<Vec<Descriptor>>,
+	#[serde(default)]
+	#[serde(rename = "type")]
+	pub limit_type: RateLimitType,
+}
 
 #[derive(serde::Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -67,46 +73,130 @@ struct KV {
 	value: String,
 }
 
-fn de_descriptors<'de: 'a, 'a, D>(deserializer: D) -> Result<Arc<Vec<Vec<Descriptor>>>, D::Error>
+fn de_descriptors<'de: 'a, 'a, D>(deserializer: D) -> Result<Arc<Vec<Descriptor>>, D::Error>
 where
 	D: Deserializer<'de>,
 {
-	let raw = Vec::<Vec<KV>>::deserialize(deserializer)?;
+	let raw = Vec::<KV>::deserialize(deserializer)?;
 	let parsed: Vec<_> = raw
 		.into_iter()
-		.map(|r| {
-			r.into_iter()
-				.map(|i| cel::Expression::new(i.value).map(|v| Descriptor(i.key, v)))
-				.collect::<Result<Vec<_>, _>>()
-		})
+		.map(|i| cel::Expression::new(i.value).map(|v| Descriptor(i.key, v)))
 		.collect::<Result<_, _>>()
 		.map_err(|e| serde::de::Error::custom(e.to_string()))?;
 	Ok(Arc::new(parsed))
 }
 
+#[derive(Debug)]
+pub struct LLMResponseAmend {
+	base: RemoteRateLimit,
+	client: PolicyClient,
+	request: proto::RateLimitRequest,
+}
+
+impl LLMResponseAmend {
+	pub fn amend_tokens(mut self, tokens: i64) {
+		// We cannot currently do negative amendments, so if its negative just skip
+		// The input is not the cost, but the delta, so if we get -5 we should have a cost of 5
+		let Ok(tokens) = (tokens).try_into() else {
+			return;
+		};
+		self
+			.request
+			.descriptors
+			.iter_mut()
+			.for_each(|d| d.hits_addend = Some(tokens));
+		// Ignore the response
+		tokio::task::spawn(async move {
+			let _ = self.base.check_internal(self.client, self.request).await;
+		});
+	}
+}
+
 impl RemoteRateLimit {
+	fn build_request(
+		&self,
+		req: &mut Request,
+		exec: &Executor<'_>,
+		limit_type: RateLimitType,
+		cost: Option<u64>,
+	) -> RateLimitRequest {
+		let mut descriptors = Vec::with_capacity(self.descriptors.0.len());
+		for entries in self
+			.descriptors
+			.0
+			.iter()
+			.filter(|e| e.limit_type == limit_type)
+		{
+			if let Some(rl_entries) = Self::eval_descriptor(exec, &entries.entries) {
+				descriptors.push(RateLimitDescriptor {
+					entries: rl_entries,
+					limit: None,
+					hits_addend: cost,
+				});
+			}
+		}
+
+		proto::RateLimitRequest {
+			domain: self.domain.clone(),
+			descriptors,
+			// Ignored; we always set the per-descriptor one which allows distinguishing empty vs 0
+			hits_addend: 0,
+		}
+	}
+	pub async fn check_llm(
+		&self,
+		client: PolicyClient,
+		req: &mut Request,
+		exec: &Executor<'_>,
+		limit_type: RateLimitType,
+		cost: u64,
+	) -> Result<(PolicyResponse, Option<LLMResponseAmend>), ProxyError> {
+		if !self
+			.descriptors
+			.0
+			.iter()
+			.any(|d| d.limit_type == RateLimitType::Tokens)
+		{
+			// Nothing to do
+			return Ok((PolicyResponse::default(), None));
+		}
+		let request = self.build_request(req, exec, RateLimitType::Tokens, Some(cost));
+		let cr = self.check_internal(client.clone(), request.clone()).await;
+		let r = LLMResponseAmend {
+			base: self.clone(),
+			client,
+			request,
+		};
+
+		cr.and_then(|pr| (Self::apply(req, pr).map(|x| (x, Some(r)))))
+	}
+
 	pub async fn check(
 		&self,
 		client: PolicyClient,
 		req: &mut Request,
 		exec: &Executor<'_>,
 	) -> Result<PolicyResponse, ProxyError> {
-		let mut descriptors = Vec::with_capacity(self.descriptors.0.len());
-		for entries in self.descriptors.0.iter() {
-			if let Some(rl_entries) = Self::eval_descriptor(exec, entries) {
-				descriptors.push(RateLimitDescriptor {
-					entries: rl_entries,
-					limit: None,
-					hits_addend: None,
-				});
-			}
+		// This is on the request path
+		if !self
+			.descriptors
+			.0
+			.iter()
+			.any(|d| d.limit_type == RateLimitType::Requests)
+		{
+			// Nothing to do
+			return (Ok(PolicyResponse::default()));
 		}
-		let request = proto::RateLimitRequest {
-			domain: self.domain.clone(),
-			descriptors,
-			hits_addend: 0,
-		};
+		let request = self.build_request(req, exec, RateLimitType::Requests, None);
+		let cr = self.check_internal(client, request).await?;
+		Self::apply(req, cr)
+	}
 
+	async fn check_internal(
+		&self,
+		client: PolicyClient,
+		request: proto::RateLimitRequest,
+	) -> Result<proto::RateLimitResponse, ProxyError> {
 		trace!("connecting to {:?}", self.target);
 		let chan = GrpcReferenceChannel {
 			target: self.target.clone(),
@@ -121,7 +211,10 @@ impl RemoteRateLimit {
 		let cr = resp.map_err(|_| ProxyError::RateLimitFailed)?;
 
 		let cr = cr.into_inner();
+		Ok(cr)
+	}
 
+	fn apply(req: &mut Request, cr: proto::RateLimitResponse) -> Result<PolicyResponse, ProxyError> {
 		let mut res = PolicyResponse::default();
 		// if not OK, we directly respond
 		if cr.overall_code != (proto::rate_limit_response::Code::Ok as i32) {
@@ -163,7 +256,11 @@ impl RemoteRateLimit {
 	}
 
 	pub fn expressions(&self) -> impl Iterator<Item = &Expression> {
-		self.descriptors.0.iter().flatten().map(|v| &v.1)
+		self
+			.descriptors
+			.0
+			.iter()
+			.flat_map(|v| v.entries.iter().map(|v| &v.1))
 	}
 }
 

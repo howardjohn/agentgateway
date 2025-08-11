@@ -22,6 +22,17 @@ pub enum ProxyResponse {
 	DirectResponse(Box<Response>),
 }
 
+impl ProxyResponse {
+	pub fn downcast(self) -> ProxyError {
+		match self {
+			ProxyResponse::Error(e) => e,
+			ProxyResponse::DirectResponse(_) => ProxyError::ProcessingString(
+				"attempted to return a direct response in an invalid context".to_string(),
+			),
+		}
+	}
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ProxyError {
 	#[error("bind not found")]

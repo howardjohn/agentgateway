@@ -141,6 +141,7 @@ fn strip_port(auth: &str) -> &str {
 }
 
 #[derive(Debug, Default)]
+#[must_use]
 pub struct PolicyResponse {
 	pub direct_response: Option<Response>,
 	pub response_headers: Option<crate::http::HeaderMap>,

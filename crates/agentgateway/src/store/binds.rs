@@ -107,9 +107,10 @@ impl RoutePolicies {
 	}
 }
 
-impl From<RoutePolicies> for LLMRoutePolicies {
+impl From<RoutePolicies> for LLMRequestPolicies {
 	fn from(value: RoutePolicies) -> Self {
-		LLMRoutePolicies {
+		LLMRequestPolicies {
+			remote_rate_limit: value.remote_rate_limit.clone(),
 			local_rate_limit: value
 				.local_rate_limit
 				.iter()
@@ -120,9 +121,16 @@ impl From<RoutePolicies> for LLMRoutePolicies {
 	}
 }
 
-#[derive(Debug, Default)]
-pub struct LLMRoutePolicies {
+#[derive(Debug, Default, Clone)]
+pub struct LLMRequestPolicies {
 	pub local_rate_limit: Vec<http::localratelimit::RateLimit>,
+	pub remote_rate_limit: Option<http::remoteratelimit::RemoteRateLimit>,
+}
+
+#[derive(Debug, Default)]
+pub struct LLMResponsePolicies {
+	pub local_rate_limit: Vec<http::localratelimit::RateLimit>,
+	pub remote_rate_limit: Option<http::remoteratelimit::LLMResponseAmend>,
 }
 
 impl Default for Store {

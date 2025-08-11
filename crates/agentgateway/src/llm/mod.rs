@@ -21,7 +21,7 @@ use crate::llm::universal::{
 	ToolCall,
 };
 use crate::proxy::ProxyError;
-use crate::store::BackendPolicies;
+use crate::store::{BackendPolicies, LLMRequestPolicies, LLMResponsePolicies};
 use crate::telemetry::log::{AsyncLog, RequestLog};
 use crate::types::agent::{BackendName, Target};
 use crate::{client, *};
@@ -294,7 +294,7 @@ impl AIProvider {
 	pub async fn process_response(
 		&self,
 		req: LLMRequest,
-		rate_limit: Vec<http::localratelimit::RateLimit>,
+		rate_limit: LLMResponsePolicies,
 		log: AsyncLog<llm::LLMResponse>,
 		include_completion_in_log: bool,
 		resp: Response,
@@ -320,7 +320,7 @@ impl AIProvider {
 						// Assume its due to the request being invalid, though we don't really know for sure
 						r#type: "invalid_request_error".to_string(),
 						message: format!(
-							"failed to process response body: {}",
+							"failed to process response body ({err}): {}",
 							std::str::from_utf8(&bytes).unwrap_or("invalid utf8")
 						),
 						param: None,
@@ -372,7 +372,7 @@ impl AIProvider {
 
 		// In the initial request, we subtracted the approximate request tokens.
 		// Now we should have the real request tokens and the response tokens
-		amend_tokens(&rate_limit, &llm_resp);
+		amend_tokens(rate_limit, &llm_resp);
 		log.store(Some(llm_resp));
 		Ok(resp)
 	}
@@ -410,7 +410,7 @@ impl AIProvider {
 	pub async fn process_streaming(
 		&self,
 		req: LLMRequest,
-		rate_limit: Vec<http::localratelimit::RateLimit>,
+		rate_limit: LLMResponsePolicies,
 		log: AsyncLog<llm::LLMResponse>,
 		include_completion_in_log: bool,
 		resp: Response,
@@ -443,7 +443,7 @@ impl AIProvider {
 		&self,
 		log: AsyncLog<llm::LLMResponse>,
 		include_completion_in_log: bool,
-		rate_limit: Vec<http::localratelimit::RateLimit>,
+		rate_limit: LLMResponsePolicies,
 		resp: Response,
 	) -> Response {
 		let mut completion = if include_completion_in_log {
@@ -454,6 +454,7 @@ impl AIProvider {
 		resp.map(|b| {
 			let mut seen_provider = false;
 			let mut saw_token = false;
+			let mut rate_limit = Some(rate_limit);
 			parse::sse::json_passthrough::<universal::ChatCompletionStreamResponse>(b, move |f| {
 				match f {
 					Some(Ok(f)) => {
@@ -481,7 +482,9 @@ impl AIProvider {
 									r.completion = Some(vec![c]);
 								}
 
-								amend_tokens(rate_limit.as_slice(), r);
+								if let Some(rl) = rate_limit.take() {
+									amend_tokens(rl, r);
+								}
 							});
 						}
 					},
@@ -629,22 +632,26 @@ pub enum AIError {
 	JoinError(#[from] tokio::task::JoinError),
 }
 
-fn amend_tokens(rate_limit: &[RateLimit], llm_resp: &LLMResponse) {
-	for lrl in rate_limit {
-		let input_mismatch = match (
-			llm_resp.request.input_tokens,
-			llm_resp.input_tokens_from_response,
-		) {
-			// Already counted 'req'
-			(Some(req), Some(resp)) => (resp as i64) - (req as i64),
-			// No request or response count... this is probably an issue.
-			(_, None) => 0,
-			// No request counted, so count the full response
-			(_, Some(resp)) => resp as i64,
-		};
-		let response = llm_resp.output_tokens.unwrap_or_default();
-		let tokens_to_remove = input_mismatch + (response as i64);
+fn amend_tokens(rate_limit: store::LLMResponsePolicies, llm_resp: &LLMResponse) {
+	let input_mismatch = match (
+		llm_resp.request.input_tokens,
+		llm_resp.input_tokens_from_response,
+	) {
+		// Already counted 'req'
+		(Some(req), Some(resp)) => (resp as i64) - (req as i64),
+		// No request or response count... this is probably an issue.
+		(_, None) => 0,
+		// No request counted, so count the full response
+		(_, Some(resp)) => resp as i64,
+	};
+	let response = llm_resp.output_tokens.unwrap_or_default();
+	let tokens_to_remove = input_mismatch + (response as i64);
+
+	for lrl in &rate_limit.local_rate_limit {
 		lrl.amend_tokens(tokens_to_remove)
+	}
+	if let Some(rrl) = rate_limit.remote_rate_limit {
+		rrl.amend_tokens(tokens_to_remove)
 	}
 }
 
