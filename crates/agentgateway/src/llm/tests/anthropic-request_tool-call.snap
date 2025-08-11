@@ -1,6 +1,6 @@
 ---
 source: crates/agentgateway/src/llm/tests.rs
-description: "anthropic: tool_call_input"
+description: "anthropic: request_tool-call"
 info:
   model: gpt-3.5-turbo
   messages:
@@ -27,15 +27,6 @@ info:
         {
           "type": "text",
           "text": "How is the current weather in Columbus?"
-        }
-      ]
-    },
-    {
-      "role": "assistant",
-      "content": [
-        {
-          "type": "text",
-          "text": ""
         }
       ]
     },

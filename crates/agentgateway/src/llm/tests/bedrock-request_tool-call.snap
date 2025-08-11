@@ -1,6 +1,6 @@
 ---
 source: crates/agentgateway/src/llm/tests.rs
-description: "bedrock: tool_call_input"
+description: "bedrock: request_tool-call"
 info:
   model: gpt-3.5-turbo
   messages:
@@ -27,14 +27,6 @@ info:
       "content": [
         {
           "text": "How is the current weather in Columbus?"
-        }
-      ]
-    },
-    {
-      "role": "assistant",
-      "content": [
-        {
-          "text": ""
         }
       ]
     },

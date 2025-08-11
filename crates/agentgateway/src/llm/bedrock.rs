@@ -389,8 +389,8 @@ pub(super) fn translate_request(req: universal::Request, provider: &Provider) ->
 	// Build inference configuration
 	let inference_config = types::InferenceConfiguration {
 		max_tokens: universal::max_tokens(&req),
-		temperature: req.temperature.map(Into::into),
-		top_p: req.top_p.map(Into::into),
+		temperature: req.temperature,
+		top_p: req.top_p,
 		stop_sequences: universal::stop_sequence(&req),
 		anthropic_version: None, // Not used for Bedrock
 	};
@@ -539,10 +539,10 @@ pub(super) mod types {
 		pub max_tokens: usize,
 		/// Amount of randomness injected into the response.
 		#[serde(skip_serializing_if = "Option::is_none")]
-		pub temperature: Option<f64>,
+		pub temperature: Option<f32>,
 		/// Use nucleus sampling.
 		#[serde(skip_serializing_if = "Option::is_none")]
-		pub top_p: Option<f64>,
+		pub top_p: Option<f32>,
 		/// The stop sequences to use.
 		#[serde(rename = "stopSequences", skip_serializing_if = "Vec::is_empty")]
 		pub stop_sequences: Vec<String>,

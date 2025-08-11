@@ -1,6 +1,6 @@
 ---
 source: crates/agentgateway/src/llm/tests.rs
-description: "bedrock: full_input"
+description: "anthropic: request_full"
 info:
   model: gpt-4-turbo-preview
   messages:
@@ -70,12 +70,12 @@ info:
   function_call: auto
 ---
 {
-  "modelId": "gpt-4-turbo-preview",
   "messages": [
     {
       "role": "user",
       "content": [
         {
+          "type": "text",
           "text": "Please analyze this code snippet and explain what it does: function fibonacci(n) { return n <= 1 ? n : fibonacci(n-1) + fibonacci(n-2); }"
         }
       ]
@@ -84,6 +84,7 @@ info:
       "role": "assistant",
       "content": [
         {
+          "type": "text",
           "text": "This is a recursive implementation of the Fibonacci sequence. It calculates the nth Fibonacci number by adding the previous two numbers."
         }
       ]
@@ -92,62 +93,51 @@ info:
       "role": "user",
       "content": [
         {
+          "type": "text",
           "text": "Can you optimize it for better performance?"
         }
       ]
     }
   ],
-  "system": [
+  "system": "You are a helpful assistant that specializes in technical documentation and code analysis.",
+  "model": "gpt-4-turbo-preview",
+  "max_tokens": 1000,
+  "stop_sequences": [
+    "\n\n",
+    "END"
+  ],
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "tools": [
     {
-      "text": "You are a helpful assistant that specializes in technical documentation and code analysis."
+      "name": "get_weather",
+      "description": "Get the current weather in a given location",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "The city and state, e.g. San Francisco, CA"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "celsius",
+              "fahrenheit"
+            ]
+          }
+        },
+        "required": [
+          "location"
+        ]
+      }
     }
   ],
-  "inferenceConfig": {
-    "maxTokens": 1000,
-    "temperature": 0.7,
-    "top_p": 0.9,
-    "stopSequences": [
-      "\n\n",
-      "END"
-    ]
+  "tool_choice": {
+    "type": "tool",
+    "name": "my_function"
   },
-  "toolConfig": {
-    "tools": [
-      {
-        "toolSpec": {
-          "name": "get_weather",
-          "description": "Get the current weather in a given location",
-          "inputSchema": {
-            "json": {
-              "type": "object",
-              "properties": {
-                "location": {
-                  "type": "string",
-                  "description": "The city and state, e.g. San Francisco, CA"
-                },
-                "unit": {
-                  "type": "string",
-                  "enum": [
-                    "celsius",
-                    "fahrenheit"
-                  ]
-                }
-              },
-              "required": [
-                "location"
-              ]
-            }
-          }
-        }
-      }
-    ],
-    "tool_choice": {
-      "tool": {
-        "name": "my_function"
-      }
-    }
-  },
-  "requestMetadata": {
+  "metadata": {
     "user_id": "user_12345"
   }
 }

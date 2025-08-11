@@ -1,13 +1,13 @@
 ---
 source: crates/agentgateway/src/llm/tests.rs
-description: "bedrock: basic_input"
+description: "bedrock: request_basic"
 info:
-  messages:
-    - content: You are a helpful assistant.
-      role: system
-    - content: What is the name of the LLM provider?
-      role: user
   model: replaceme
+  messages:
+    - role: system
+      content: You are a helpful assistant.
+    - role: user
+      content: What is the name of the LLM provider?
 ---
 {
   "modelId": "replaceme",

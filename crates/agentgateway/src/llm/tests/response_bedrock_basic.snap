@@ -1,6 +1,6 @@
 ---
 source: crates/agentgateway/src/llm/tests.rs
-description: src/llm/tests/basic_bedrock.json
+description: src/llm/tests/response_bedrock_basic.json
 info:
   output:
     message:

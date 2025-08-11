@@ -315,8 +315,8 @@ pub(super) fn translate_request(req: universal::Request) -> types::MessagesReque
 		max_tokens,
 		stop_sequences,
 		stream: req.stream.unwrap_or(false),
-		temperature: req.temperature.map(Into::into),
-		top_p: req.top_p.map(Into::into),
+		temperature: req.temperature,
+		top_p: req.top_p,
 		top_k: None, // OpenAI doesn't have top_k
 		tools,
 		tool_choice,
@@ -402,7 +402,7 @@ pub(super) mod types {
 		/// multiple choice, and closer to 1.0 for creative and generative tasks. Note that even
 		/// with temperature of 0.0, the results will not be fully deterministic.
 		#[serde(skip_serializing_if = "Option::is_none")]
-		pub temperature: Option<f64>,
+		pub temperature: Option<f32>,
 		/// Use nucleus sampling.
 		///
 		/// In nucleus sampling, we compute the cumulative distribution over all the options for each
@@ -410,7 +410,7 @@ pub(super) mod types {
 		/// probability specified by top_p. You should either alter temperature or top_p, but not both.
 		/// Recommended for advanced use cases only. You usually only need to use temperature.
 		#[serde(skip_serializing_if = "Option::is_none")]
-		pub top_p: Option<f64>,
+		pub top_p: Option<f32>,
 		/// Only sample from the top K options for each subsequent token.
 		/// Used to remove "long tail" low probability responses. Learn more technical details here.
 		/// Recommended for advanced use cases only. You usually only need to use temperature.

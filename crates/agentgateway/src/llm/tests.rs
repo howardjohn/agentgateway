@@ -69,11 +69,17 @@ fn test_request<T: Serialize>(
 	});
 }
 
+const ALL_REQUESTS: &'static [&'static str] = &[
+	"request_basic",
+	"request_full",
+	"request_tool-call",
+];
+
 #[test]
 fn test_bedrock() {
 	let response = |i| bedrock::translate_response(i, &strng::new("fake-model"));
-	test_response::<bedrock::types::ConverseResponse>("basic_bedrock", response);
-	test_response::<bedrock::types::ConverseResponse>("tool_bedrock", response);
+	test_response::<bedrock::types::ConverseResponse>("response_bedrock_basic", response);
+	test_response::<bedrock::types::ConverseResponse>("response_bedrock_tool", response);
 	let provider = bedrock::Provider {
 		model: Some(strng::new("test-model")),
 		region: strng::new("us-east-1"),
@@ -81,19 +87,19 @@ fn test_bedrock() {
 		guardrail_version: None,
 	};
 	let request = |i| Ok(bedrock::translate_request(i, &provider));
-	test_request("bedrock", "basic_input", request);
-	test_request("bedrock", "full_input", request);
-	test_request("bedrock", "tool_call_input", request);
+	for r in ALL_REQUESTS {
+		test_request("bedrock", r, request);
+	}
 }
 
 #[test]
 fn test_anthropic() {
 	let response = |i| Ok(anthropic::translate_response(i));
-	test_response::<anthropic::types::MessagesResponse>("basic_anthropic", response);
-	test_response::<anthropic::types::MessagesResponse>("anthropic_tool_result", response);
+	test_response::<anthropic::types::MessagesResponse>("response_anthropic_basic", response);
+	test_response::<anthropic::types::MessagesResponse>("response_anthropic_tool", response);
 
 	let request = |i| Ok(anthropic::translate_request(i));
-	test_request("anthropic", "basic_input", request);
-	test_request("anthropic", "full_input", request);
-	test_request("anthropic", "tool_call_input", request);
+	for r in ALL_REQUESTS {
+		test_request("anthropic", r, request);
+	}
 }
