@@ -47,8 +47,7 @@ pub mod yamlviajson {
 	}
 }
 
-pub use macro_rules_attribute::apply;
-pub use macro_rules_attribute::attribute_alias;
+pub use macro_rules_attribute::{apply, attribute_alias};
 
 #[macro_export]
 attribute_alias! {

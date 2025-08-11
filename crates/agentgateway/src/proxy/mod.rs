@@ -15,6 +15,14 @@ use crate::types::agent::{
 use crate::*;
 
 #[derive(thiserror::Error, Debug)]
+pub enum ProxyResponse {
+	#[error("{0}")]
+	Error(#[from] ProxyError),
+	#[error("direct response")]
+	DirectResponse(Box<Response>),
+}
+
+#[derive(thiserror::Error, Debug)]
 pub enum ProxyError {
 	#[error("bind not found")]
 	BindNotFound,
@@ -78,7 +86,7 @@ impl ProxyError {
 			_ => false,
 		}
 	}
-	pub fn as_response(&self) -> Response {
+	pub fn into_response(self) -> Response {
 		let code = match self {
 			ProxyError::BindNotFound => StatusCode::NOT_FOUND,
 			ProxyError::ListenerNotFound => StatusCode::NOT_FOUND,

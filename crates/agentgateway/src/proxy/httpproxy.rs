@@ -10,6 +10,7 @@ use ::http::{HeaderMap, header};
 use agent_core::drain::{DrainMode, DrainUpgrader, DrainWatcher, new};
 use agent_core::{copy, drain};
 use anyhow::anyhow;
+use axum_core::response::IntoResponse;
 use crossbeam::atomic::AtomicCell;
 use futures::pin_mut;
 use futures_util::{FutureExt, TryFutureExt};
@@ -48,11 +49,11 @@ use crate::http::ext_proc::ExtProc;
 use crate::http::jwt::{Claims, TokenError};
 use crate::http::transformation_cel::Transformation;
 use crate::http::{
-	Authority, HeaderName, HeaderValue, Request, Response, Scheme, StatusCode, Uri, auth, ext_proc,
-	filters, get_host, merge_in_headers, retry,
+	Authority, HeaderName, HeaderValue, PolicyResponse, Request, Response, Scheme, StatusCode, Uri,
+	auth, ext_proc, filters, get_host, merge_in_headers, retry,
 };
 use crate::llm::{LLMRequest, LLMResponse, RequestResult};
-use crate::proxy::{ProxyError, resolve_simple_backend};
+use crate::proxy::{ProxyError, ProxyResponse, resolve_simple_backend};
 use crate::store::{BackendPolicies, Event, LLMRoutePolicies, RoutePolicies};
 use crate::telemetry::log;
 use crate::telemetry::log::{AsyncLog, DropOnLog, LogBody, RequestLog};
@@ -131,23 +132,22 @@ fn apply_request_filters(
 	filters: &[RouteFilter],
 	path_match: &PathMatch,
 	req: &mut Request,
-) -> Result<(Option<Response>, Option<HeaderMap>), filters::Error> {
+) -> Result<PolicyResponse, filters::Error> {
 	debug!("before request filters: {:?}", req);
-	let mut header_map = None;
+	let mut resp = PolicyResponse::default();
 	for filter in filters {
 		match filter {
 			RouteFilter::RequestHeaderModifier(hm) => hm.apply(req.headers_mut())?,
 			RouteFilter::UrlRewrite(rw) => rw.apply(req, path_match)?,
 			RouteFilter::RequestRedirect(red) => {
-				return Ok((Some(red.apply(req, path_match)?), header_map));
+				return Ok(resp.with_response(red.apply(req, path_match)?));
 			},
-			RouteFilter::DirectResponse(dr) => return Ok((Some(dr.apply(req)?), header_map)),
+			RouteFilter::DirectResponse(dr) => return Ok(resp.with_response(dr.apply(req)?)),
 			RouteFilter::CORS(c) => {
 				let res = c.apply(req)?;
-				if let Some(dr) = res.direct_response {
-					return Ok((Some(dr), None));
-				} else if let Some(hm) = res.response_headers {
-					header_map = Some(hm)
+				resp = resp.merge(res);
+				if resp.should_short_circuit() {
+					return Ok(resp);
 				}
 			},
 			// Response only
@@ -156,7 +156,7 @@ fn apply_request_filters(
 			RouteFilter::RequestMirror(_) => {},
 		}
 	}
-	Ok((None, header_map))
+	Ok(resp)
 }
 
 fn get_mirrors(filters: &[RouteFilter]) -> Vec<filters::RequestMirror> {
@@ -275,8 +275,19 @@ impl HTTPProxy {
 			.proxy_internal(connection, req, log.as_mut().unwrap())
 			.await;
 
-		log.with(|l| l.error = ret.as_ref().err().map(|e| e.to_string()));
-		let resp = ret.unwrap_or_else(|err| err.as_response());
+		log.with(|l| {
+			l.error = ret.as_ref().err().and_then(|e| {
+				if let ProxyResponse::Error(e) = e {
+					Some(e.to_string())
+				} else {
+					None
+				}
+			})
+		});
+		let resp = ret.unwrap_or_else(|err| match err {
+			ProxyResponse::Error(e) => e.into_response(),
+			ProxyResponse::DirectResponse(dr) => *dr,
+		});
 
 		// Pass the log into the body so it finishes once the stream is entirely complete.
 		// We will also record trailer info there.
@@ -292,7 +303,7 @@ impl HTTPProxy {
 		connection: Arc<Extension>,
 		mut req: ::http::Request<Incoming>,
 		log: &mut RequestLog,
-	) -> Result<Response, ProxyError> {
+	) -> Result<Response, ProxyResponse> {
 		log.tls_info = connection.get::<TLSConnectionInfo>().cloned();
 		log
 			.cel
@@ -323,7 +334,7 @@ impl HTTPProxy {
 			let state = inputs.stores.read_binds();
 			state.listeners(bind_name.clone())
 		}) else {
-			return Err(ProxyError::BindNotFound);
+			return Err(ProxyError::BindNotFound.into());
 		};
 
 		let mut req = req.map(http::Body::new);
@@ -411,42 +422,27 @@ impl HTTPProxy {
 			}
 		}
 
-		let ext_authz_response =
-			apply_request_policies(&route_policies, self.policy_client(), log, &mut req).await?;
-		if let Some(dr) = ext_authz_response.direct_response {
-			return Ok(dr);
-		}
-		let mut response_polices = ResponsePolicies::from(route_policies.transformation.clone());
-		merge_in_headers(
-			ext_authz_response.response_headers,
-			&mut response_polices.response_headers,
-		);
+		let mut response_policies = ResponsePolicies::from(route_policies.transformation.clone());
 
-		let (direct_response_route, response_headers_route) = apply_request_filters(
+		apply_request_policies(&route_policies, self.policy_client(), log, &mut req)
+			.await?
+			.apply(response_policies.headers())?;
+
+		apply_request_filters(
 			selected_route.as_ref().filters.as_slice(),
 			&path_match,
 			&mut req,
-		)?;
-		if let Some(resp) = direct_response_route {
-			return Ok(resp);
-		}
-		merge_in_headers(
-			response_headers_route,
-			&mut response_polices.response_headers,
-		);
+		)
+		.map_err(ProxyError::from)?
+		.apply(response_policies.headers())?;
 
 		let selected_backend =
 			select_backend(selected_route.as_ref(), &req).ok_or(ProxyError::NoValidBackends)?;
 		let selected_backend = resolve_backend(selected_backend, self.inputs.as_ref())?;
-		let (direct_response, response_headers_backend) =
-			apply_request_filters(selected_backend.filters.as_slice(), &path_match, &mut req)?;
-		if let Some(resp) = direct_response {
-			return Ok(resp);
-		}
-		merge_in_headers(
-			response_headers_backend,
-			&mut response_polices.response_headers,
-		);
+
+		apply_request_filters(selected_backend.filters.as_slice(), &path_match, &mut req)
+			.map_err(ProxyError::from)?
+			.apply(response_policies.headers())?;
 
 		let mut mirrors = get_mirrors(selected_route.as_ref().filters.as_slice());
 		mirrors.extend(get_mirrors(selected_backend.filters.as_slice()));
@@ -477,7 +473,7 @@ impl HTTPProxy {
 			_ => &None,
 		};
 		let late_route_policies: Arc<LLMRoutePolicies> = Arc::new(route_policies.into());
-		let response_polices = Arc::new(response_polices);
+		let response_policies = Arc::new(response_policies);
 		// attempts is the total number of attempts, not the retries
 		let attempts = retries.as_ref().map(|r| r.attempts.get() + 1).unwrap_or(1);
 		let body = if attempts > 1 {
@@ -504,13 +500,13 @@ impl HTTPProxy {
 						upstream,
 						&selected_backend,
 						&selected_route,
-						response_polices,
+						response_policies,
 						req,
 					)
 					.await;
 			},
 		};
-		let mut last_res: Option<Result<Response, ProxyError>> = None;
+		let mut last_res: Option<Result<Response, ProxyResponse>> = None;
 		for n in 0..attempts {
 			let last = n == attempts - 1;
 			let this = next.take().expect("next should be set");
@@ -544,7 +540,7 @@ impl HTTPProxy {
 					upstream.clone(),
 					&selected_backend,
 					&selected_route,
-					response_polices.clone(),
+					response_policies.clone(),
 					req,
 				)
 				.await;
@@ -575,7 +571,7 @@ impl HTTPProxy {
 		selected_route: &Route,
 		response_policies: Arc<ResponsePolicies>,
 		mut req: Request,
-	) -> Result<Response, ProxyError> {
+	) -> Result<Response, ProxyResponse> {
 		let inputs = self.inputs.clone();
 
 		let call = make_backend_call(
@@ -606,19 +602,21 @@ impl HTTPProxy {
 		let mut resp = match call_result {
 			Ok(Ok(resp)) => resp,
 			Ok(Err(e)) => {
-				return Err(e);
+				return Err(e.into());
 			},
 			Err(_) => {
-				return Err(ProxyError::RequestTimeout);
+				return Err(ProxyError::RequestTimeout.into());
 			},
 		};
 		if resp.status() == StatusCode::SWITCHING_PROTOCOLS {
-			return handle_upgrade(req_upgrade, resp).await;
+			return handle_upgrade(req_upgrade, resp).await.map_err(Into::into);
 		}
 
 		// Handle response filters
-		apply_response_filters(selected_route.filters.as_slice(), &mut resp)?;
-		apply_response_filters(selected_backend.filters.as_slice(), &mut resp)?;
+		apply_response_filters(selected_route.filters.as_slice(), &mut resp)
+			.map_err(ProxyError::from)?;
+		apply_response_filters(selected_backend.filters.as_slice(), &mut resp)
+			.map_err(ProxyError::from)?;
 		response_policies.apply(&mut resp, log)?;
 
 		// for now we do not have any body timeout. Maybe we should add it
@@ -932,10 +930,11 @@ async fn make_backend_call(
 	}))
 }
 
-fn should_retry(res: &Result<Response, ProxyError>, pol: &retry::Policy) -> bool {
+fn should_retry(res: &Result<Response, ProxyResponse>, pol: &retry::Policy) -> bool {
 	match res {
 		Ok(resp) => pol.codes.contains(&resp.status()),
-		Err(e) => e.is_retryable(),
+		Err(ProxyResponse::Error(e)) => e.is_retryable(),
+		Err(ProxyResponse::DirectResponse(_)) => false,
 	}
 }
 
@@ -1078,7 +1077,7 @@ struct BackendCall {
 	default_policies: Option<BackendPolicies>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct ResponsePolicies {
 	transformation: Option<Transformation>,
 	response_headers: HeaderMap,
@@ -1090,6 +1089,9 @@ impl ResponsePolicies {
 			transformation,
 			response_headers: HeaderMap::new(),
 		}
+	}
+	pub fn headers(&mut self) -> &mut HeaderMap {
+		&mut self.response_headers
 	}
 	pub fn apply(&self, resp: &mut Response, log: &mut RequestLog) -> Result<(), ProxyError> {
 		if let Some(j) = &self.transformation {

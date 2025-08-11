@@ -5,7 +5,7 @@ use duration_str::HumanFormat;
 use serde::de::Error;
 use serde::ser::SerializeMap;
 
-use crate::http::{Request, Response, filters};
+use crate::http::{PolicyResponse, Request, Response, filters};
 use crate::types::agent::{HostRedirect, PathRedirect};
 use crate::*;
 
@@ -141,7 +141,7 @@ impl Cors {
 	/// Apply applies the CORS header. It seems a lot of implementations handle this differently wrt when
 	/// to add or not add headers, and when to forward the request.
 	/// We follow Envoy semantics here (with forwardNotMatchingPreflights=true)
-	pub fn apply(&self, req: &mut Request) -> Result<CorsResponse, filters::Error> {
+	pub fn apply(&self, req: &mut Request) -> Result<PolicyResponse, filters::Error> {
 		// If no origin, return immediately
 		let Some(origin) = req.headers().get(header::ORIGIN) else {
 			return Ok(Default::default());
@@ -176,7 +176,7 @@ impl Cors {
 				rb = rb.header(header::ACCESS_CONTROL_MAX_AGE, h);
 			}
 			let response = rb.body(crate::http::Body::empty())?;
-			return Ok(CorsResponse {
+			return Ok(PolicyResponse {
 				direct_response: Some(response),
 				response_headers: None,
 			});
@@ -192,7 +192,7 @@ impl Cors {
 		}
 		// For actual requests, we would need to add CORS headers to the response
 		// but since we only have access to the request here, we return None
-		Ok(CorsResponse {
+		Ok(PolicyResponse {
 			direct_response: None,
 			response_headers: Some(response_headers),
 		})
@@ -200,9 +200,3 @@ impl Cors {
 }
 
 const HEADER_VALUE_TRUE: http::HeaderValue = HeaderValue::from_static("true");
-
-#[derive(Debug, Default)]
-pub struct CorsResponse {
-	pub direct_response: Option<Response>,
-	pub response_headers: Option<http::HeaderMap>,
-}

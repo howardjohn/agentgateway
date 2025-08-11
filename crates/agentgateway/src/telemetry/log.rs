@@ -9,16 +9,6 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::task::{Context, Poll, ready};
 use std::time::{Instant, SystemTime};
 
-use crate::cel::{ContextBuilder, Error, Expression};
-use crate::telemetry::metrics::{GenAILabels, GenAILabelsTokenUsage, HTTPLabels, Metrics};
-use crate::telemetry::trc;
-use crate::telemetry::trc::TraceParent;
-use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
-use crate::types::agent::{
-	BackendName, BindName, GatewayName, ListenerName, RouteName, RouteRuleName, Target,
-};
-use crate::types::discovery::NamespacedHostname;
-use crate::{cel, llm, mcp};
 use agent_core::metrics::CustomField;
 use agent_core::strng;
 use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
@@ -31,6 +21,17 @@ use serde::{Serialize, Serializer};
 use serde_json::Value;
 use tracing::log::Log;
 use tracing::{Level, event, log, trace};
+
+use crate::cel::{ContextBuilder, Error, Expression};
+use crate::telemetry::metrics::{GenAILabels, GenAILabelsTokenUsage, HTTPLabels, Metrics};
+use crate::telemetry::trc;
+use crate::telemetry::trc::TraceParent;
+use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
+use crate::types::agent::{
+	BackendName, BindName, GatewayName, ListenerName, RouteName, RouteRuleName, Target,
+};
+use crate::types::discovery::NamespacedHostname;
+use crate::{cel, llm, mcp};
 
 /// AsyncLog is a wrapper around an item that can be atomically set.
 /// The intent is to provide additional info to the log after we have lost the RequestLog reference,

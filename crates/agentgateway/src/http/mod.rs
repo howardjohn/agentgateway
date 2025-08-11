@@ -33,7 +33,7 @@ use bytes::Bytes;
 use serde::de::DeserializeOwned;
 use tower_serve_static::private::mime;
 
-use crate::proxy::ProxyError;
+use crate::proxy::{ProxyError, ProxyResponse};
 
 pub mod x_headers {
 	use http::HeaderName;
@@ -147,8 +147,23 @@ pub struct PolicyResponse {
 }
 
 impl PolicyResponse {
+	pub fn apply(self, hm: &mut HeaderMap) -> Result<(), ProxyResponse> {
+		if let Some(mut dr) = self.direct_response {
+			merge_in_headers(self.response_headers, dr.headers_mut());
+			Err(ProxyResponse::DirectResponse(Box::new(dr)))
+		} else {
+			merge_in_headers(self.response_headers, hm);
+			Ok(())
+		}
+	}
 	pub fn should_short_circuit(&self) -> bool {
 		self.direct_response.is_some()
+	}
+	pub fn with_response(self, other: Response) -> Self {
+		PolicyResponse {
+			direct_response: Some(other),
+			response_headers: self.response_headers,
+		}
 	}
 	pub fn merge(self, other: Self) -> Self {
 		if other.direct_response.is_some() {

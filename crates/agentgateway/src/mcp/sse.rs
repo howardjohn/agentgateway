@@ -4,8 +4,6 @@ use std::ops::IndexMut;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use bytes::Bytes;
-
 use a2a_sdk::SendTaskStreamingResponseResult::Status;
 use agent_core::drain::DrainWatcher;
 use agent_core::prelude::Strng;
@@ -24,6 +22,7 @@ use axum_extra::TypedHeader;
 use axum_extra::headers::Authorization;
 use axum_extra::headers::authorization::Bearer;
 use axum_extra::typed_header::TypedHeaderRejection;
+use bytes::Bytes;
 use futures::stream::Stream;
 use futures::{SinkExt, StreamExt};
 use http::Method;

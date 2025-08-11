@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Display;
 use std::io::Cursor;
 use std::marker::PhantomData;
@@ -25,7 +25,6 @@ use secrecy::SecretString;
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
-use std::collections::BTreeMap;
 use thiserror::Error;
 
 use crate::http::auth::BackendAuth;
