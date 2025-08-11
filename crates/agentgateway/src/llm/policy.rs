@@ -46,7 +46,7 @@ impl Policy {
 						anyhow::bail!("invalid webhook response");
 					};
 					let msgs = body.messages;
-					req.messages = msgs.into_iter().map(|r| Self::convert_message(r)).collect();
+					req.messages = msgs.into_iter().map(Self::convert_message).collect();
 				},
 				RequestAction::Reject(rej) => {
 					debug!(
@@ -123,7 +123,7 @@ impl Policy {
 				content: universal::RequestToolMessageContent::from(r.content),
 				tool_call_id: "".to_string(),
 			}),
-			"user" | _ => universal::RequestMessage::from(universal::RequestUserMessage::from(r.content)),
+			_ => universal::RequestMessage::from(universal::RequestUserMessage::from(r.content)),
 		}
 	}
 }

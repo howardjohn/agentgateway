@@ -58,12 +58,12 @@ pub struct ChatCompletionError {
 	pub event_id: Option<String>,
 }
 
-pub const DEVELOPER_ROLE: &'static str = "developer";
-pub const SYSTEM_ROLE: &'static str = "system";
-pub const ASSISTANT_ROLE: &'static str = "assistant";
-pub const TOOL_ROLE: &'static str = "tool";
-pub const FUNCTION_ROLE: &'static str = "function";
-pub const USER_ROLE: &'static str = "user";
+pub const DEVELOPER_ROLE: &str = "developer";
+pub const SYSTEM_ROLE: &str = "system";
+pub const ASSISTANT_ROLE: &str = "assistant";
+pub const TOOL_ROLE: &str = "tool";
+pub const FUNCTION_ROLE: &str = "function";
+pub const USER_ROLE: &str = "user";
 
 pub fn message_role(msg: &RequestMessage) -> &'static str {
 	match msg {

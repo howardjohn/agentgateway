@@ -197,7 +197,8 @@
                 "integer",
                 "null"
               ],
-              "format": "int64"
+              "format": "uint64",
+              "minimum": 0
             }
           }
         }

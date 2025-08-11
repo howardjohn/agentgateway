@@ -69,11 +69,7 @@ fn test_request<T: Serialize>(
 	});
 }
 
-const ALL_REQUESTS: &'static [&'static str] = &[
-	"request_basic",
-	"request_full",
-	"request_tool-call",
-];
+const ALL_REQUESTS: &[&str] = &["request_basic", "request_full", "request_tool-call"];
 
 #[test]
 fn test_bedrock() {

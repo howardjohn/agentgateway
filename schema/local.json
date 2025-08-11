@@ -2154,7 +2154,8 @@
                                                     "null"
                                                   ]
                                                 }
-                                              }
+                                              },
+                                              "additionalProperties": false
                                             }
                                           },
                                           "required": [

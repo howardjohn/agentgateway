@@ -541,7 +541,7 @@ impl AIProvider {
 				frequency_penalty: req.frequency_penalty.map(Into::into),
 				presence_penalty: req.presence_penalty.map(Into::into),
 				seed: req.seed,
-				max_tokens: universal::max_tokens_option(&req),
+				max_tokens: universal::max_tokens_option(req),
 			},
 		};
 		Ok(llm)
