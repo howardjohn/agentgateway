@@ -2,42 +2,40 @@
 source: crates/agentgateway/src/llm/tests.rs
 description: src/llm/tests/basic_anthropic.json
 info:
-  content:
-    - text: Hi there! How are you doing today? Is there anything I can help you with?
-      type: text
   id: msg_012JYtNYb8sv6Hb67TcGT7xW
-  model: claude-3-5-haiku-20241022
+  type: message
   role: assistant
+  model: claude-3-5-haiku-20241022
+  content:
+    - type: text
+      text: Hi there! How are you doing today? Is there anything I can help you with?
   stop_reason: end_turn
   stop_sequence: ~
-  type: message
   usage:
+    input_tokens: 15
     cache_creation_input_tokens: 0
     cache_read_input_tokens: 0
-    input_tokens: 15
     output_tokens: 21
     service_tier: standard
 ---
 {
   "id": "[id]",
-  "object": "chat.completion",
-  "created": "[date]",
-  "model": "claude-3-5-haiku-20241022",
   "choices": [
     {
       "index": 0,
       "message": {
-        "role": "assistant",
-        "content": "Hi there! How are you doing today? Is there anything I can help you with?"
+        "content": "Hi there! How are you doing today? Is there anything I can help you with?",
+        "role": "assistant"
       },
-      "finish_reason": "stop",
-      "finish_details": null
+      "finish_reason": "stop"
     }
   ],
+  "created": "[date]",
+  "model": "claude-3-5-haiku-20241022",
+  "object": "chat.completion",
   "usage": {
     "prompt_tokens": 15,
     "completion_tokens": 21,
     "total_tokens": 36
-  },
-  "system_fingerprint": null
+  }
 }

@@ -2,39 +2,37 @@
 source: crates/agentgateway/src/llm/tests.rs
 description: src/llm/tests/basic_bedrock.json
 info:
-  metrics:
-    latencyMs: 2083
   output:
     message:
+      role: assistant
       content:
         - text: Hello world
-      role: assistant
   stopReason: end_turn
   usage:
     inputTokens: 18
     outputTokens: 46
     totalTokens: 64
+  metrics:
+    latencyMs: 2083
 ---
 {
   "id": "[id]",
-  "object": "chat.completion",
-  "created": "[date]",
-  "model": "fake-model",
   "choices": [
     {
       "index": 0,
       "message": {
-        "role": "assistant",
-        "content": "Hello world"
+        "content": "Hello world",
+        "role": "assistant"
       },
-      "finish_reason": "stop",
-      "finish_details": null
+      "finish_reason": "stop"
     }
   ],
+  "created": "[date]",
+  "model": "fake-model",
+  "object": "chat.completion",
   "usage": {
     "prompt_tokens": 18,
     "completion_tokens": 46,
     "total_tokens": 64
-  },
-  "system_fingerprint": null
+  }
 }

@@ -1,5 +1,6 @@
 [patch.crates-io]
 schemars = {git = "https://github.com/howardjohn/schemars", rev = "4364354fa41897a0c2001d891c0a9a38eafedb82"}
+async-openai = { path = "/home/john/git/async-openai/async-openai" }
 
 [workspace]
 resolver = "2"
