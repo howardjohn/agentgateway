@@ -535,28 +535,105 @@ impl<'a> FormatFields<'a> for IstioJsonFormat {
 /// Mod testing gives access to a test logger, which stores logs in memory for querying.
 /// Inspired by https://github.com/dbrgn/tracing-test
 pub mod testing {
+	use std::collections::HashMap;
+	use std::fmt::{Display, Formatter};
 	use std::io;
-	use std::sync::{Mutex, MutexGuard, OnceLock};
+	use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 	use once_cell::sync::Lazy;
+	use serde_json::Value;
 	use tracing_subscriber::fmt;
+	use tracing_subscriber::fmt::writer::Tee;
 	use tracing_subscriber::layer::SubscriberExt;
 	use tracing_subscriber::util::SubscriberInitExt;
 
-	use crate::telemetry::{APPLICATION_START_TIME, IstioJsonFormat, fmt_layer, nonblocking};
+	use crate::telemetry::{
+		APPLICATION_START_TIME, IstioJsonFormat, NON_BLOCKING, fmt_layer, nonblocking,
+	};
 
-	/// MockWriter will store written logs
 	#[derive(Debug)]
-	pub struct MockWriter<'a> {
-		buf: &'a Mutex<Vec<u8>>,
+	pub enum LogError {
+		// Wanted to equal the value, its missing
+		Missing(String),
+		// Want to be absent but it is present
+		Present(String),
+		// Mismatch: want, got
+		Mismatch(String, String),
 	}
 
-	impl<'a> MockWriter<'a> {
-		pub fn new(buf: &'a Mutex<Vec<u8>>) -> Self {
+	impl Display for LogError {
+		fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+			match self {
+				LogError::Missing(_v) => {
+					write!(f, "missing")
+				},
+				LogError::Present(v) => {
+					write!(f, "{v:?} found unexpectedly")
+				},
+				LogError::Mismatch(want, got) => {
+					write!(f, "{want:?} != {got:?}")
+				},
+			}
+		}
+	}
+
+	/// assert_contains asserts the logs contain a line with the matching keys.
+	/// Common keys to match one are "target" and "message"; most of the rest are custom.
+	pub fn find(want: &[(&str, &str)]) -> Vec<Value> {
+		let want: HashMap<&str, &str> = HashMap::from_iter(want.into_iter().cloned());
+		let logs = {
+			let b = global_buf();
+			let buf = b.lock().unwrap();
+			std::str::from_utf8(&buf)
+				.expect("Logs contain invalid UTF8")
+				.to_string()
+		};
+		let found: Vec<Value> = logs
+			.lines()
+			.map(|line| serde_json::from_str::<serde_json::Value>(line).expect("log must be valid json"))
+			.flat_map(|log| {
+				for (k, v) in &want {
+					let Some(have) = log.get(k) else {
+						if !v.is_empty() {
+							// Wanted value, found none
+							return None;
+						}
+						continue;
+					};
+					let have = match have {
+						Value::Number(n) => format!("{n}"),
+						Value::String(v) => v.clone(),
+						_ => panic!("find currently only supports string/number values"),
+					};
+					if v.is_empty() {
+						// Wanted NO value, found something
+						return None;
+					}
+					// TODO fuzzy match
+					if *v != have {
+						// Wanted value, but it mismatched
+						return None;
+					}
+				}
+				Some(log)
+			})
+			.collect();
+
+		found
+	}
+
+	/// MockWriter will store written logs
+	#[derive(Debug, Clone)]
+	pub struct MockWriter {
+		buf: Arc<Mutex<Vec<u8>>>,
+	}
+
+	impl MockWriter {
+		pub fn new(buf: Arc<Mutex<Vec<u8>>>) -> Self {
 			Self { buf }
 		}
 
-		fn buf(&self) -> io::Result<MutexGuard<'a, Vec<u8>>> {
+		fn buf(&self) -> io::Result<MutexGuard<Vec<u8>>> {
 			self
 				.buf
 				.lock()
@@ -564,7 +641,7 @@ pub mod testing {
 		}
 	}
 
-	impl io::Write for MockWriter<'_> {
+	impl io::Write for MockWriter {
 		fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 			let mut target = self.buf()?;
 			target.write(buf)
@@ -575,18 +652,18 @@ pub mod testing {
 		}
 	}
 
-	impl fmt::MakeWriter<'_> for MockWriter<'_> {
+	impl fmt::MakeWriter<'_> for MockWriter {
 		type Writer = Self;
 
 		fn make_writer(&self) -> Self::Writer {
-			MockWriter::new(self.buf)
+			MockWriter::new(self.buf.clone())
 		}
 	}
 
 	// Global buffer to store logs in
-	fn global_buf() -> &'static Mutex<Vec<u8>> {
-		static GLOBAL_BUF: OnceLock<Mutex<Vec<u8>>> = OnceLock::new();
-		GLOBAL_BUF.get_or_init(|| Mutex::new(vec![]))
+	fn global_buf() -> Arc<Mutex<Vec<u8>>> {
+		static GLOBAL_BUF: OnceLock<Arc<Mutex<Vec<u8>>>> = OnceLock::new();
+		GLOBAL_BUF.get_or_init(|| Arc::new(Mutex::new(vec![]))).clone()
 	}
 	static TRACING: Lazy<()> = Lazy::new(setup_test_logging_internal);
 
@@ -600,7 +677,8 @@ pub mod testing {
 		let (non_blocking, _guard) = nonblocking::NonBlockingBuilder::default()
 			.lossy(false)
 			.buffered_lines_limit(1)
-			.finish(std::io::stdout());
+			.finish(Tee::new(std::io::stdout(), mock_writer.clone()));
+		let _ = NON_BLOCKING.set((non_blocking.clone(), true));
 		// Ensure we do not close until the program ends
 		Box::leak(Box::new(_guard));
 		let layer: fmt::Layer<_, _, _, _> = fmt::layer()

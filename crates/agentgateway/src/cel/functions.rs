@@ -17,6 +17,7 @@ pub fn insert_all(ctx: &mut Context<'_>) {
 
 	// Custom to agentgateway
 	ctx.add_function("json", json_parse);
+	ctx.add_function("to_json", to_json);
 	ctx.add_function("with", with);
 	ctx.add_function("flatten", flatten);
 	ctx.add_function("flatten_recursive", flatten_recursive);
@@ -161,6 +162,13 @@ fn json_parse(ftx: &FunctionContext, v: Value) -> ResolveResult {
 	};
 	let sv: serde_json::Value = sv.map_err(|e| ftx.error(e))?;
 	to_value(sv).map_err(|e| ftx.error(e))
+}
+
+fn to_json(ftx: &FunctionContext, v: Value) -> ResolveResult {
+	let pj = v.json().map_err(|e| ftx.error(e))?;
+	Ok(Value::String(Arc::new(
+		serde_json::to_string(&pj).map_err(|e| ftx.error(e))?,
+	)))
 }
 
 #[cfg(any(test, feature = "internal_benches"))]
