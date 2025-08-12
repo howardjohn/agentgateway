@@ -956,6 +956,9 @@ async fn make_backend_call(
 		.as_ref()
 		.map(|l| l.cel.cel_context.needs_llm_completion())
 		.unwrap_or_default();
+	if let Some(spans) = log.and_then(|l| l.span_writer()) {
+		spans.write("hello", |sb| sb);
+	}
 	Ok(Box::pin(async move {
 		let mut resp = upstream.call(call).await?;
 		a2a::apply_to_response(policies.a2a.as_ref(), a2a_type, &mut resp)

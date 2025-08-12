@@ -17,10 +17,12 @@ use frozen_collections::maps::Values;
 use frozen_collections::{FzHashSet, FzOrderedMap, FzStringMap, MapIteration};
 use http_body::{Body, Frame, SizeHint};
 use itertools::Itertools;
+use opentelemetry::TraceFlags;
+use opentelemetry::trace::{Span as _, SpanBuilder, SpanContext, SpanKind, TraceState, Tracer};
 use serde::{Serialize, Serializer};
 use serde_json::Value;
 use tracing::log::Log;
-use tracing::{Level, event, log, trace};
+use tracing::{Level, Span, event, log, trace};
 
 use crate::cel::{ContextBuilder, Error, Expression};
 use crate::telemetry::metrics::{GenAILabels, GenAILabelsTokenUsage, HTTPLabels, Metrics};
@@ -387,6 +389,7 @@ impl RequestLog {
 			metrics,
 			start,
 			tcp_info,
+			trace_spans: Default::default(),
 			tls_info: None,
 			tracer: None,
 			endpoint: None,
@@ -415,6 +418,49 @@ impl RequestLog {
 		}
 	}
 }
+
+#[derive(Debug, Clone)]
+pub struct SpanWriter {
+	parent: trc::TraceParent,
+	current: trc::TraceParent,
+	tracer: trc::Tracer,
+	inner: Arc<Mutex<Vec<Span>>>,
+}
+
+impl SpanWriter {
+	pub fn traceparent(&self) -> &trc::TraceParent {
+		&self.current
+	}
+	pub fn write(
+		&self,
+		name: impl Into<Cow<'static, str>>,
+		f: impl FnOnce(SpanBuilder) -> SpanBuilder,
+	) {
+		let mut sb = self
+			.tracer
+			.tracer
+			.span_builder(name)
+			.with_end_time(SystemTime::now())
+			.with_kind(SpanKind::Server)
+			.with_trace_id(self.current.trace_id.into())
+			.with_span_id(self.current.span_id.into());
+		sb = f(sb);
+		let parent = SpanContext::new(
+			self.parent.trace_id.into(),
+			self.parent.span_id.into(),
+			TraceFlags::new(self.parent.flags),
+			true,
+			TraceState::default(),
+		);
+		sb = sb.with_links(vec![opentelemetry::trace::Link::new(
+			parent.clone(),
+			vec![],
+			0,
+		)]);
+		sb.start(self.tracer.tracer.as_ref()).end()
+	}
+}
+
 #[derive(Debug)]
 pub struct RequestLog {
 	pub cel: CelLogging,
@@ -427,6 +473,7 @@ pub struct RequestLog {
 
 	// Set only if the trace is sampled
 	pub tracer: Option<trc::Tracer>,
+	pub trace_spans: Arc<Mutex<Vec<Span>>>,
 
 	pub endpoint: Option<Target>,
 
@@ -485,6 +532,22 @@ impl RequestLog {
 			return false;
 		};
 		exec.eval_rng(expr.as_ref())
+	}
+
+	pub fn span_writer(&self) -> Option<SpanWriter> {
+		let Some(tp) = self.outgoing_span.clone() else {
+			return None;
+		};
+		let Some(tc) = self.tracer.clone() else {
+			return None;
+		};
+		let current = tp.new_span();
+		Some(SpanWriter {
+			tracer: tc,
+			parent: tp,
+			current,
+			inner: self.trace_spans.clone(),
+		})
 	}
 }
 
