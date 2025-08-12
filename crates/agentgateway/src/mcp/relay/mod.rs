@@ -17,7 +17,7 @@ use http::request::Parts;
 use http::{HeaderMap, HeaderName, HeaderValue};
 use itertools::Itertools;
 use opentelemetry::global::BoxedSpan;
-use opentelemetry::trace::{SpanContext, SpanKind, TraceContextExt, TraceState, Tracer};
+use opentelemetry::trace::{Span, SpanContext, SpanKind, TraceContextExt, TraceState, Tracer};
 use opentelemetry::{Context, TraceFlags};
 use rmcp::model::{CallToolRequestParam, Tool, *};
 use rmcp::service::{RequestContext, RunningService};
