@@ -19,7 +19,6 @@ use tokio::io::DuplexStream;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::http::{Body, Response};
-use crate::llm::AIProvider::OpenAI;
 use crate::llm::{AIBackend, AIProvider, openai};
 use crate::proxy::Gateway;
 use crate::proxy::request_builder::RequestBuilder;
@@ -53,7 +52,7 @@ async fn multiple_requests() {
 #[tokio::test]
 async fn basic_http2() {
 	let mock = simple_mock().await;
-	let t = setup()
+	let t = setup("{}")
 		.unwrap()
 		.with_backend(*mock.address())
 		.with_bind(simple_bind(basic_route(*mock.address())));
@@ -91,18 +90,86 @@ async fn local_ratelimit() {
 }
 
 #[tokio::test]
-async fn llm() {
+async fn llm_openai() {
 	let mock = body_mock(include_bytes!("../llm/tests/response_basic.json")).await;
-	let (_mock, mut bind, io) = setup_llm_mock(mock);
+	let (_mock, mut bind, io) = setup_llm_mock(
+		mock,
+		AIProvider::OpenAI(openai::Provider { model: None }),
+		false,
+		"{}",
+	);
 
+	let want = json!({
+		"llm.provider": "openai",
+		"llm.request.model": "replaceme",
+		"llm.response.model": "gpt-3.5-turbo-0125",
+		"llm.request.tokens": 17,
+		"llm.response.tokens": 23
+	});
+	assert_llm(io, include_bytes!("../llm/tests/request_basic.json"), want).await;
+}
+
+#[tokio::test]
+async fn llm_openai_tokenize() {
+	let mock = body_mock(include_bytes!("../llm/tests/response_basic.json")).await;
+	let (_mock, mut bind, io) = setup_llm_mock(
+		mock,
+		AIProvider::OpenAI(openai::Provider { model: None }),
+		true,
+		"{}",
+	);
+
+	let want = json!({
+		"llm.provider": "openai",
+		"llm.request.model": "replaceme",
+		"llm.response.model": "gpt-3.5-turbo-0125",
+		"llm.request.tokens": 17,
+		"llm.response.tokens": 23
+	});
+	assert_llm(io, include_bytes!("../llm/tests/request_basic.json"), want).await;
+}
+
+#[tokio::test]
+async fn llm_log_body() {
+	let mock = body_mock(include_bytes!("../llm/tests/response_basic.json")).await;
+	let x = serde_json::to_string(&json!({
+		"config": {
+			"logging": {
+				"fields": {
+					"add": {
+						"prompt": "llm.prompt",
+						"completion": "llm.completion"
+					}
+				}
+			}
+		}
+	}))
+	.unwrap();
+	let (_mock, mut bind, io) = setup_llm_mock(
+		mock,
+		AIProvider::OpenAI(openai::Provider { model: None }),
+		true,
+		x.as_str(),
+	);
+
+	let want = json!({
+		"llm.provider": "openai",
+		"llm.request.model": "replaceme",
+		"llm.response.model": "gpt-3.5-turbo-0125",
+		"llm.request.tokens": 17,
+		"llm.response.tokens": 23,
+		"completion": ["Sorry, I couldn't find the name of the LLM provider. Could you please provide more information or context?"],
+		"prompt": [
+			{"role":"system","content":"You are a helpful assistant."},
+			{"role":"user","content":"What is the name of the LLM provider?"},
+		]
+	});
+	assert_llm(io, include_bytes!("../llm/tests/request_basic.json"), want).await;
+}
+
+async fn assert_llm(io: Client<MemoryConnector, Body>, body: &[u8], want: Value) {
 	let r = rand::rng().random::<u128>();
-	let res = send_request_body(
-		io.clone(),
-		Method::POST,
-		&format!("http://lo/{r}"),
-		include_bytes!("../llm/tests/request_basic.json"),
-	)
-	.await;
+	let res = send_request_body(io.clone(), Method::POST, &format!("http://lo/{r}"), body).await;
 
 	// Ensure body finishes
 	let _ = res.into_body().collect().await.unwrap();
@@ -111,13 +178,6 @@ async fn llm() {
 			.to_vec();
 	assert_eq!(logs.len(), 1);
 	let log = &logs[0];
-	let want = json!({
-		"llm.provider": "openai",
-		"llm.request.model": "replaceme",
-		"llm.response.model": "gpt-3.5-turbo-0125",
-		"llm.request.tokens": 17,
-		"llm.response.tokens": 23
-	});
 	let valid = is_json_subset(&want, log);
 	assert!(valid, "want={want:#?} got={log:#?}");
 }
@@ -159,7 +219,7 @@ async fn basic_setup() -> (MockServer, TestBind, Client<MemoryConnector, Body>) 
 }
 
 fn setup_mock(mock: MockServer) -> (MockServer, TestBind, Client<MemoryConnector, Body>) {
-	let t = setup()
+	let t = setup("{}")
 		.unwrap()
 		.with_backend(*mock.address())
 		.with_bind(simple_bind(basic_route(*mock.address())));
@@ -167,14 +227,19 @@ fn setup_mock(mock: MockServer) -> (MockServer, TestBind, Client<MemoryConnector
 	(mock, t, io)
 }
 
-fn setup_llm_mock(mock: MockServer) -> (MockServer, TestBind, Client<MemoryConnector, Body>) {
-	let mut t = setup().unwrap();
+fn setup_llm_mock(
+	mock: MockServer,
+	provider: AIProvider,
+	tokenize: bool,
+	config: &str,
+) -> (MockServer, TestBind, Client<MemoryConnector, Body>) {
+	let mut t = setup(config).unwrap();
 	let b = Backend::AI(
 		strng::format!("{}", mock.address()),
 		AIBackend {
-			provider: AIProvider::OpenAI(openai::Provider { model: None }),
+			provider,
 			host_override: Some(Target::Address(*mock.address())),
-			tokenize: false,
+			tokenize,
 		},
 	);
 	t.pi.stores.binds.write().insert_backend(b);
@@ -343,9 +408,9 @@ impl TestBind {
 	}
 }
 
-fn setup() -> anyhow::Result<TestBind> {
+fn setup(cfg: &str) -> anyhow::Result<TestBind> {
 	agent_core::telemetry::testing::setup_test_logging();
-	let config = crate::config::parse_config("{}".to_string(), None)?;
+	let config = crate::config::parse_config(cfg.to_string(), None)?;
 	let stores = Stores::new();
 	let client = client::Client::new(&config.dns, None);
 	let (drain_tx, drain_rx) = drain::new();

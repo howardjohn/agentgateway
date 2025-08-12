@@ -672,21 +672,11 @@ pub struct SimpleChatCompletionMessage {
 
 impl From<&universal::RequestMessage> for SimpleChatCompletionMessage {
 	fn from(msg: &universal::RequestMessage) -> Self {
-		todo!()
-		// Self {
-		// 	role: match msg.role {
-		// 		ChatCompletionRequestMessage::Developer(universal::RequestDeveloperMessageContent::Text()) =>  strng::literal!("developer"),
-		// 		ChatCompletionRequestMessage::System(_) =>  strng::literal!("system"),
-		// 		ChatCompletionRequestMessage::User(_) =>  strng::literal!("user"),
-		// 		ChatCompletionRequestMessage::Assistant(_) =>  strng::literal!("assistant"),
-		// 		ChatCompletionRequestMessage::Tool(universal::RequestToolMessageContent::Text()) =>  strng::literal!("tool"),
-		// 	},
-		// 	content: match &msg.content {
-		// 		Content::Text(t) => t.into(),
-		// 		Content::ImageUrl(t) => {
-		// 			strng::literal!("image")
-		// 		},
-		// 	},
-		// }
+		let role = universal::message_role(msg);
+		let content = universal::message_text(msg).unwrap_or_default();
+		Self {
+			role: role.into(),
+			content: content.into(),
+		}
 	}
 }

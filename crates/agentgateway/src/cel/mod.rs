@@ -284,12 +284,12 @@ impl Expression {
 		// For now we only look at the first level. We could be more precise
 		let mut attributes: HashSet<String> = props
 			.into_iter()
-			.filter_map(|tokens| match tokens.as_slice() {
-				["request", "body", ..] => Some(REQUEST_BODY_ATTRIBUTE.to_string()),
-				["llm", "prompt", ..] => Some(LLM_PROMPT_ATTRIBUTE.to_string()),
-				["llm", "completion", ..] => Some(LLM_COMPLETION_ATTRIBUTE.to_string()),
-				[first, ..] => Some(first.to_string()),
-				_ => None,
+			.flat_map(|tokens| match tokens.as_slice() {
+				["request", "body", ..] => vec![REQUEST_ATTRIBUTE.to_string(), REQUEST_BODY_ATTRIBUTE.to_string()],
+				["llm", "prompt", ..] => vec![LLM_ATTRIBUTE.to_string(), LLM_PROMPT_ATTRIBUTE.to_string()],
+				["llm", "completion", ..] => vec![LLM_ATTRIBUTE.to_string(), LLM_COMPLETION_ATTRIBUTE.to_string()],
+				[first, ..] => vec![first.to_string()],
+				_ => Vec::default(),
 			})
 			.collect();
 		if include_all {
