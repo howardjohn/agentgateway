@@ -285,9 +285,15 @@ impl Expression {
 		let mut attributes: HashSet<String> = props
 			.into_iter()
 			.flat_map(|tokens| match tokens.as_slice() {
-				["request", "body", ..] => vec![REQUEST_ATTRIBUTE.to_string(), REQUEST_BODY_ATTRIBUTE.to_string()],
+				["request", "body", ..] => vec![
+					REQUEST_ATTRIBUTE.to_string(),
+					REQUEST_BODY_ATTRIBUTE.to_string(),
+				],
 				["llm", "prompt", ..] => vec![LLM_ATTRIBUTE.to_string(), LLM_PROMPT_ATTRIBUTE.to_string()],
-				["llm", "completion", ..] => vec![LLM_ATTRIBUTE.to_string(), LLM_COMPLETION_ATTRIBUTE.to_string()],
+				["llm", "completion", ..] => vec![
+					LLM_ATTRIBUTE.to_string(),
+					LLM_COMPLETION_ATTRIBUTE.to_string(),
+				],
 				[first, ..] => vec![first.to_string()],
 				_ => Vec::default(),
 			})

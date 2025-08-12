@@ -580,7 +580,7 @@ pub mod testing {
 	/// assert_contains asserts the logs contain a line with the matching keys.
 	/// Common keys to match one are "target" and "message"; most of the rest are custom.
 	pub fn find(want: &[(&str, &str)]) -> Vec<Value> {
-		let want: HashMap<&str, &str> = HashMap::from_iter(want.into_iter().cloned());
+		let want: HashMap<&str, &str> = HashMap::from_iter(want.iter().cloned());
 		let logs = {
 			let b = global_buf();
 			let buf = b.lock().unwrap();
@@ -663,7 +663,9 @@ pub mod testing {
 	// Global buffer to store logs in
 	fn global_buf() -> Arc<Mutex<Vec<u8>>> {
 		static GLOBAL_BUF: OnceLock<Arc<Mutex<Vec<u8>>>> = OnceLock::new();
-		GLOBAL_BUF.get_or_init(|| Arc::new(Mutex::new(vec![]))).clone()
+		GLOBAL_BUF
+			.get_or_init(|| Arc::new(Mutex::new(vec![])))
+			.clone()
 	}
 	static TRACING: Lazy<()> = Lazy::new(setup_test_logging_internal);
 

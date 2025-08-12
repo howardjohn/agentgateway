@@ -457,9 +457,9 @@ pub fn is_json_subset(subset: &Value, superset: &Value) -> bool {
 		// If both are objects, check that all keys in subset exist in superset with matching values
 		(Value::Object(subset_map), Value::Object(superset_map)) => {
 			subset_map.iter().all(|(key, subset_value)| {
-				superset_map.get(key).map_or(false, |superset_value| {
-					is_json_subset(subset_value, superset_value)
-				})
+				superset_map
+					.get(key)
+					.is_some_and(|superset_value| is_json_subset(subset_value, superset_value))
 			})
 		},
 
