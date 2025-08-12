@@ -28,13 +28,14 @@ use serde_json::Value;
 use thiserror::Error;
 
 use crate::http::auth::BackendAuth;
+use crate::http::authorization::RuleSet;
 use crate::http::jwt::Jwt;
 use crate::http::localratelimit::RateLimit;
 use crate::http::{
 	HeaderName, HeaderValue, StatusCode, ext_authz, ext_proc, filters, remoteratelimit, retry,
 	status, timeout, uri,
 };
-use crate::mcp::rbac::RuleSet;
+use crate::mcp::rbac::McpAuthorization;
 use crate::proxy::ProxyError;
 use crate::transport::tls;
 use crate::types::discovery::{NamespacedHostname, Service};
@@ -1046,6 +1047,8 @@ pub enum Policy {
 	InferenceRouting(ext_proc::InferenceRouting),
 
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
+	Authorization(Authorization),
+	// Supported targets: Gateway < Route < RouteRule; single policy allowed
 	// Transformation(),
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
 	LocalRateLimit(Vec<crate::http::localratelimit::RateLimit>),
@@ -1067,7 +1070,7 @@ pub enum Policy {
 pub struct A2aPolicy {}
 
 #[apply(schema!)]
-pub struct McpAuthorization(RuleSet);
+pub struct Authorization(pub RuleSet);
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1155,11 +1158,6 @@ pub enum McpIDP {
 	Keycloak {},
 }
 
-impl McpAuthorization {
-	pub fn into_inner(self) -> RuleSet {
-		self.0
-	}
-}
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[cfg_attr(feature = "schema", schemars(with = "String"))]

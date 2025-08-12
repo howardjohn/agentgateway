@@ -29,9 +29,10 @@ use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 
 use crate::cel::ContextBuilder;
+use crate::http::authorization::RuleSets;
 use crate::http::jwt::Claims;
 use crate::mcp::rbac;
-use crate::mcp::rbac::{Identity, RuleSets};
+use crate::mcp::rbac::{Identity, McpAuthorizationSet};
 use crate::mcp::relay::pool::ConnectionPool;
 use crate::mcp::relay::upstream::UpstreamTarget;
 use crate::mcp::sse::{MCPInfo, McpBackendGroup};
@@ -40,7 +41,7 @@ use crate::store::Stores;
 use crate::telemetry::log::AsyncLog;
 use crate::telemetry::trc::TraceParent;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
-use crate::types::agent::{McpAuthorization, McpBackend};
+use crate::types::agent::McpBackend;
 use crate::{ProxyInputs, client};
 
 type McpError = ErrorData;
@@ -89,7 +90,7 @@ impl RqCtx {
 pub struct Relay {
 	pool: Arc<RwLock<pool::ConnectionPool>>,
 	metrics: Arc<metrics::Metrics>,
-	policies: RuleSets,
+	policies: McpAuthorizationSet,
 	// If we have 1 target only, we don't prefix everything with 'target_'.
 	// Else this is empty
 	default_target_name: Option<String>,
@@ -101,7 +102,7 @@ impl Relay {
 		pi: Arc<ProxyInputs>,
 		backend: McpBackendGroup,
 		metrics: Arc<metrics::Metrics>,
-		policies: RuleSets,
+		policies: McpAuthorizationSet,
 		client: PolicyClient,
 		stateful: bool,
 	) -> Self {

@@ -130,6 +130,8 @@ This defaults to 'true'.|
 |`binds[].listeners[].routes[].policies.cors.maxAge`||
 |`binds[].listeners[].routes[].policies.mcpAuthorization`|Authorization policies for MCP access.|
 |`binds[].listeners[].routes[].policies.mcpAuthorization.rules`||
+|`binds[].listeners[].routes[].policies.authorization`|Authorization policies for HTTP access.|
+|`binds[].listeners[].routes[].policies.authorization.rules`||
 |`binds[].listeners[].routes[].policies.mcpAuthentication`|Authentication for MCP clients.|
 |`binds[].listeners[].routes[].policies.mcpAuthentication.issuer`||
 |`binds[].listeners[].routes[].policies.mcpAuthentication.audience`||

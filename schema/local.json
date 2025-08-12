@@ -1004,6 +1004,26 @@
                             ],
                             "default": null
                           },
+                          "authorization": {
+                            "description": "Authorization policies for HTTP access.",
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "rules": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "rules"
+                            ],
+                            "default": null
+                          },
                           "mcpAuthentication": {
                             "description": "Authentication for MCP clients.",
                             "type": [

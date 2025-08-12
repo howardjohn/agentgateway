@@ -12,10 +12,11 @@ use tracing::{Level, instrument};
 
 use crate::cel::ContextBuilder;
 use crate::http::auth::BackendAuth;
+use crate::http::authorization::{HTTPAuthorizationSet, RuleSet, RuleSets};
 use crate::http::backendtls::BackendTLS;
 use crate::http::ext_proc::InferenceRouting;
 use crate::http::{ext_authz, ext_proc, remoteratelimit};
-use crate::mcp::rbac::{RuleSet, RuleSets};
+use crate::mcp::rbac::McpAuthorizationSet;
 use crate::proxy::httpproxy::PolicyClient;
 use crate::store::Event;
 use crate::types::agent::{
@@ -87,6 +88,7 @@ impl BackendPolicies {
 pub struct RoutePolicies {
 	pub local_rate_limit: Vec<http::localratelimit::RateLimit>,
 	pub remote_rate_limit: Option<remoteratelimit::RemoteRateLimit>,
+	pub authorization: Option<http::authorization::HTTPAuthorizationSet>,
 	pub jwt: Option<http::jwt::Jwt>,
 	pub ext_authz: Option<ext_authz::ExtAuthz>,
 	pub transformation: Option<http::transformation_cel::Transformation>,
@@ -103,6 +105,9 @@ impl RoutePolicies {
 			for expr in rrl.expressions() {
 				ctx.register_expression(expr)
 			}
+		};
+		if let Some(rrl) = &self.authorization {
+			rrl.register(ctx)
 		};
 	}
 }
@@ -184,12 +189,14 @@ impl Store {
 			.chain(gateway.iter().copied().flatten())
 			.filter_map(|n| self.policies_by_name.get(n));
 
+		let mut authz = Vec::new();
 		let mut pol = RoutePolicies {
 			local_rate_limit: vec![],
 			remote_rate_limit: None,
 			jwt: None,
 			ext_authz: None,
 			transformation: None,
+			authorization: None,
 		};
 		for rule in rules {
 			match &rule.policy {
@@ -210,8 +217,15 @@ impl Store {
 				Policy::Transformation(p) => {
 					pol.transformation.get_or_insert_with(|| p.clone());
 				},
+				Policy::Authorization(p) => {
+					// Authorization policies merge, unlike others
+					authz.push(p.clone().0);
+				},
 				_ => {}, // others are not route policies
 			}
+		}
+		if !authz.is_empty() {
+			pol.authorization = Some(HTTPAuthorizationSet::new(authz.into()));
 		}
 
 		pol
@@ -257,9 +271,12 @@ impl Store {
 		pol
 	}
 
-	pub fn mcp_policies(&self, backend: BackendName) -> (RuleSets, Option<McpAuthentication>) {
+	pub fn mcp_policies(
+		&self,
+		backend: BackendName,
+	) -> (McpAuthorizationSet, Option<McpAuthentication>) {
 		let t = PolicyTarget::Backend(backend);
-		let rs = RuleSets::from(
+		let rs = McpAuthorizationSet::new(RuleSets::from(
 			self
 				.policies_by_name
 				.values()
@@ -273,7 +290,7 @@ impl Store {
 					}
 				})
 				.collect_vec(),
-		);
+		));
 		let auth = self
 			// This is a terrible approach!
 			.policies_by_name

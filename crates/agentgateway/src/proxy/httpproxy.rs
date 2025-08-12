@@ -94,15 +94,21 @@ async fn apply_request_policies(
 	}
 	.apply(response_policies.headers())?;
 
-	for lrl in &policies.local_rate_limit {
-		lrl.check_request(req)?;
-	}
-
 	let exec = log
 		.cel
 		.ctx()
 		.build()
 		.map_err(|_| ProxyError::ProcessingString("failed to build cel context".to_string()))?;
+
+	if let Some(j) = &policies.authorization {
+		j.apply(req, &exec)
+			.map_err(|e| ProxyResponse::from(ProxyError::AuthorizationFailed))?;
+	}
+
+	for lrl in &policies.local_rate_limit {
+		lrl.check_request(req)?;
+	}
+
 	if let Some(rrl) = &policies.remote_rate_limit {
 		rrl.check(client, req, &exec).await?
 	} else {

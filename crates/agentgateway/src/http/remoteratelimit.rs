@@ -27,7 +27,6 @@ use crate::http::remoteratelimit::proto::{RateLimitDescriptor, RateLimitRequest}
 use crate::http::transformation_cel::Transformation;
 use crate::http::{HeaderName, HeaderValue, PolicyResponse, Request, Response};
 use crate::llm::LLMRequest;
-use crate::mcp::rbac::PolicySet;
 use crate::proxy::ProxyError;
 use crate::proxy::httpproxy::PolicyClient;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};

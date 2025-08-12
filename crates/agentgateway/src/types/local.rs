@@ -23,13 +23,14 @@ use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
 use crate::http::jwt::{JwkError, Jwt};
 use crate::http::{filters, retry, timeout};
 use crate::llm::AIProvider;
+use crate::mcp::rbac::McpAuthorization;
 use crate::store::LocalWorkload;
 use crate::transport::tls;
 use crate::types::agent::PolicyTarget::RouteRule;
 use crate::types::agent::{
-	A2aPolicy, Backend, BackendName, BackendReference, Bind, BindName, GatewayName, Listener,
-	ListenerKey, ListenerProtocol, ListenerSet, McpAuthentication, McpAuthorization, McpBackend,
-	McpTarget, McpTargetName, McpTargetSpec, OpenAPITarget, PathMatch, Policy, PolicyTarget, Route,
+	A2aPolicy, Authorization, Backend, BackendName, BackendReference, Bind, BindName, GatewayName,
+	Listener, ListenerKey, ListenerProtocol, ListenerSet, McpAuthentication, McpBackend, McpTarget,
+	McpTargetName, McpTargetSpec, OpenAPITarget, PathMatch, Policy, PolicyTarget, Route,
 	RouteBackend, RouteBackendReference, RouteFilter, RouteMatch, RouteName, RouteRuleName, RouteSet,
 	SimpleBackend, SimpleBackendReference, SseTargetSpec, StreamableHTTPTargetSpec, TCPRoute,
 	TCPRouteBackendReference, TCPRouteSet, TLSConfig, Target, TargetedPolicy, TrafficPolicy,
@@ -436,6 +437,9 @@ struct FilterOrPolicy {
 	/// Authorization policies for MCP access.
 	#[serde(default)]
 	mcp_authorization: Option<McpAuthorization>,
+	/// Authorization policies for HTTP access.
+	#[serde(default)]
+	authorization: Option<Authorization>,
 	/// Authentication for MCP clients.
 	#[serde(default)]
 	mcp_authentication: Option<McpAuthentication>,
@@ -701,6 +705,7 @@ async fn convert_route(
 			ai,
 			backend_tls,
 			backend_auth,
+			authorization,
 			local_rate_limit,
 			remote_rate_limit,
 			jwt_auth,
@@ -764,6 +769,9 @@ async fn convert_route(
 		}
 		if let Some(p) = transformations {
 			external_policies.push(tgt(Policy::Transformation(p)))
+		}
+		if let Some(p) = authorization {
+			external_policies.push(tgt(Policy::Authorization(p)))
 		}
 		if let Some(p) = ext_authz {
 			let (bref, backend) =

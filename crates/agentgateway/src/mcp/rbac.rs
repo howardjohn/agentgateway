@@ -13,169 +13,39 @@ use tracing::log;
 use x509_parser::asn1_rs::AsTaggedExplicit;
 
 use crate::cel::{ContextBuilder, Executor};
+use crate::http::authorization::{RuleSet, RuleSets};
 use crate::http::jwt::Claims;
 use crate::*;
 
 #[apply(schema!)]
-pub struct RuleSet {
-	#[serde(serialize_with = "se_policies", deserialize_with = "de_policies")]
-	#[cfg_attr(feature = "schema", schemars(with = "Vec<String>"))]
-	pub rules: PolicySet,
-}
+pub struct McpAuthorization(RuleSet);
 
-#[derive(Clone, Debug, Default)]
-pub struct PolicySet {
-	allow: Vec<Arc<cel::Expression>>,
-	deny: Vec<Arc<cel::Expression>>,
+impl McpAuthorization {
+	pub fn into_inner(self) -> RuleSet {
+		self.0
+	}
 }
 
 #[derive(Clone, Debug)]
-pub enum Policy {
-	Allow(Arc<cel::Expression>),
-	Deny(Arc<cel::Expression>),
-}
+pub struct McpAuthorizationSet(RuleSets);
 
-#[apply(schema!)]
-#[serde(untagged)]
-enum RuleSerde {
-	Object {
-		#[serde(flatten)]
-		rule: RuleTypeSerde,
-	},
-	PlainString(String),
-}
-
-#[apply(schema!)]
-enum RuleTypeSerde {
-	Allow(String),
-	Deny(String),
-}
-
-impl PolicySet {
-	pub fn add(&mut self, p: impl Into<String>) -> Result<(), cel::Error> {
-		self.allow.push(Arc::new(cel::Expression::new(p)?));
-		Ok(())
+impl McpAuthorizationSet {
+	pub fn new(rs: RuleSets) -> Self {
+		Self(rs)
 	}
-}
-
-pub fn se_policies<S: Serializer>(t: &PolicySet, serializer: S) -> Result<S::Ok, S::Error> {
-	let mut m = serializer.serialize_map(Some(2))?;
-	m.serialize_entry("allow", &t.allow)?;
-	m.serialize_entry("deny", &t.deny)?;
-	m.end()
-}
-
-pub fn de_policies<'de: 'a, 'a, D>(deserializer: D) -> Result<PolicySet, D::Error>
-where
-	D: Deserializer<'de>,
-{
-	let raw = Vec::<RuleSerde>::deserialize(deserializer)?;
-	let mut res = PolicySet {
-		allow: vec![],
-		deny: vec![],
-	};
-	for r in raw {
-		match r {
-			RuleSerde::Object {
-				rule: RuleTypeSerde::Allow(allow),
-			}
-			| RuleSerde::PlainString(allow) => res.allow.push(
-				cel::Expression::new(&allow)
-					.map(Arc::new)
-					.map_err(|e| serde::de::Error::custom(e.to_string()))?,
-			),
-			RuleSerde::Object {
-				rule: RuleTypeSerde::Deny(deny),
-			} => res.deny.push(
-				cel::Expression::new(deny)
-					.map(Arc::new)
-					.map_err(|e| serde::de::Error::custom(e.to_string()))?,
-			),
-		};
-	}
-	Ok(res)
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct RuleSets(Vec<RuleSet>);
-
-impl From<Vec<RuleSet>> for RuleSets {
-	fn from(value: Vec<RuleSet>) -> Self {
-		Self(value)
-	}
-}
-
-impl RuleSets {
-	pub fn register(&self, ctx: &mut ContextBuilder) {
-		for rule_set in &self.0 {
-			for rule in &rule_set.rules.allow {
-				ctx.register_expression(rule.as_ref());
-			}
-			for rule in &rule_set.rules.deny {
-				ctx.register_expression(rule.as_ref());
-			}
-		}
-	}
-	pub fn validate(&self, resource: &ResourceType, cel: &ContextBuilder) -> bool {
-		// If there are no rule sets, everyone has access
-		if self.0.is_empty() {
-			return true;
-		}
-
-		tracing::debug!("Checking RBAC for resource: {:?}", resource);
-		let Ok(exec) = cel.build_with_mcp(Some(resource)) else {
-			return false;
-		};
-		self.0.iter().any(|rule_set| rule_set.validate(&exec))
-	}
-
-	pub fn is_empty(&self) -> bool {
-		self.0.is_empty()
-	}
-}
-
-impl RuleSet {
-	pub fn new(rules: PolicySet) -> Self {
-		Self { rules }
-	}
-
-	// Check if the claims have access to the resource
-	pub fn validate(&self, exec: &cel::Executor) -> bool {
-		self.validate_internal(exec).unwrap_or_else(|e| {
-			tracing::warn!("authorization failed with error: {e}");
-			// Fail closed
-			false
+	pub fn validate(&self, res: &ResourceType, cel: &ContextBuilder) -> bool {
+		tracing::debug!("Checking RBAC for resource: {:?}", res);
+		self.0.validate(|| {
+			cel
+				.build_with_mcp(Some(res))
+				.map(agent_core::bow::OwnedOrBorrowed::Owned)
+				.map_err(Into::into)
 		})
 	}
 
-	fn validate_internal(&self, exec: &Executor) -> anyhow::Result<bool> {
-		// If there are no rules, everyone has access
-		if self.rules.allow.is_empty() && self.rules.deny.is_empty() {
-			return Ok(true);
-		}
-		// If any DENY rule matches, it is denied
-		for rule in &self.rules.deny {
-			if exec.eval_bool(rule.as_ref()) {
-				return Ok(false);
-			}
-		}
-
-		// If any ALLOW rules match, it is allowed
-		for rule in &self.rules.allow {
-			if exec.eval_bool(rule.as_ref()) {
-				return Ok(true);
-			}
-		}
-
-		// Else it is denied
-		Ok(false)
+	pub fn register(&self, cel: &mut ContextBuilder) {
+		self.0.register(cel);
 	}
-}
-
-fn default_key_delimiter() -> String {
-	".".to_string()
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -273,7 +143,3 @@ impl Identity {
 		}
 	}
 }
-
-#[cfg(any(test, feature = "internal_benches"))]
-#[path = "rbac_tests.rs"]
-mod tests;

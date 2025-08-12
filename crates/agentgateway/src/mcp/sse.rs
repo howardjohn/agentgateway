@@ -47,11 +47,11 @@ use tracing::warn;
 use url::form_urlencoded;
 
 use crate::cel::ContextBuilder;
+use crate::http::authorization::RuleSets;
 use crate::http::jwt::Claims;
 use crate::http::*;
 use crate::json::{from_body, to_body};
 use crate::llm::LLMRequest;
-use crate::mcp::rbac::RuleSets;
 use crate::mcp::relay::Relay;
 use crate::mcp::{rbac, relay};
 use crate::proxy::httpproxy::PolicyClient;

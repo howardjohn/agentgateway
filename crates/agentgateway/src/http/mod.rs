@@ -14,6 +14,7 @@ mod tests_common;
 #[allow(dead_code)]
 mod transformation;
 // Do not warn is it is WIP
+pub mod authorization;
 pub mod backendtls;
 pub mod ext_authz;
 pub mod ext_proc;

@@ -27,6 +27,7 @@ use thiserror::Error;
 
 use super::agent::*;
 use crate::http::auth::{AwsAuth, BackendAuth};
+use crate::http::authorization::RuleSet;
 use crate::http::jwt::Jwt;
 use crate::http::localratelimit::RateLimit;
 use crate::http::{
@@ -34,7 +35,6 @@ use crate::http::{
 	status, timeout, uri,
 };
 use crate::llm::{AIBackend, AIProvider};
-use crate::mcp::rbac::RuleSet;
 use crate::transport::tls;
 use crate::types::agent::Backend::Opaque;
 use crate::types::discovery::NamespacedHostname;
