@@ -5,7 +5,7 @@ use std::str::FromStr;
 use anyhow::{Context as _, Error};
 use lazy_static::lazy_static;
 use secrecy::SecretString;
-use serde::ser::SerializeSeq;
+use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use serde_json::map::Map;
@@ -16,53 +16,84 @@ use crate::cel::{ContextBuilder, Executor};
 use crate::http::jwt::Claims;
 use crate::*;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct RuleSet {
 	#[serde(serialize_with = "se_policies", deserialize_with = "de_policies")]
 	#[cfg_attr(feature = "schema", schemars(with = "Vec<String>"))]
 	pub rules: PolicySet,
 }
 
-#[derive(Clone, Debug)]
-pub struct PolicySet(Vec<Arc<cel::Expression>>);
+#[derive(Clone, Debug, Default)]
+pub struct PolicySet {
+	allow: Vec<Arc<cel::Expression>>,
+	deny: Vec<Arc<cel::Expression>>,
+}
 
-impl Default for PolicySet {
-	fn default() -> Self {
-		Self::new()
-	}
+#[derive(Clone, Debug)]
+pub enum Policy {
+	Allow(Arc<cel::Expression>),
+	Deny(Arc<cel::Expression>),
+}
+
+#[apply(schema!)]
+#[serde(untagged)]
+enum RuleSerde {
+	Object {
+		#[serde(flatten)]
+		rule: RuleTypeSerde,
+	},
+	PlainString(String),
+}
+
+#[apply(schema!)]
+enum RuleTypeSerde {
+	Allow(String),
+	Deny(String),
 }
 
 impl PolicySet {
-	pub fn new() -> Self {
-		Self(Vec::new())
-	}
 	pub fn add(&mut self, p: impl Into<String>) -> Result<(), cel::Error> {
-		self.0.push(Arc::new(cel::Expression::new(p)?));
+		self.allow.push(Arc::new(cel::Expression::new(p)?));
 		Ok(())
 	}
 }
 
 pub fn se_policies<S: Serializer>(t: &PolicySet, serializer: S) -> Result<S::Ok, S::Error> {
-	let mut seq = serializer.serialize_seq(Some(t.0.len()))?;
-	for tt in &t.0 {
-		seq.serialize_element(tt)?;
-	}
-	seq.end()
+	let mut m = serializer.serialize_map(Some(2))?;
+	m.serialize_entry("allow", &t.allow)?;
+	m.serialize_entry("deny", &t.deny)?;
+	m.end()
 }
 
 pub fn de_policies<'de: 'a, 'a, D>(deserializer: D) -> Result<PolicySet, D::Error>
 where
 	D: Deserializer<'de>,
 {
-	let raw = Vec::<String>::deserialize(deserializer)?;
-	let parsed: Vec<_> = raw
-		.into_iter()
-		.map(|r| cel::Expression::new(r).map(Arc::new))
-		.collect::<Result<_, _>>()
-		.map_err(|e| serde::de::Error::custom(e.to_string()))?;
-	Ok(PolicySet(parsed))
+	let raw = Vec::<RuleSerde>::deserialize(deserializer)?;
+	let mut res = PolicySet {
+		allow: vec![],
+		deny: vec![],
+	};
+	for r in raw {
+		match r {
+			RuleSerde::Object {
+				rule: RuleTypeSerde::Allow(allow),
+			}
+			| RuleSerde::PlainString(allow) => res.allow.push(
+				cel::Expression::new(&allow)
+					.map(Arc::new)
+					.map_err(|e| serde::de::Error::custom(e.to_string()))?,
+			),
+			RuleSerde::Object {
+				rule: RuleTypeSerde::Deny(deny),
+			} => res.deny.push(
+				cel::Expression::new(deny)
+					.map(Arc::new)
+					.map_err(|e| serde::de::Error::custom(e.to_string()))?,
+			),
+		};
+	}
+	Ok(res)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -79,7 +110,10 @@ impl From<Vec<RuleSet>> for RuleSets {
 impl RuleSets {
 	pub fn register(&self, ctx: &mut ContextBuilder) {
 		for rule_set in &self.0 {
-			for rule in &rule_set.rules.0 {
+			for rule in &rule_set.rules.allow {
+				ctx.register_expression(rule.as_ref());
+			}
+			for rule in &rule_set.rules.deny {
 				ctx.register_expression(rule.as_ref());
 			}
 		}
@@ -118,15 +152,24 @@ impl RuleSet {
 
 	fn validate_internal(&self, exec: &Executor) -> anyhow::Result<bool> {
 		// If there are no rules, everyone has access
-		if self.rules.0.is_empty() {
+		if self.rules.allow.is_empty() && self.rules.deny.is_empty() {
 			return Ok(true);
 		}
+		// If any DENY rule matches, it is denied
+		for rule in &self.rules.deny {
+			if exec.eval_bool(rule.as_ref()) {
+				return Ok(false);
+			}
+		}
 
-		for rule in &self.rules.0 {
+		// If any ALLOW rules match, it is allowed
+		for rule in &self.rules.allow {
 			if exec.eval_bool(rule.as_ref()) {
 				return Ok(true);
 			}
 		}
+
+		// Else it is denied
 		Ok(false)
 	}
 }

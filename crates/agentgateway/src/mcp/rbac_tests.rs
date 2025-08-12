@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 use super::*;
 
 fn create_policy_set(policies: Vec<&str>) -> PolicySet {
-	let mut policy_set = PolicySet::new();
+	let mut policy_set = PolicySet::default();
 	for p in policies.into_iter() {
 		policy_set.add(p).expect("Failed to parse policy");
 	}
