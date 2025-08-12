@@ -27,6 +27,7 @@ use crate::http::ext_proc::proto::{
 use crate::http::{HeaderName, HeaderValue};
 use crate::proxy::ProxyError;
 use crate::proxy::httpproxy::PolicyClient;
+use crate::telemetry::log::SpanWriter;
 use crate::types::agent;
 use crate::types::agent::{Backend, SimpleBackendReference, Target};
 use crate::types::discovery::NamespacedHostname;
@@ -120,7 +121,11 @@ impl ExtProc {
 		failure_mode: FailureMode,
 	) -> ExtProc {
 		trace!("connecting to {:?}", target);
-		let chan = GrpcReferenceChannel { target, client };
+		let chan = GrpcReferenceChannel {
+			target,
+			client,
+			span_writer: None, // TODO
+		};
 		let mut c = proto::external_processor_client::ExternalProcessorClient::new(chan);
 		let (tx_req, rx_req) = tokio::sync::mpsc::channel(10);
 		let (tx_resp, rx_resp) = tokio::sync::mpsc::channel(10);
@@ -469,6 +474,7 @@ fn processing_request(data: Request) -> ProcessingRequest {
 pub struct GrpcReferenceChannel {
 	pub target: Arc<SimpleBackendReference>,
 	pub client: PolicyClient,
+	pub span_writer: Option<SpanWriter>,
 }
 
 impl tower::Service<::http::Request<tonic::body::Body>> for GrpcReferenceChannel {
@@ -483,7 +489,8 @@ impl tower::Service<::http::Request<tonic::body::Body>> for GrpcReferenceChannel
 	fn call(&mut self, mut req: ::http::Request<tonic::body::Body>) -> Self::Future {
 		let client = self.client.clone();
 		let target = self.target.clone();
+		let sw =  self.span_writer.clone();
 		let mut req = req.map(http::Body::new);
-		Box::pin(async move { Ok(client.call_reference(req, &target).await?) })
+		Box::pin(async move { Ok(client.call_reference(req, &target,sw ).await?) })
 	}
 }

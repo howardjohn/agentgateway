@@ -200,6 +200,7 @@ impl RemoteRateLimit {
 		let chan = GrpcReferenceChannel {
 			target: self.target.clone(),
 			client,
+			span_writer: None, // TODO
 		};
 		let mut client = RateLimitServiceClient::new(chan);
 		let resp = client.should_rate_limit(request).await;

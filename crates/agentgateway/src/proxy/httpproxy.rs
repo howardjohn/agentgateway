@@ -1,10 +1,3 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::convert::Infallible;
-use std::iter::Empty;
-use std::net::{IpAddr, SocketAddr};
-use std::sync::Arc;
-
 use ::http::uri::PathAndQuery;
 use ::http::{HeaderMap, header};
 use agent_core::drain::{DrainMode, DrainUpgrader, DrainWatcher, new};
@@ -29,6 +22,13 @@ use rand::Rng;
 use rand::seq::IndexedRandom;
 use rustls::ServerConfig;
 use secrecy::ExposeSecret;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::convert::Infallible;
+use std::iter::Empty;
+use std::net::{IpAddr, SocketAddr};
+use std::sync::Arc;
+use std::time::SystemTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;
@@ -59,7 +59,7 @@ use crate::store::{
 	BackendPolicies, Event, LLMRequestPolicies, LLMResponsePolicies, RoutePolicies,
 };
 use crate::telemetry::log;
-use crate::telemetry::log::{AsyncLog, DropOnLog, LogBody, RequestLog};
+use crate::telemetry::log::{AsyncLog, DropOnLog, LogBody, RequestLog, SpanWriter};
 use crate::telemetry::metrics::TCPLabels;
 use crate::telemetry::trc::TraceParent;
 use crate::transport::stream::{Extension, Socket, TCPConnectionInfo, TLSConnectionInfo};
@@ -88,7 +88,7 @@ async fn apply_request_policies(
 			.map_err(|e| ProxyResponse::from(ProxyError::JwtAuthenticationFailure(e)))?;
 	}
 	if let Some(x) = &policies.ext_authz {
-		x.check(client.clone(), req).await?
+		x.check(client.clone(), req, log.span_writer()).await?
 	} else {
 		http::PolicyResponse::default()
 	}
@@ -615,6 +615,7 @@ impl HTTPProxy {
 	) -> Result<Response, ProxyResponse> {
 		let inputs = self.inputs.clone();
 
+		let sw = log.span_writer();
 		let call = make_backend_call(
 			self.inputs.clone(),
 			route_policies.clone(),
@@ -622,6 +623,7 @@ impl HTTPProxy {
 			None,
 			req,
 			Some(log),
+			sw,
 			&mut response_policies.response_headers,
 		)
 		.await?;
@@ -778,6 +780,7 @@ async fn make_backend_call(
 	default_policies: Option<BackendPolicies>,
 	mut req: Request,
 	mut log: Option<&mut RequestLog>,
+	span_writer: Option<SpanWriter>,
 	response_headers: &mut HeaderMap,
 ) -> Result<Pin<Box<dyn Future<Output = Result<Response, ProxyError>> + Send>>, ProxyResponse> {
 	let client = inputs.upstream.clone();
@@ -956,11 +959,16 @@ async fn make_backend_call(
 		.as_ref()
 		.map(|l| l.cel.cel_context.needs_llm_completion())
 		.unwrap_or_default();
-	if let Some(spans) = log.and_then(|l| l.span_writer()) {
-		spans.write("hello", |sb| sb);
-	}
+
 	Ok(Box::pin(async move {
+		let t0 = SystemTime::now();
+		let name = format!("upstream {}", call.target.to_string());
 		let mut resp = upstream.call(call).await?;
+		if let Some(spans) = span_writer {
+			spans.write(name, |sb| {
+				sb.with_start_time(t0)
+			});
+		}
 		a2a::apply_to_response(policies.a2a.as_ref(), a2a_type, &mut resp)
 			.await
 			.map_err(ProxyError::Processing)?;
@@ -1009,7 +1017,7 @@ async fn send_mirror(
 ) -> Result<(), ProxyError> {
 	req.headers_mut().remove(http::header::CONTENT_LENGTH);
 	let backend = super::resolve_simple_backend(&mirror.backend, inputs.as_ref())?;
-	let _ = upstream.call(req, backend).await?;
+	let _ = upstream.call(req, backend, None).await?;
 	Ok(())
 }
 
@@ -1167,6 +1175,7 @@ impl PolicyClient {
 		&self,
 		mut req: Request,
 		backend_ref: &SimpleBackendReference,
+		span_writer: Option<SpanWriter>,
 	) -> Result<Response, ProxyError> {
 		let backend = resolve_simple_backend(backend_ref, self.inputs.as_ref())?;
 		trace!("resolved {:?} to {:?}", backend_ref, &backend);
@@ -1183,9 +1192,14 @@ impl PolicyClient {
 			Ok(())
 		})
 		.map_err(ProxyError::Processing)?;
-		self.call(req, backend).await
+		self.call(req, backend, span_writer).await
 	}
-	pub async fn call(&self, req: Request, backend: SimpleBackend) -> Result<Response, ProxyError> {
+	pub async fn call(
+		&self,
+		req: Request,
+		backend: SimpleBackend,
+		span_writer: Option<SpanWriter>,
+	) -> Result<Response, ProxyError> {
 		make_backend_call(
 			self.inputs.clone(),
 			Arc::new(LLMRequestPolicies::default()),
@@ -1193,6 +1207,7 @@ impl PolicyClient {
 			None,
 			req,
 			None,
+			span_writer,
 			&mut Default::default(),
 		)
 		.await
@@ -1212,6 +1227,7 @@ impl PolicyClient {
 				&backend.clone().into(),
 				Some(defaults),
 				req,
+				None,
 				None,
 				&mut Default::default(),
 			)

@@ -36,6 +36,7 @@ use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::agent;
 use crate::types::agent::{Backend, SimpleBackendReference, Target};
 use crate::*;
+use crate::telemetry::log::SpanWriter;
 
 #[allow(warnings)]
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -55,11 +56,13 @@ impl ExtAuthz {
 		&self,
 		client: PolicyClient,
 		req: &mut Request,
+		span_writer: Option<SpanWriter>,
 	) -> Result<PolicyResponse, ProxyError> {
 		trace!("connecting to {:?}", self.target);
 		let chan = GrpcReferenceChannel {
 			target: self.target.clone(),
 			client,
+			span_writer,
 		};
 		let mut client = AuthorizationClient::new(chan);
 		let tcp_info = req.extensions().get::<TCPConnectionInfo>().unwrap();
