@@ -65,7 +65,7 @@ pub fn select_best_route(
 		match &wp.destination {
 			Destination::Address(aadr) => {
 				// TODO: this is pretty sketchy
-				let Some(ns) = self_addr.split(".").skip(1).next() else {
+				let Some(ns) = self_addr.split(".").nth(1) else {
 					warn!("waypoint cannot find self namespace");
 					return None;
 				};
@@ -75,7 +75,7 @@ pub fn select_best_route(
 						.services
 						.get_by_namespaced_host(&NamespacedHostname {
 							namespace: ns.into(),
-							hostname: self_addr.into(),
+							hostname: self_addr,
 						})?;
 				if !self_svc.vips.contains(aadr) {
 					warn!(
