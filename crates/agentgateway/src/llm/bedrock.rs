@@ -324,10 +324,10 @@ pub(super) fn translate_response(
 	let id = format!("bedrock-{}", chrono::Utc::now().timestamp_millis());
 
 	// Log guardrail trace information if present
-	if let Some(trace) = &resp.trace {
-		if let Some(guardrail_trace) = &trace.guardrail {
-			trace!("Bedrock guardrail trace: {:?}", guardrail_trace);
-		}
+	if let Some(trace) = &resp.trace
+		&& let Some(guardrail_trace) = &trace.guardrail
+	{
+		trace!("Bedrock guardrail trace: {:?}", guardrail_trace);
 	}
 
 	Ok(universal::Response {

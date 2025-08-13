@@ -138,10 +138,8 @@ impl App {
 		let mut ctx = ContextBuilder::new();
 		authorization_policies.register(&mut ctx);
 		let needs_body = ctx.with_request(&req);
-		if needs_body {
-			if let Ok(body) = crate::http::inspect_body(req.body_mut()).await {
-				ctx.with_request_body(body);
-			}
+		if needs_body && let Ok(body) = crate::http::inspect_body(req.body_mut()).await {
+			ctx.with_request_body(body);
 		}
 		if let Some(jwt) = req.extensions().get::<Claims>() {
 			ctx.with_jwt(jwt);
@@ -151,12 +149,11 @@ impl App {
 		req.extensions_mut().insert(Arc::new(ctx));
 
 		// Check if authentication is required and JWT token is missing
-		if let Some(auth) = &authn {
-			if req.extensions().get::<Claims>().is_none()
-				&& !Self::is_well_known_endpoint(req.uri().path())
-			{
-				return Self::create_auth_required_response(&req, auth).into_response();
-			}
+		if let Some(auth) = &authn
+			&& req.extensions().get::<Claims>().is_none()
+			&& !Self::is_well_known_endpoint(req.uri().path())
+		{
+			return Self::create_auth_required_response(&req, auth).into_response();
 		}
 
 		match (req.uri().path(), req.method(), authn) {

@@ -148,6 +148,10 @@ assigning_clones = "allow"
 borrow_interior_mutable_const = "allow"
 declare_interior_mutable_const = "allow"
 
+[lints.rust]
+# This rule makes code more confusing
+mismatched_lifetime_syntaxes = "allow"
+
 [[bench]]
 name = "bench_tests"
 harness = false

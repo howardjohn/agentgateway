@@ -89,17 +89,16 @@ pub enum WellKnownContentTypes {
 }
 
 pub fn classify_content_type(h: &HeaderMap) -> WellKnownContentTypes {
-	if let Some(content_type) = h.get(header::CONTENT_TYPE) {
-		if let Ok(content_type_str) = content_type.to_str() {
-			if let Ok(mime) = content_type_str.parse::<mime::Mime>() {
-				match (mime.type_(), mime.subtype()) {
-					(mime::APPLICATION, mime::JSON) => return WellKnownContentTypes::Json,
-					(mime::TEXT, mime::EVENT_STREAM) => {
-						return WellKnownContentTypes::Sse;
-					},
-					_ => {},
-				}
-			}
+	if let Some(content_type) = h.get(header::CONTENT_TYPE)
+		&& let Ok(content_type_str) = content_type.to_str()
+		&& let Ok(mime) = content_type_str.parse::<mime::Mime>()
+	{
+		match (mime.type_(), mime.subtype()) {
+			(mime::APPLICATION, mime::JSON) => return WellKnownContentTypes::Json,
+			(mime::TEXT, mime::EVENT_STREAM) => {
+				return WellKnownContentTypes::Sse;
+			},
+			_ => {},
 		}
 	}
 	WellKnownContentTypes::Unknown

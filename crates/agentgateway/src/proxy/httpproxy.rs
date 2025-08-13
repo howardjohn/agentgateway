@@ -253,15 +253,15 @@ fn load_balance(
 			);
 			return None;
 		}
-		if let Some(o) = override_dest {
-			if !wl.workload_ips.contains(&o.ip()) {
-				// We ignore port, assume its a bug to have a mismatch
-				trace!(
-					"filter endpoint {}, it was not the selected endpoint {}",
-					ep.workload_uid, o
-				);
-				return None;
-			}
+		if let Some(o) = override_dest
+			&& !wl.workload_ips.contains(&o.ip())
+		{
+			// We ignore port, assume its a bug to have a mismatch
+			trace!(
+				"filter endpoint {}, it was not the selected endpoint {}",
+				ep.workload_uid, o
+			);
+			return None;
 		}
 		Some((ep, wl))
 	});
@@ -386,10 +386,8 @@ impl HTTPProxy {
 		log.path = Some(req.uri().path().to_string());
 		log.version = Some(req.version());
 		let needs_body = log.cel.ctx().with_request(&req);
-		if needs_body {
-			if let Ok(body) = crate::http::inspect_body(req.body_mut()).await {
-				log.cel.ctx().with_request_body(body);
-			}
+		if needs_body && let Ok(body) = crate::http::inspect_body(req.body_mut()).await {
+			log.cel.ctx().with_request_body(body);
 		}
 
 		let trace_parent = trc::TraceParent::from_request(&req);
@@ -453,10 +451,8 @@ impl HTTPProxy {
 		// But we may find new expressions that now need the request.
 		// it is zero-cost at runtime to do it twice so NBD.
 		let needs_body = log.cel.ctx().with_request(&req);
-		if needs_body {
-			if let Ok(body) = crate::http::inspect_body(req.body_mut()).await {
-				log.cel.ctx().with_request_body(body);
-			}
+		if needs_body && let Ok(body) = crate::http::inspect_body(req.body_mut()).await {
+			log.cel.ctx().with_request_body(body);
 		}
 
 		let mut response_policies = ResponsePolicies::from(route_policies.transformation.clone());
@@ -1093,29 +1089,29 @@ fn sensitive_headers(req: &mut Request) {
 // the rest of the code doesn't need to worry about it
 fn normalize_uri(connection: &Extension, req: &mut Request) -> anyhow::Result<()> {
 	debug!("request before normalization: {req:?}");
-	if let ::http::Version::HTTP_10 | ::http::Version::HTTP_11 = req.version() {
-		if req.uri().authority().is_none() {
-			let mut parts = std::mem::take(req.uri_mut()).into_parts();
-			// TODO: handle absolute HTTP/1.1 form
-			let host = req
-				.headers()
-				.get(http::header::HOST)
-				.and_then(|h| h.to_str().ok())
-				.and_then(|h| h.parse::<Authority>().ok())
-				.ok_or_else(|| anyhow::anyhow!("no authority or host"))?;
-			req.headers_mut().remove(http::header::HOST);
+	if let ::http::Version::HTTP_10 | ::http::Version::HTTP_11 = req.version()
+		&& req.uri().authority().is_none()
+	{
+		let mut parts = std::mem::take(req.uri_mut()).into_parts();
+		// TODO: handle absolute HTTP/1.1 form
+		let host = req
+			.headers()
+			.get(http::header::HOST)
+			.and_then(|h| h.to_str().ok())
+			.and_then(|h| h.parse::<Authority>().ok())
+			.ok_or_else(|| anyhow::anyhow!("no authority or host"))?;
+		req.headers_mut().remove(http::header::HOST);
 
-			parts.authority = Some(host);
-			if parts.path_and_query.is_some() {
-				// TODO: or always do this?
-				if connection.get::<TLSConnectionInfo>().is_some() {
-					parts.scheme = Some(Scheme::HTTPS);
-				} else {
-					parts.scheme = Some(Scheme::HTTP);
-				}
+		parts.authority = Some(host);
+		if parts.path_and_query.is_some() {
+			// TODO: or always do this?
+			if connection.get::<TLSConnectionInfo>().is_some() {
+				parts.scheme = Some(Scheme::HTTPS);
+			} else {
+				parts.scheme = Some(Scheme::HTTP);
 			}
-			*req.uri_mut() = Uri::from_parts(parts)?
 		}
+		*req.uri_mut() = Uri::from_parts(parts)?
 	}
 	debug!("request after normalization: {req:?}");
 	Ok(())

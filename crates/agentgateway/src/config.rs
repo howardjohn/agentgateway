@@ -394,10 +394,10 @@ fn parse_duration_default(env: &str, default: Duration) -> anyhow::Result<Durati
 }
 
 pub fn empty_to_none<A: AsRef<str>>(inp: Option<A>) -> Option<A> {
-	if let Some(inner) = &inp {
-		if inner.as_ref().is_empty() {
-			return None;
-		}
+	if let Some(inner) = &inp
+		&& inner.as_ref().is_empty()
+	{
+		return None;
 	}
 	inp
 }

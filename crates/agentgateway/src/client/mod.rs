@@ -256,13 +256,11 @@ impl Client {
 			let scheme = transport.scheme();
 			// Strip the port from the hostname if its the default already
 			// The hyper client does this for HTTP/1.1 but not for HTTP2
-			if let Some(a) = uri.authority.as_mut() {
-				if (scheme == Scheme::HTTPS && a.port_u16() == Some(443))
-					|| (scheme == Scheme::HTTP && a.port_u16() == Some(80))
-				{
-					*a =
-						Authority::from_str(a.host()).expect("host must be valid since it was already a host");
-				}
+			if let Some(a) = uri.authority.as_mut()
+				&& ((scheme == Scheme::HTTPS && a.port_u16() == Some(443))
+					|| (scheme == Scheme::HTTP && a.port_u16() == Some(80)))
+			{
+				*a = Authority::from_str(a.host()).expect("host must be valid since it was already a host");
 			}
 			uri.scheme = Some(scheme);
 			Ok(())

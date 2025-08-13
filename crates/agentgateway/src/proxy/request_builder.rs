@@ -221,11 +221,10 @@ impl RequestBuilder {
 				error = Some(crate::http::Error::new(err));
 			}
 		}
-		if let Ok(ref mut req) = self.request {
-			if let Some("") = req.url().query() {
+		if let Ok(ref mut req) = self.request
+			&& let Some("") = req.url().query() {
 				req.url_mut().set_query(None);
 			}
-		}
 		if let Some(err) = error {
 			self.request = Err(err);
 		}

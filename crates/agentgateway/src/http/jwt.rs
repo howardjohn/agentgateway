@@ -154,7 +154,7 @@ impl LocalJwtConfig {
 
 				let mut validation = Validation::new(key_alg);
 				validation.set_audience(self.audiences.as_slice());
-				validation.set_issuer(&[self.issuer.clone()]);
+				validation.set_issuer(std::slice::from_ref(&self.issuer));
 
 				keys.insert(
 					kid,

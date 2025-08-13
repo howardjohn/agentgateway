@@ -339,10 +339,10 @@ impl Store {
         fields(bind),
     )]
 	pub fn remove_policy(&mut self, pol: PolicyName) {
-		if let Some(old) = self.policies_by_name.remove(&pol) {
-			if let Some(o) = self.policies_by_target.get_mut(&old.target) {
-				o.remove(&pol);
-			}
+		if let Some(old) = self.policies_by_name.remove(&pol)
+			&& let Some(o) = self.policies_by_target.get_mut(&old.target)
+		{
+			o.remove(&pol);
 		}
 	}
 	#[instrument(

@@ -464,10 +464,10 @@ impl AIProvider {
 			parse::sse::json_passthrough::<universal::StreamResponse>(b, move |f| {
 				match f {
 					Some(Ok(f)) => {
-						if let Some(c) = completion.as_mut() {
-							if let Some(delta) = f.choices.first().and_then(|c| c.delta.content.as_deref()) {
-								c.push_str(delta);
-							}
+						if let Some(c) = completion.as_mut()
+							&& let Some(delta) = f.choices.first().and_then(|c| c.delta.content.as_deref())
+						{
+							c.push_str(delta);
 						}
 						if !saw_token {
 							saw_token = true;

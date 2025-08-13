@@ -146,10 +146,10 @@ pub fn select_best_route(
 				return false;
 			}
 
-			if let Some(method) = &m.method {
-				if request.method().as_str() != method.method.as_str() {
-					return false;
-				}
+			if let Some(method) = &m.method
+				&& request.method().as_str() != method.method.as_str()
+			{
+				return false;
 			}
 			for HeaderMatch { name, value } in &m.headers {
 				let Some(have) = request.headers().get(name.as_str()) else {

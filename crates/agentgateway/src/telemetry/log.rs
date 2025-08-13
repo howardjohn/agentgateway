@@ -687,11 +687,9 @@ impl Drop for DropOnLog {
 			("error", log.error.display()),
 			("duration", Some(dur.as_str().into())),
 		];
-		if enable_trace {
-			if let Some(t) = &log.tracer {
-				t.send(&log, &cel_exec, kv.as_slice())
-			};
-		}
+		if enable_trace && let Some(t) = &log.tracer {
+			t.send(&log, &cel_exec, kv.as_slice())
+		};
 		if enable_logs {
 			kv.reserve(fields.add.len());
 			for (k, v) in &mut kv {
@@ -751,10 +749,10 @@ where
 		let result = ready!(this.body.poll_frame(cx));
 		match result {
 			Some(Ok(frame)) => {
-				if let Some(trailer) = frame.trailers_ref() {
-					if let Some(grpc) = this.log.as_mut().map(|log| log.grpc_status.clone()) {
-						crate::proxy::httpproxy::maybe_set_grpc_status(&grpc, trailer);
-					}
+				if let Some(trailer) = frame.trailers_ref()
+					&& let Some(grpc) = this.log.as_mut().map(|log| log.grpc_status.clone())
+				{
+					crate::proxy::httpproxy::maybe_set_grpc_status(&grpc, trailer);
 				}
 				Poll::Ready(Some(Ok(frame)))
 			},

@@ -59,13 +59,12 @@ pub async fn apply_backend_auth(
 	match auth {
 		BackendAuth::Passthrough {} => {
 			// They should have a JWT policy defined. That will strip the token. Here we add it back
-			if let Some(claim) = req.extensions().get::<Claims>() {
-				if let Ok(mut token) =
+			if let Some(claim) = req.extensions().get::<Claims>()
+				&& let Ok(mut token) =
 					http::HeaderValue::from_str(&format!("Bearer {}", claim.jwt.expose_secret()))
-				{
-					token.set_sensitive(true);
-					req.headers_mut().insert(http::header::AUTHORIZATION, token);
-				}
+			{
+				token.set_sensitive(true);
+				req.headers_mut().insert(http::header::AUTHORIZATION, token);
 			}
 		},
 		BackendAuth::Key(k) => {

@@ -44,16 +44,16 @@ impl Recognizer for PhoneRecognizer {
 					// phone numbers are usually 7-20 chars
 					// TODO: we currently match this for every substring basically
 					let candidate = &text[start..end];
-					if let Ok(number) = parse(Some(country), candidate) {
-						if number.is_valid() {
-							results.push(RecognizerResult {
-								entity_type: "PHONE_NUMBER".to_string(),
-								matched: candidate.to_string(),
-								start,
-								end,
-								score: 0.7, // Higher score for library-validated
-							});
-						}
+					if let Ok(number) = parse(Some(country), candidate)
+						&& number.is_valid()
+					{
+						results.push(RecognizerResult {
+							entity_type: "PHONE_NUMBER".to_string(),
+							matched: candidate.to_string(),
+							start,
+							end,
+							score: 0.7, // Higher score for library-validated
+						});
 					}
 				}
 			}
