@@ -2,15 +2,15 @@ use std::collections::HashMap;
 use std::string::ToString;
 use std::sync::Arc;
 
+use crate::cel;
+use crate::cel::to_value;
 use ::cel::extractors::{Identifier, This};
 use ::cel::objects::{Key, Map, ValueType};
 use ::cel::parser::Expression;
 use ::cel::{Context, ExecutionError, FunctionContext, ResolveResult, Value};
 use base64::Engine;
 use once_cell::sync::Lazy;
-
-use crate::cel;
-use crate::cel::to_value;
+use rand::{random, random_range};
 
 pub fn insert_all(ctx: &mut Context<'_>) {
 	use super::strings;
@@ -23,6 +23,7 @@ pub fn insert_all(ctx: &mut Context<'_>) {
 	ctx.add_function("flatten_recursive", flatten_recursive);
 	ctx.add_function("map_values", map_values);
 	ctx.add_function("variables", variables);
+	ctx.add_function("random", || random_range(0.0..=1.0));
 
 	// Using the go name, base64.encode is blocked by https://github.com/cel-rust/cel-rust/issues/103 (namespacing)
 	ctx.add_function("base64_encode", base64_encode);
