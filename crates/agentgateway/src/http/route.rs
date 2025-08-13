@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -11,8 +12,8 @@ use crate::types::agent::{
 	Backend, BackendReference, HeaderMatch, HeaderValueMatch, Listener, ListenerProtocol, PathMatch,
 	QueryValueMatch, Route, RouteBackend, RouteBackendReference,
 };
-use crate::types::discovery::NetworkAddress;
 use crate::types::discovery::gatewayaddress::Destination;
+use crate::types::discovery::{NamespacedHostname, NetworkAddress};
 use crate::{ProxyInputs, *};
 
 #[cfg(any(test, feature = "internal_benches"))]
@@ -46,7 +47,7 @@ pub fn select_best_route(
 
 	let host = http::get_host(request).ok()?;
 	// TODO: ensure we actually serve this service
-	if matches!(listener.protocol, ListenerProtocol::HBONE) && listener.routes.is_empty() {
+	let (default_response, host) = if matches!(listener.protocol, ListenerProtocol::HBONE) {
 		let Some(self_addr) = self_addr else {
 			warn!("waypoint requires self address");
 			return None;
@@ -62,9 +63,26 @@ pub fn select_best_route(
 		let wp = svc.waypoint.as_ref()?;
 		// Make sure the service is actually bound to us. TODO: should we have a more explicit setup?
 		match &wp.destination {
-			Destination::Address(_) => {
-				warn!("waypoint does not support address currently");
-				return None;
+			Destination::Address(aadr) => {
+				// TODO: this is pretty sketchy
+				let Some(ns) = self_addr.split(".").skip(1).next() else {
+					warn!("waypoint cannot find self namespace");
+					return None;
+				};
+				let self_svc =
+					stores
+						.read_discovery()
+						.services
+						.get_by_namespaced_host(&NamespacedHostname {
+							namespace: ns.into(),
+							hostname: self_addr.into(),
+						})?;
+				if !self_svc.vips.contains(aadr) {
+					warn!(
+						"service {} is meant for waypoint {}, but we are {:?}",
+						svc.hostname, aadr, self_svc.vips,
+					);
+				}
 			},
 			Destination::Hostname(n) => {
 				if n.hostname != self_addr {
@@ -76,6 +94,7 @@ pub fn select_best_route(
 				}
 			},
 		}
+		// TODO: only build this if we don't match one
 		let default_route = Route {
 			key: strng::new("waypoint-default"),
 			route_name: strng::new("waypoint-default"),
@@ -94,12 +113,15 @@ pub fn select_best_route(
 			}],
 		};
 		// If there is no route, use a default one
-		return Some((
+		let def = Some((
 			Arc::new(default_route),
 			PathMatch::PathPrefix(strng::new("/")),
 		));
-	}
-	for hnm in agent::HostnameMatch::all_matches(host) {
+		(def, Cow::Owned(svc.hostname.to_string()))
+	} else {
+		(None, Cow::Borrowed(host))
+	};
+	for hnm in agent::HostnameMatch::all_matches(&host) {
 		let mut candidates = listener.routes.get_hostname(&hnm);
 		let best_match = candidates.find(|(r, m)| {
 			let path_matches = match &m.path {
@@ -189,5 +211,5 @@ pub fn select_best_route(
 			return Some((Arc::new(route.clone()), matcher.path.clone()));
 		}
 	}
-	None
+	default_response
 }
