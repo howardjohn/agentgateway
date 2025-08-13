@@ -27,7 +27,7 @@ fn json() {
 fn random() {
 	let expr = r#"int(random() * 10.0)"#;
 	let v = eval(expr).unwrap().json().unwrap().as_i64().unwrap();
-	assert!(v >= 0 && v <= 10);
+	assert!((0..=10).contains(&v));
 }
 
 #[test]
