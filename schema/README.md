@@ -160,6 +160,8 @@ This defaults to 'true'.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.rules[].(any)name`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.webhook`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.webhook.target`||
+|`binds[].listeners[].routes[].policies.ai.defaults`||
+|`binds[].listeners[].routes[].policies.ai.overrides`||
 |`binds[].listeners[].routes[].policies.backendTLS`|Send TLS to the backend.|
 |`binds[].listeners[].routes[].policies.backendTLS.cert`||
 |`binds[].listeners[].routes[].policies.backendTLS.key`||

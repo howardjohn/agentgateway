@@ -248,15 +248,21 @@ impl AIProvider {
 		let Ok(bytes) = axum::body::to_bytes(body, 2_097_152).await else {
 			return Err(AIError::RequestTooLarge);
 		};
-		let mut req: universal::Request =
-			serde_json::from_slice(bytes.as_ref()).map_err(AIError::RequestParsing)?;
+		let mut req: universal::Request = if let Some(p) = policies {
+			p.unmarshal_request(&bytes)?
+		} else {
+			serde_json::from_slice(bytes.as_ref()).map_err(AIError::RequestParsing)?
+		};
 
 		if let Some(p) = policies {
 			let http_headers = &parts.headers;
-			if let Some(dr) = p.apply(client, &mut req, http_headers).await.map_err(|e| {
-				warn!("failed to call prompt guard webhook: {e}");
-				AIError::PromptWebhookError
-			})? {
+			if let Some(dr) = p
+				.apply_prompt_guard(client, &mut req, http_headers)
+				.await
+				.map_err(|e| {
+					warn!("failed to call prompt guard webhook: {e}");
+					AIError::PromptWebhookError
+				})? {
 				return Ok(RequestResult::Rejected(dr));
 			}
 		}

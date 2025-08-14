@@ -1286,6 +1286,20 @@
                                   }
                                 },
                                 "additionalProperties": false
+                              },
+                              "defaults": {
+                                "type": [
+                                  "object",
+                                  "null"
+                                ],
+                                "additionalProperties": true
+                              },
+                              "overrides": {
+                                "type": [
+                                  "object",
+                                  "null"
+                                ],
+                                "additionalProperties": true
                               }
                             },
                             "additionalProperties": false,

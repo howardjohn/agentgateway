@@ -1,21 +1,23 @@
 use std::num::NonZeroU8;
 use std::ops::Deref;
 
-use ::http::HeaderMap;
-use async_openai::types::ChatCompletionRequestMessage;
-use bytes::Bytes;
-
 use crate::http::{PolicyResponse, Response, StatusCode};
 use crate::llm::policy::webhook::{MaskActionBody, Message, RequestAction};
 use crate::llm::universal::MessageRole;
-use crate::llm::{anthropic, bedrock, gemini, openai, pii, universal, vertex};
+use crate::llm::{AIError, anthropic, bedrock, gemini, openai, pii, universal, vertex};
 use crate::proxy::ProxyError;
 use crate::types::agent::Target;
 use crate::*;
+use ::http::HeaderMap;
+use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionRequest};
+use bytes::Bytes;
+use serde_json::map::Entry;
 
 #[apply(schema!)]
 pub struct Policy {
 	prompt_guard: Option<PromptGuard>,
+	defaults: Option<HashMap<String, serde_json::Value>>,
+	overrides: Option<HashMap<String, serde_json::Value>>,
 }
 
 #[apply(schema!)]
@@ -23,7 +25,26 @@ pub struct PromptGuard {
 	request: Option<PromptGuardRequest>,
 }
 impl Policy {
-	pub async fn apply(
+	pub fn unmarshal_request(&self, bytes: &Bytes) -> Result<CreateChatCompletionRequest, AIError> {
+		if self.defaults.is_none() && self.overrides.is_none() {
+			// Fast path: directly bytes to typed
+			return serde_json::from_slice(bytes.as_ref()).map_err(AIError::RequestParsing);
+		}
+		// Slow path: bytes --> json (transform) --> typed
+		let v: serde_json::Value =
+			serde_json::from_slice(bytes.as_ref()).map_err(AIError::RequestParsing)?;
+		let serde_json::Value::Object(mut map) = v else {
+			return Err(AIError::MissingField("request must be an object".into()));
+		};
+		for (k, v) in self.overrides.iter().flatten() {
+			map.insert(k.clone(), v.clone());
+		}
+		for (k, v) in self.defaults.iter().flatten() {
+			map.entry(k.clone()).or_insert_with(|| v.clone());
+		}
+		serde_json::from_value(serde_json::Value::Object(map)).map_err(AIError::RequestParsing)
+	}
+	pub async fn apply_prompt_guard(
 		&self,
 		client: client::Client,
 		req: &mut universal::Request,
