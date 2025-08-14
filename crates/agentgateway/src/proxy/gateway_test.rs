@@ -1,7 +1,8 @@
 use std::convert::Infallible;
 use std::future::Ready;
+use std::ops::Add;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Instant, SystemTime};
 
 use ::http::{Method, Request, Uri, Version};
 use agent_core::drain::{DrainTrigger, DrainWatcher};
@@ -173,11 +174,17 @@ async fn assert_llm(io: Client<MemoryConnector, Body>, body: &[u8], want: Value)
 
 	// Ensure body finishes
 	let _ = res.into_body().collect().await.unwrap();
-	let logs =
-		agent_core::telemetry::testing::find(&[("scope", "request"), ("http.path", &format!("/{r}"))])
-			.to_vec();
-	assert_eq!(logs.len(), 1);
-	let log = &logs[0];
+	let logs = check_eventually(
+		Duration::from_secs(1),
+		|| async {
+			agent_core::telemetry::testing::find(&[("scope", "request"), ("http.path", &format!("/{r}"))])
+				.to_vec()
+		},
+		|log| log.len() == 1,
+	)
+	.await
+	.unwrap();
+	let log = logs.first().unwrap();
 	let valid = is_json_subset(&want, log);
 	assert!(valid, "want={want:#?} got={log:#?}");
 }
@@ -474,5 +481,33 @@ pub fn is_json_subset(subset: &Value, superset: &Value) -> bool {
 
 		// For primitive values, they must be exactly equal
 		_ => subset == superset,
+	}
+}
+
+/// check_eventually runs a function many times until it reaches the expected result.
+/// If it doesn't the last result is returned
+pub async fn check_eventually<F, CF, T, Fut>(dur: Duration, f: F, expected: CF) -> Result<T, T>
+where
+	F: Fn() -> Fut,
+	Fut: Future<Output = T>,
+	T: Eq + Debug,
+	CF: Fn(&T) -> bool,
+{
+	let mut delay = Duration::from_millis(10);
+	let end = SystemTime::now().add(dur);
+	let mut last: T;
+	let mut attempts = 0;
+	loop {
+		attempts += 1;
+		last = f().await;
+		if expected(&last) {
+			return Ok(last);
+		}
+		trace!("attempt {attempts} with delay {delay:?}");
+		if SystemTime::now().add(delay) > end {
+			return Err(last);
+		}
+		tokio::time::sleep(delay).await;
+		delay *= 2;
 	}
 }
