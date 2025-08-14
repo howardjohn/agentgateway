@@ -124,6 +124,7 @@ net2 = "0.2.39"
 core_affinity = "0.8.3"
 macro_rules_attribute = "0.2.2"
 heck = "0.4"
+async-compression = { version = "0.4.27", features = ["brotli", "zlib", "gzip", "zstd", "tokio"] }
 
 [build-dependencies]
 anyhow.workspace = true

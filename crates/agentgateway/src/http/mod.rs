@@ -16,6 +16,7 @@ mod transformation;
 // Do not warn is it is WIP
 pub mod authorization;
 pub mod backendtls;
+pub mod compression;
 pub mod ext_authz;
 pub mod ext_proc;
 pub mod remoteratelimit;

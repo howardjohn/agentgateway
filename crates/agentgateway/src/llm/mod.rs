@@ -6,7 +6,7 @@ use agent_core::prelude::Strng;
 use agent_core::strng;
 use async_openai::types::ChatCompletionRequestMessage;
 use axum_extra::headers::authorization::Bearer;
-use headers::{Header, HeaderMapExt};
+use headers::{ContentEncoding, Header, HeaderMapExt};
 use itertools::Itertools;
 pub use policy::Policy;
 use serde_json::Value;
@@ -167,6 +167,7 @@ impl AIProvider {
 		}
 	}
 	pub fn setup_request(&self, req: &mut Request, llm_request: &LLMRequest) -> anyhow::Result<()> {
+		// req.headers_mut().remove("accept-encoding");
 		match self {
 			AIProvider::OpenAI(_) => http::modify_req(req, |req| {
 				http::modify_uri(req, |uri| {
@@ -312,7 +313,10 @@ impl AIProvider {
 		}
 		// Buffer the body, max 2mb
 		let (mut parts, body) = resp.into_parts();
-		let Ok(bytes) = axum::body::to_bytes(body, 2_097_152).await else {
+		let ce = parts.headers.typed_get::<ContentEncoding>();
+		let Ok((encoding, bytes)) =
+			http::compression::to_bytes_with_decompression(body, ce, 2_097_152).await
+		else {
 			return Err(AIError::RequestTooLarge);
 		};
 		// 3 cases: success, error properly handled, and unexpected error we need to synthesize
@@ -356,7 +360,7 @@ impl AIProvider {
 					},
 					first_token: Default::default(),
 				};
-				let body = Body::from(serde_json::to_vec(&success).map_err(AIError::ResponseMarshal)?);
+				let body = serde_json::to_vec(&success).map_err(AIError::ResponseMarshal)?;
 				(llm_resp, body)
 			},
 			Err(err) => {
@@ -369,9 +373,18 @@ impl AIProvider {
 					completion: None,
 					first_token: None,
 				};
-				let body = Body::from(serde_json::to_vec(&err).map_err(AIError::ResponseMarshal)?);
+				let body = serde_json::to_vec(&err).map_err(AIError::ResponseMarshal)?;
 				(llm_resp, body)
 			},
+		};
+		let body = if let Some(encoding) = encoding {
+			Body::from(
+				http::compression::encode_body(&body, encoding)
+					.await
+					.map_err(AIError::Encoding)?,
+			)
+		} else {
+			Body::from(body)
 		};
 		parts.headers.remove(header::CONTENT_LENGTH);
 		let resp = Response::from_parts(parts, body);
@@ -636,6 +649,8 @@ pub enum AIError {
 	ResponseParsing(serde_json::Error),
 	#[error("failed to marshal response: {0}")]
 	ResponseMarshal(serde_json::Error),
+	#[error("failed to encode response: {0}")]
+	Encoding(axum_core::Error),
 	#[error("error computing tokens")]
 	JoinError(#[from] tokio::task::JoinError),
 }
