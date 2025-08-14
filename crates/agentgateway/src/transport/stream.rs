@@ -1,9 +1,7 @@
-use std::fmt;
 use std::fmt::Display;
 use std::io::{Error, IoSlice};
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::task::{Context, Poll};
