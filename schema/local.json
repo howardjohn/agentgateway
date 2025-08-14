@@ -1300,6 +1300,47 @@
                                   "null"
                                 ],
                                 "additionalProperties": true
+                              },
+                              "prompts": {
+                                "type": [
+                                  "object",
+                                  "null"
+                                ],
+                                "properties": {
+                                  "append": {
+                                    "type": "object",
+                                    "properties": {
+                                      "role": {
+                                        "type": "string"
+                                      },
+                                      "content": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "role",
+                                      "content"
+                                    ]
+                                  },
+                                  "prepend": {
+                                    "type": "object",
+                                    "properties": {
+                                      "role": {
+                                        "type": "string"
+                                      },
+                                      "content": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "role",
+                                      "content"
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": false
                               }
                             },
                             "additionalProperties": false,

@@ -162,6 +162,13 @@ This defaults to 'true'.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.webhook.target`||
 |`binds[].listeners[].routes[].policies.ai.defaults`||
 |`binds[].listeners[].routes[].policies.ai.overrides`||
+|`binds[].listeners[].routes[].policies.ai.prompts`||
+|`binds[].listeners[].routes[].policies.ai.prompts.append`||
+|`binds[].listeners[].routes[].policies.ai.prompts.append.role`||
+|`binds[].listeners[].routes[].policies.ai.prompts.append.content`||
+|`binds[].listeners[].routes[].policies.ai.prompts.prepend`||
+|`binds[].listeners[].routes[].policies.ai.prompts.prepend.role`||
+|`binds[].listeners[].routes[].policies.ai.prompts.prepend.content`||
 |`binds[].listeners[].routes[].policies.backendTLS`|Send TLS to the backend.|
 |`binds[].listeners[].routes[].policies.backendTLS.cert`||
 |`binds[].listeners[].routes[].policies.backendTLS.key`||
