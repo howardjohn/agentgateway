@@ -81,10 +81,10 @@ pub async fn apply_to_response(
 			// Note: this won't work in the case they are hosting their agent in other locations.
 			let path = uri.path();
 			let path = path.strip_suffix("/.well-known/agent.json").unwrap_or(path);
-			let path = path.strip_suffix("/.well-known/agent-card.json");
-			let new_uri = path
-				.map(|p| uri.to_string().replace(uri.path(), p))
-				.unwrap_or(uri.to_string());
+			let path = path
+				.strip_suffix("/.well-known/agent-card.json")
+				.unwrap_or(path);
+			let new_uri = uri.to_string().replace(uri.path(), path);
 
 			*url_field = Value::String(new_uri);
 
