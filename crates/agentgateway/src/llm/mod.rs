@@ -17,7 +17,6 @@ use crate::http::auth::{AwsAuth, BackendAuth};
 use crate::http::backendtls::BackendTLS;
 use crate::http::localratelimit::RateLimit;
 use crate::http::{Body, Request, Response};
-
 use crate::llm::universal::{ChatCompletionError, ChatCompletionErrorResponse};
 use crate::proxy::ProxyError;
 use crate::store::{BackendPolicies, LLMRequestPolicies, LLMResponsePolicies};
@@ -167,7 +166,6 @@ impl AIProvider {
 		}
 	}
 	pub fn setup_request(&self, req: &mut Request, llm_request: &LLMRequest) -> anyhow::Result<()> {
-		// req.headers_mut().remove("accept-encoding");
 		match self {
 			AIProvider::OpenAI(_) => http::modify_req(req, |req| {
 				http::modify_uri(req, |uri| {

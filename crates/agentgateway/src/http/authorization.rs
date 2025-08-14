@@ -2,10 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::str::FromStr;
 
-use crate::cel::{ContextBuilder, Executor};
-use crate::http::jwt::Claims;
-use crate::mcp::rbac::ResourceType;
-use crate::*;
 use agent_core::bow::OwnedOrBorrowed;
 use anyhow::{Context as _, Error};
 use lazy_static::lazy_static;
@@ -15,6 +11,11 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use serde_json::map::Map;
 use tracing::log;
+
+use crate::cel::{ContextBuilder, Executor};
+use crate::http::jwt::Claims;
+use crate::mcp::rbac::ResourceType;
+use crate::*;
 
 #[derive(Clone, Debug)]
 pub struct HTTPAuthorizationSet(RuleSets);

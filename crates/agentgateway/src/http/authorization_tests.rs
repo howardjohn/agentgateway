@@ -1,12 +1,13 @@
-use super::*;
-use crate::http::authorization::PolicySet;
-use crate::mcp::rbac::ResourceId;
 use agent_core::bow::OwnedOrBorrowed;
 #[cfg(test)]
 use assert_matches::assert_matches;
 use divan::Bencher;
 use secrecy::SecretString;
 use serde_json::{Map, Value};
+
+use super::*;
+use crate::http::authorization::PolicySet;
+use crate::mcp::rbac::ResourceId;
 
 fn create_policy_set(policies: Vec<&str>) -> PolicySet {
 	let mut policy_set = PolicySet::default();

@@ -194,6 +194,12 @@ time = "0.3"
 tikv-jemallocator = { version = "0.6", features = ["profiling", "unprefixed_malloc_on_supported_platforms"] }
 jemalloc_pprof = { version = "0.8"}
 protox = "0.9"
+async-compression = { version = "0.4.27", features = ["brotli", "zlib", "gzip", "zstd", "tokio"]  }
+core_affinity = "0.8.3"
+frozen-collections = "0.8.0"
+heck = "0.4"
+macro_rules_attribute = "0.2.2"
+net2 = "0.2.39"
 
 # Release optimized but without as many dependencies, suitable for incremental development
 [profile.quick-release]

@@ -118,13 +118,13 @@ http-serde.workspace = true
 cel.workspace = true
 tikv-jemallocator = { workspace = true, optional = true }
 jemalloc_pprof = { workspace = true, optional = true }
-frozen-collections = "0.8.0"
+frozen-collections.workspace = true
 value-bag.workspace = true
-net2 = "0.2.39"
-core_affinity = "0.8.3"
-macro_rules_attribute = "0.2.2"
-heck = "0.4"
-async-compression = { version = "0.4.27", features = ["brotli", "zlib", "gzip", "zstd", "tokio"] }
+net2.workspace = true
+core_affinity.workspace = true
+macro_rules_attribute.workspace = true
+heck.workspace = true
+async-compression.workspace = true
 
 [build-dependencies]
 anyhow.workspace = true

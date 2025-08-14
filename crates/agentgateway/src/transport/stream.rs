@@ -7,7 +7,6 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::task::{Context, Poll};
 use std::time::Instant;
 
-use crate::types::discovery::Identity;
 use agent_core::strng::Strng;
 use agent_hbone::RWStream;
 use hyper_util::client::legacy::connect::{Connected, Connection};
@@ -16,6 +15,8 @@ use tokio::io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf};
 use tokio::net::TcpStream;
 use tokio_rustls::TlsStream;
 use tracing::{event, warn};
+
+use crate::types::discovery::Identity;
 
 #[derive(Debug, Clone)]
 pub struct TCPConnectionInfo {
