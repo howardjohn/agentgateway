@@ -226,6 +226,29 @@
           "format": "uint16",
           "minimum": 0,
           "maximum": 65535
+        },
+        "identity": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "trustDomain": {
+              "type": "string"
+            },
+            "namespace": {
+              "type": "string"
+            },
+            "serviceAccount": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "trustDomain",
+            "namespace",
+            "serviceAccount"
+          ]
         }
       },
       "additionalProperties": false,

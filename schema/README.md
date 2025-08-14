@@ -327,3 +327,7 @@ This comes with the cost of an expensive operation.|
 |`source`||
 |`source.address`||
 |`source.port`||
+|`source.identity`||
+|`source.identity.trustDomain`||
+|`source.identity.namespace`||
+|`source.identity.serviceAccount`||

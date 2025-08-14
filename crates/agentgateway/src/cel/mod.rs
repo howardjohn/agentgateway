@@ -28,6 +28,7 @@ use crate::llm::{LLMRequest, LLMResponse};
 use crate::serdes::*;
 use crate::telemetry::log::CelLogging;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
+use crate::types::discovery::Identity;
 use crate::{json, llm};
 
 mod functions;
@@ -172,6 +173,17 @@ impl ContextBuilder {
 		self.context.source = Some(SourceContext {
 			address: tcp.peer_addr.ip(),
 			port: tcp.peer_addr.port(),
+			identity: tls.and_then(|t| t.src_identity.as_ref()).map(|m| match m {
+				Identity::Spiffe {
+					trust_domain,
+					namespace,
+					service_account,
+				} => IdentityContext {
+					trust_domain: trust_domain.clone(),
+					namespace: namespace.clone(),
+					service_account: service_account.clone(),
+				},
+			}),
 		})
 	}
 
@@ -355,6 +367,14 @@ pub struct ResponseContext {
 pub struct SourceContext {
 	address: IpAddr,
 	port: u16,
+	identity: Option<IdentityContext>,
+}
+
+#[apply(schema_ser!)]
+pub struct IdentityContext {
+	trust_domain: Strng,
+	namespace: Strng,
+	service_account: Strng,
 }
 
 #[apply(schema_ser!)]

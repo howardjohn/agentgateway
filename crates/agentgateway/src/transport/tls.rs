@@ -413,6 +413,27 @@ pub mod identity {
 	}
 }
 
+pub fn identity_from_connection(conn: &rustls::CommonState) -> Option<Identity> {
+	use x509_parser::prelude::*;
+	conn
+		.peer_certificates()
+		.and_then(|certs| certs.first())
+		.and_then(|cert| match X509Certificate::from_der(cert) {
+			Ok((_, a)) => Some(a),
+			Err(e) => {
+				warn!("invalid certificate: {e}");
+				None
+			},
+		})
+		.and_then(|cert| match identities(cert) {
+			Ok(ids) => ids.into_iter().next(),
+			Err(e) => {
+				warn!("failed to extract identity: {}", e);
+				None
+			},
+		})
+}
+
 fn identities(cert: X509Certificate) -> anyhow::Result<Vec<Identity>> {
 	use x509_parser::prelude::*;
 	let names = cert
