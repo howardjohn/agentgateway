@@ -255,6 +255,7 @@ impl AIProvider {
 		};
 
 		if let Some(p) = policies {
+			p.apply_prompt_enrichment(&mut req);
 			let http_headers = &parts.headers;
 			if let Some(dr) = p
 				.apply_prompt_guard(client, &mut req, http_headers)
@@ -682,8 +683,7 @@ fn amend_tokens(rate_limit: store::LLMResponsePolicies, llm_resp: &LLMResponse) 
 	}
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[apply(schema!)]
 pub struct SimpleChatCompletionMessage {
 	pub role: Strng,
 	pub content: Strng,
