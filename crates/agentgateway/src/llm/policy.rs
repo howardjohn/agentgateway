@@ -11,7 +11,7 @@ use crate::http::auth::SimpleBackendAuth;
 use crate::http::jwt::Claims;
 use crate::http::{Response, StatusCode, auth, inspect_body};
 use crate::llm::policy::webhook::{MaskActionBody, Message, RequestAction};
-use crate::llm::{AIError, SimpleChatCompletionMessage, pii, universal};
+use crate::llm::{AIError, pii, universal};
 use crate::types::agent::Target;
 use crate::*;
 
@@ -30,10 +30,16 @@ pub struct Policy {
 #[apply(schema!)]
 pub struct PromptEnrichment {
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
-	#[cfg_attr(feature = "schema", schemars(with = "SimpleChatCompletionMessage"))]
+	#[cfg_attr(
+		feature = "schema",
+		schemars(with = "crate::llm::SimpleChatCompletionMessage")
+	)]
 	append: Vec<ChatCompletionRequestMessage>,
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
-	#[cfg_attr(feature = "schema", schemars(with = "SimpleChatCompletionMessage"))]
+	#[cfg_attr(
+		feature = "schema",
+		schemars(with = "crate::llm::SimpleChatCompletionMessage")
+	)]
 	prepend: Vec<ChatCompletionRequestMessage>,
 }
 

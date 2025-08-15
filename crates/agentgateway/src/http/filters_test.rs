@@ -131,25 +131,11 @@ fn redirection_test() {
 		status: None,
 	};
 
-	let redirect_301 = RequestRedirect {
-		scheme: None,
-		authority: None,
-		path: None,
-		status: Some(StatusCode::MOVED_PERMANENTLY),
-	};
-
 	let redirect_307 = RequestRedirect {
 		scheme: None,
 		authority: None,
 		path: None,
 		status: Some(StatusCode::TEMPORARY_REDIRECT),
-	};
-
-	let redirect_308 = RequestRedirect {
-		scheme: None,
-		authority: None,
-		path: None,
-		status: Some(StatusCode::PERMANENT_REDIRECT),
 	};
 
 	let match_exact = PathMatch::Exact("/exact".into());

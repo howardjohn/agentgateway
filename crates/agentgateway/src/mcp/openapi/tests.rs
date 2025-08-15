@@ -29,7 +29,7 @@ async fn setup() -> (MockServer, Handler) {
 		},
 		None,
 	);
-	let (drain_tx, drain_rx) = drain::new();
+	let (_drain_tx, drain_rx) = drain::new();
 	let pi = Arc::new(ProxyInputs {
 		cfg: Arc::new(config),
 		stores: stores.clone(),

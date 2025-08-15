@@ -1,9 +1,7 @@
 use bytes::Bytes;
-use futures_util::StreamExt;
 use futures_util::stream::iter;
 use http_body_util::{BodyExt, Full, StreamBody};
 use itertools::Itertools;
-use x509_parser::nom::AsBytes;
 
 use super::*;
 use crate::*;

@@ -19,21 +19,6 @@ pub fn request(uri: &str, method: http::Method, headers: &[(&str, &str)]) -> Req
 	rb.body(Body::empty()).unwrap()
 }
 
-pub trait RequestExt {
-	fn hdr(&self, h: HeaderName) -> String;
-}
-
-impl RequestExt for Request {
-	fn hdr(&self, h: HeaderName) -> String {
-		self
-			.headers()
-			.get(h)
-			.and_then(|s| s.to_str().ok())
-			.unwrap_or_default()
-			.to_string()
-	}
-}
-
 pub trait ResponseExt {
 	fn hdr(&self, h: HeaderName) -> String;
 }

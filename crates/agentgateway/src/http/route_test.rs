@@ -2,7 +2,6 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use agent_core::strng;
 use divan::Bencher;
-use http_body_util::BodyExt;
 use itertools::Itertools;
 use regex::Regex;
 
@@ -686,16 +685,10 @@ fn test_route_precedence() {
 
 #[divan::bench(args = [(1,1), (100, 100), (5000,100)])]
 fn bench(b: Bencher, (host, route): (u64, u64)) {
-	let basic_match = vec![RouteMatch {
-		headers: vec![],
-		path: PathMatch::PathPrefix("/".into()),
-		method: None,
-		query: vec![],
-	}];
 	let mut routes = vec![];
 	for host in 0..host {
 		for path in 0..route {
-			let m = [RouteMatch {
+			let m = vec![RouteMatch {
 				headers: vec![],
 				path: PathMatch::PathPrefix(strng::literal!("/{path}")),
 				method: None,
@@ -704,7 +697,7 @@ fn bench(b: Bencher, (host, route): (u64, u64)) {
 			routes.push((
 				format!("{host}-{path}"),
 				vec![format!("{}", host)],
-				basic_match.clone(),
+				m.clone(),
 			));
 		}
 	}

@@ -37,7 +37,6 @@ impl Mock {
 const IP1: IpAddr = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1));
 const IP2: IpAddr = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 2));
 const IP3: IpAddr = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 3));
-const IP4: IpAddr = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 4));
 
 #[tokio::test]
 async fn test_basic_resolution() {
@@ -73,8 +72,8 @@ async fn test_ip_change() {
 	};
 
 	// First resolution should work
-	let ip1 = resolver.resolve("example.com".into()).await.unwrap();
-	let ip2 = resolver.resolve("example.com".into()).await.unwrap();
+	let _ = resolver.resolve("example.com".into()).await.unwrap();
+	let _ = resolver.resolve("example.com".into()).await.unwrap();
 	mock.add_response("example.com", vec![IP3], 60);
 	tokio::time::sleep(Duration::from_secs(30)).await;
 	// Only some time has passed, cycle back to the first one

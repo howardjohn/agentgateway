@@ -181,6 +181,7 @@ mod ratelimit {
 		}
 
 		/// Returns the number of tokens currently available.
+		#[allow(dead_code)]
 		pub fn available(&self) -> u64 {
 			self.available.load(Ordering::Relaxed)
 		}
@@ -198,6 +199,7 @@ mod ratelimit {
 
 		/// Returns the number of tokens that have been dropped due to bucket
 		/// overflowing.
+		#[allow(dead_code)]
 		pub fn dropped(&self) -> u64 {
 			self.dropped.load(Ordering::Relaxed)
 		}
@@ -441,15 +443,6 @@ mod ratelimit {
 		use std::time::{Duration, Instant};
 
 		use super::*;
-
-		macro_rules! approx_eq {
-			($value:expr, $target:expr) => {
-				let value: f64 = $value;
-				let target: f64 = $target;
-				assert!(value >= target * 0.999, "{value} >= {}", target * 0.999);
-				assert!(value <= target * 1.001, "{value} <= {}", target * 1.001);
-			};
-		}
 
 		// quick test that a ratelimiter yields tokens at the desired rate
 		#[test]

@@ -31,6 +31,6 @@ fn test_transformation() {
 		ctx.register_expression(e)
 	}
 	ctx.with_request(&req);
-	xfm.apply_request(&mut req, &ctx.build().unwrap());
+	xfm.apply_request(&mut req, &ctx.build().unwrap()).unwrap();
 	assert_eq!(req.headers().get("x-insert").unwrap(), "hello Bar");
 }

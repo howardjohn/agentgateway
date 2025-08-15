@@ -65,8 +65,8 @@ async fn basic_http2() {
 
 #[tokio::test]
 async fn local_ratelimit() {
-	let (_mock, mut bind, io) = basic_setup().await;
-	bind = bind.with_policy(TargetedPolicy {
+	let (_mock, bind, io) = basic_setup().await;
+	let _bind = bind.with_policy(TargetedPolicy {
 		name: strng::new("rl"),
 		target: PolicyTarget::Route("route".into()),
 		policy: Policy::LocalRateLimit(vec![
@@ -90,7 +90,7 @@ async fn local_ratelimit() {
 #[tokio::test]
 async fn llm_openai() {
 	let mock = body_mock(include_bytes!("../llm/tests/response_basic.json")).await;
-	let (_mock, bind, io) = setup_llm_mock(
+	let (_mock, _bind, io) = setup_llm_mock(
 		mock,
 		AIProvider::OpenAI(openai::Provider { model: None }),
 		false,
@@ -110,7 +110,7 @@ async fn llm_openai() {
 #[tokio::test]
 async fn llm_openai_tokenize() {
 	let mock = body_mock(include_bytes!("../llm/tests/response_basic.json")).await;
-	let (_mock, bind, io) = setup_llm_mock(
+	let (_mock, _bind, io) = setup_llm_mock(
 		mock,
 		AIProvider::OpenAI(openai::Provider { model: None }),
 		true,
@@ -143,7 +143,7 @@ async fn llm_log_body() {
 		}
 	}))
 	.unwrap();
-	let (_mock, bind, io) = setup_llm_mock(
+	let (_mock, _bind, io) = setup_llm_mock(
 		mock,
 		AIProvider::OpenAI(openai::Provider { model: None }),
 		true,
@@ -291,13 +291,11 @@ fn simple_bind(route: Route) -> Bind {
 	}
 }
 
-const VERSION: &str = "version";
-
 async fn body_mock(body: &[u8]) -> MockServer {
 	let body = Arc::new(body.to_vec());
 	let mock = wiremock::MockServer::start().await;
 	Mock::given(wiremock::matchers::path_regex("/.*"))
-		.respond_with(move |req: &wiremock::Request| {
+		.respond_with(move |_: &wiremock::Request| {
 			ResponseTemplate::new(200).set_body_raw(body.clone().to_vec(), "application/json")
 		})
 		.mount(&mock)
@@ -325,7 +323,7 @@ async fn simple_mock() -> MockServer {
 struct TestBind {
 	pi: Arc<ProxyInputs>,
 	drain_rx: DrainWatcher,
-	drain_tx: DrainTrigger,
+	_drain_tx: DrainTrigger,
 }
 
 #[derive(Debug, Clone)]
@@ -338,7 +336,7 @@ impl tower::Service<Uri> for MemoryConnector {
 	type Error = Infallible;
 	type Future = Ready<Result<Self::Response, Self::Error>>;
 
-	fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+	fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
 		Poll::Ready(Ok(()))
 	}
 
@@ -440,7 +438,7 @@ fn setup(cfg: &str) -> anyhow::Result<TestBind> {
 	Ok(TestBind {
 		pi,
 		drain_rx,
-		drain_tx,
+		_drain_tx: drain_tx,
 	})
 }
 
