@@ -178,9 +178,8 @@ impl Store {
 			.policies_by_target
 			.get(&PolicyTarget::Listener(listener));
 		let route = self.policies_by_target.get(&PolicyTarget::Route(route));
-		let route_rule = route_rule
-			.map(|rr| self.policies_by_target.get(&PolicyTarget::RouteRule(rr)))
-			.flatten();
+		let route_rule =
+			route_rule.and_then(|rr| self.policies_by_target.get(&PolicyTarget::RouteRule(rr)));
 		let rules = route_rule
 			.iter()
 			.copied()
