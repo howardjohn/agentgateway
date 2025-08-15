@@ -2,18 +2,15 @@ use std::ops::Deref;
 
 use ::http::HeaderMap;
 use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionRequest};
-use axum::body::to_bytes;
 use bytes::Bytes;
 
-use crate::client;
-use crate::http::auth::BackendAuth;
-use crate::http::auth::SimpleBackendAuth;
+use crate::http::auth::{BackendAuth, SimpleBackendAuth};
 use crate::http::jwt::Claims;
-use crate::http::{Response, StatusCode, auth, inspect_body};
+use crate::http::{Response, StatusCode, auth};
 use crate::llm::policy::webhook::{MaskActionBody, Message, RequestAction};
 use crate::llm::{AIError, pii, universal};
 use crate::types::agent::Target;
-use crate::*;
+use crate::{client, *};
 
 #[apply(schema!)]
 pub struct Policy {
@@ -115,7 +112,7 @@ impl Policy {
 				"input": content,
 				"model": model,
 			}))?))?;
-			auth::apply_backend_auth(Some(&auth), &mut req).await;
+			let _ = auth::apply_backend_auth(Some(&auth), &mut req).await?;
 			let resp = client.simple_call(req).await;
 			let resp: async_openai::types::CreateModerationResponse =
 				json::from_body(resp?.into_body()).await?;
