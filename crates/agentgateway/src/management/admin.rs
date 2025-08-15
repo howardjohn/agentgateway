@@ -368,7 +368,7 @@ async fn handle_jemalloc_pprof_heapgen(_req: Request<Incoming>) -> anyhow::Resul
 	Ok(
 		::http::Response::builder()
 			.status(hyper::StatusCode::OK)
-			.body(Bytes::from(pprof).into())
+			.body(bytes::Bytes::from(pprof).into())
 			.expect("builder with known status code should not fail"),
 	)
 }
