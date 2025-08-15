@@ -9,7 +9,7 @@ use std::sync::Arc;
 use agent_core::strng::Strng;
 use bytes::Bytes;
 pub use cel::Value;
-use cel::objects::{Key};
+use cel::objects::Key;
 use cel::{Context, ExecutionError, ParseError, ParseErrors, Program};
 pub use functions::{FLATTEN_LIST, FLATTEN_LIST_RECURSIVE, FLATTEN_MAP, FLATTEN_MAP_RECURSIVE};
 use once_cell::sync::Lazy;

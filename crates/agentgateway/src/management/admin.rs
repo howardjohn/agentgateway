@@ -9,16 +9,16 @@ use std::time::Duration;
 use agent_core::drain::DrainWatcher;
 use agent_core::version::BuildInfo;
 use agent_core::{signal, telemetry};
-use hyper::body::Incoming;
-use hyper::header::{HeaderValue, CONTENT_TYPE};
 use hyper::Request;
+use hyper::body::Incoming;
+use hyper::header::{CONTENT_TYPE, HeaderValue};
 use tokio::time;
 use tracing::{info, warn};
 use tracing_subscriber::filter;
 
-use super::hyper_helpers::{empty_response, plaintext_response, Server};
-use crate::http::Response;
+use super::hyper_helpers::{Server, empty_response, plaintext_response};
 use crate::Config;
+use crate::http::Response;
 
 pub trait ConfigDumpHandler: Sync + Send {
 	fn key(&self) -> &'static str;
@@ -190,7 +190,6 @@ async fn handle_dashboard(_req: Request<Incoming>) -> Response {
 
 	response
 }
-
 
 #[cfg(target_os = "linux")]
 async fn handle_pprof(_req: Request<Incoming>) -> anyhow::Result<Response> {

@@ -11,7 +11,6 @@ pub struct Pattern {
 	pub score: f32,
 }
 
-
 pub struct PatternRecognizer {
 	patterns: Vec<Pattern>,
 	#[allow(dead_code)]

@@ -411,11 +411,12 @@ pub(super) fn translate_request(req: universal::Request, provider: &Provider) ->
 		.map(|user| HashMap::from([("user_id".to_string(), user)]));
 
 	let tool_choice = match req.tool_choice {
-		Some(universal::ToolChoiceOption::Named(universal::NamedToolChoice { r#type: _, function })) => {
-			Some(types::ToolChoice::Tool {
-				name: function.name,
-			})
-		},
+		Some(universal::ToolChoiceOption::Named(universal::NamedToolChoice {
+			r#type: _,
+			function,
+		})) => Some(types::ToolChoice::Tool {
+			name: function.name,
+		}),
 		Some(universal::ToolChoiceOption::Auto) => Some(types::ToolChoice::Auto),
 		Some(universal::ToolChoiceOption::Required) => Some(types::ToolChoice::Any),
 		Some(universal::ToolChoiceOption::None) => None,

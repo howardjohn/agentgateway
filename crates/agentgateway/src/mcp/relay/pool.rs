@@ -1,7 +1,7 @@
 use agent_core::prelude::*;
 use anyhow::anyhow;
+use futures::StreamExt;
 use futures::stream::BoxStream;
-use futures::{StreamExt};
 use http::Uri;
 use http::header::CONTENT_TYPE;
 use reqwest::header::ACCEPT;
@@ -172,9 +172,7 @@ impl ConnectionPool {
 			.find(|tgt| tgt.name == service_name)
 			.ok_or_else(|| McpError::invalid_request(format!("Target {service_name} not found"), None))?;
 
-		self
-			.inner_connect(ct, target, peer, init_request)
-			.await
+		self.inner_connect(ct, target, peer, init_request).await
 	}
 
 	async fn inner_connect(
@@ -324,9 +322,7 @@ impl ConnectionPool {
 			return Ok(());
 		}
 
-		let transport = self
-			.inner_connect(ct, target, peer, init_request)
-			.await?;
+		let transport = self.inner_connect(ct, target, peer, init_request).await?;
 
 		// In stateless mode, this just overwrites the existing entry
 		self.by_name.insert(target.name.clone(), transport);

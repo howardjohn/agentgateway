@@ -1,5 +1,5 @@
 use agent_core::bow::OwnedOrBorrowed;
-use serde::ser::{SerializeMap};
+use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::cel::{ContextBuilder, Executor};
@@ -12,10 +12,7 @@ impl HTTPAuthorizationSet {
 	pub fn new(rs: RuleSets) -> Self {
 		Self(rs)
 	}
-	pub fn apply(
-		&self,
-		exec: &cel::Executor<'_>,
-	) -> anyhow::Result<()> {
+	pub fn apply(&self, exec: &cel::Executor<'_>) -> anyhow::Result<()> {
 		tracing::debug!("Checking HTTP request");
 		let allowed = self
 			.0

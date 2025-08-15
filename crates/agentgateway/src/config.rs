@@ -11,8 +11,11 @@ use crate::control::caclient;
 use crate::telemetry::log::{LoggingFields, MetricFields};
 use crate::telemetry::trc;
 use crate::types::discovery::Identity;
-use crate::{Address, Config, ConfigSource, NestedRawConfig, ThreadingMode, XDSConfig, cel, client, serdes,
-	telemetry, StringOrInt};
+use crate::{
+	Address, Config, ConfigSource, NestedRawConfig, StringOrInt, ThreadingMode, XDSConfig, cel,
+	client, serdes,
+	telemetry,
+};
 
 pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Result<Config> {
 	let nested: NestedRawConfig = serdes::yamlviajson::from_str(&contents)?;

@@ -120,10 +120,10 @@ pub enum Tracer {
 	Otlp { endpoint: Option<String> },
 }
 
-pub fn init_tracer(config: Config) -> Result<SdkTracerProvider, ExporterBuildError> {
+pub fn init_tracer(config: Config) -> Result<(), ExporterBuildError> {
 	let Tracer::Otlp { endpoint } = config.tracer;
 	let Some(endpoint) = endpoint else {
-		return Err(ExporterBuildError::NoHttpClient);
+		return Ok(());
 	};
 	let baggage_propagator = BaggagePropagator::new();
 	let trace_context_propagator = TraceContextPropagator::new();
@@ -148,5 +148,5 @@ pub fn init_tracer(config: Config) -> Result<SdkTracerProvider, ExporterBuildErr
 	global::set_tracer_provider(provider.clone());
 	// Usage of global is pretty bad here, but since we do it with provider it makes sense for this too.
 	set_tag_rules(config.tags);
-	Ok(provider)
+	Ok(())
 }

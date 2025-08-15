@@ -8,9 +8,9 @@ use std::time::Duration;
 
 use agent_core::drain::DrainWatcher;
 use futures_util::TryFutureExt;
-use hyper::server::conn::{http1};
-use hyper::{Request};
-use hyper_util::rt::{TokioTimer};
+use hyper::Request;
+use hyper::server::conn::http1;
+use hyper_util::rt::TokioTimer;
 use tokio::net::TcpListener;
 use tracing::info;
 

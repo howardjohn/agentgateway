@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use ::http::{HeaderMap, header};
 use anyhow::anyhow;
-use futures_util::{FutureExt};
+use futures_util::FutureExt;
 use headers::HeaderMapExt;
 use hyper::body::Incoming;
 use hyper::upgrade::OnUpgrade;
@@ -15,7 +15,7 @@ use tracing::{debug, trace};
 use types::agent::*;
 use types::discovery::*;
 
-use crate::client::{Transport};
+use crate::client::Transport;
 use crate::http::backendtls::BackendTLS;
 use crate::http::transformation_cel::Transformation;
 use crate::http::{
@@ -696,7 +696,7 @@ async fn build_transport(
 				}
 			},
 			(Some((InboundProtocol::HBONE, ident)), btls, Some(ca)) => {
-				if let Ok(_) = ca.get_identity().await {
+				if ca.get_identity().await.is_ok() {
 					Transport::Hbone(btls, ident.clone())
 				} else {
 					warn!("wanted TLS but CA is not available");

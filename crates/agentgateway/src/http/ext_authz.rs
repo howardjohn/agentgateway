@@ -155,10 +155,10 @@ impl ExtAuthz {
 
 				process_headers(req.headers_mut(), headers);
 				// for param in query_parameters_to_set {
-					// TODO
+				// TODO
 				// }
 				// for param_name in query_parameters_to_remove {
-					// TODO
+				// TODO
 				// }
 				if !response_headers_to_add.is_empty() {
 					let mut hm = HeaderMap::new();

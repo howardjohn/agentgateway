@@ -239,12 +239,7 @@ impl Relay {
 				// agentgateway's capabilities instead.
 				let ct = tokio_util::sync::CancellationToken::new(); //TODO
 				let svc = pool
-					.stateless_connect(
-						&ct,
-						service_name,
-						&context.peer,
-						AGW_INITIALIZE.clone(),
-					)
+					.stateless_connect(&ct, service_name, &context.peer, AGW_INITIALIZE.clone())
 					.await
 					.map_err(|_e| {
 						McpError::invalid_request(format!("Service {service_name} not found"), None)

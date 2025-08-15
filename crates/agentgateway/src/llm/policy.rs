@@ -1,9 +1,9 @@
-use std::ops::Deref;
-
+use crate::llm::SimpleChatCompletionMessage;
 use ::http::HeaderMap;
 use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionRequest};
 use axum::body::to_bytes;
 use bytes::Bytes;
+use std::ops::Deref;
 
 use crate::client;
 use crate::http::auth::BackendAuth;

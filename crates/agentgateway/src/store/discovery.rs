@@ -89,7 +89,8 @@ impl Store {
 	pub fn insert_service(&mut self, service: XdsService) -> anyhow::Result<()> {
 		debug!("handling insert");
 		let service = Service::try_from(&service)?;
-		Ok(self.insert_service_internal(service))
+		self.insert_service_internal(service);
+		Ok(())
 	}
 	pub fn insert_service_internal(&mut self, mut service: Service) {
 		// If the service already exists, add existing endpoints into the new service.

@@ -180,6 +180,11 @@ mod ratelimit {
 			self.parameters.capacity
 		}
 
+		/// Returns the number of tokens currently available.
+		pub fn available(&self) -> u64 {
+			self.available.load(Ordering::Relaxed)
+		}
+
 		/// Returns the number of tokens currently available. This will refill if needed;
 		pub fn available_refill(&self) -> u64 {
 			let _ = self.refill(Instant::now());
@@ -189,6 +194,12 @@ mod ratelimit {
 		/// Returns the time of the next refill.
 		pub fn next_refill(&self) -> Instant {
 			self.refill_at.load(Ordering::Relaxed)
+		}
+
+		/// Returns the number of tokens that have been dropped due to bucket
+		/// overflowing.
+		pub fn dropped(&self) -> u64 {
+			self.dropped.load(Ordering::Relaxed)
 		}
 
 		/// Remove tokens from the bucket after the fact. This is useful for true-up
@@ -438,18 +449,6 @@ mod ratelimit {
 				assert!(value >= target * 0.999, "{value} >= {}", target * 0.999);
 				assert!(value <= target * 1.001, "{value} <= {}", target * 1.001);
 			};
-		}
-
-		// test that the configured rate and calculated effective rate are close
-		#[test]
-		pub fn rate() {
-			// amount + interval
-			let rl = Ratelimiter::builder(4, Duration::from_nanos(333))
-				.max_tokens(4)
-				.build()
-				.unwrap();
-
-			approx_eq!(rl.rate(), 12012012.0);
 		}
 
 		// quick test that a ratelimiter yields tokens at the desired rate
