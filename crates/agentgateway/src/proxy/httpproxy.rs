@@ -398,7 +398,7 @@ impl HTTPProxy {
 		debug!(bind=%bind_name, listener=%selected_listener.key, route=%selected_route.key, "selected route");
 
 		let route_policies = inputs.stores.read_binds().route_policies(
-			selected_route.key.clone(),
+			selected_route.rule_name.clone(),
 			selected_route.route_name.clone(),
 			selected_listener.key.clone(),
 			selected_listener.gateway_name.clone(),

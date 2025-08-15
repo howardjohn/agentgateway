@@ -977,7 +977,7 @@ pub enum PolicyTarget {
 	Gateway(GatewayName),
 	Listener(ListenerKey),
 	Route(RouteName),
-	RouteRule(RouteKey),
+	RouteRule(RouteRuleName),
 	Backend(BackendName),
 }
 
