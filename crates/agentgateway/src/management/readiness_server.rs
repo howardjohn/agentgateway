@@ -1,12 +1,9 @@
 // Originally derived from https://github.com/istio/ztunnel (Apache 2.0 licensed)
 
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 use agent_core::drain::DrainWatcher;
 use agent_core::readiness;
-use bytes::Bytes;
-use http_body_util::Full;
 use hyper::Request;
 use hyper::body::Incoming;
 use itertools::Itertools;

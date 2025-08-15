@@ -1,12 +1,10 @@
-use axum::body::to_bytes;
-use http::{Method, Request, header};
-use serde_json::{Value, json};
+use http::{Request, header};
+use serde_json::Value;
 use tracing::warn;
 
 use crate::http::{Body, Response, filters};
-use crate::llm::AIError;
+use crate::json;
 use crate::types::agent::A2aPolicy;
-use crate::{json, parse};
 
 pub async fn apply_to_request(pol: Option<&A2aPolicy>, req: &mut Request<Body>) -> RequestType {
 	let Some(pol) = pol else {

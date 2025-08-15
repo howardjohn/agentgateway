@@ -1,14 +1,12 @@
 use agent_core::prelude::*;
 use anyhow::anyhow;
-use futures::future::BoxFuture;
 use futures::stream::BoxStream;
 use futures::{FutureExt, StreamExt};
 use http::Uri;
 use http::header::CONTENT_TYPE;
 use reqwest::header::ACCEPT;
-use reqwest::{Client as HttpClient, IntoUrl, Url};
 use rmcp::model::{ClientJsonRpcMessage, ServerJsonRpcMessage};
-use rmcp::service::{NotificationContext, Peer, serve_client_with_ct, serve_directly_with_ct};
+use rmcp::service::{NotificationContext, Peer, serve_client_with_ct};
 use rmcp::transport::common::client_side_sse::BoxedSseResponse;
 use rmcp::transport::common::http_header::{
 	EVENT_STREAM_MIME_TYPE, HEADER_LAST_EVENT_ID, HEADER_SESSION_ID, JSON_MIME_TYPE,
@@ -23,15 +21,13 @@ use rmcp::{ClientHandler, ServiceError};
 use sse_stream::{Error as SseError, Sse, SseStream};
 
 use super::*;
-use crate::client::Client;
-use crate::http::{Body, Error as HttpError, Response, auth};
-use crate::mcp::relay::upstream::UpstreamTargetSpec;
+use crate::http::{Body, Error as HttpError, Response};
 use crate::mcp::sse::McpTarget;
 use crate::proxy::ProxyError;
 use crate::proxy::httpproxy::PolicyClient;
 use crate::store::BackendPolicies;
-use crate::types::agent::{Backend, McpBackend, McpTargetSpec, SimpleBackend, Target};
-use crate::{ProxyInputs, client, json};
+use crate::types::agent::{McpTargetSpec, SimpleBackend};
+use crate::{ProxyInputs, json};
 
 type McpError = ErrorData;
 
@@ -136,7 +132,7 @@ impl ConnectionPool {
 			.backend
 			.targets
 			.iter()
-			.filter_map(|(tgt)| {
+			.filter_map(|tgt| {
 				self
 					.by_name
 					.get(&tgt.name)
@@ -240,7 +236,7 @@ impl ConnectionPool {
 				let be = crate::proxy::resolve_simple_backend(&mcp.backend, &self.pi)?;
 				let client =
 					ClientWrapper::new_with_client(be, self.client.clone(), target.backend_policies.clone());
-				let mut transport = StreamableHttpClientTransport::with_client(
+				let transport = StreamableHttpClientTransport::with_client(
 					client,
 					StreamableHttpClientTransportConfig {
 						uri: path.into(),
@@ -576,7 +572,7 @@ impl StreamableHttpClient for ClientWrapper {
 
 		let uri = "http://".to_string() + &self.backend.hostport() + &Self::parse_uri(uri)?;
 
-		let mut req = http::Request::builder()
+		let req = http::Request::builder()
 			.uri(uri)
 			.method(http::Method::DELETE)
 			.header(HEADER_SESSION_ID, session_id.as_ref())
@@ -625,7 +621,7 @@ impl StreamableHttpClient for ClientWrapper {
 			reqb = reqb.header(HEADER_LAST_EVENT_ID, last_event_id);
 		}
 
-		let mut req = reqb
+		let req = reqb
 			.body(Body::empty())
 			.map_err(|e| StreamableHttpError::Client(HttpError::new(e)))?;
 

@@ -1,6 +1,5 @@
 // Originally derived from https://github.com/istio/ztunnel (Apache 2.0 licensed)
 
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -11,13 +10,11 @@ use agent_core::drain::DrainWatcher;
 use agent_core::version::BuildInfo;
 use agent_core::{signal, telemetry};
 use base64::engine::general_purpose::STANDARD;
-use bytes::Bytes;
-use http_body_util::Full;
 use hyper::Request;
 use hyper::body::Incoming;
 use hyper::header::{CONTENT_TYPE, HeaderValue};
 use tokio::time;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 use tracing_subscriber::filter;
 
 use super::hyper_helpers::{Server, empty_response, plaintext_response};
@@ -245,7 +242,7 @@ async fn handle_server_shutdown(
 
 async fn handle_config_dump(
 	handlers: &[Arc<dyn ConfigDumpHandler>],
-	mut dump: ConfigDump,
+	dump: ConfigDump,
 ) -> anyhow::Result<Response> {
 	let serde_json::Value::Object(mut kv) = serde_json::to_value(&dump)? else {
 		anyhow::bail!("config dump is not a key-value pair")

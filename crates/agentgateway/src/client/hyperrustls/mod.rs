@@ -5,13 +5,9 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::{fmt, io};
 
-use http::Uri;
-use hyper::rt;
-use hyper_util::rt::TokioIo;
 use itertools::Itertools;
 use rustls_pki_types::ServerName;
 use tokio_rustls::TlsConnector;
-use tokio_rustls::client::TlsStream;
 use tower::Service;
 use tracing::debug;
 

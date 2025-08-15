@@ -1,46 +1,32 @@
+use std::cmp;
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Display;
 use std::io::Cursor;
-use std::marker::PhantomData;
 use std::net::{IpAddr, SocketAddr};
 use std::num::NonZeroU16;
 use std::sync::Arc;
-use std::{cmp, net};
 
 use anyhow::anyhow;
 use heck::ToSnakeCase;
-use indexmap::IndexMap;
 use itertools::Itertools;
 use macro_rules_attribute::apply;
-use once_cell::sync::Lazy;
 use openapiv3::OpenAPI;
 use prometheus_client::encoding::EncodeLabelValue;
-use regex::Regex;
+use rustls::ServerConfig;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
-use rustls::{ClientConfig, ServerConfig};
 use rustls_pemfile::Item;
-use secrecy::SecretString;
-use serde::ser::SerializeMap;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
-use thiserror::Error;
 
 use crate::http::auth::BackendAuth;
 use crate::http::authorization::RuleSet;
-use crate::http::jwt::Jwt;
-use crate::http::localratelimit::RateLimit;
 use crate::http::{
-	HeaderName, HeaderValue, StatusCode, ext_authz, ext_proc, filters, remoteratelimit, retry,
-	status, timeout, uri,
+	HeaderName, HeaderValue, ext_authz, ext_proc, filters, remoteratelimit, retry, timeout,
 };
 use crate::mcp::rbac::McpAuthorization;
-use crate::proxy::ProxyError;
-use crate::transport::tls;
 use crate::types::discovery::{NamespacedHostname, Service};
-use crate::types::proto;
-use crate::types::proto::ProtoError;
 use crate::*;
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -752,7 +738,7 @@ impl RouteSet {
 		self.all.insert(r.key.clone(), r.clone());
 
 		for hostname_match in Self::hostname_matchers(&r) {
-			let mut v = self.inner.entry(hostname_match).or_default();
+			let v = self.inner.entry(hostname_match).or_default();
 			for (idx, m) in r.matches.iter().enumerate() {
 				let to_insert = v.binary_search_by(|existing| {
 					let have = self.all.get(&existing.key).expect("corrupted state");
@@ -824,7 +810,7 @@ impl RouteSet {
 		};
 
 		for hostname_match in Self::hostname_matchers(&old_route) {
-			let mut entry = self
+			let entry = self
 				.inner
 				.entry(hostname_match)
 				.and_modify(|v| v.retain(|r| &r.key != key));
@@ -894,7 +880,7 @@ impl TCPRouteSet {
 		self.all.insert(r.key.clone(), r.clone());
 
 		for hostname_match in Self::hostname_matchers(&r) {
-			let mut v = self.inner.entry(hostname_match).or_default();
+			let v = self.inner.entry(hostname_match).or_default();
 			let to_insert = v.binary_search_by(|existing| {
 				let have = self.all.get(existing).expect("corrupted state");
 				// TODO: not sure that is right
@@ -948,7 +934,7 @@ impl TCPRouteSet {
 		};
 
 		for hostname_match in Self::hostname_matchers(&old_route) {
-			let mut entry = self
+			let entry = self
 				.inner
 				.entry(hostname_match)
 				.and_modify(|v| v.retain(|r| r != key));

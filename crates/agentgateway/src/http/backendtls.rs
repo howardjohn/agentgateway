@@ -1,4 +1,3 @@
-use std::io;
 use std::io::Cursor;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -7,9 +6,9 @@ use once_cell::sync::Lazy;
 use rustls::ClientConfig;
 use serde::Serializer;
 
+use crate::transport;
 use crate::transport::tls;
 use crate::types::agent::{parse_cert, parse_key};
-use crate::{serdes, transport};
 
 pub static SYSTEM_TRUST: Lazy<BackendTLS> =
 	Lazy::new(|| LocalBackendTLS::default().try_into().unwrap());
@@ -92,7 +91,7 @@ impl ResolvedBackendTLS {
 		}
 
 		let roots = Arc::new(roots);
-		let mut ccb = ClientConfig::builder_with_provider(transport::tls::provider())
+		let ccb = ClientConfig::builder_with_provider(transport::tls::provider())
 			.with_protocol_versions(transport::tls::ALL_TLS_VERSIONS)
 			.expect("server config must be valid")
 			.with_root_certificates(roots.clone());

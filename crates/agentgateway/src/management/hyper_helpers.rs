@@ -6,19 +6,16 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use agent_core::drain::DrainWatcher;
-use bytes::Bytes;
 use futures_util::TryFutureExt;
-use http_body_util::Full;
 use hyper::rt::Sleep;
 use hyper::server::conn::{http1, http2};
 use hyper::{Request, client};
 use hyper_util::rt::{TokioExecutor, TokioTimer};
-use tokio::net::{TcpListener, TcpStream};
-use tokio_stream::Stream;
-use tracing::{Instrument, debug, info, warn};
+use tokio::net::TcpListener;
+use tracing::info;
 
 use crate::http::{Body, Response};
 

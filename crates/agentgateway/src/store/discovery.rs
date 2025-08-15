@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use agent_xds::XdsUpdate;
 use itertools::Itertools;
-use serde::Serialize;
 use tokio::sync::watch::Sender;
 use tracing::{Level, instrument};
 use types::discovery::{NamespacedHostname, NetworkAddress};
@@ -16,7 +15,6 @@ use types::proto::workload::{
 	Address as XdsAddress, PortList, Service as XdsService, Workload as XdsWorkload,
 };
 
-use crate::types::agent::{Bind, TargetedPolicy};
 use crate::types::discovery::{Endpoint, InboundProtocol, NetworkMode, Service, Workload};
 use crate::*;
 
@@ -91,7 +89,7 @@ impl Store {
 	)]
 	pub fn insert_service(&mut self, service: XdsService) -> anyhow::Result<()> {
 		debug!("handling insert");
-		let mut service = Service::try_from(&service)?;
+		let service = Service::try_from(&service)?;
 		self.insert_service_internal(service)
 	}
 	pub fn insert_service_internal(&mut self, mut service: Service) -> anyhow::Result<()> {

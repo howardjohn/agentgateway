@@ -6,17 +6,14 @@ use axum_core::RequestExt;
 use axum_extra::TypedHeader;
 use axum_extra::headers::Authorization;
 use axum_extra::headers::authorization::Bearer;
-use jsonwebtoken::jwk::{self, AlgorithmParameters, JwkSet, KeyAlgorithm};
-use jsonwebtoken::{DecodingKey, TokenData, Validation, decode, decode_header};
+use jsonwebtoken::jwk::{AlgorithmParameters, JwkSet, KeyAlgorithm};
+use jsonwebtoken::{DecodingKey, Validation, decode, decode_header};
 use secrecy::SecretString;
-use serde::de::Error;
-use serde::ser::SerializeMap;
 use serde_json::{Map, Value};
 
 use crate::client::Client;
 use crate::http::Request;
 use crate::telemetry::log::RequestLog;
-use crate::types::agent::{HostRedirect, PathRedirect};
 use crate::*;
 
 #[derive(Debug, thiserror::Error, PartialEq)]

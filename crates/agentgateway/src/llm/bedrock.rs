@@ -1,11 +1,10 @@
 use agent_core::prelude::Strng;
 use agent_core::strng;
-use async_openai::types::{ChatCompletionNamedToolChoice, CompletionUsage, FinishReason};
+use async_openai::types::FinishReason;
 use bytes::Bytes;
 use chrono;
 use itertools::Itertools;
 use rand::Rng;
-use serde::Serialize;
 use tracing::trace;
 
 use crate::http::Response;
@@ -89,7 +88,7 @@ impl Provider {
 			.and_then(|s| s.to_str().ok().map(|s| s.to_owned()))
 			.unwrap_or_else(|| format!("{:016x}", rand::rng().random::<u64>()));
 		// This is static for all chunks!
-		let mut created = chrono::Utc::now().timestamp() as u32;
+		let created = chrono::Utc::now().timestamp() as u32;
 		resp.map(move |b| {
 			let mut saw_token = false;
 			parse::aws_sse::transform::<universal::StreamResponse>(b, move |f| {

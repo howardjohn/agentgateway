@@ -6,8 +6,6 @@ use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
 use prometheus_client::registry::Registry;
 
-use crate::mcp::rbac;
-
 #[derive(Debug)]
 pub struct Metrics {
 	tool_calls: Family<ToolCall, Counter>,

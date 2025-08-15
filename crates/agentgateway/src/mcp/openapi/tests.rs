@@ -12,7 +12,8 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use super::*;
 use crate::client::Client;
 use crate::store::Stores;
-use crate::{ProxyInputs, mcp};
+use crate::types::agent::Target;
+use crate::{ProxyInputs, client, mcp};
 
 // Helper to create a handler and mock server for tests
 async fn setup() -> (MockServer, Handler) {

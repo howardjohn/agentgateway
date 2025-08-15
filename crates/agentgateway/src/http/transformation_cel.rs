@@ -1,16 +1,9 @@
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
-
-use ::http::header::InvalidHeaderValue;
-use ::http::{HeaderName, HeaderValue, Request, header};
+use ::http::{HeaderName, HeaderValue, header};
 use agent_core::prelude::Strng;
 use http_body_util::BodyExt;
-use minijinja::value::Object;
-use minijinja::{Environment, Value, context};
-use serde_with::{SerializeAs, TryFromInto, serde_as};
+use serde_with::{SerializeAs, serde_as};
 
-use crate::cel::{Attribute, ContextBuilder, Executor, Expression, ExpressionContext};
+use crate::cel::{ContextBuilder, Executor, Expression};
 use crate::{cel, *};
 
 #[derive(Default)]

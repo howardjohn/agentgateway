@@ -4,7 +4,6 @@ use serde::ser::SerializeMap;
 use crate::http::Request;
 use crate::llm::LLMRequest;
 use crate::proxy::ProxyError;
-use crate::types::agent::{HostRedirect, PathRedirect};
 use crate::*;
 
 #[derive(Debug, Clone)]
@@ -133,8 +132,6 @@ impl RateLimit {
 // Forked from https://github.com/pelikan-io/rustcommon/tree/main/ratelimit to provide some additional functions
 mod ratelimit {
 	use core::sync::atomic::{AtomicU64, Ordering};
-	use std::cmp;
-	use std::ops::Add;
 
 	use clocksource::precise::{AtomicInstant, Duration, Instant};
 	use thiserror::Error;
@@ -267,7 +264,7 @@ mod ratelimit {
 				// acquire read lock for refill parameters
 				parameters = self.parameters;
 
-				intervals = ((time - refill_at).as_nanos() / parameters.refill_interval.as_nanos() + 1);
+				intervals = (time - refill_at).as_nanos() / parameters.refill_interval.as_nanos() + 1;
 
 				// calculate when the following refill would be
 				let next_refill =

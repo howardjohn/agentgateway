@@ -1,14 +1,10 @@
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use agent_core::strng;
-use anyhow::anyhow;
 use itertools::Itertools;
 use rand::prelude::IndexedRandom;
 
 use crate::client::Transport;
-use crate::http::Request;
 use crate::proxy::ProxyError;
 use crate::telemetry::log;
 use crate::telemetry::log::{DropOnLog, RequestLog};
@@ -17,13 +13,9 @@ use crate::transport::stream;
 use crate::transport::stream::{Socket, TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::agent;
 use crate::types::agent::{
-	Backend, BackendReference, BindName, BindProtocol, HeaderMatch, HeaderValueMatch, Listener,
-	ListenerProtocol, PathMatch, PolicyTarget, QueryValueMatch, Route, RouteBackend,
-	RouteBackendReference, SimpleBackend, SimpleBackendReference, TCPRoute, TCPRouteBackend,
-	TCPRouteBackendReference, Target,
+	BindName, BindProtocol, Listener, ListenerProtocol, PolicyTarget, SimpleBackend, TCPRoute,
+	TCPRouteBackend, TCPRouteBackendReference, Target,
 };
-use crate::types::discovery::NetworkAddress;
-use crate::types::discovery::gatewayaddress::Destination;
 use crate::{ProxyInputs, *};
 
 #[derive(Clone)]
@@ -93,7 +85,7 @@ impl TCPProxy {
 		log.listener_name = Some(selected_listener.name.clone());
 		debug!(bind=%bind_name, listener=%selected_listener.key, "selected listener");
 
-		let (selected_route) =
+		let selected_route =
 			select_best_route(sni, selected_listener.clone()).ok_or(ProxyError::RouteNotFound)?;
 		log.route_rule_name = selected_route.rule_name.clone();
 		log.route_name = Some(selected_route.route_name.clone());

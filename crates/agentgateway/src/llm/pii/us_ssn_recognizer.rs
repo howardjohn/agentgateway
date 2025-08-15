@@ -1,8 +1,3 @@
-use std::collections::HashMap;
-
-use regex::Regex;
-
-use crate::llm::pii::email_recognizer::EmailRecognizer;
 use crate::llm::pii::pattern_recognizer::PatternRecognizer;
 use crate::llm::pii::recognizer::Recognizer;
 

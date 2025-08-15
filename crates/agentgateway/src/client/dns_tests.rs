@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::Ipv4Addr;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 

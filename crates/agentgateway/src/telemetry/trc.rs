@@ -1,22 +1,20 @@
 use std::collections::HashMap;
 use std::ops::Sub;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
-use agent_core::telemetry::{OptionExt, ValueBag};
-use http::{HeaderMap, HeaderName, HeaderValue, Version};
+use agent_core::telemetry::ValueBag;
+use http::Version;
 use itertools::Itertools;
 use opentelemetry::trace::{Span, SpanContext, SpanKind, TraceState, Tracer as _, TracerProvider};
 use opentelemetry::{Key, KeyValue, TraceFlags};
-use opentelemetry_otlp::{WithExportConfig, WithHttpConfig, WithTonicConfig};
+use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use tokio::io::AsyncWriteExt;
-use tonic::metadata::MetadataMap;
 pub use traceparent::TraceParent;
 
 use crate::cel;
-use crate::http::Request;
 use crate::telemetry::log::{CelLoggingExecutor, LoggingFields, RequestLog};
 
 #[derive(Clone, Debug)]
@@ -211,8 +209,6 @@ impl Tracer {
 }
 
 fn to_otel(v: &ValueBag) -> opentelemetry::Value {
-	use value_bag::visit::Visit;
-	use value_bag::{Error, ValueBag};
 	if let Some(b) = v.to_str() {
 		opentelemetry::Value::String(b.to_string().into())
 	} else if let Some(b) = v.to_i64() {
@@ -227,7 +223,6 @@ fn to_otel(v: &ValueBag) -> opentelemetry::Value {
 mod traceparent {
 	use std::fmt;
 
-	use opentelemetry::TraceFlags;
 	use rand::Rng;
 
 	use crate::http::Request;

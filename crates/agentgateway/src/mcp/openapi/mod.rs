@@ -1,24 +1,20 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fs::read_to_string;
 use std::sync::Arc;
 
 use http::Method;
 use http::header::{ACCEPT, CONTENT_TYPE};
 use http_body_util::BodyExt;
-use hyper_util::rt::TokioIo;
 use openapiv3::{OpenAPI, Parameter, ReferenceOr, RequestBody, Schema, SchemaKind, Type};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use rmcp::model::{JsonObject, Tool};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::instrument;
-use url::Url;
 
-use crate::client;
 use crate::proxy::httpproxy::PolicyClient;
 use crate::store::BackendPolicies;
-use crate::types::agent::{SimpleBackend, SimpleBackendReference, Target};
+use crate::types::agent::SimpleBackend;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct UpstreamOpenAPICall {
@@ -624,7 +620,7 @@ impl Handler {
 		};
 
 		let uri = format!("{base_url}{query_string}");
-		let mut headers = HeaderMap::new();
+		let headers = HeaderMap::new();
 		let mut rb = http::Request::builder().method(method).uri(uri);
 
 		rb = rb.header(ACCEPT, HeaderValue::from_static("application/json"));
@@ -667,7 +663,7 @@ impl Handler {
 		};
 
 		// Build the final request
-		let mut request = rb
+		let request = rb
 			.body(body.into())
 			.map_err(|e| anyhow::anyhow!("Failed to build request: {}", e))?;
 

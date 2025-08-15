@@ -4,18 +4,15 @@ use async_openai::types::FinishReason;
 use bytes::Bytes;
 use chrono;
 use itertools::Itertools;
-use rand::Rng;
-use serde::Serialize;
-use serde_json::Value;
 
 use crate::http::Response;
 use crate::llm::anthropic::types::{
 	ContentBlock, ContentBlockDelta, MessagesErrorResponse, MessagesRequest, MessagesResponse,
 	MessagesStreamEvent, StopReason,
 };
-use crate::llm::{AIError, LLMRequest, LLMResponse, universal};
+use crate::llm::{AIError, LLMResponse, universal};
 use crate::telemetry::log::AsyncLog;
-use crate::{llm, parse, *};
+use crate::{parse, *};
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -53,7 +50,7 @@ impl Provider {
 		resp.map(|b| {
 			let mut message_id = None;
 			let mut model = String::new();
-			let mut created = chrono::Utc::now().timestamp() as u32;
+			let created = chrono::Utc::now().timestamp() as u32;
 			let mut finish_reason = None;
 			let mut input_tokens = 0;
 			let mut saw_token = false;

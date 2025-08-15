@@ -1,18 +1,11 @@
-use std::fmt;
-use std::fmt::Debug;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use ::http::HeaderMap;
-use axum_core::Error;
-use bytes::{Buf, Bytes, BytesMut};
-use futures::{Stream, StreamExt, TryStreamExt};
+use bytes::{Bytes, BytesMut};
 use http_body::Body;
-use http_body_util::BodyExt;
 use pin_project_lite::pin_project;
-use serde::de::DeserializeOwned;
-use tokio_util::codec::{Decoder, Encoder, FramedRead};
-use tokio_util::io::StreamReader;
+use tokio_util::codec::{Decoder, Encoder};
 
 use crate::*;
 
@@ -78,12 +71,12 @@ where
 
 		let mut encode_buffer = BytesMut::new();
 
-		let mut try_decode = |finished: bool,
-		                      buf: &mut BytesMut,
-		                      decoder: &mut D,
-		                      handler: &mut F,
-		                      encoder: &mut E,
-		                      encode_buf: &mut BytesMut| {
+		let try_decode = |finished: bool,
+		                  buf: &mut BytesMut,
+		                  decoder: &mut D,
+		                  handler: &mut F,
+		                  encoder: &mut E,
+		                  encode_buf: &mut BytesMut| {
 			loop {
 				let decode = if finished {
 					decoder.decode_eof(buf)
@@ -130,7 +123,7 @@ where
 		// We need more input data - poll the underlying body
 		let res = ready!(this.body.as_mut().poll_frame(cx));
 		match res {
-			(Some(Ok(frame))) => {
+			Some(Ok(frame)) => {
 				if let Some(data) = frame.data_ref() {
 					this.decode_buffer.extend_from_slice(data);
 				}
@@ -141,8 +134,8 @@ where
 				cx.waker().wake_by_ref();
 				Poll::Pending
 			},
-			(Some(Err(e))) => Poll::Ready(Some(Err(e))),
-			(None) => {
+			Some(Err(e)) => Poll::Ready(Some(Err(e))),
+			None => {
 				*this.finished = true;
 				// Try one more decode/encode cycle
 				match (try_decode)(

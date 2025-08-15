@@ -1,11 +1,8 @@
 use macro_rules_attribute::apply;
-use once_cell::sync::Lazy;
 use secrecy::{ExposeSecret, SecretString};
-use tracing::trace;
 
 use crate::http::Request;
 use crate::http::jwt::Claims;
-use crate::llm::bedrock::AwsRegion;
 use crate::proxy::ProxyError;
 use crate::serdes::deser_key_from_file;
 use crate::*;
@@ -131,11 +128,11 @@ pub async fn apply_late_backend_auth(
 
 mod gcp {
 	use anyhow::anyhow;
-	use aws_config::{BehaviorVersion, SdkConfig};
+
+	use google_cloud_auth::credentials;
 	use google_cloud_auth::credentials::CacheableResource;
 	use google_cloud_auth::errors::CredentialsError;
-	use google_cloud_auth::{credentials, errors};
-	use http::{HeaderMap, HeaderName, HeaderValue};
+	use http::{HeaderMap, HeaderValue};
 	use tokio::sync::OnceCell;
 	use tracing::trace;
 

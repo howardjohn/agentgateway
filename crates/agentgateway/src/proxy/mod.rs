@@ -7,11 +7,8 @@ pub mod tcpproxy;
 pub use gateway::Gateway;
 use hyper_util_fork::client::legacy::Error as HyperError;
 
-use crate::http::{Body, HeaderValue, Response, StatusCode};
-use crate::types::agent::{
-	Backend, BackendReference, RouteBackend, RouteBackendReference, SimpleBackend,
-	SimpleBackendReference,
-};
+use crate::http::{HeaderValue, Response, StatusCode};
+use crate::types::agent::{Backend, BackendReference, SimpleBackend, SimpleBackendReference};
 use crate::*;
 
 #[derive(thiserror::Error, Debug)]

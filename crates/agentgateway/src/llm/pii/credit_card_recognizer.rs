@@ -2,7 +2,6 @@ use regex::Regex;
 
 use crate::llm::pii::pattern_recognizer::PatternRecognizer;
 use crate::llm::pii::recognizer::Recognizer;
-use crate::llm::pii::url_recognizer::UrlRecognizer;
 
 #[derive(Debug)]
 pub struct Pattern {

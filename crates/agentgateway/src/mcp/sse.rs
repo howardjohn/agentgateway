@@ -1,67 +1,44 @@
 use std::collections::HashMap;
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
-use std::ops::IndexMut;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::sync::Arc;
 
-use a2a_sdk::SendTaskStreamingResponseResult::Status;
 use agent_core::drain::DrainWatcher;
 use agent_core::prelude::Strng;
-use agent_core::trcng;
 use anyhow::Result;
-use axum::extract::{ConnectInfo, OptionalFromRequestParts, Query, State};
+use axum::Json;
+use axum::extract::Query;
 use axum::http::StatusCode;
-use axum::http::header::HeaderMap;
-use axum::http::request::Parts;
-use axum::response::sse::{Event, KeepAlive, Sse};
+use axum::response::sse::{Event, Sse};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
-use axum::{Json, RequestPartsExt, Router};
 use axum_core::extract::FromRequest;
-use axum_extra::TypedHeader;
-use axum_extra::headers::Authorization;
-use axum_extra::headers::authorization::Bearer;
-use axum_extra::typed_header::TypedHeaderRejection;
 use bytes::Bytes;
 use futures::stream::Stream;
 use futures::{SinkExt, StreamExt};
 use http::Method;
 use http_body_util::BodyExt;
 use itertools::Itertools;
-use rmcp::RoleServer;
 use rmcp::model::{ClientJsonRpcMessage, GetExtensions};
-use rmcp::service::{TxJsonRpcMessage, serve_server_with_ct};
-use rmcp::transport::async_rw::JsonRpcMessageCodec;
+use rmcp::service::serve_server_with_ct;
 use rmcp::transport::common::server_side_http::session_id as generate_streamable_session_id;
-use rmcp::transport::sse_server::{PostEventQuery, SseServerConfig};
+use rmcp::transport::sse_server::PostEventQuery;
 use rmcp::transport::streamable_http_server::SessionId;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
-use rmcp::transport::{SseServer, StreamableHttpServerConfig, StreamableHttpService};
-use serde_json::{Value, json};
+use rmcp::transport::{StreamableHttpServerConfig, StreamableHttpService};
 use tokio::io::{self};
-use tokio::sync::RwLock;
-use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::CancellationToken;
 use tower::ServiceExt;
 use tracing::warn;
-use url::form_urlencoded;
 
 use crate::cel::ContextBuilder;
-use crate::http::authorization::RuleSets;
 use crate::http::jwt::Claims;
 use crate::http::*;
-use crate::json::{from_body, to_body};
-use crate::llm::LLMRequest;
+use crate::json::from_body;
+use crate::mcp::relay;
 use crate::mcp::relay::Relay;
-use crate::mcp::{rbac, relay};
 use crate::proxy::httpproxy::PolicyClient;
 use crate::store::{BackendPolicies, Stores};
 use crate::telemetry::log::AsyncLog;
-use crate::types::agent::{
-	BackendName, McpAuthentication, McpBackend, McpIDP, McpTarget as TypeMcpTarget, McpTargetSpec,
-	PolicyTarget, Target,
-};
-use crate::{ProxyInputs, client, json, mcp};
+use crate::types::agent::{BackendName, McpAuthentication, McpBackend, McpIDP, PolicyTarget};
+use crate::{ProxyInputs, json};
 
 type SseTxs =
 	Arc<std::sync::RwLock<HashMap<SessionId, tokio::sync::mpsc::Sender<ClientJsonRpcMessage>>>>;

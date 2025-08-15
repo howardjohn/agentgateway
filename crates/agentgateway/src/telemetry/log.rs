@@ -1,28 +1,24 @@
 use std::borrow::Cow;
-use std::cmp;
-use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
-use std::hash::BuildHasher;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::Arc;
 use std::task::{Context, Poll, ready};
-use std::time::{Instant, SystemTime};
+use std::time::Instant;
 
 use agent_core::metrics::CustomField;
 use agent_core::strng;
 use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
 use crossbeam::atomic::AtomicCell;
-use frozen_collections::maps::Values;
-use frozen_collections::{FzHashSet, FzOrderedMap, FzStringMap, MapIteration};
+use frozen_collections::{FzHashSet, FzStringMap, MapIteration};
 use http_body::{Body, Frame, SizeHint};
 use itertools::Itertools;
 use serde::{Serialize, Serializer};
 use serde_json::Value;
 use tracing::log::Log;
-use tracing::{Level, event, log, trace};
+use tracing::{Level, trace};
 
-use crate::cel::{ContextBuilder, Error, Expression};
+use crate::cel::{ContextBuilder, Expression};
 use crate::telemetry::metrics::{GenAILabels, GenAILabelsTokenUsage, HTTPLabels, Metrics};
 use crate::telemetry::trc;
 use crate::telemetry::trc::TraceParent;
@@ -30,7 +26,6 @@ use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::agent::{
 	BackendName, BindName, GatewayName, ListenerName, RouteName, RouteRuleName, Target,
 };
-use crate::types::discovery::NamespacedHostname;
 use crate::{cel, llm, mcp};
 
 /// AsyncLog is a wrapper around an item that can be atomically set.
@@ -742,7 +737,7 @@ where
 	type Error = B::Error;
 
 	fn poll_frame(
-		mut self: Pin<&mut Self>,
+		self: Pin<&mut Self>,
 		cx: &mut Context<'_>,
 	) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
 		let this = self.project();

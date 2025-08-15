@@ -20,8 +20,7 @@ use tokio_stream::StreamExt;
 use tracing::{Instrument, debug, event, info, info_span, warn};
 
 use crate::store::Event;
-use crate::telemetry::metrics::TCPLabels;
-use crate::transport::stream::{BytesCounter, Extension, LoggingMode, Socket};
+use crate::transport::stream::{Extension, LoggingMode, Socket};
 use crate::types::agent::{Bind, BindName, BindProtocol, Listener, ListenerProtocol};
 use crate::{ProxyInputs, client};
 
@@ -99,7 +98,7 @@ impl Gateway {
 			handle_bind(&mut js, Event::Add(bind))
 		}
 
-		let mut wait = drain.wait_for_drain();
+		let wait = drain.wait_for_drain();
 		tokio::pin!(wait);
 		loop {
 			tokio::select! {
@@ -139,7 +138,7 @@ impl Gateway {
 			let client = client::Client::new(&pi.cfg.dns, None);
 			pi.upstream = client;
 			let pi = Arc::new(pi);
-			let mut builder = if b.address.is_ipv4() {
+			let builder = if b.address.is_ipv4() {
 				net2::TcpBuilder::new_v4()
 			} else {
 				net2::TcpBuilder::new_v6()

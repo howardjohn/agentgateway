@@ -1,18 +1,12 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::time::Duration;
 
-use agent_core::strng;
 use divan::Bencher;
 use http::Method;
-use serde_json::json;
 
 use super::*;
 use crate::http::Body;
-use crate::store::Stores;
-use crate::types::agent::{Listener, ListenerProtocol, PathMatch, Route, RouteMatch, RouteSet};
 
 fn eval_request(expr: &str, req: crate::http::Request) -> Result<Value, Error> {
 	let mut cb = ContextBuilder::new();
@@ -117,7 +111,7 @@ fn with_profiling(name: &str, f: impl FnOnce()) {
 	let report = guard.report().build().unwrap();
 	let profile = report.pprof().unwrap();
 
-	let mut body = profile.write_to_bytes().unwrap();
+	let body = profile.write_to_bytes().unwrap();
 	File::create(format!("/tmp/pprof-{}::{name}", function!()))
 		.unwrap()
 		.write_all(&body)

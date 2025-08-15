@@ -4,14 +4,12 @@ use std::ops::Add;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 
-use ::http::{Method, Request, Uri, Version};
+use ::http::{Method, Uri, Version};
 use agent_core::drain::{DrainTrigger, DrainWatcher};
 use agent_core::{drain, metrics, strng};
 use axum::body::to_bytes;
 use http_body_util::BodyExt;
 use hyper_util::client::legacy::Client;
-use hyper_util::client::legacy::connect::Connected;
-use hyper_util::rt::tokio::WithHyperIo;
 use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
 use prometheus_client::registry::Registry;
 use rand::Rng;
@@ -27,8 +25,7 @@ use crate::store::Stores;
 use crate::transport::stream::{Socket, TCPConnectionInfo};
 use crate::types::agent::{
 	Backend, BackendReference, Bind, BindName, Listener, ListenerProtocol, ListenerSet, PathMatch,
-	Policy, PolicyTarget, Route, RouteBackend, RouteBackendReference, RouteMatch, RouteSet, Target,
-	TargetedPolicy,
+	Policy, PolicyTarget, Route, RouteBackendReference, RouteMatch, RouteSet, Target, TargetedPolicy,
 };
 use crate::{ProxyInputs, client, mcp, *};
 
@@ -93,7 +90,7 @@ async fn local_ratelimit() {
 #[tokio::test]
 async fn llm_openai() {
 	let mock = body_mock(include_bytes!("../llm/tests/response_basic.json")).await;
-	let (_mock, mut bind, io) = setup_llm_mock(
+	let (_mock, bind, io) = setup_llm_mock(
 		mock,
 		AIProvider::OpenAI(openai::Provider { model: None }),
 		false,
@@ -113,7 +110,7 @@ async fn llm_openai() {
 #[tokio::test]
 async fn llm_openai_tokenize() {
 	let mock = body_mock(include_bytes!("../llm/tests/response_basic.json")).await;
-	let (_mock, mut bind, io) = setup_llm_mock(
+	let (_mock, bind, io) = setup_llm_mock(
 		mock,
 		AIProvider::OpenAI(openai::Provider { model: None }),
 		true,
@@ -146,7 +143,7 @@ async fn llm_log_body() {
 		}
 	}))
 	.unwrap();
-	let (_mock, mut bind, io) = setup_llm_mock(
+	let (_mock, bind, io) = setup_llm_mock(
 		mock,
 		AIProvider::OpenAI(openai::Provider { model: None }),
 		true,
@@ -240,7 +237,7 @@ fn setup_llm_mock(
 	tokenize: bool,
 	config: &str,
 ) -> (MockServer, TestBind, Client<MemoryConnector, Body>) {
-	let mut t = setup(config).unwrap();
+	let t = setup(config).unwrap();
 	let b = Backend::AI(
 		strng::format!("{}", mock.address()),
 		AIBackend {
@@ -396,7 +393,7 @@ impl TestBind {
 			})
 	}
 	pub fn serve(&self, bind_name: BindName) -> DuplexStream {
-		let (mut client, mut server) = tokio::io::duplex(8192);
+		let (client, server) = tokio::io::duplex(8192);
 		let server = Socket::from_memory(
 			server,
 			TCPConnectionInfo {

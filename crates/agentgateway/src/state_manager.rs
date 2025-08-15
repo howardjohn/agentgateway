@@ -1,31 +1,14 @@
-use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
 use std::path::Path;
-use std::sync::{Arc, mpsc};
 use std::time::Duration;
 
 use agent_core::prelude::*;
-use agent_xds::{XdsResource, XdsUpdate};
-use itertools::Itertools;
-use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use notify_debouncer_full::Debouncer;
-use serde::{Deserialize, Deserializer};
-use tokio::sync::RwLock;
+use notify::{EventKind, RecursiveMode, Watcher};
 
 use crate::client::Client;
-use crate::store::{LocalWorkload, Stores};
-use crate::types::agent::{
-	Bind, BindName, Listener, ListenerProtocol, ListenerSet, Policy, PolicyName, Route, RouteSet,
-	TLSConfig, TargetedPolicy,
-};
-use crate::types::discovery::{NamespacedHostname, Service, Workload};
+use crate::store::Stores;
 use crate::types::proto::agent::Resource as ADPResource;
-use crate::types::proto::workload::{
-	Address as XdsAddress, GatewayAddress as XdsGatewayAddress, LoadBalancing as XdsLoadBalancing,
-	Locality as XdsLocality, NetworkAddress as XdsNetworkAddress, Port as XdsPort, PortList,
-	Service as XdsService, Workload as XdsWorkload, address, gateway_address,
-};
-use crate::{ConfigSource, client, serdes, store};
+use crate::types::proto::workload::Address as XdsAddress;
+use crate::{ConfigSource, client, store};
 
 #[derive(serde::Serialize)]
 pub struct StateManager {
@@ -133,7 +116,6 @@ impl LocalClient {
 		let lc: LocalClient = self.to_owned();
 		let mut next_state = lc.reload_config(PreviousState::default()).await?;
 		tokio::task::spawn(async move {
-			use notify_debouncer_full::DebouncedEvent;
 			// Handle file change events
 			while let Some(Ok(events)) = rx.recv().await {
 				// Only process if we have actual content changes

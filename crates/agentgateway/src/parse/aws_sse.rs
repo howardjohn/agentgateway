@@ -1,23 +1,9 @@
-use std::fmt;
-use std::fmt::Debug;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll};
-
 use aws_event_stream_parser::{EventStreamCodec, Message};
-use axum_core::Error;
-use bytes::{Buf, Bytes, BytesMut};
-use futures::{Stream, StreamExt, TryStreamExt};
-use http_body::Body;
-use http_body_util::BodyExt;
-use pin_project_lite::pin_project;
+use bytes::Bytes;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use tokio_sse_codec::{Event, Frame, SseDecoder, SseEncoder};
-use tokio_util::codec::{Decoder, Encoder, FramedRead};
-use tokio_util::io::StreamReader;
+use tokio_sse_codec::{Event, Frame, SseEncoder};
 
-use super::passthrough::parser as passthrough_parser;
 use super::transform::parser as transform_parser;
 use crate::*;
 

@@ -1,7 +1,4 @@
-use std::time::Instant;
-
 use once_cell::sync::Lazy;
-use tracing::warn;
 
 use crate::llm::pii::email_recognizer::EmailRecognizer;
 use crate::llm::pii::phone_recognizer::PhoneRecognizer;

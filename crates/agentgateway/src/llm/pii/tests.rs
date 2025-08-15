@@ -1,10 +1,7 @@
-use crate::llm::pii::credit_card_recognizer::CreditCardRecognizer;
 use crate::llm::pii::email_recognizer::EmailRecognizer;
-use crate::llm::pii::pattern_recognizer::PatternRecognizer;
 use crate::llm::pii::phone_recognizer::PhoneRecognizer;
 use crate::llm::pii::recognizer::Recognizer;
 use crate::llm::pii::url_recognizer::UrlRecognizer;
-use crate::llm::pii::us_ssn_recognizer::UsSsnRecognizer;
 use crate::llm::pii::{recognizer_result, *};
 
 #[test]

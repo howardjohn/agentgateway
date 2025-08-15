@@ -2,9 +2,9 @@ use std::num::NonZeroU16;
 
 use regex;
 
+use crate::http::StatusCode;
 use crate::http::filters::{RequestRedirect, UrlRewrite};
 use crate::http::tests_common::*;
-use crate::http::{Body, HeaderName, Request, Response, StatusCode, Uri};
 use crate::types::agent::{HostRedirect, PathMatch, PathRedirect};
 use crate::*;
 

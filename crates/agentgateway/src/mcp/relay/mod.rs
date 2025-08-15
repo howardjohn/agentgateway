@@ -1,20 +1,16 @@
-use std::any::{Any, TypeId};
 use std::borrow::Cow;
-use std::collections::{BTreeSet, HashMap};
-use std::fmt::{Debug, Formatter};
-use std::hash::BuildHasherDefault;
+use std::collections::HashMap;
+use std::fmt::Debug;
 use std::ops::DerefMut;
 use std::sync::{Arc, LazyLock};
-use std::time::Duration;
 
 use agent_core::bow::OwnedOrBorrowed;
 use agent_core::metrics::Recorder;
 use agent_core::prelude::Strng;
 use agent_core::trcng;
 use agent_core::version::BuildInfo;
-use http::header::AUTHORIZATION;
+use http::HeaderValue;
 use http::request::Parts;
-use http::{HeaderMap, HeaderName, HeaderValue};
 use itertools::Itertools;
 use opentelemetry::global::BoxedSpan;
 use opentelemetry::trace::{SpanContext, SpanKind, TraceContextExt, TraceState, Tracer};
@@ -24,12 +20,11 @@ use rmcp::service::{RequestContext, RunningService};
 use rmcp::transport::child_process::TokioChildProcess;
 use rmcp::{RoleClient, RoleServer, ServerHandler, model};
 use tokio::process::Command;
-use tokio::sync::{RwLock, RwLockWriteGuard};
-use tokio_util::sync::CancellationToken;
+use tokio::sync::RwLock;
 use tracing::instrument;
 
+use crate::ProxyInputs;
 use crate::cel::ContextBuilder;
-use crate::http::authorization::RuleSets;
 use crate::http::jwt::Claims;
 use crate::mcp::rbac;
 use crate::mcp::rbac::{Identity, McpAuthorizationSet};
@@ -37,12 +32,9 @@ use crate::mcp::relay::pool::ConnectionPool;
 use crate::mcp::relay::upstream::UpstreamTarget;
 use crate::mcp::sse::{MCPInfo, McpBackendGroup};
 use crate::proxy::httpproxy::PolicyClient;
-use crate::store::Stores;
 use crate::telemetry::log::AsyncLog;
 use crate::telemetry::trc::TraceParent;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
-use crate::types::agent::McpBackend;
-use crate::{ProxyInputs, client};
 
 type McpError = ErrorData;
 
@@ -554,7 +546,7 @@ impl ServerHandler for Relay {
 	async fn list_tools(
 		&self,
 		request: Option<PaginatedRequestParam>,
-		mut context: RequestContext<RoleServer>,
+		context: RequestContext<RoleServer>,
 	) -> std::result::Result<ListToolsResult, McpError> {
 		let (_span, ref rq_ctx, _, cel) = Self::setup_request_log(&context.extensions, "list_tools")?;
 		let mut pool = self.pool.write().await;

@@ -1,6 +1,4 @@
-use std::path::Iter;
-
-use phonenumber::{Metadata, Mode, PhoneNumber, country, parse};
+use phonenumber::{country, parse};
 use regex::Regex;
 
 use super::recognizer::Recognizer;

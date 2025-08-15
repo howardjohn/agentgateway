@@ -5,16 +5,11 @@ use std::thread;
 use agent_core::prelude::*;
 use agent_core::{drain, metrics, readiness, signal, trcng};
 use prometheus_client::registry::Registry;
-use serde_json::Value;
 use tokio::task::JoinSet;
 
 use crate::control::caclient;
-use crate::management::admin::ConfigDumpHandler;
-use crate::proxy::httpproxy::PolicyClient;
 use crate::telemetry::trc;
 use crate::telemetry::trc::Tracer;
-use crate::transport::hbone;
-use crate::types::agent::Policy;
 use crate::{Config, ProxyInputs, client, mcp, proxy, state_manager};
 
 pub async fn run(config: Arc<Config>) -> anyhow::Result<Bound> {
@@ -89,7 +84,7 @@ pub async fn run(config: Arc<Config>) -> anyhow::Result<Bound> {
 	// Run the XDS state manager in the current tokio worker pool.
 	tokio::spawn(state_mgr.run());
 
-	let mut admin_server = crate::management::admin::Service::new(
+	let admin_server = crate::management::admin::Service::new(
 		config.clone(),
 		stores.clone(),
 		shutdown.trigger(),

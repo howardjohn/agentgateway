@@ -15,7 +15,6 @@ pub use discovery::{
 };
 
 use crate::store;
-use crate::types::discovery::{Service, Workload};
 
 #[derive(Clone, Debug)]
 pub enum Event<T> {

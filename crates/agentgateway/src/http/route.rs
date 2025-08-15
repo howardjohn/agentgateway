@@ -9,12 +9,12 @@ use itertools::Itertools;
 use crate::http::Request;
 use crate::types::agent;
 use crate::types::agent::{
-	Backend, BackendReference, HeaderMatch, HeaderValueMatch, Listener, ListenerProtocol, PathMatch,
-	QueryValueMatch, Route, RouteBackend, RouteBackendReference,
+	BackendReference, HeaderMatch, HeaderValueMatch, Listener, ListenerProtocol, PathMatch,
+	QueryValueMatch, Route, RouteBackendReference,
 };
 use crate::types::discovery::gatewayaddress::Destination;
 use crate::types::discovery::{NamespacedHostname, NetworkAddress};
-use crate::{ProxyInputs, *};
+use crate::*;
 
 #[cfg(any(test, feature = "internal_benches"))]
 #[path = "route_test.rs"]

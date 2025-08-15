@@ -2,11 +2,8 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 
 use ::http::HeaderMap;
-use http_body::Body;
-use http_body_util::{BodyExt, Full};
-use itertools::Itertools;
+use http_body_util::BodyExt;
 use tokio_sse_codec::{Event, Frame, SseDecoder};
-use tokio_util::codec::{BytesCodec, LinesCodec};
 
 use super::*;
 use crate::*;
@@ -29,7 +26,7 @@ async fn test_parser() {
 	)));
 	let decoder = SseDecoder::<Bytes>::new();
 
-	let mut events = Arc::new(Mutex::new(vec![]));
+	let events = Arc::new(Mutex::new(vec![]));
 	let ev_clone = events.clone();
 	let body = passthrough::parser(body, decoder, move |o| match o {
 		Frame::Comment(_) => {},
@@ -69,7 +66,7 @@ async fn test_sse_json() {
 	]));
 	let decoder = SseDecoder::<Bytes>::new();
 
-	let mut events = Arc::new(Mutex::new(vec![]));
+	let events = Arc::new(Mutex::new(vec![]));
 	let ev_clone = events.clone();
 	let body = passthrough::parser(body, decoder, move |o| {
 		events

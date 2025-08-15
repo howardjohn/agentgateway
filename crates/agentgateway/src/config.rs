@@ -5,8 +5,6 @@ use std::time::Duration;
 use std::{cmp, env};
 
 use agent_core::prelude::*;
-use anyhow::anyhow;
-use hickory_resolver::config::ResolveHosts;
 use serde::de::DeserializeOwned;
 
 use crate::control::caclient;
@@ -14,8 +12,8 @@ use crate::telemetry::log::{LoggingFields, MetricFields};
 use crate::telemetry::trc;
 use crate::types::discovery::Identity;
 use crate::{
-	Address, Config, ConfigSource, NestedRawConfig, RawConfig, ThreadingMode, XDSConfig, cel, client,
-	serdes, telemetry,
+	Address, Config, ConfigSource, NestedRawConfig, ThreadingMode, XDSConfig, cel, client, serdes,
+	telemetry,
 };
 
 pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Result<Config> {
@@ -44,7 +42,7 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 		.or(filename)
 		.map(ConfigSource::File);
 
-	let (resolver_cfg, mut resolver_opts) = hickory_resolver::system_conf::read_system_conf()?;
+	let (resolver_cfg, resolver_opts) = hickory_resolver::system_conf::read_system_conf()?;
 
 	let xds = {
 		let address = validate_uri(empty_to_none(parse("XDS_ADDRESS")?).or(raw.xds_address))?;

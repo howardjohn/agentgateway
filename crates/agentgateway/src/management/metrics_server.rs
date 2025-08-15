@@ -4,8 +4,6 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use agent_core::drain::DrainWatcher;
-use bytes::Bytes;
-use http_body_util::Full;
 use hyper::Request;
 use hyper::body::Incoming;
 use prometheus_client::encoding::text::encode;

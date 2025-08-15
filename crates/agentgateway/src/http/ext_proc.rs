@@ -1,25 +1,18 @@
 use std::convert::Infallible;
 
-use ::http::Uri;
-use ::http::uri::Authority;
 use anyhow::anyhow;
 use axum::body::to_bytes;
 use bytes::Bytes;
 use http_body::{Body, Frame};
 use http_body_util::BodyStream;
 use itertools::Itertools;
-use minijinja::__context::build;
 use proto::body_mutation::Mutation;
 use proto::processing_request::Request;
 use proto::processing_response::Response;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::Status;
 
-use crate::client::{Client, Transport};
-use crate::control::AuthSource;
-use crate::http::backendtls::BackendTLS;
 use crate::http::ext_proc::proto::{
 	BodyMutation, BodyResponse, HeadersResponse, HttpBody, HttpHeaders, HttpTrailers,
 	ProcessingRequest, ProcessingResponse,
@@ -27,9 +20,7 @@ use crate::http::ext_proc::proto::{
 use crate::http::{HeaderName, HeaderValue};
 use crate::proxy::ProxyError;
 use crate::proxy::httpproxy::PolicyClient;
-use crate::types::agent;
-use crate::types::agent::{Backend, SimpleBackendReference, Target};
-use crate::types::discovery::NamespacedHostname;
+use crate::types::agent::SimpleBackendReference;
 use crate::*;
 
 #[allow(warnings)]
@@ -165,7 +156,7 @@ impl ExtProc {
 		Ok(())
 	}
 
-	pub async fn mutate_request(&mut self, mut req: http::Request) -> anyhow::Result<http::Request> {
+	pub async fn mutate_request(&mut self, req: http::Request) -> anyhow::Result<http::Request> {
 		let headers = to_header_map(req.headers());
 		let (parts, body) = req.into_parts();
 
@@ -254,10 +245,7 @@ impl ExtProc {
 		}
 	}
 
-	pub async fn mutate_response(
-		&mut self,
-		mut req: http::Response,
-	) -> anyhow::Result<http::Response> {
+	pub async fn mutate_response(&mut self, req: http::Response) -> anyhow::Result<http::Response> {
 		if self.skipped {
 			return Ok(req);
 		}
@@ -480,10 +468,10 @@ impl tower::Service<::http::Request<tonic::body::Body>> for GrpcReferenceChannel
 		Ok(()).into()
 	}
 
-	fn call(&mut self, mut req: ::http::Request<tonic::body::Body>) -> Self::Future {
+	fn call(&mut self, req: ::http::Request<tonic::body::Body>) -> Self::Future {
 		let client = self.client.clone();
 		let target = self.target.clone();
-		let mut req = req.map(http::Body::new);
+		let req = req.map(http::Body::new);
 		Box::pin(async move { Ok(client.call_reference(req, &target).await?) })
 	}
 }

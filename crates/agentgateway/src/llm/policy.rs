@@ -1,23 +1,17 @@
-use std::num::NonZeroU8;
 use std::ops::Deref;
 
 use ::http::HeaderMap;
 use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionRequest};
 use axum::body::to_bytes;
 use bytes::Bytes;
-use serde_json::map::Entry;
 
 use crate::client;
 use crate::http::auth::BackendAuth;
 use crate::http::auth::SimpleBackendAuth;
 use crate::http::jwt::Claims;
-use crate::http::{PolicyResponse, Response, StatusCode, auth, inspect_body};
+use crate::http::{Response, StatusCode, auth, inspect_body};
 use crate::llm::policy::webhook::{MaskActionBody, Message, RequestAction};
-use crate::llm::universal::MessageRole;
-use crate::llm::{
-	AIError, SimpleChatCompletionMessage, anthropic, bedrock, gemini, openai, pii, universal, vertex,
-};
-use crate::proxy::ProxyError;
+use crate::llm::{AIError, SimpleChatCompletionMessage, pii, universal};
 use crate::types::agent::Target;
 use crate::*;
 
@@ -499,7 +493,7 @@ mod webhook {
 			}
 			rb = rb.header(k.clone(), v.clone());
 		}
-		let mut req = rb
+		let req = rb
 			.header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
 			.body(crate::http::Body::from(body_bytes))?;
 		Ok(req)

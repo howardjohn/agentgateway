@@ -1,18 +1,15 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use ::http::Request;
 use agent_xds::{RejectedConfig, XdsUpdate};
-use axum_core::body::Body;
 use futures_core::Stream;
 use itertools::Itertools;
-use serde::Serialize;
 use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
 use tracing::{Level, instrument};
 
 use crate::cel::ContextBuilder;
 use crate::http::auth::BackendAuth;
-use crate::http::authorization::{HTTPAuthorizationSet, RuleSet, RuleSets};
+use crate::http::authorization::{HTTPAuthorizationSet, RuleSets};
 use crate::http::backendtls::BackendTLS;
 use crate::http::ext_proc::InferenceRouting;
 use crate::http::{ext_authz, ext_proc, remoteratelimit};
@@ -20,11 +17,10 @@ use crate::mcp::rbac::McpAuthorizationSet;
 use crate::proxy::httpproxy::PolicyClient;
 use crate::store::Event;
 use crate::types::agent::{
-	A2aPolicy, Backend, BackendName, Bind, BindName, GatewayName, Listener, ListenerKey,
-	ListenerName, ListenerSet, McpAuthentication, Policy, PolicyName, PolicyTarget, Route, RouteKey,
-	RouteName, TCPRoute, TargetedPolicy,
+	A2aPolicy, Backend, BackendName, Bind, BindName, GatewayName, Listener, ListenerKey, ListenerSet,
+	McpAuthentication, Policy, PolicyName, PolicyTarget, Route, RouteKey, RouteName, TCPRoute,
+	TargetedPolicy,
 };
-use crate::types::discovery::{NamespacedHostname, Service, Workload};
 use crate::types::proto::agent::resource::Kind as XdsKind;
 use crate::types::proto::agent::{
 	Backend as XdsBackend, Bind as XdsBind, Listener as XdsListener, Policy as XdsPolicy,
@@ -646,7 +642,7 @@ impl Store {
 		Ok(())
 	}
 	fn insert_xds_policy(&mut self, raw: XdsPolicy) -> anyhow::Result<()> {
-		let policy: (TargetedPolicy) = (&raw).try_into()?;
+		let policy: TargetedPolicy = (&raw).try_into()?;
 		self.insert_policy(policy);
 		Ok(())
 	}

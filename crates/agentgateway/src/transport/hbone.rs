@@ -1,25 +1,13 @@
+use std::fmt;
 use std::fmt::{Display, Formatter};
-use std::net::{IpAddr, SocketAddr};
-use std::pin::Pin;
+use std::net::SocketAddr;
 use std::sync::Arc;
-use std::task::Poll;
-use std::time::Duration;
-use std::{fmt, task};
 
-use agent_core::prelude::Strng;
 use agent_hbone::Key;
-use anyhow::anyhow;
 use async_trait::async_trait;
-use http::Uri;
-use hyper_util::client::legacy::connect::HttpConnector;
-use hyper_util::rt::TokioIo;
 
 use crate::control::caclient::CaClient;
-use crate::proxy::ProxyError;
-use crate::store::Stores;
-use crate::transport::stream::{Extension, Socket};
-use crate::types::discovery;
-use crate::types::discovery::{Identity, NetworkAddress};
+use crate::types::discovery::Identity;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct WorkloadKey {

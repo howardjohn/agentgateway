@@ -1,12 +1,11 @@
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
-use http::{HeaderName, HeaderValue, Request};
+use http::{HeaderName, HeaderValue};
 use minijinja::value::Object;
 use minijinja::{Environment, Value, context};
 
 use crate::cel;
-use crate::cel::{Attribute, ContextBuilder, ExpressionContext};
+use crate::cel::{ContextBuilder, ExpressionContext};
 
 const REQUEST_HEADER_ATTRIBUTE: &str = "request_header";
 const RESPONSE_HEADER_ATTRIBUTE: &str = "header";
@@ -91,7 +90,7 @@ fn to_value(ctx: ContextBuilder) -> Value {
 }
 
 mod functions {
-	use minijinja::{State, Value};
+	use minijinja::State;
 
 	use crate::cel::ExpressionContext;
 

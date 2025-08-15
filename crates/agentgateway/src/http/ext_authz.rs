@@ -1,22 +1,11 @@
 use std::collections::HashMap;
-use std::convert::Infallible;
 use std::time::SystemTime;
 
-use ::http::uri::Authority;
-use ::http::{HeaderMap, StatusCode, Uri};
-use anyhow::anyhow;
-use bytes::Bytes;
-use http_body::Frame;
-use http_body_util::BodyStream;
+use ::http::{HeaderMap, StatusCode};
 use itertools::Itertools;
 use prost_types::Timestamp;
-use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::StreamExt;
-use tokio_stream::wrappers::ReceiverStream;
 
-use crate::client::{Client, Transport};
-use crate::control::AuthSource;
-use crate::http::backendtls::BackendTLS;
 use crate::http::ext_authz::proto::attribute_context::HttpRequest;
 use crate::http::ext_authz::proto::authorization_client::AuthorizationClient;
 use crate::http::ext_authz::proto::check_response::HttpResponse;
@@ -24,17 +13,11 @@ use crate::http::ext_authz::proto::{
 	AttributeContext, CheckRequest, DeniedHttpResponse, HeaderValueOption, OkHttpResponse,
 };
 use crate::http::ext_proc::GrpcReferenceChannel;
-use crate::http::ext_proc::proto::{
-	BodyMutation, BodyResponse, HeadersResponse, HttpBody, HttpHeaders, HttpTrailers,
-	ProcessingRequest, ProcessingResponse,
-};
-use crate::http::filters::DirectResponse;
-use crate::http::{HeaderName, HeaderValue, PolicyResponse, Request, Response};
+use crate::http::{HeaderName, HeaderValue, PolicyResponse, Request};
 use crate::proxy::ProxyError;
 use crate::proxy::httpproxy::PolicyClient;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
-use crate::types::agent;
-use crate::types::agent::{Backend, SimpleBackendReference, Target};
+use crate::types::agent::SimpleBackendReference;
 use crate::*;
 
 #[allow(warnings)]

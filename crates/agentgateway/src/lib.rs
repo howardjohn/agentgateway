@@ -1,6 +1,4 @@
-// For now, the entire package is not linked up to anything so squash the warnings
-#![allow(unused)]
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::fs::File;
 use std::io::Read;
@@ -14,7 +12,7 @@ use hickory_resolver::config::{ResolverConfig, ResolverOpts};
 use indexmap::IndexMap;
 #[cfg(feature = "schema")]
 pub use schemars::JsonSchema;
-use serde::de::{Error, Visitor};
+use serde::de::Visitor;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 pub use serdes::*;
 
@@ -44,7 +42,6 @@ pub mod types;
 mod ui;
 pub mod util;
 
-use agent_core::prelude::*;
 use control::caclient;
 use telemetry::{metrics, trc};
 

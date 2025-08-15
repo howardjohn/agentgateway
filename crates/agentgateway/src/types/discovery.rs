@@ -12,8 +12,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::types::proto::workload::load_balancing::Scope as XdsScope;
 use crate::types::proto::workload::{
-	ApplicationTunnel as XdsApplicationTunnel, GatewayAddress as XdsGatewayAddress, Port, PortList,
-	Service as XdsService, Workload as XdsWorkload,
+	GatewayAddress as XdsGatewayAddress, Port, PortList, Service as XdsService,
+	Workload as XdsWorkload,
 };
 use crate::types::proto::{ProtoError, workload};
 use crate::*;

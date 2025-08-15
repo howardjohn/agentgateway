@@ -7,12 +7,11 @@ use itertools::Itertools;
 use regex::Regex;
 
 use crate::http::Request;
-use crate::http::filters::RequestRedirect;
 use crate::http::tests_common::*;
 use crate::store::Stores;
 use crate::types::agent::{
 	HeaderMatch, HeaderValueMatch, Listener, ListenerProtocol, MethodMatch, PathMatch, QueryMatch,
-	QueryValueMatch, Route, RouteKey, RouteMatch, RouteSet,
+	QueryValueMatch, Route, RouteMatch, RouteSet,
 };
 use crate::*;
 

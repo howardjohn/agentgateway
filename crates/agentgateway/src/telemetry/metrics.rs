@@ -1,14 +1,12 @@
 use std::fmt::Debug;
-use std::sync::Arc;
 
 use agent_core::metrics::{CustomField, DefaultedUnknown, EncodeArc, EncodeDisplay};
 use agent_core::strng::RichStrng;
 use agent_core::version;
-use prometheus_client::encoding::{EncodeLabelSet, EncodeMetric};
+use prometheus_client::encoding::EncodeLabelSet;
 use prometheus_client::metrics::family::Family;
 use prometheus_client::metrics::histogram::Histogram as PromHistogram;
 use prometheus_client::metrics::info::Info;
-use prometheus_client::registry;
 use prometheus_client::registry::Registry;
 
 use crate::types::agent::BindProtocol;

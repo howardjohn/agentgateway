@@ -1,12 +1,9 @@
 use std::str::FromStr;
 
 use ::http::{HeaderValue, Method, StatusCode, header};
-use duration_str::HumanFormat;
 use serde::de::Error;
-use serde::ser::SerializeMap;
 
-use crate::http::{PolicyResponse, Request, Response, filters};
-use crate::types::agent::{HostRedirect, PathRedirect};
+use crate::http::{PolicyResponse, Request, filters};
 use crate::*;
 
 #[derive(Default, Debug, Clone)]

@@ -142,7 +142,7 @@ impl tower::Service<::http::Request<tonic::body::Body>> for GrpcChannel {
 		Ok(()).into()
 	}
 
-	fn call(&mut self, mut req: ::http::Request<tonic::body::Body>) -> Self::Future {
+	fn call(&mut self, req: ::http::Request<tonic::body::Body>) -> Self::Future {
 		let client = self.client.clone();
 		let auth = self.auth.clone();
 		let target = self.target.clone();

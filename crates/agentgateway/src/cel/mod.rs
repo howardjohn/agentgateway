@@ -7,29 +7,20 @@ use std::net::IpAddr;
 use std::sync::Arc;
 
 use agent_core::strng::Strng;
-use axum_core::body::Body;
 use bytes::Bytes;
 pub use cel::Value;
-use cel::common::ast::Expr;
-use cel::extractors::{Arguments, This};
-use cel::objects::{Key, Map, TryIntoValue, ValueType};
-use cel::{
-	Context, ExecutionError, FunctionContext, ParseError, ParseErrors, Program, ResolveResult,
-};
+use cel::objects::{Key, ValueType};
+use cel::{Context, ExecutionError, ParseError, ParseErrors, Program};
 pub use functions::{FLATTEN_LIST, FLATTEN_LIST_RECURSIVE, FLATTEN_MAP, FLATTEN_MAP_RECURSIVE};
-use http::Request;
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize, Serializer};
-use tiktoken_rs::ChatCompletionRequestMessage;
+use serde::{Serialize, Serializer};
 
-use crate::http::backendtls::{BackendTLS, LocalBackendTLS};
 use crate::http::jwt::Claims;
+use crate::llm;
 use crate::llm::{LLMRequest, LLMResponse};
 use crate::serdes::*;
-use crate::telemetry::log::CelLogging;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::discovery::Identity;
-use crate::{json, llm};
 
 mod functions;
 mod strings;

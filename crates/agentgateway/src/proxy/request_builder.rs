@@ -1,7 +1,5 @@
 use std::convert::TryFrom;
 use std::fmt;
-use std::future::Future;
-use std::time::Duration;
 
 use http::header::{Entry, OccupiedEntry};
 use http::request::Parts;
@@ -12,7 +10,6 @@ use serde::Serialize;
 use serde_json;
 use url::Url;
 
-use super::client::Client;
 use crate::http::header::{CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
 use crate::http::{Body, Method, Response};
 

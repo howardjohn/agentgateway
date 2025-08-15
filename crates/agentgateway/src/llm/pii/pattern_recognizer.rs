@@ -57,8 +57,8 @@ impl Recognizer for PatternRecognizer {
 			for cap in pattern.regex.captures_iter(text) {
 				if let Some(matched) = cap.get(0) {
 					let candidate = matched.as_str();
-					let mut score = pattern.score;
-					let mut valid = true;
+					let score = pattern.score;
+					let valid = true;
 					// if let Some(validator) = self.validator {
 					//     if let Some(false) = validator.validate(candidate) {
 					//         valid = false;

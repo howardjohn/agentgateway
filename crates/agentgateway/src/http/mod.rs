@@ -32,7 +32,6 @@ pub use ::http::{
 };
 use axum::body::to_bytes;
 use bytes::Bytes;
-use serde::de::DeserializeOwned;
 use tower_serve_static::private::mime;
 
 use crate::proxy::{ProxyError, ProxyResponse};

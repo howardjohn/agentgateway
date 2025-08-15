@@ -3,18 +3,17 @@ use std::io::{Error, IoSlice};
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::task::{Context, Poll};
 use std::time::Instant;
 
-use agent_core::strng::Strng;
 use agent_hbone::RWStream;
 use hyper_util::client::legacy::connect::{Connected, Connection};
 use prometheus_client::metrics::counter::Atomic;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf};
 use tokio::net::TcpStream;
 use tokio_rustls::TlsStream;
-use tracing::{event, warn};
+use tracing::event;
 
 use crate::types::discovery::Identity;
 
