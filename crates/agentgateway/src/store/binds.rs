@@ -164,6 +164,7 @@ impl Store {
 		&self,
 		route_rule: RouteKey,
 		route: RouteName,
+		listener: ListenerKey,
 		gateway: GatewayName,
 	) -> RoutePolicies {
 		// Changes we must do:
@@ -173,6 +174,7 @@ impl Store {
 		// * We do this lookup under one lock, but we will lookup backend rules and listener rules under a different
 		//   lock. This can lead to inconsistent state..
 		let gateway = self.policies_by_target.get(&PolicyTarget::Gateway(gateway));
+		let listener = self.policies_by_target.get(&PolicyTarget::Listener(listener));
 		let route = self.policies_by_target.get(&PolicyTarget::Route(route));
 		let route_rule = self
 			.policies_by_target
@@ -182,6 +184,7 @@ impl Store {
 			.copied()
 			.flatten()
 			.chain(route.iter().copied().flatten())
+			.chain(listener.iter().copied().flatten())
 			.chain(gateway.iter().copied().flatten())
 			.filter_map(|n| self.policies_by_name.get(n));
 

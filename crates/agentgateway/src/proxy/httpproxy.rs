@@ -400,6 +400,7 @@ impl HTTPProxy {
 		let route_policies = inputs.stores.read_binds().route_policies(
 			selected_route.key.clone(),
 			selected_route.route_name.clone(),
+			selected_listener.key.clone(),
 			selected_listener.gateway_name.clone(),
 		);
 		// Register all expressions
