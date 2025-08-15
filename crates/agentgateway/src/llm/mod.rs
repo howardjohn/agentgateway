@@ -15,6 +15,7 @@ use tiktoken_rs::tokenizer::{Tokenizer, get_tokenizer};
 
 use crate::http::auth::{AwsAuth, BackendAuth};
 use crate::http::backendtls::BackendTLS;
+use crate::http::jwt::Claims;
 use crate::http::localratelimit::RateLimit;
 use crate::http::{Body, Request, Response};
 use crate::llm::universal::{ChatCompletionError, ChatCompletionErrorResponse};
@@ -257,8 +258,9 @@ impl AIProvider {
 		if let Some(p) = policies {
 			p.apply_prompt_enrichment(&mut req);
 			let http_headers = &parts.headers;
+			let claims = parts.extensions.get::<Claims>().cloned();
 			if let Some(dr) = p
-				.apply_prompt_guard(client, &mut req, http_headers)
+				.apply_prompt_guard(client, &mut req, http_headers, claims)
 				.await
 				.map_err(|e| {
 					warn!("failed to call prompt guard webhook: {e}");

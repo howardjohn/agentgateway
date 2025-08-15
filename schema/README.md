@@ -160,6 +160,12 @@ This defaults to 'true'.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.regex.rules[].(any)name`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.webhook`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request.webhook.target`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.openaiModeration`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.openaiModeration.model`|Model to use. Defaults to `omni-moderation-latest`|
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.openaiModeration.auth`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.openaiModeration.auth.(1)passthrough`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.openaiModeration.auth.(1)key`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request.openaiModeration.auth.(1)key.(any)file`||
 |`binds[].listeners[].routes[].policies.ai.defaults`||
 |`binds[].listeners[].routes[].policies.ai.overrides`||
 |`binds[].listeners[].routes[].policies.ai.prompts`||

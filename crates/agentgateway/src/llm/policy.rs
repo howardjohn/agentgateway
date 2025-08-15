@@ -3,10 +3,15 @@ use std::ops::Deref;
 
 use ::http::HeaderMap;
 use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionRequest};
+use axum::body::to_bytes;
 use bytes::Bytes;
 use serde_json::map::Entry;
 
-use crate::http::{PolicyResponse, Response, StatusCode};
+use crate::client;
+use crate::http::auth::BackendAuth;
+use crate::http::auth::SimpleBackendAuth;
+use crate::http::jwt::Claims;
+use crate::http::{PolicyResponse, Response, StatusCode, auth, inspect_body};
 use crate::llm::policy::webhook::{MaskActionBody, Message, RequestAction};
 use crate::llm::universal::MessageRole;
 use crate::llm::{
@@ -83,10 +88,41 @@ impl Policy {
 		client: client::Client,
 		req: &mut universal::Request,
 		http_headers: &HeaderMap,
+		claims: Option<Claims>,
 	) -> anyhow::Result<Option<Response>> {
 		let Some(g) = self.prompt_guard.as_ref().and_then(|g| g.request.as_ref()) else {
 			return Ok(None);
 		};
+		if let Some(moderation) = &g.openai_moderation {
+			let model = moderation
+				.model
+				.clone()
+				.unwrap_or(strng::literal!("omni-moderation-latest"));
+			let auth = BackendAuth::from(moderation.auth.clone());
+			let content = req
+				.messages
+				.iter()
+				.filter_map(universal::message_text)
+				.collect::<Vec<_>>();
+			let mut rb = ::http::Request::builder()
+				.uri("https://api.openai.com/v1/moderations")
+				.method(::http::Method::POST)
+				.header(::http::header::CONTENT_TYPE, "application/json");
+			if let Some(claims) = claims {
+				rb = rb.extension(claims);
+			}
+			let mut req = rb.body(http::Body::from(serde_json::to_vec(&serde_json::json!({
+				"input": content,
+				"model": model,
+			}))?))?;
+			auth::apply_backend_auth(Some(&auth), &mut req).await;
+			let resp = client.simple_call(req).await;
+			let resp: async_openai::types::CreateModerationResponse =
+				json::from_body(resp?.into_body()).await?;
+			if resp.results.iter().any(|r| r.flagged) {
+				return Ok(Some(g.response.as_response()));
+			}
+		}
 		if let Some(webhook) = &g.webhook {
 			let whr = webhook::send_request(client.clone(), &webhook.target, http_headers, req).await?;
 			match whr.action {
@@ -189,7 +225,10 @@ pub struct PromptGuardRequest {
 	response: PromptGuardResponse,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	regex: Option<RegexRules>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
 	webhook: Option<Webhook>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	openai_moderation: Option<Moderation>,
 }
 
 #[apply(schema!)]
@@ -249,6 +288,14 @@ pub struct NamedRegex {
 pub struct Webhook {
 	target: Target,
 	// TODO: headers
+}
+
+#[apply(schema!)]
+pub struct Moderation {
+	/// Model to use. Defaults to `omni-moderation-latest`
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	model: Option<Strng>,
+	auth: SimpleBackendAuth,
 }
 
 #[apply(schema!)]

@@ -1280,6 +1280,69 @@
                                         "required": [
                                           "target"
                                         ]
+                                      },
+                                      "openaiModeration": {
+                                        "type": [
+                                          "object",
+                                          "null"
+                                        ],
+                                        "properties": {
+                                          "model": {
+                                            "description": "Model to use. Defaults to `omni-moderation-latest`",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "auth": {
+                                            "oneOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "passthrough": {
+                                                    "type": "object",
+                                                    "additionalProperties": false
+                                                  }
+                                                },
+                                                "required": [
+                                                  "passthrough"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "key": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "file": {
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "file"
+                                                        ]
+                                                      },
+                                                      {
+                                                        "type": "string"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "key"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "auth"
+                                        ]
                                       }
                                     },
                                     "additionalProperties": false

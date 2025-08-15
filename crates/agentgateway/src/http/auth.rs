@@ -33,6 +33,28 @@ pub enum AwsAuth {
 }
 
 #[apply(schema!)]
+pub enum SimpleBackendAuth {
+	Passthrough {},
+	Key(
+		#[cfg_attr(feature = "schema", schemars(with = "FileOrInline"))]
+		#[serde(
+			serialize_with = "ser_redact",
+			deserialize_with = "deser_key_from_file"
+		)]
+		SecretString,
+	),
+}
+
+impl From<SimpleBackendAuth> for BackendAuth {
+	fn from(value: SimpleBackendAuth) -> Self {
+		match value {
+			SimpleBackendAuth::Passthrough {} => BackendAuth::Passthrough {},
+			SimpleBackendAuth::Key(key) => BackendAuth::Key(key),
+		}
+	}
+}
+
+#[apply(schema!)]
 pub enum BackendAuth {
 	Passthrough {},
 	Key(
