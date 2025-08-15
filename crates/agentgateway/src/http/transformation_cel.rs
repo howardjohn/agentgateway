@@ -1,6 +1,5 @@
 use ::http::{HeaderName, HeaderValue, header};
 use agent_core::prelude::Strng;
-use http_body_util::BodyExt;
 use serde_with::{SerializeAs, serde_as};
 
 use crate::cel::{ContextBuilder, Executor, Expression};

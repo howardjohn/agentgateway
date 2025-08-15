@@ -1,7 +1,6 @@
 use serde::de::Error;
 use serde::ser::SerializeMap;
 
-use crate::http::Request;
 use crate::llm::LLMRequest;
 use crate::proxy::ProxyError;
 use crate::*;
@@ -72,7 +71,7 @@ impl TryFrom<RateLimitSerde> for RateLimit {
 }
 
 impl RateLimit {
-	pub fn check_request(&self, req: &Request) -> Result<(), ProxyError> {
+	pub fn check_request(&self) -> Result<(), ProxyError> {
 		if self.limit_type != RateLimitType::Requests {
 			return Ok(());
 		}
@@ -176,32 +175,9 @@ mod ratelimit {
 			Builder::new(amount, interval)
 		}
 
-		/// Return the current effective rate of the Ratelimiter in tokens/second
-		pub fn rate(&self) -> f64 {
-			let parameters = self.parameters;
-
-			parameters.refill_amount as f64 * 1_000_000_000.0
-				/ parameters.refill_interval.as_nanos() as f64
-		}
-
-		/// Return the current interval between refills.
-		pub fn refill_interval(&self) -> Duration {
-			self.parameters.refill_interval
-		}
-
-		/// Return the current number of tokens to be added on each refill.
-		pub fn refill_amount(&self) -> u64 {
-			self.parameters.refill_amount
-		}
-
 		/// Returns the maximum number of tokens that can
 		pub fn max_tokens(&self) -> u64 {
 			self.parameters.capacity
-		}
-
-		/// Returns the number of tokens currently available.
-		pub fn available(&self) -> u64 {
-			self.available.load(Ordering::Relaxed)
 		}
 
 		/// Returns the number of tokens currently available. This will refill if needed;
@@ -215,12 +191,6 @@ mod ratelimit {
 			self.refill_at.load(Ordering::Relaxed)
 		}
 
-		/// Returns the number of tokens that have been dropped due to bucket
-		/// overflowing.
-		pub fn dropped(&self) -> u64 {
-			self.dropped.load(Ordering::Relaxed)
-		}
-
 		/// Remove tokens from the bucket after the fact. This is useful for true-up
 		/// scenarios where you discover the actual cost after making a request.
 		/// This function cannot fail and will not allow the bucket to go negative.
@@ -231,7 +201,7 @@ mod ratelimit {
 				return;
 			}
 
-			self
+			let _ = self
 				.available
 				.fetch_update(Ordering::AcqRel, Ordering::Acquire, |v| {
 					if tokens_to_remove < 0 {

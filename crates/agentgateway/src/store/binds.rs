@@ -91,7 +91,7 @@ pub struct RoutePolicies {
 }
 
 impl RoutePolicies {
-	pub fn register_cel_expressions(&self, req: &http::Request, ctx: &mut ContextBuilder) {
+	pub fn register_cel_expressions(&self, ctx: &mut ContextBuilder) {
 		if let Some(xfm) = &self.transformation {
 			for expr in xfm.expressions() {
 				ctx.register_expression(expr)
@@ -348,7 +348,7 @@ impl Store {
         fields(bind),
     )]
 	pub fn remove_backend(&mut self, backend: BackendName) {
-		if let Some(old) = self.backends_by_name.remove(&backend) {}
+		self.backends_by_name.remove(&backend);
 	}
 
 	#[instrument(

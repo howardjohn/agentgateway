@@ -332,6 +332,7 @@ pub struct RouteBackend {
 	pub filters: Vec<RouteFilter>,
 }
 
+#[allow(unused)]
 fn default_weight() -> usize {
 	1
 }
@@ -429,7 +430,7 @@ impl SimpleBackend {
 			SimpleBackend::Service(svc, port) => {
 				format!("{}:{port}", svc.hostname)
 			},
-			SimpleBackend::Opaque(name, tgt) => tgt.to_string(),
+			SimpleBackend::Opaque(_, tgt) => tgt.to_string(),
 			SimpleBackend::Invalid => "invalid".to_string(),
 		}
 	}
@@ -438,7 +439,7 @@ impl SimpleBackend {
 			SimpleBackend::Service(svc, port) => {
 				strng::format!("service/{}/{}:{port}", svc.namespace, svc.hostname)
 			},
-			SimpleBackend::Opaque(name, tgt) => name.clone(),
+			SimpleBackend::Opaque(name, _) => name.clone(),
 			SimpleBackend::Invalid => strng::format!("invalid"),
 		}
 	}
@@ -461,9 +462,9 @@ impl Backend {
 			Backend::Service(svc, port) => {
 				strng::format!("service/{}/{}:{port}", svc.namespace, svc.hostname)
 			},
-			Backend::Opaque(name, tgt) => name.clone(),
-			Backend::MCP(name, mcp) => name.clone(),
-			Backend::AI(name, ai) => name.clone(),
+			Backend::Opaque(name, _) => name.clone(),
+			Backend::MCP(name, _) => name.clone(),
+			Backend::AI(name, _) => name.clone(),
 			// TODO: give it a name
 			Backend::Dynamic {} => strng::format!("dynamic"),
 			Backend::Invalid => strng::format!("invalid"),
@@ -634,7 +635,7 @@ impl ListenerSet {
 			.iter()
 			.next()
 			.ok_or_else(|| anyhow::anyhow!("expecting one listener"))
-			.map(|(k, v)| v.clone())
+			.map(|(_k, v)| v.clone())
 	}
 
 	pub fn remove(&mut self, key: &ListenerKey) -> Option<Arc<Listener>> {
@@ -882,7 +883,7 @@ impl TCPRouteSet {
 		for hostname_match in Self::hostname_matchers(&r) {
 			let v = self.inner.entry(hostname_match).or_default();
 			let to_insert = v.binary_search_by(|existing| {
-				let have = self.all.get(existing).expect("corrupted state");
+				let _have = self.all.get(existing).expect("corrupted state");
 				// TODO: not sure that is right
 				Ordering::reverse(r.key.cmp(existing))
 			});
@@ -890,38 +891,6 @@ impl TCPRouteSet {
 			let insert_idx = to_insert.unwrap_or_else(|pos| pos);
 			v.insert(insert_idx, r.key.clone());
 		}
-	}
-
-	fn compare_route(a: &RouteMatch, b: &RouteMatch) -> Ordering {
-		// Compare RouteMatch according to Gateway API sorting requirements
-		// 1. Path match type (Exact > PathPrefix > Regex)
-		let path_rank1 = get_path_rank(&a.path);
-		let path_rank2 = get_path_rank(&b.path);
-		if path_rank1 != path_rank2 {
-			return cmp::Ordering::reverse(path_rank1.cmp(&path_rank2));
-		}
-		// 2. Path length (longer paths first)
-		let path_len1 = get_path_length(&a.path);
-		let path_len2 = get_path_length(&b.path);
-		if path_len1 != path_len2 {
-			return cmp::Ordering::reverse(path_len1.cmp(&path_len2)); // Reverse order for longer first
-		}
-		// 3. Method match (routes with method matches first)
-		let method1 = a.method.is_some();
-		let method2 = b.method.is_some();
-		if method1 != method2 {
-			return cmp::Ordering::reverse(method1.cmp(&method2));
-		}
-		// 4. Number of header matches (more headers first)
-		let header_count1 = a.headers.len();
-		let header_count2 = b.headers.len();
-		if header_count1 != header_count2 {
-			return cmp::Ordering::reverse(header_count1.cmp(&header_count2));
-		}
-		// 5. Number of query matches (more query params first)
-		let query_count1 = a.query.len();
-		let query_count2 = b.query.len();
-		cmp::Ordering::reverse(query_count1.cmp(&query_count2))
 	}
 
 	pub fn contains(&self, key: &RouteKey) -> bool {

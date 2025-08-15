@@ -1,6 +1,4 @@
 use bytes::Bytes;
-use futures::{StreamExt, TryStreamExt};
-use http_body_util::BodyExt;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio_sse_codec::{Event, Frame, SseDecoder, SseEncoder};
@@ -63,6 +61,7 @@ fn unwrap_sse_data(frame: Frame<Bytes>) -> Option<Bytes> {
 	Some(data)
 }
 
+#[allow(dead_code)]
 pub(super) fn unwrap_json<T: DeserializeOwned>(frame: Frame<Bytes>) -> anyhow::Result<Option<T>> {
 	Ok(
 		unwrap_sse_data(frame)

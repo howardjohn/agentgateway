@@ -4,9 +4,8 @@ use std::sync::Arc;
 
 use http::Method;
 use http::header::{ACCEPT, CONTENT_TYPE};
-use http_body_util::BodyExt;
 use openapiv3::{OpenAPI, Parameter, ReferenceOr, RequestBody, Schema, SchemaKind, Type};
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::header::{HeaderName, HeaderValue};
 use rmcp::model::{JsonObject, Tool};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -620,7 +619,6 @@ impl Handler {
 		};
 
 		let uri = format!("{base_url}{query_string}");
-		let headers = HeaderMap::new();
 		let mut rb = http::Request::builder().method(method).uri(uri);
 
 		rb = rb.header(ACCEPT, HeaderValue::from_static("application/json"));

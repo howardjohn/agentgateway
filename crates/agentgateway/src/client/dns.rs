@@ -9,7 +9,6 @@ use arc_swap::ArcSwapOption;
 use hickory_resolver::config::{ResolverConfig, ResolverOpts};
 use hickory_resolver::name_server::TokioConnectionProvider;
 use hickory_resolver::{ResolveError, TokioResolver};
-use hyper_rustls::ResolveServerName;
 
 use crate::*;
 
@@ -53,7 +52,6 @@ pub struct CacheEntry {
 	entries: ArcSwapOption<CircularBuffer<IpAddr>>,
 	notify: tokio::sync::Notify,
 	background_task: ArcSwapOption<tokio::task::JoinHandle<()>>,
-	valid_after: arc_swap::ArcSwap<Instant>,
 }
 
 impl CacheEntry {
@@ -166,7 +164,6 @@ impl CachedResolver {
 					entries: Default::default(),
 					notify: Default::default(),
 					background_task: Default::default(),
-					valid_after: arc_swap::ArcSwap::from_pointee(Instant::now()),
 				});
 
 				cache.insert(name.clone(), entry.clone());

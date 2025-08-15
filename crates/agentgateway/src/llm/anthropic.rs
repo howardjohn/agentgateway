@@ -3,7 +3,6 @@ use agent_core::strng;
 use async_openai::types::FinishReason;
 use bytes::Bytes;
 use chrono;
-use itertools::Itertools;
 
 use crate::http::Response;
 use crate::llm::anthropic::types::{
@@ -51,7 +50,7 @@ impl Provider {
 			let mut message_id = None;
 			let mut model = String::new();
 			let created = chrono::Utc::now().timestamp() as u32;
-			let mut finish_reason = None;
+			// let mut finish_reason = None;
 			let mut input_tokens = 0;
 			let mut saw_token = false;
 			// https://docs.anthropic.com/en/docs/build-with-claude/streaming
@@ -113,8 +112,9 @@ impl Provider {
 						};
 						mk(vec![choice], None)
 					},
-					MessagesStreamEvent::MessageDelta { usage, delta } => {
-						finish_reason = delta.stop_reason.as_ref().map(translate_stop_reason);
+					MessagesStreamEvent::MessageDelta { usage, delta: _ } => {
+						// TODO
+						// finish_reason = delta.stop_reason.as_ref().map(translate_stop_reason);
 						log.non_atomic_mutate(|r| {
 							r.output_tokens = Some(usage.output_tokens as u64);
 							if let Some(inp) = r.input_tokens_from_response {
@@ -295,7 +295,7 @@ pub(super) fn translate_request(req: universal::Request) -> types::MessagesReque
 	});
 
 	let tool_choice = match req.tool_choice {
-		Some(universal::ToolChoiceOption::Named(universal::NamedToolChoice { r#type, function })) => {
+		Some(universal::ToolChoiceOption::Named(universal::NamedToolChoice { r#type: _, function })) => {
 			Some(types::ToolChoice::Tool {
 				name: function.name,
 			})

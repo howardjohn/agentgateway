@@ -3,24 +3,20 @@ use std::sync::Arc;
 
 use ::http::{HeaderMap, header};
 use anyhow::anyhow;
-use axum_core::response::IntoResponse;
-use futures_util::{FutureExt, TryFutureExt};
+use futures_util::{FutureExt};
 use headers::HeaderMapExt;
-use http_body_util::BodyExt;
 use hyper::body::Incoming;
 use hyper::upgrade::OnUpgrade;
 use hyper_util::rt::TokioIo;
 use itertools::Itertools;
 use rand::Rng;
 use rand::seq::IndexedRandom;
-use tokio_stream::StreamExt;
 use tracing::{debug, trace};
 use types::agent::*;
 use types::discovery::*;
 
-use crate::client::{Client, Transport};
+use crate::client::{Transport};
 use crate::http::backendtls::BackendTLS;
-use crate::http::localratelimit::RateLimitType;
 use crate::http::transformation_cel::Transformation;
 use crate::http::{
 	Authority, HeaderName, HeaderValue, PolicyResponse, Request, Response, Scheme, StatusCode, Uri,
@@ -70,12 +66,12 @@ async fn apply_request_policies(
 		.map_err(|_| ProxyError::ProcessingString("failed to build cel context".to_string()))?;
 
 	if let Some(j) = &policies.authorization {
-		j.apply(req, &exec)
-			.map_err(|e| ProxyResponse::from(ProxyError::AuthorizationFailed))?;
+		j.apply(&exec)
+			.map_err(|_| ProxyResponse::from(ProxyError::AuthorizationFailed))?;
 	}
 
 	for lrl in &policies.local_rate_limit {
-		lrl.check_request(req)?;
+		lrl.check_request()?;
 	}
 
 	if let Some(rrl) = &policies.remote_rate_limit {
@@ -116,13 +112,7 @@ async fn apply_llm_request_policies(
 		// or 0.
 		// Either way, we will 'true up' on the response side.
 		rrl
-			.check_llm(
-				client,
-				req,
-				&exec,
-				RateLimitType::Tokens,
-				llm_req.input_tokens.unwrap_or_default(),
-			)
+			.check_llm(client, req, &exec, llm_req.input_tokens.unwrap_or_default())
 			.await?
 	} else {
 		(http::PolicyResponse::default(), None)
@@ -148,7 +138,7 @@ fn apply_request_filters(
 			RouteFilter::RequestRedirect(red) => {
 				return Ok(resp.with_response(red.apply(req, path_match)?));
 			},
-			RouteFilter::DirectResponse(dr) => return Ok(resp.with_response(dr.apply(req)?)),
+			RouteFilter::DirectResponse(dr) => return Ok(resp.with_response(dr.apply()?)),
 			RouteFilter::CORS(c) => {
 				let res = c.apply(req)?;
 				resp = resp.merge(res);
@@ -316,7 +306,6 @@ impl HTTPProxy {
 			.ctx()
 			.with_source(&log.tcp_info, log.tls_info.as_ref());
 		let selected_listener = self.selected_listener.clone();
-		let upstream = self.inputs.upstream.clone();
 		let inputs = self.inputs.clone();
 		let bind_name = self.bind_name.clone();
 		debug!(bind=%bind_name, "route for bind");
@@ -414,7 +403,7 @@ impl HTTPProxy {
 			selected_listener.gateway_name.clone(),
 		);
 		// Register all expressions
-		route_policies.register_cel_expressions(&req, log.cel.ctx());
+		route_policies.register_cel_expressions(log.cel.ctx());
 		// This is unfortunate but we record the request twice possibly; we want to record it as early as possible
 		// so we can do logging, etc when we find no routes.
 		// But we may find new expressions that now need the request.
@@ -464,7 +453,6 @@ impl HTTPProxy {
 			}
 			// TODO: mirror the body. For now, we just ignore the body
 			let req = Request::from_parts(head.clone(), http::Body::empty());
-			let upstream = self.inputs.upstream.clone();
 			let inputs = inputs.clone();
 			let policy_client = self.policy_client();
 			tokio::task::spawn(async move {
@@ -503,7 +491,6 @@ impl HTTPProxy {
 						log,
 						&mut req_upgrade,
 						late_route_policies,
-						upstream,
 						&selected_backend,
 						&selected_route,
 						&mut response_policies,
@@ -522,8 +509,6 @@ impl HTTPProxy {
 				debug!("buffered too much to attempt a retry");
 				return last_res.expect("should only be capped if we had a previous attempt");
 			}
-			// If we don't need
-			last_res = None;
 			if !last {
 				// Stop cloning on our last
 				next = Some(this.clone());
@@ -543,7 +528,6 @@ impl HTTPProxy {
 					log,
 					&mut req_upgrade,
 					late_route_policies.clone(),
-					upstream.clone(),
 					&selected_backend,
 					&selected_route,
 					&mut response_policies,
@@ -572,14 +556,11 @@ impl HTTPProxy {
 		log: &mut RequestLog,
 		req_upgrade: &mut Option<RequestUpgrade>,
 		route_policies: Arc<store::LLMRequestPolicies>,
-		upstream: Client,
 		selected_backend: &RouteBackend,
 		selected_route: &Route,
 		response_policies: &mut ResponsePolicies,
 		req: Request,
 	) -> Result<Response, ProxyResponse> {
-		let inputs = self.inputs.clone();
-
 		let call = make_backend_call(
 			self.inputs.clone(),
 			route_policies.clone(),
@@ -597,12 +578,12 @@ impl HTTPProxy {
 		};
 
 		// Setup timeout
-		let (call_result, body_timeout) = if let Some(timeout) = timeout {
+		let call_result = if let Some(timeout) = timeout {
 			let deadline = tokio::time::Instant::from_std(log.start + timeout);
 			let fut = tokio::time::timeout_at(deadline, call);
-			(fut.await, http::timeout::BodyTimeout::Deadline(deadline))
+			fut.await
 		} else {
-			(Ok(call.await), http::timeout::BodyTimeout::None)
+			Ok(call.await)
 		};
 
 		// Run the actual call
@@ -633,15 +614,6 @@ impl HTTPProxy {
 		maybe_set_grpc_status(&log.grpc_status, resp.headers());
 
 		Ok(resp)
-	}
-
-	async fn process_backend_call(
-		&self,
-		log: &mut RequestLog,
-		req: &mut Request,
-		backend_call: &BackendCall,
-	) -> Result<(), ProxyError> {
-		Ok(())
 	}
 
 	fn policy_client(&self) -> PolicyClient {
@@ -724,7 +696,7 @@ async fn build_transport(
 				}
 			},
 			(Some((InboundProtocol::HBONE, ident)), btls, Some(ca)) => {
-				if let Ok(id) = ca.get_identity().await {
+				if let Ok(_) = ca.get_identity().await {
 					Transport::Hbone(btls, ident.clone())
 				} else {
 					warn!("wanted TLS but CA is not available");

@@ -1,7 +1,6 @@
 use aws_event_stream_parser::{EventStreamCodec, Message};
 use bytes::Bytes;
 use serde::Serialize;
-use serde::de::DeserializeOwned;
 use tokio_sse_codec::{Event, Frame, SseEncoder};
 
 use super::transform::parser as transform_parser;
@@ -23,12 +22,4 @@ pub fn transform<O: Serialize>(
 			id: None,
 		}))
 	})
-}
-
-fn unwrap_sse_data(frame: Message) -> Bytes {
-	Bytes::copy_from_slice(&frame.body)
-}
-
-pub(super) fn unwrap_json<T: DeserializeOwned>(frame: Message) -> anyhow::Result<Option<T>> {
-	Ok(serde_json::from_slice(&unwrap_sse_data(frame))?)
 }

@@ -4,22 +4,21 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use agent_core::drain::DrainWatcher;
 use agent_core::version::BuildInfo;
 use agent_core::{signal, telemetry};
-use base64::engine::general_purpose::STANDARD;
-use hyper::Request;
 use hyper::body::Incoming;
-use hyper::header::{CONTENT_TYPE, HeaderValue};
+use hyper::header::{HeaderValue, CONTENT_TYPE};
+use hyper::Request;
 use tokio::time;
 use tracing::{info, warn};
 use tracing_subscriber::filter;
 
-use super::hyper_helpers::{Server, empty_response, plaintext_response};
-use crate::Config;
+use super::hyper_helpers::{empty_response, plaintext_response, Server};
 use crate::http::Response;
+use crate::Config;
 
 pub trait ConfigDumpHandler: Sync + Send {
 	fn key(&self) -> &'static str;
@@ -192,11 +191,6 @@ async fn handle_dashboard(_req: Request<Incoming>) -> Response {
 	response
 }
 
-fn rfc3339(t: SystemTime) -> String {
-	use chrono::prelude::{DateTime, Utc};
-	let dt: DateTime<Utc> = t.into();
-	dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
-}
 
 #[cfg(target_os = "linux")]
 async fn handle_pprof(_req: Request<Incoming>) -> anyhow::Result<Response> {
@@ -388,9 +382,4 @@ async fn handle_jemalloc_pprof_heapgen(_req: Request<Incoming>) -> anyhow::Resul
 			.body("jemalloc not enabled".into())
 			.expect("builder with known status code should not fail"),
 	)
-}
-
-fn base64_encode(data: String) -> String {
-	use base64::Engine;
-	STANDARD.encode(data)
 }

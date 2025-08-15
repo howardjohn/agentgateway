@@ -163,7 +163,7 @@ pub fn resolve_backend(b: &BackendReference, pi: &ProxyInputs) -> Result<Backend
 				.ok_or(ProxyError::ServiceNotFound)?;
 			Backend::Service(svc, *port)
 		},
-		BackendReference::Backend(name) => {
+		BackendReference::Backend(_) => {
 			let be = pi
 				.stores
 				.read_binds()
@@ -190,7 +190,7 @@ pub fn resolve_simple_backend(
 				.ok_or(ProxyError::ServiceNotFound)?;
 			SimpleBackend::Service(svc, *port)
 		},
-		SimpleBackendReference::Backend(name) => {
+		SimpleBackendReference::Backend(_) => {
 			let be = pi
 				.stores
 				.read_binds()

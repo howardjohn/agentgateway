@@ -1,14 +1,6 @@
-use regex::Regex;
 
 use crate::llm::pii::pattern_recognizer::PatternRecognizer;
 use crate::llm::pii::recognizer::Recognizer;
-
-#[derive(Debug)]
-pub struct Pattern {
-	pub name: &'static str,
-	pub regex: Regex,
-	pub score: f32,
-}
 
 pub struct CreditCardRecognizer {
 	recognizer: PatternRecognizer,

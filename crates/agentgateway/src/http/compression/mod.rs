@@ -14,7 +14,6 @@ const GZIP: &str = "gzip";
 const DEFLATE: &str = "deflate";
 const BR: &str = "br";
 const ZSTD: &str = "zstd";
-const ALL_ENCODINGS: [&str; 4] = [GZIP, DEFLATE, BR, ZSTD];
 
 pub async fn to_bytes_with_decompression(
 	body: axum_core::body::Body,
@@ -60,7 +59,7 @@ where
 		DEFLATE => Box::new(ZlibDecoder::new(stream_reader)),
 		BR => Box::new(BrotliDecoder::new(stream_reader)),
 		ZSTD => Box::new(ZstdDecoder::new(stream_reader)),
-		unknown => panic!("unknown decoder"),
+		unknown => panic!("unknown decoder: {unknown}"),
 	};
 
 	read_to_bytes(decoder, limit).await

@@ -7,7 +7,7 @@ use crate::json;
 use crate::types::agent::A2aPolicy;
 
 pub async fn apply_to_request(pol: Option<&A2aPolicy>, req: &mut Request<Body>) -> RequestType {
-	let Some(pol) = pol else {
+	if pol.is_none() {
 		return RequestType::Unknown;
 	};
 	// Possible options are POST a JSON-RPC message or GET /.well-known/agent.json
@@ -63,7 +63,9 @@ pub async fn apply_to_response(
 	a2a_type: RequestType,
 	resp: &mut Response,
 ) -> anyhow::Result<()> {
-	let Some(pol) = pol else { return Ok(()) };
+	if pol.is_none() {
+		return Ok(());
+	};
 	match a2a_type {
 		RequestType::AgentCard(uri) => {
 			// For agent card, we need to mutate the request to insert the proper URL to reach it

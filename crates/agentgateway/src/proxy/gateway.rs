@@ -65,7 +65,7 @@ impl Gateway {
 			debug!("add bind {}", b.address);
 			if self.pi.cfg.threading_mode == crate::ThreadingMode::ThreadPerCore {
 				let core_ids = core_affinity::get_core_ids().unwrap();
-				let handles = core_ids
+				let _ = core_ids
 					.into_iter()
 					.map(|id| {
 						let subdrain = subdrain.clone();
@@ -81,7 +81,7 @@ impl Gateway {
 								.build()
 								.unwrap()
 								.block_on(async {
-									Self::run_bind(pi.clone(), subdrain.clone(), b.clone())
+									let _ = Self::run_bind(pi.clone(), subdrain.clone(), b.clone())
 										.in_current_span()
 										.await;
 								})
@@ -174,6 +174,7 @@ impl Gateway {
 			// Having a weak reference allows us to listen() forever without blocking, but create blockers for accepted connections.
 			let (mut upgrader, weak) = drain.into_weak();
 			let (inner_trigger, inner_drain) = drain::new();
+			drop(inner_drain);
 			let handle_stream = |stream: TcpStream, upgrader: &DrainUpgrader| {
 				let mut stream = Socket::from_tcp(stream).expect("todo");
 				stream.with_logging(LoggingMode::Downstream);
@@ -222,7 +223,7 @@ impl Gateway {
 			loop {
 				tokio::select! {
 					Ok((stream, _peer)) = listener.accept() => handle_stream(stream, &upgrader),
-					res = &mut drained_for_minimum => {
+					_ = &mut drained_for_minimum => {
 						// We are done! exit.
 						// This will stop accepting new connections
 						return;
@@ -242,7 +243,6 @@ impl Gateway {
 		drain: DrainWatcher,
 	) {
 		let bind_protocol = bind_protocol(inputs.clone(), bind_name.clone());
-		let tcp_info = raw_stream.tcp();
 		event!(
 			target: "downstream connection",
 			parent: None,
@@ -329,7 +329,7 @@ impl Gateway {
 		inputs: Arc<ProxyInputs>,
 		selected_listener: Option<Arc<Listener>>,
 		stream: Socket,
-		drain: DrainWatcher,
+		_drain: DrainWatcher,
 	) {
 		let selected_listener = match selected_listener {
 			Some(l) => l,
@@ -394,8 +394,6 @@ impl Gateway {
 			Self::serve_connect(bind_name.clone(), inp.clone(), req, ext, graceful)
 				.instrument(info_span!("inbound"))
 		};
-		// TODO proper drain and watch
-		let (_trigger, watcher) = drain::new();
 
 		let (_, force_shutdown) = watch::channel(());
 		let ext = Arc::new(tls.get_ext());
@@ -403,7 +401,7 @@ impl Gateway {
 			cfg.hbone.clone(),
 			tls,
 			ext,
-			watcher,
+			drain,
 			force_shutdown,
 			request_handler,
 		);
@@ -491,9 +489,5 @@ fn build_response(status: StatusCode) -> ::http::Response<()> {
 
 /// InboundError represents an error with an associated status code.
 #[derive(Debug)]
+#[allow(dead_code)]
 struct InboundError(anyhow::Error, StatusCode);
-impl InboundError {
-	pub fn build(code: StatusCode) -> impl Fn(anyhow::Error) -> Self {
-		move |err| InboundError(err, code)
-	}
-}

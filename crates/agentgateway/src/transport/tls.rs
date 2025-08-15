@@ -183,7 +183,7 @@ pub mod trustdomain {
 
 	use std::sync::Arc;
 
-	use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerifier};
+	use rustls::client::danger::{HandshakeSignatureValid};
 	use rustls::pki_types::{CertificateDer, UnixTime};
 
 	use rustls::server::danger::{ClientCertVerified, ClientCertVerifier};

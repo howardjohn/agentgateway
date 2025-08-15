@@ -9,7 +9,7 @@ use std::sync::Arc;
 use agent_core::strng::Strng;
 use bytes::Bytes;
 pub use cel::Value;
-use cel::objects::{Key, ValueType};
+use cel::objects::{Key};
 use cel::{Context, ExecutionError, ParseError, ParseErrors, Program};
 pub use functions::{FLATTEN_LIST, FLATTEN_LIST_RECURSIVE, FLATTEN_MAP, FLATTEN_MAP_RECURSIVE};
 use once_cell::sync::Lazy;
@@ -388,10 +388,6 @@ pub struct LLMContext {
 	params: llm::LLMRequestParams,
 }
 
-fn create_context<'a>() -> Context<'a> {
-	Context::default()
-}
-
 fn properties<'e>(
 	exp: &'e cel::common::ast::Expr,
 	all: &mut Vec<Vec<&'e str>>,
@@ -408,7 +404,6 @@ fn properties<'e>(
 				properties(&arg.expr, all, path)
 			}
 		},
-		Struct(e) => {},
 		Select(e) => {
 			path.insert(0, e.field.as_str());
 			properties(&e.operand.expr, all, path);
@@ -467,7 +462,6 @@ fn properties<'e>(
 
 pub struct Attribute {
 	path: Path,
-	cel_type: Option<ValueType>,
 }
 
 impl Debug for Attribute {

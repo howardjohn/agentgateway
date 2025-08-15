@@ -2,7 +2,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use agent_core::prelude::*;
-use notify::{EventKind, RecursiveMode, Watcher};
+use notify::{EventKind, RecursiveMode};
 
 use crate::client::Client;
 use crate::store::Stores;
@@ -160,7 +160,7 @@ impl LocalClient {
 			self
 				.stores
 				.discovery
-				.sync_local(config.services, config.workloads, prev.discovery);
+				.sync_local(config.services, config.workloads, prev.discovery)?;
 
 		Ok(PreviousState {
 			binds: next_binds,

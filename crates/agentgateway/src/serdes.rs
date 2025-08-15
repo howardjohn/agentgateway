@@ -48,7 +48,6 @@ pub mod yamlviajson {
 
 pub use macro_rules_attribute::{apply, attribute_alias};
 
-#[macro_export]
 attribute_alias! {
 		#[apply(schema_de!)] = #[serde_with::serde_as] #[derive(Debug, Clone, serde::Deserialize)] #[serde(rename_all = "camelCase", deny_unknown_fields)] #[cfg_attr(feature = "schema", derive(JsonSchema))];
 		#[apply(schema_ser!)] = #[serde_with::serde_as] #[derive(Debug, Clone, serde::Serialize)] #[serde(rename_all = "camelCase", deny_unknown_fields)] #[cfg_attr(feature = "schema", derive(JsonSchema))];
@@ -119,7 +118,7 @@ pub fn ser_debug<S: Serializer, T: Debug>(t: &T, serializer: S) -> Result<S::Ok,
 	serializer.serialize_str(&format!("{t:?}"))
 }
 
-pub fn ser_redact<S: Serializer, T>(t: &T, serializer: S) -> Result<S::Ok, S::Error> {
+pub fn ser_redact<S: Serializer, T>(_: &T, serializer: S) -> Result<S::Ok, S::Error> {
 	serializer.serialize_str("<redacted>")
 }
 

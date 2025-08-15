@@ -10,12 +10,11 @@ use agent_core::metrics::CustomField;
 use agent_core::strng;
 use agent_core::telemetry::{OptionExt, ValueBag, debug, display};
 use crossbeam::atomic::AtomicCell;
-use frozen_collections::{FzHashSet, FzStringMap, MapIteration};
+use frozen_collections::{FzHashSet, FzStringMap};
 use http_body::{Body, Frame, SizeHint};
 use itertools::Itertools;
 use serde::{Serialize, Serializer};
 use serde_json::Value;
-use tracing::log::Log;
 use tracing::{Level, trace};
 
 use crate::cel::{ContextBuilder, Expression};
@@ -142,7 +141,7 @@ where
 {
 	fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
 		let items = iter.into_iter().collect_vec();
-		let order: Box<[Box<str>]> = items.iter().map(|(k, v)| k.as_ref().into()).collect();
+		let order: Box<[Box<str>]> = items.iter().map(|(k, _)| k.as_ref().into()).collect();
 		let map: FzStringMap<Box<str>, V> = items.into_iter().collect();
 		Self { map, order }
 	}
@@ -259,7 +258,7 @@ impl<'a> CelLoggingExecutor<'a> {
 					Self::resolve_value(raws, Cow::Owned(format!("{k}.{mk}")), mv, false);
 				}
 				return;
-			} else if let Some(v @ cel::Value::Map(m)) = m.map.get(&cel::FLATTEN_MAP_RECURSIVE) {
+			} else if let Some(cel::Value::Map(m)) = m.map.get(&cel::FLATTEN_MAP_RECURSIVE) {
 				raws.reserve(m.map.len());
 				for (mk, mv) in m.map.as_ref() {
 					Self::resolve_value(raws, Cow::Owned(format!("{k}.{mk}")), mv, true);
@@ -705,11 +704,6 @@ impl Drop for DropOnLog {
 			agent_core::telemetry::log("info", "request", &kv);
 		}
 	}
-}
-
-fn to_value<T: AsRef<str>>(t: &T) -> impl tracing::Value + '_ {
-	let v: &str = t.as_ref();
-	v
 }
 
 pin_project_lite::pin_project! {

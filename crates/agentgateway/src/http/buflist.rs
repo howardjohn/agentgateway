@@ -11,10 +11,6 @@ pub struct BufList<T = Bytes> {
 }
 
 impl<T: Buf> BufList<T> {
-	pub fn new() -> Self {
-		Default::default()
-	}
-
 	#[inline]
 	pub(crate) fn push(&mut self, buf: T) {
 		debug_assert!(buf.has_remaining());
@@ -22,18 +18,8 @@ impl<T: Buf> BufList<T> {
 	}
 
 	#[inline]
-	pub fn pop(&mut self) -> Option<T> {
-		self.bufs.pop_front()
-	}
-
-	#[inline]
 	pub fn get_chunk(&mut self, idx: usize) -> Option<&T> {
 		self.bufs.get(idx)
-	}
-
-	#[inline]
-	pub fn clear(&mut self) {
-		self.bufs.clear()
 	}
 }
 

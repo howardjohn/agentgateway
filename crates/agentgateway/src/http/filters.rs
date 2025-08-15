@@ -131,7 +131,7 @@ pub struct DirectResponse {
 }
 
 impl DirectResponse {
-	pub fn apply(&self, req: &mut Request) -> Result<Response, Error> {
+	pub fn apply(&self) -> Result<Response, Error> {
 		response::Builder::new()
 			.status(self.status)
 			.body(http::Body::from(self.body.clone()))

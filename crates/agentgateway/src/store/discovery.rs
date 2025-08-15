@@ -37,7 +37,6 @@ impl Store {
 	pub fn new() -> Store {
 		Store {
 			workloads: WorkloadStore {
-				local_node: None,
 				insert_notifier: Sender::new(()),
 				by_addr: Default::default(),
 				by_uid: Default::default(),
@@ -76,7 +75,7 @@ impl Store {
 		self.workloads.insert(workload.clone());
 		self
 			.services
-			.insert_endpoint_for_services(&workload, &services);
+			.insert_endpoint_for_services(&workload, &services)?;
 
 		Ok(())
 	}
@@ -90,9 +89,9 @@ impl Store {
 	pub fn insert_service(&mut self, service: XdsService) -> anyhow::Result<()> {
 		debug!("handling insert");
 		let service = Service::try_from(&service)?;
-		self.insert_service_internal(service)
+		Ok(self.insert_service_internal(service))
 	}
-	pub fn insert_service_internal(&mut self, mut service: Service) -> anyhow::Result<()> {
+	pub fn insert_service_internal(&mut self, mut service: Service) {
 		// If the service already exists, add existing endpoints into the new service.
 		if let Some(prev) = self
 			.services
@@ -108,7 +107,6 @@ impl Store {
 		}
 
 		self.services.insert(service);
-		Ok(())
 	}
 
 	fn remove(&mut self, xds_name: &Strng) {
@@ -162,7 +160,6 @@ impl Store {
 /// A WorkloadStore encapsulates all information about workloads in the mesh
 #[derive(Debug)]
 pub struct WorkloadStore {
-	local_node: Option<Strng>,
 	// TODO this could be expanded to Sender<Workload> + a full subscriber/streaming
 	// model, but for now just notifying watchers to wake when _any_ insert happens
 	// is simpler (and only requires a channelsize of 1)
@@ -572,7 +569,7 @@ impl StoreUpdater {
 		services: Vec<Service>,
 		workloads: Vec<LocalWorkload>,
 		prev: PreviousState,
-	) -> PreviousState {
+	) -> anyhow::Result<PreviousState> {
 		let mut s = self.state.write().expect("mutex acquired");
 		let mut old_workloads = prev.workloads;
 		let mut old_services = prev.services;
@@ -593,7 +590,7 @@ impl StoreUpdater {
 				.into_iter()
 				.map(|(k, v)| (k, PortList::from(v)))
 				.collect();
-			s.services.insert_endpoint_for_services(&w, &services);
+			s.services.insert_endpoint_for_services(&w, &services)?;
 			old_workloads.remove(&w.uid);
 			next_state.workloads.insert(w.uid.clone());
 		}
@@ -612,7 +609,7 @@ impl StoreUpdater {
 				s.services.remove_endpoint(&prev);
 			}
 		}
-		next_state
+		Ok(next_state)
 	}
 }
 

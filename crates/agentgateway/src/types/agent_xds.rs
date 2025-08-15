@@ -58,9 +58,9 @@ impl TryFrom<proto::agent::BackendAuthPolicy> for BackendAuth {
 
 	fn try_from(s: proto::agent::BackendAuthPolicy) -> Result<Self, Self::Error> {
 		Ok(match s.kind {
-			Some(proto::agent::backend_auth_policy::Kind::Passthrough(p)) => BackendAuth::Passthrough {},
+			Some(proto::agent::backend_auth_policy::Kind::Passthrough(_)) => BackendAuth::Passthrough {},
 			Some(proto::agent::backend_auth_policy::Kind::Key(k)) => BackendAuth::Key(k.secret.into()),
-			Some(proto::agent::backend_auth_policy::Kind::Gcp(g)) => BackendAuth::Gcp {},
+			Some(proto::agent::backend_auth_policy::Kind::Gcp(_)) => BackendAuth::Gcp {},
 			Some(proto::agent::backend_auth_policy::Kind::Aws(a)) => {
 				let aws_auth = match a.kind {
 					Some(proto::agent::aws::Kind::ExplicitConfig(config)) => AwsAuth::ExplicitConfig {
@@ -580,7 +580,7 @@ impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
 					context: Some(ea.context.clone()),
 				})
 			},
-			Some(proto::agent::policy_spec::Kind::A2a(a2a)) => Policy::A2a(A2aPolicy {}),
+			Some(proto::agent::policy_spec::Kind::A2a(_)) => Policy::A2a(A2aPolicy {}),
 			Some(proto::agent::policy_spec::Kind::BackendTls(btls)) => {
 				let tls = backendtls::ResolvedBackendTLS {
 					cert: btls.cert.clone(),

@@ -4,7 +4,6 @@ use std::sync::Arc;
 use itertools::Itertools;
 use rand::prelude::IndexedRandom;
 
-use crate::client::Transport;
 use crate::proxy::ProxyError;
 use crate::telemetry::log;
 use crate::telemetry::log::{DropOnLog, RequestLog};
@@ -23,6 +22,7 @@ pub struct TCPProxy {
 	pub(super) bind_name: BindName,
 	pub(super) inputs: Arc<ProxyInputs>,
 	pub(super) selected_listener: Arc<Listener>,
+	#[allow(unused)]
 	pub(super) target_address: SocketAddr,
 }
 
@@ -76,7 +76,7 @@ impl TCPProxy {
 			.and_then(|tls| tls.server_name.as_deref());
 
 		let selected_listener = self.selected_listener.clone();
-		let upstream = self.inputs.upstream.clone();
+		let _upstream = self.inputs.upstream.clone();
 		let inputs = self.inputs.clone();
 		let bind_name = self.bind_name.clone();
 		debug!(bind=%bind_name, "route for bind");
@@ -123,12 +123,11 @@ impl TCPProxy {
 			SimpleBackend::Invalid => return Err(ProxyError::BackendDoesNotExist),
 		};
 
-		let policies = inputs
+		let _policies = inputs
 			.stores
 			.read_binds()
 			.backend_policies(policy_key.clone());
 		// let transport = policies.i // TODO
-		let transport = Transport::Plaintext;
 		let Target::Address(addr) = target else {
 			panic!("TODO")
 		};

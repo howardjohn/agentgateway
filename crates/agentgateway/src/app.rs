@@ -21,7 +21,7 @@ pub async fn run(config: Arc<Config>) -> anyhow::Result<Bound> {
 			endpoint: config.tracing.endpoint.clone(),
 		},
 		tags: Default::default(),
-	});
+	})?;
 	let shutdown = signal::Shutdown::new();
 	// Setup a drain channel. drain_tx is used to trigger a drain, which will complete
 	// once all drain_rx handlers are dropped.
@@ -41,7 +41,6 @@ pub async fn run(config: Arc<Config>) -> anyhow::Result<Bound> {
 	)
 	.await
 	.context("readiness server starts")?;
-	let readiness_address = readiness_server.address();
 	// Run the readiness server in the data plane worker pool.
 	data_plane_pool.send(DataPlaneTask {
 		block_shutdown: false,
@@ -142,7 +141,6 @@ pub async fn run(config: Arc<Config>) -> anyhow::Result<Bound> {
 		crate::management::metrics_server::Server::new(config.stats_addr, drain_rx.clone(), registry)
 			.await
 			.context("stats server starts")?;
-	let metrics_address = metrics_server.address();
 	// Run the metrics sever in the current tokio worker pool.
 	metrics_server.spawn();
 	tokio::task::spawn_blocking(|| {

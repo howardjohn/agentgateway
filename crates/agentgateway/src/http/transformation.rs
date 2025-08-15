@@ -69,7 +69,6 @@ impl Transformation {
 		let v = to_value(ctx);
 		for t in self.templates.iter() {
 			let tmpl = self.env.get_template(&t.name).expect("template must exist");
-			let headers = req.headers();
 			let res = tmpl.render(context! {
 					STATE => v,
 			});

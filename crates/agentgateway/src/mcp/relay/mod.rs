@@ -34,7 +34,7 @@ use crate::mcp::sse::{MCPInfo, McpBackendGroup};
 use crate::proxy::httpproxy::PolicyClient;
 use crate::telemetry::log::AsyncLog;
 use crate::telemetry::trc::TraceParent;
-use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
+use crate::transport::stream::TLSConnectionInfo;
 
 type McpError = ErrorData;
 
@@ -152,7 +152,6 @@ impl Relay {
 				None,
 			));
 		};
-		let otelc = trcng::extract_context_from_request(&http.headers);
 		let traceparent = http.extensions.get::<TraceParent>();
 		let mut ctx = Context::new();
 		if let Some(tp) = traceparent {
@@ -165,7 +164,6 @@ impl Relay {
 			));
 		}
 		let claims = http.extensions.get::<Claims>();
-		let tcp = http.extensions.get::<TCPConnectionInfo>();
 		let tls = http.extensions.get::<TLSConnectionInfo>();
 		let id = tls
 			.and_then(|tls| tls.src_identity.as_ref())
@@ -195,7 +193,6 @@ impl Relay {
 	async fn list_conns<'a>(
 		&self,
 		context: &RequestContext<RoleServer>,
-		rq_ctx: &RqCtx,
 		pool: &'a mut ConnectionPool,
 	) -> Result<Vec<(Strng, &'a upstream::UpstreamTarget)>, McpError> {
 		Ok(match self.stateful {
@@ -208,7 +205,7 @@ impl Relay {
 				// Since we're not proxying the downstream client's initialize capabilities, we use
 				// agentgateway's capabilities instead.
 				pool
-					.initialize(rq_ctx, &context.peer, AGW_INITIALIZE.clone())
+					.initialize(&context.peer, AGW_INITIALIZE.clone())
 					.await
 					.map_err(|e| {
 						McpError::internal_error(
@@ -243,7 +240,6 @@ impl Relay {
 				let ct = tokio_util::sync::CancellationToken::new(); //TODO
 				let svc = pool
 					.stateless_connect(
-						rq_ctx,
 						&ct,
 						service_name,
 						&context.peer,
@@ -312,13 +308,13 @@ impl ServerHandler for Relay {
 		request: InitializeRequestParam,
 		context: RequestContext<RoleServer>,
 	) -> Result<InitializeResult, McpError> {
-		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "initialize")?;
+		let (_span, _) = Self::setup_request(&context.extensions, "initialize")?;
 
 		// List servers and initialize the ones that are not initialized
 		let mut pool = self.pool.write().await;
 		// Initialize all targets
-		let connections = pool
-			.initialize(rq_ctx, &context.peer, request)
+		let _ = pool
+			.initialize(&context.peer, request)
 			.await
 			.map_err(|e| McpError::internal_error(format!("Failed to list connections: {e}"), None))?;
 
@@ -336,7 +332,7 @@ impl ServerHandler for Relay {
 	) -> std::result::Result<ListResourcesResult, McpError> {
 		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "list_resources")?;
 		let mut pool = self.pool.write().await;
-		let connections = self.list_conns(&context, rq_ctx, pool.deref_mut()).await?;
+		let connections = self.list_conns(&context, pool.deref_mut()).await?;
 		let all = connections.into_iter().map(|(_name, svc)| {
 			let request = request.clone();
 			async move {
@@ -368,7 +364,7 @@ impl ServerHandler for Relay {
 		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "list_resource_templates")?;
 
 		let mut pool = self.pool.write().await;
-		let connections = self.list_conns(&context, rq_ctx, pool.deref_mut()).await?;
+		let connections = self.list_conns(&context, pool.deref_mut()).await?;
 		let all = connections.into_iter().map(|(_name, svc)| {
 			let request = request.clone();
 			async move {
@@ -407,7 +403,7 @@ impl ServerHandler for Relay {
 		let (_span, ref rq_ctx) = Self::setup_request(&context.extensions, "list_prompts")?;
 
 		let mut pool = self.pool.write().await;
-		let connections = self.list_conns(&context, rq_ctx, pool.deref_mut()).await?;
+		let connections = self.list_conns(&context, pool.deref_mut()).await?;
 
 		let all = connections.into_iter().map(|(_name, svc)| {
 			let request = request.clone();
@@ -550,8 +546,7 @@ impl ServerHandler for Relay {
 	) -> std::result::Result<ListToolsResult, McpError> {
 		let (_span, ref rq_ctx, _, cel) = Self::setup_request_log(&context.extensions, "list_tools")?;
 		let mut pool = self.pool.write().await;
-		let connections = self.list_conns(&context, rq_ctx, pool.deref_mut()).await?;
-		let multi = connections.len() > 1;
+		let connections = self.list_conns(&context, pool.deref_mut()).await?;
 		let all = connections.into_iter().map(|(_name, svc_arc)| {
 			let request = request.clone();
 			let cel = cel.clone();

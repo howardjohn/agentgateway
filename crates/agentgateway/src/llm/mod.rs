@@ -118,11 +118,11 @@ pub enum RequestResult {
 impl AIProvider {
 	pub fn provider(&self) -> Strng {
 		match self {
-			AIProvider::OpenAI(p) => openai::Provider::NAME,
-			AIProvider::Anthropic(p) => anthropic::Provider::NAME,
-			AIProvider::Gemini(p) => gemini::Provider::NAME,
-			AIProvider::Vertex(p) => vertex::Provider::NAME,
-			AIProvider::Bedrock(p) => bedrock::Provider::NAME,
+			AIProvider::OpenAI(_p) => openai::Provider::NAME,
+			AIProvider::Anthropic(_p) => anthropic::Provider::NAME,
+			AIProvider::Gemini(_p) => gemini::Provider::NAME,
+			AIProvider::Vertex(_p) => vertex::Provider::NAME,
+			AIProvider::Bedrock(_p) => bedrock::Provider::NAME,
 		}
 	}
 	pub fn default_connector(&self) -> (Target, BackendPolicies) {

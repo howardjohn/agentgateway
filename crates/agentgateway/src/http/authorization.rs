@@ -1,5 +1,5 @@
 use agent_core::bow::OwnedOrBorrowed;
-use serde::ser::{SerializeMap, SerializeSeq};
+use serde::ser::{SerializeMap};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::cel::{ContextBuilder, Executor};
@@ -14,7 +14,6 @@ impl HTTPAuthorizationSet {
 	}
 	pub fn apply(
 		&self,
-		req: &mut crate::http::Request,
 		exec: &cel::Executor<'_>,
 	) -> anyhow::Result<()> {
 		tracing::debug!("Checking HTTP request");

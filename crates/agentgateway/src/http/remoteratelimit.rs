@@ -1,5 +1,4 @@
 use ::http::{HeaderMap, StatusCode};
-use tokio_stream::StreamExt;
 
 use crate::cel::{Executor, Expression};
 use crate::http::ext_proc::GrpcReferenceChannel;
@@ -93,7 +92,6 @@ impl LLMResponseAmend {
 impl RemoteRateLimit {
 	fn build_request(
 		&self,
-		req: &mut Request,
 		exec: &Executor<'_>,
 		limit_type: RateLimitType,
 		cost: Option<u64>,
@@ -126,7 +124,6 @@ impl RemoteRateLimit {
 		client: PolicyClient,
 		req: &mut Request,
 		exec: &Executor<'_>,
-		limit_type: RateLimitType,
 		cost: u64,
 	) -> Result<(PolicyResponse, Option<LLMResponseAmend>), ProxyError> {
 		if !self
@@ -138,7 +135,7 @@ impl RemoteRateLimit {
 			// Nothing to do
 			return Ok((PolicyResponse::default(), None));
 		}
-		let request = self.build_request(req, exec, RateLimitType::Tokens, Some(cost));
+		let request = self.build_request(exec, RateLimitType::Tokens, Some(cost));
 		let cr = self.check_internal(client.clone(), request.clone()).await;
 		let r = LLMResponseAmend {
 			base: self.clone(),
@@ -165,7 +162,7 @@ impl RemoteRateLimit {
 			// Nothing to do
 			return Ok(PolicyResponse::default());
 		}
-		let request = self.build_request(req, exec, RateLimitType::Requests, None);
+		let request = self.build_request(exec, RateLimitType::Requests, None);
 		let cr = self.check_internal(client, request).await?;
 		Self::apply(req, cr)
 	}

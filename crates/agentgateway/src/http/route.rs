@@ -4,7 +4,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use agent_core::strng;
-use itertools::Itertools;
 
 use crate::http::Request;
 use crate::types::agent;
@@ -123,10 +122,10 @@ pub fn select_best_route(
 	};
 	for hnm in agent::HostnameMatch::all_matches(&host) {
 		let mut candidates = listener.routes.get_hostname(&hnm);
-		let best_match = candidates.find(|(r, m)| {
+		let best_match = candidates.find(|(_, m)| {
 			let path_matches = match &m.path {
 				PathMatch::Exact(p) => request.uri().path() == p.as_str(),
-				PathMatch::Regex(r, rlen) => {
+				PathMatch::Regex(r, _) => {
 					// Regex has no defined ordering. We will order by the length of the regex expression.
 					let path = request.uri().path();
 					r.find(path)

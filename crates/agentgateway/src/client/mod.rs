@@ -102,7 +102,7 @@ impl tower::Service<::http::Extensions> for Connector {
 		let it = self.clone();
 
 		Box::pin(async move {
-			let PoolKey(target, ep, transport, ver) =
+			let PoolKey(target, ep, transport, _) =
 				dst.remove::<PoolKey>().expect("pool key must be set");
 
 			match transport {
@@ -276,7 +276,7 @@ impl Client {
 		let resp = match TIMEOUT {
 			Some(to) => match tokio::time::timeout(to, self.client.request(req)).await {
 				Ok(res) => res.map_err(ProxyError::UpstreamCallFailed),
-				Err(to) => Err(ProxyError::RequestTimeout),
+				Err(_) => Err(ProxyError::RequestTimeout),
 			},
 			None => self
 				.client

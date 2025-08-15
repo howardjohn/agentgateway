@@ -41,12 +41,8 @@ pub struct ChatCompletionError {
 	pub event_id: Option<String>,
 }
 
-pub const DEVELOPER_ROLE: &str = "developer";
 pub const SYSTEM_ROLE: &str = "system";
 pub const ASSISTANT_ROLE: &str = "assistant";
-pub const TOOL_ROLE: &str = "tool";
-pub const FUNCTION_ROLE: &str = "function";
-pub const USER_ROLE: &str = "user";
 
 pub fn message_role(msg: &RequestMessage) -> &'static str {
 	match msg {
@@ -76,15 +72,11 @@ pub fn message_text(msg: &RequestMessage) -> Option<&str> {
 	match msg {
 		RequestMessage::Developer(RequestDeveloperMessage {
 			content: RequestDeveloperMessageContent::Text(t),
-			name,
-		}) => Some(t.as_str()),
-		RequestMessage::Developer(RequestDeveloperMessage {
-			content: RequestDeveloperMessageContent::Text(t),
-			name,
+			..
 		}) => Some(t.as_str()),
 		RequestMessage::System(RequestSystemMessage {
 			content: RequestSystemMessageContent::Text(t),
-			name,
+			..
 		}) => Some(t.as_str()),
 		RequestMessage::Assistant(RequestAssistantMessage {
 			content: Some(RequestAssistantMessageContent::Text(t)),

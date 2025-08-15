@@ -45,16 +45,6 @@ pub enum ResourceType {
 	Resource(ResourceId),
 }
 
-impl ResourceType {
-	fn target(&self) -> &str {
-		match self {
-			ResourceType::Tool(r) => &r.target,
-			ResourceType::Prompt(r) => &r.target,
-			ResourceType::Resource(r) => &r.target,
-		}
-	}
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]

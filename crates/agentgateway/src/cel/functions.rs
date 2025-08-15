@@ -6,7 +6,6 @@ use ::cel::extractors::{Identifier, This};
 use ::cel::objects::{Key, Map, ValueType};
 use ::cel::parser::Expression;
 use ::cel::{Context, FunctionContext, ResolveResult, Value};
-use base64::Engine;
 use once_cell::sync::Lazy;
 use rand::random_range;
 

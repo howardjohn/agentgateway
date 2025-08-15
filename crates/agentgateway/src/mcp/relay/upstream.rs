@@ -1,7 +1,9 @@
 use serde::Serialize;
 
 use super::*;
+#[allow(unused_imports)]
 use crate::*;
+
 pub(crate) enum UpstreamError {
 	ServiceError(rmcp::ServiceError),
 	OpenAPIError(anyhow::Error),

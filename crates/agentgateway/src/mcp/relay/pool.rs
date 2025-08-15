@@ -1,7 +1,7 @@
 use agent_core::prelude::*;
 use anyhow::anyhow;
 use futures::stream::BoxStream;
-use futures::{FutureExt, StreamExt};
+use futures::{StreamExt};
 use http::Uri;
 use http::header::CONTENT_TYPE;
 use reqwest::header::ACCEPT;
@@ -16,7 +16,7 @@ use rmcp::transport::streamable_http_client::{
 	StreamableHttpClient, StreamableHttpClientTransportConfig, StreamableHttpError,
 	StreamableHttpPostResponse,
 };
-use rmcp::transport::{SseClientTransport, StreamableHttpClientTransport, Transport};
+use rmcp::transport::{SseClientTransport, StreamableHttpClientTransport};
 use rmcp::{ClientHandler, ServiceError};
 use sse_stream::{Error as SseError, Sse, SseStream};
 
@@ -57,8 +57,8 @@ impl ConnectionPool {
 
 	pub(crate) async fn get(
 		&mut self,
-		rq_ctx: &RqCtx,
-		peer: &Peer<RoleServer>,
+		_rq_ctx: &RqCtx,
+		_peer: &Peer<RoleServer>,
 		name: &str,
 	) -> anyhow::Result<&upstream::UpstreamTarget> {
 		if !self.stateful {
@@ -92,7 +92,6 @@ impl ConnectionPool {
 
 	pub(crate) async fn initialize(
 		&mut self,
-		rq_ctx: &RqCtx,
 		peer: &Peer<RoleServer>,
 		request: InitializeRequestParam,
 	) -> anyhow::Result<Vec<(Strng, &upstream::UpstreamTarget)>> {
@@ -103,7 +102,7 @@ impl ConnectionPool {
 			let ct = tokio_util::sync::CancellationToken::new(); //TODO
 			debug!("initializing target: {}", tgt.name);
 			self
-				.connect(rq_ctx, &ct, &tgt, peer, request.clone())
+				.connect(&ct, &tgt, peer, request.clone())
 				.await
 				.map_err(|e| {
 					error!("Failed to connect target {}: {}", tgt.name, e);
@@ -161,7 +160,6 @@ impl ConnectionPool {
     )]
 	pub(crate) async fn stateless_connect(
 		&self,
-		rq_ctx: &RqCtx,
 		ct: &tokio_util::sync::CancellationToken,
 		service_name: &str,
 		peer: &Peer<RoleServer>,
@@ -175,13 +173,12 @@ impl ConnectionPool {
 			.ok_or_else(|| McpError::invalid_request(format!("Target {service_name} not found"), None))?;
 
 		self
-			.inner_connect(rq_ctx, ct, target, peer, init_request)
+			.inner_connect(ct, target, peer, init_request)
 			.await
 	}
 
 	async fn inner_connect(
 		&self,
-		rq_ctx: &RqCtx,
 		ct: &tokio_util::sync::CancellationToken,
 		target: &McpTarget,
 		peer: &Peer<RoleServer>,
@@ -214,7 +211,6 @@ impl ConnectionPool {
 						serve_client_with_ct(
 							PeerClientHandler {
 								peer: peer.clone(),
-								peer_client: None,
 								init_request,
 							},
 							transport,
@@ -249,7 +245,6 @@ impl ConnectionPool {
 						serve_client_with_ct(
 							PeerClientHandler {
 								peer: peer.clone(),
-								peer_client: None,
 								init_request,
 							},
 							transport,
@@ -271,7 +266,6 @@ impl ConnectionPool {
 						serve_client_with_ct(
 							PeerClientHandler {
 								peer: peer.clone(),
-								peer_client: None,
 								init_request,
 							},
 							TokioChildProcess::new(c).context(format!("failed to run command '{cmd}'"))?,
@@ -318,7 +312,6 @@ impl ConnectionPool {
 
 	pub(crate) async fn connect(
 		&mut self,
-		rq_ctx: &RqCtx,
 		ct: &tokio_util::sync::CancellationToken,
 		target: &McpTarget,
 		peer: &Peer<RoleServer>,
@@ -332,7 +325,7 @@ impl ConnectionPool {
 		}
 
 		let transport = self
-			.inner_connect(rq_ctx, ct, target, peer, init_request)
+			.inner_connect(ct, target, peer, init_request)
 			.await?;
 
 		// In stateless mode, this just overwrites the existing entry
@@ -345,7 +338,6 @@ impl ConnectionPool {
 #[derive(Debug, Clone)]
 pub(crate) struct PeerClientHandler {
 	peer: Peer<RoleServer>,
-	peer_client: Option<Peer<RoleClient>>,
 	init_request: InitializeRequestParam,
 }
 
@@ -492,7 +484,7 @@ impl StreamableHttpClient for ClientWrapper {
 		uri: Arc<str>,
 		message: ClientJsonRpcMessage,
 		session_id: Option<Arc<str>>,
-		auth_header: Option<String>,
+		_auth_header: Option<String>,
 	) -> Result<StreamableHttpPostResponse, StreamableHttpError<Self::Error>> {
 		let client = self.client.clone();
 
@@ -566,7 +558,7 @@ impl StreamableHttpClient for ClientWrapper {
 		&self,
 		uri: Arc<str>,
 		session_id: Arc<str>,
-		auth_header: Option<String>,
+		_auth_header: Option<String>,
 	) -> Result<(), StreamableHttpError<Self::Error>> {
 		let client = self.client.clone();
 
@@ -605,7 +597,7 @@ impl StreamableHttpClient for ClientWrapper {
 		uri: Arc<str>,
 		session_id: Arc<str>,
 		last_event_id: Option<String>,
-		auth_header: Option<String>,
+		_auth_header: Option<String>,
 	) -> Result<BoxStream<'static, Result<Sse, SseError>>, StreamableHttpError<Self::Error>> {
 		let client = self.client.clone();
 
@@ -666,7 +658,7 @@ impl SseClient for ClientWrapper {
 		&self,
 		uri: Uri,
 		message: ClientJsonRpcMessage,
-		auth_token: Option<String>,
+		_auth_token: Option<String>,
 	) -> Result<(), SseTransportError<Self::Error>> {
 		let uri = "http://".to_string()
 			+ &self.backend.hostport()
@@ -718,7 +710,7 @@ impl SseClient for ClientWrapper {
 		&self,
 		uri: Uri,
 		last_event_id: Option<String>,
-		auth_token: Option<String>,
+		_auth_token: Option<String>,
 	) -> impl Future<Output = Result<BoxedSseResponse, SseTransportError<Self::Error>>> + Send + '_ {
 		Box::pin(async move {
 			let uri = "http://".to_string()

@@ -2,9 +2,7 @@ use std::collections::HashMap;
 use std::time::SystemTime;
 
 use ::http::{HeaderMap, StatusCode};
-use itertools::Itertools;
 use prost_types::Timestamp;
-use tokio_stream::StreamExt;
 
 use crate::http::ext_authz::proto::attribute_context::HttpRequest;
 use crate::http::ext_authz::proto::authorization_client::AuthorizationClient;
@@ -146,8 +144,8 @@ impl ExtAuthz {
 				headers,
 				headers_to_remove,
 				response_headers_to_add,
-				query_parameters_to_set,
-				query_parameters_to_remove,
+				query_parameters_to_set: _,
+				query_parameters_to_remove: _,
 				..
 			}) => {
 				// Handle headers to remove
@@ -156,12 +154,12 @@ impl ExtAuthz {
 				}
 
 				process_headers(req.headers_mut(), headers);
-				for param in query_parameters_to_set {
+				// for param in query_parameters_to_set {
 					// TODO
-				}
-				for param_name in query_parameters_to_remove {
+				// }
+				// for param_name in query_parameters_to_remove {
 					// TODO
-				}
+				// }
 				if !response_headers_to_add.is_empty() {
 					let mut hm = HeaderMap::new();
 					process_headers(&mut hm, response_headers_to_add);

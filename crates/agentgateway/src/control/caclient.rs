@@ -316,7 +316,6 @@ enum CertificateState {
 
 #[derive(Debug)]
 pub struct CaClient {
-	config: Config,
 	state: watch::Receiver<CertificateState>,
 	_fetcher_handle: tokio::task::JoinHandle<()>,
 }
@@ -336,7 +335,6 @@ impl CaClient {
 		});
 
 		Ok(Self {
-			config,
 			state: state_rx,
 			_fetcher_handle: fetcher_handle,
 		})

@@ -11,10 +11,8 @@ use crate::control::caclient;
 use crate::telemetry::log::{LoggingFields, MetricFields};
 use crate::telemetry::trc;
 use crate::types::discovery::Identity;
-use crate::{
-	Address, Config, ConfigSource, NestedRawConfig, ThreadingMode, XDSConfig, cel, client, serdes,
-	telemetry,
-};
+use crate::{Address, Config, ConfigSource, NestedRawConfig, ThreadingMode, XDSConfig, cel, client, serdes,
+	telemetry, StringOrInt};
 
 pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Result<Config> {
 	let nested: NestedRawConfig = serdes::yamlviajson::from_str(&contents)?;
@@ -79,7 +77,7 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 	} else {
 		None
 	};
-	let ca_address = validate_uri(empty_to_none(parse("CA_ADDRESS")?))?;
+	let ca_address = validate_uri(empty_to_none(parse("CA_ADDRESS")?).or(raw.ca_address))?;
 	let ca = if let Some(addr) = ca_address {
 		let td = parse("TRUST_DOMAIN")?
 			.or(raw.trust_domain)
@@ -190,7 +188,7 @@ pub fn parse_config(contents: String, filename: Option<PathBuf>) -> anyhow::Resu
 		self_addr,
 		xds,
 		ca,
-		num_worker_threads: parse_worker_threads()?,
+		num_worker_threads: parse_worker_threads(raw.worker_threads)?,
 		termination_min_deadline,
 		threading_mode,
 		termination_max_deadline: match termination_max_deadline {
@@ -387,9 +385,6 @@ fn parse_duration(env: &str) -> anyhow::Result<Option<Duration>> {
 		})
 		.transpose()
 }
-fn parse_duration_default(env: &str, default: Duration) -> anyhow::Result<Duration> {
-	parse_duration(env).map(|v| v.unwrap_or(default))
-}
 
 pub fn empty_to_none<A: AsRef<str>>(inp: Option<A>) -> Option<A> {
 	if let Some(inner) = &inp
@@ -412,8 +407,8 @@ fn validate_uri(uri_str: Option<String>) -> anyhow::Result<Option<String>> {
 }
 
 /// Parse worker threads configuration, supporting both fixed numbers and percentages
-fn parse_worker_threads() -> anyhow::Result<usize> {
-	match parse::<String>("WORKER_THREADS")? {
+fn parse_worker_threads(cfg: Option<StringOrInt>) -> anyhow::Result<usize> {
+	match parse::<String>("WORKER_THREADS")?.or_else(|| cfg.map(|cfg| cfg.0)) {
 		Some(value) => {
 			if let Some(percent_str) = value.strip_suffix('%') {
 				// Parse as percentage

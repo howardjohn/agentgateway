@@ -13,8 +13,6 @@ pub struct Metrics {
 	list_calls: Family<ListCall, Counter>,
 	read_resource_calls: Family<GetResourceCall, Counter>,
 	get_prompt_calls: Family<GetPromptCall, Counter>,
-
-	additional_tags: Option<HashMap<String, String>>,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
@@ -58,7 +56,7 @@ pub struct ToolCallError {
 }
 
 impl Metrics {
-	pub fn new(registry: &mut Registry, additional_tags: Option<HashMap<String, String>>) -> Self {
+	pub fn new(registry: &mut Registry, _additional_tags: Option<HashMap<String, String>>) -> Self {
 		let tool_calls = Family::default();
 		registry.register(
 			"tool_calls",
@@ -100,45 +98,38 @@ impl Metrics {
 			list_calls,
 			read_resource_calls,
 			get_prompt_calls,
-			additional_tags,
 		}
 	}
 
 	#[allow(clippy::ptr_arg)]
-	fn add_additional_tags(&self, params: &mut Vec<(String, String)>) {
-		let Some(tags) = &self.additional_tags else {
-			return;
-		};
-		for (k, v) in tags {
-			// TODO
-			// params.push((k.to_string(), v))
-		}
+	fn add_additional_tags(&self, _params: &mut Vec<(String, String)>) {
+		// TODO
 	}
 }
 
 impl Recorder<ToolCall, ()> for Metrics {
-	fn record(&self, mut tool_call: ToolCall, identity: ()) {
+	fn record(&self, mut tool_call: ToolCall, _: ()) {
 		self.add_additional_tags(&mut tool_call.params);
 		self.tool_calls.get_or_create(&tool_call).inc();
 	}
 }
 
 impl Recorder<ToolCallError, ()> for Metrics {
-	fn record(&self, mut tool_call_error: ToolCallError, identity: ()) {
+	fn record(&self, mut tool_call_error: ToolCallError, _: ()) {
 		self.add_additional_tags(&mut tool_call_error.params);
 		self.tool_call_errors.get_or_create(&tool_call_error).inc();
 	}
 }
 
 impl Recorder<ListCall, ()> for Metrics {
-	fn record(&self, mut list_call: ListCall, identity: ()) {
+	fn record(&self, mut list_call: ListCall, _: ()) {
 		self.add_additional_tags(&mut list_call.params);
 		self.list_calls.get_or_create(&list_call).inc();
 	}
 }
 
 impl Recorder<GetResourceCall, ()> for Metrics {
-	fn record(&self, mut get_resource_call: GetResourceCall, identity: ()) {
+	fn record(&self, mut get_resource_call: GetResourceCall, _: ()) {
 		self.add_additional_tags(&mut get_resource_call.params);
 		self
 			.read_resource_calls
@@ -148,7 +139,7 @@ impl Recorder<GetResourceCall, ()> for Metrics {
 }
 
 impl Recorder<GetPromptCall, ()> for Metrics {
-	fn record(&self, mut get_prompt_call: GetPromptCall, identity: ()) {
+	fn record(&self, mut get_prompt_call: GetPromptCall, _: ()) {
 		self.add_additional_tags(&mut get_prompt_call.params);
 		self.get_prompt_calls.get_or_create(&get_prompt_call).inc();
 	}

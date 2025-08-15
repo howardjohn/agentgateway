@@ -3,70 +3,21 @@
 use std::convert::Infallible;
 use std::future::Future;
 use std::net::SocketAddr;
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 use std::time::Duration;
 
 use agent_core::drain::DrainWatcher;
 use futures_util::TryFutureExt;
-use hyper::rt::Sleep;
-use hyper::server::conn::{http1, http2};
-use hyper::{Request, client};
-use hyper_util::rt::{TokioExecutor, TokioTimer};
+use hyper::server::conn::{http1};
+use hyper::{Request};
+use hyper_util::rt::{TokioTimer};
 use tokio::net::TcpListener;
 use tracing::info;
 
 use crate::http::{Body, Response};
 
-struct TokioTimeout<T> {
-	inner: Pin<Box<tokio::time::Timeout<T>>>,
-}
-
-impl<T> Future for TokioTimeout<T>
-where
-	T: Future,
-{
-	type Output = Result<T::Output, tokio::time::error::Elapsed>;
-
-	fn poll(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
-		self.inner.as_mut().poll(context)
-	}
-}
-
-// Use TokioSleep to get tokio::time::Sleep to implement Unpin.
-// see https://docs.rs/tokio/latest/tokio/time/struct.Sleep.html
-pub struct TokioSleep {
-	pub inner: Pin<Box<tokio::time::Sleep>>,
-}
-
-impl Future for TokioSleep {
-	type Output = ();
-
-	fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-		self.inner.as_mut().poll(cx)
-	}
-}
-
-// Use HasSleep to get tokio::time::Sleep to implement Unpin.
-// see https://docs.rs/tokio/latest/tokio/time/struct.Sleep.html
-
-impl Sleep for TokioSleep {}
-
-pub fn http2_server() -> http2::Builder<TokioExecutor> {
-	let mut b = http2::Builder::new(TokioExecutor::new());
-	b.timer(TokioTimer::new());
-	b
-}
-
 pub fn http1_server() -> http1::Builder {
 	let mut b = http1::Builder::new();
-	b.timer(TokioTimer::new());
-	b
-}
-
-pub fn http2_client() -> client::conn::http2::Builder<TokioExecutor> {
-	let mut b = client::conn::http2::Builder::new(TokioExecutor::new());
 	b.timer(TokioTimer::new());
 	b
 }

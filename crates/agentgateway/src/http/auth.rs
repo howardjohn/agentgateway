@@ -115,7 +115,7 @@ pub async fn apply_late_backend_auth(
 	};
 	match auth {
 		BackendAuth::Passthrough {} => {},
-		BackendAuth::Key(k) => {},
+		BackendAuth::Key(_) => {},
 		BackendAuth::Gcp {} => {},
 		BackendAuth::Aws(aws_auth) => {
 			aws::sign_request(req, aws_auth)
@@ -231,7 +231,7 @@ mod aws {
 						.ok()
 						.map(|v_str| (k.as_str(), v_str))
 				})
-				.filter(|(k, v)| k != &http::header::CONTENT_LENGTH),
+				.filter(|(k, _)| k != &http::header::CONTENT_LENGTH),
 			// SignableBody::UnsignedPayload,
 			SignableBody::Bytes(body.as_ref()),
 		)?;

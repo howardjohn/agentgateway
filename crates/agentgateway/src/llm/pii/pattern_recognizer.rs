@@ -5,22 +5,16 @@ use super::recognizer_result::RecognizerResult;
 
 #[derive(Debug)]
 pub struct Pattern {
+	#[allow(dead_code)]
 	pub name: String,
 	pub regex: Regex,
 	pub score: f32,
 }
 
-pub trait PatternValidator {
-	fn validate(&self, pattern_text: &str) -> Option<bool> {
-		None
-	}
-	fn invalidate(&self, pattern_text: &str) -> Option<bool> {
-		None
-	}
-}
 
 pub struct PatternRecognizer {
 	patterns: Vec<Pattern>,
+	#[allow(dead_code)]
 	context: Vec<String>,
 	entity_type: String,
 	// validator: Option<&'a dyn PatternValidator>,
