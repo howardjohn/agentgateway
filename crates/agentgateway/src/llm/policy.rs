@@ -1,9 +1,9 @@
-use crate::llm::SimpleChatCompletionMessage;
+use std::ops::Deref;
+
 use ::http::HeaderMap;
 use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionRequest};
 use axum::body::to_bytes;
 use bytes::Bytes;
-use std::ops::Deref;
 
 use crate::client;
 use crate::http::auth::BackendAuth;
@@ -11,7 +11,7 @@ use crate::http::auth::SimpleBackendAuth;
 use crate::http::jwt::Claims;
 use crate::http::{Response, StatusCode, auth, inspect_body};
 use crate::llm::policy::webhook::{MaskActionBody, Message, RequestAction};
-use crate::llm::{AIError, pii, universal};
+use crate::llm::{AIError, SimpleChatCompletionMessage, pii, universal};
 use crate::types::agent::Target;
 use crate::*;
 

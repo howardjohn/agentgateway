@@ -180,12 +180,10 @@ pub mod insecure {
 pub mod trustdomain {
 
 	use std::fmt::Debug;
-
 	use std::sync::Arc;
 
 	use rustls::client::danger::HandshakeSignatureValid;
 	use rustls::pki_types::{CertificateDer, UnixTime};
-
 	use rustls::server::danger::{ClientCertVerified, ClientCertVerifier};
 	use rustls::{DigitallySignedStruct, DistinguishedName, SignatureScheme};
 
@@ -283,13 +281,11 @@ pub mod trustdomain {
 pub mod identity {
 
 	use std::fmt::Debug;
-
 	use std::sync::Arc;
 
 	use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 	use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 	use rustls::server::ParsedCertificate;
-
 	use rustls::{DigitallySignedStruct, SignatureScheme};
 	use tracing::debug;
 

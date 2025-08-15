@@ -128,7 +128,6 @@ pub async fn apply_late_backend_auth(
 
 mod gcp {
 	use anyhow::anyhow;
-
 	use google_cloud_auth::credentials;
 	use google_cloud_auth::credentials::CacheableResource;
 	use google_cloud_auth::errors::CredentialsError;
