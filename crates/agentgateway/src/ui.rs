@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::extract::{Path, State};
+use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
-use axum::routing::{get, post};
+use axum::routing::get;
 use axum::{Json, Router};
 use http::header::{AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
 use http::{HeaderName, HeaderValue, Method};
@@ -16,7 +16,7 @@ use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use tower_serve_static::ServeDir;
 
-use crate::management::admin::{AdminFallback, AdminResponse, ConfigDumpHandler};
+use crate::management::admin::{AdminFallback, AdminResponse};
 use crate::{Config, ConfigSource, client, yamlviajson};
 pub struct UiHandler {
 	router: Router,

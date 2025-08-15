@@ -83,7 +83,7 @@ pub async fn run(config: Arc<Config>) -> anyhow::Result<Bound> {
 	// Run the XDS state manager in the current tokio worker pool.
 	tokio::spawn(state_mgr.run());
 
-	let admin_server = crate::management::admin::Service::new(
+	let mut admin_server = crate::management::admin::Service::new(
 		config.clone(),
 		stores.clone(),
 		shutdown.trigger(),
