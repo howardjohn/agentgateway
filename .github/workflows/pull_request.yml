@@ -60,9 +60,7 @@ jobs:
         sudo apt-get install -y musl-tools
         rustup target add ${{ matrix.target }}
     - name: Build
-      run: make build
-      env:
-        CARGO_BUILD_ARGS: "--target ${{ matrix.target }} -F ${{ matrix.features }} --profile quick-release"
+      run: "cargo build --features ui --target ${{ matrix.target }} -F ${{ matrix.features }} --profile quick-release"
 
   test:
     runs-on: ubuntu-latest
