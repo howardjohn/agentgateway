@@ -1,17 +1,19 @@
-use agent_core::prelude::Strng;
-use agent_core::strng;
-use async_openai::types::FinishReason;
-use bytes::Bytes;
-use chrono;
-
 use crate::http::{Body, Response};
 use crate::llm::anthropic::types::{
 	ContentBlock, ContentBlockDelta, MessagesErrorResponse, MessagesRequest, MessagesResponse,
 	MessagesStreamEvent, StopReason,
 };
+use crate::llm::universal::{RequestAssistantMessageContent, RequestSystemMessage};
 use crate::llm::{AIError, LLMResponse, universal};
 use crate::telemetry::log::AsyncLog;
 use crate::{parse, *};
+use agent_core::prelude::Strng;
+use agent_core::strng;
+use async_openai::types::FinishReason;
+use bytes::Bytes;
+use chrono;
+use itertools::Itertools;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -216,7 +218,7 @@ pub(super) fn translate_request(req: universal::Request) -> types::MessagesReque
 	};
 	types::MessagesRequest {
 		messages,
-		system,
+		system: if system.is_empty() { None } else { Some(system) },
 		model: req.model,
 		max_tokens,
 		stop_sequences,
@@ -324,6 +326,176 @@ pub(super) fn translate_stream(b: Body, log: AsyncLog<LLMResponse>) -> Body {
 	})
 }
 
+pub(super) fn translate_anthropic_request(req: types::MessagesRequest) -> universal::Request {
+	let mut messages: Vec<universal::RequestMessage> = Vec::new();
+
+	// Handle the system prompt
+	if let Some(system) = req.system {
+		messages.push(universal::RequestMessage::System(
+			RequestSystemMessage::from(system),
+		));
+	}
+
+	// Convert messages from Anthropic to universal format
+	for msg in req.messages {
+		match msg.role {
+			types::Role::User => {
+				let mut user_text = String::new();
+				for block in msg.content {
+					match block {
+						types::ContentBlock::Text { text } => {
+							if !user_text.is_empty() {
+								user_text.push_str("\n");
+							}
+							user_text.push_str(&text);
+						},
+						types::ContentBlock::ToolResult {
+							tool_use_id,
+							content,
+						} => {
+							messages.push(
+								universal::RequestToolMessage {
+									tool_call_id: tool_use_id,
+									content: content.into(),
+								}
+								.into(),
+							);
+						},
+						// Image content is not directly supported in universal::Message::User in this form.
+						// This would require a different content format not represented here.
+						types::ContentBlock::Image { .. } => {}, // Image content is not directly supported in universal::Message::User in this form.
+						// This would require a different content format not represented here.
+						// ToolUse blocks are expected from assistants, not users.
+						types::ContentBlock::ToolUse { .. } => {}, // ToolUse blocks are expected from assistants, not users.
+					}
+				}
+				if !user_text.is_empty() {
+					messages.push(
+						universal::RequestUserMessage {
+							content: user_text.into(),
+							name: None,
+						}
+						.into(),
+					);
+				}
+			},
+			types::Role::Assistant => {
+				let mut assistant_text = None;
+				let mut tool_calls = Vec::new();
+				for block in msg.content {
+					match block {
+						types::ContentBlock::Text { text } => {
+							assistant_text = Some(text);
+						},
+						types::ContentBlock::ToolUse { id, name, input } => {
+							tool_calls.push(universal::MessageToolCall {
+								id,
+								r#type: universal::ToolType::Function,
+								function: universal::FunctionCall {
+									name,
+									// It's assumed that the input is a JSON object that can be stringified.
+									arguments: serde_json::to_string(&input).unwrap_or_default(),
+								},
+							});
+						},
+						// Other content block types are not expected from the assistant in a request.
+						_ => {},
+					}
+				}
+				if assistant_text.is_some() || !tool_calls.is_empty() {
+					messages.push(
+						universal::RequestAssistantMessage {
+							content: assistant_text.map(Into::into),
+							tool_calls: if tool_calls.is_empty() {
+								None
+							} else {
+								Some(tool_calls)
+							},
+
+							name: None,
+							refusal: None,
+							audio: None,
+							function_call: None,
+						}
+						.into(),
+					);
+				}
+			},
+		}
+	}
+
+	let tools = req
+		.tools
+		.into_iter()
+		.flat_map(|tools| tools.into_iter())
+		.map(|tool| universal::Tool {
+			r#type: universal::ToolType::Function,
+			function: universal::FunctionObject {
+				name: tool.name,
+				description: tool.description,
+				parameters: Some(tool.input_schema),
+				strict: None,
+			},
+		})
+		.collect_vec();
+	let tool_choice = req.tool_choice.map(|choice| match choice {
+		types::ToolChoice::Auto => universal::ToolChoiceOption::Auto,
+		types::ToolChoice::Any => universal::ToolChoiceOption::Required,
+		types::ToolChoice::Tool { name } => {
+			universal::ToolChoiceOption::Named(universal::NamedToolChoice {
+				r#type: universal::ToolType::Function,
+				function: universal::FunctionName { name },
+			})
+		},
+		types::ToolChoice::None => universal::ToolChoiceOption::None,
+	});
+
+	universal::Request {
+		model: req.model,
+		messages,
+		stream: Some(req.stream),
+		temperature: req.temperature,
+		top_p: req.top_p,
+		max_completion_tokens: Some(req.max_tokens as u32),
+		stop: if req.stop_sequences.is_empty() {
+			None
+		} else {
+			Some(universal::Stop::StringArray(req.stop_sequences))
+		},
+		tools: if tools.is_empty() { None } else { Some(tools) },
+		tool_choice,
+		parallel_tool_calls: None,
+		user: req.metadata.and_then(|m| m.fields.get("user_id").cloned()),
+		// The following fields from Anthropic's API are not supported by OpenAI's API
+		// and are therefore ignored during translation:
+		// - top_k
+		// The following OpenAI fields are not supported by Anthropic and are set to None:
+		frequency_penalty: None,
+		logit_bias: None,
+		logprobs: None,
+		top_logprobs: None,
+		n: None,
+		modalities: None,
+		prediction: None,
+		audio: None,
+		presence_penalty: None,
+		response_format: None,
+		seed: None,
+		#[allow(deprecated)]
+		function_call: None,
+		#[allow(deprecated)]
+		functions: None,
+		metadata: None,
+		// use modern max_completion_tokens
+		max_tokens: None,
+		service_tier: None,
+		web_search_options: None,
+		stream_options: None,
+		store: None,
+		reasoning_effort: None,
+	}
+}
+
 fn translate_stop_reason(resp: &types::StopReason) -> FinishReason {
 	match resp {
 		StopReason::EndTurn => universal::FinishReason::Stop,
@@ -334,7 +506,7 @@ fn translate_stop_reason(resp: &types::StopReason) -> FinishReason {
 	}
 }
 pub(super) mod types {
-	use serde::{Deserialize, Serialize};
+	use serde::{Deserialize, Deserializer, Serialize};
 
 	use crate::serdes::is_default;
 
@@ -372,26 +544,49 @@ pub(super) mod types {
 		},
 	}
 
-	#[derive(Clone, Serialize, Debug, PartialEq, Eq)]
+	#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
 	#[serde(rename_all = "snake_case")]
 	pub struct Message {
 		pub role: Role,
+		#[serde(deserialize_with = "deserialize_content")]
 		pub content: Vec<ContentBlock>,
 	}
 
-	#[derive(Serialize, Default, Debug)]
+	// Custom deserializer that handles both string and array formats
+	fn deserialize_content<'de, D>(deserializer: D) -> Result<Vec<ContentBlock>, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		use serde::de::Error;
+		use serde_json::Value;
+
+		let value = Value::deserialize(deserializer)?;
+
+		match value {
+			// If it's a string, wrap it in a Text content block
+			Value::String(text) => Ok(vec![ContentBlock::Text { text }]),
+			// If it's an array, deserialize normally
+			Value::Array(_) => Vec::<ContentBlock>::deserialize(value).map_err(D::Error::custom),
+			// Reject other types
+			_ => Err(D::Error::custom(
+				"content must be either a string or an array",
+			)),
+		}
+	}
+
+	#[derive(Deserialize, Serialize, Default, Debug)]
 	pub struct MessagesRequest {
 		/// The User/Assistent prompts.
 		pub messages: Vec<Message>,
 		/// The System prompt.
-		#[serde(skip_serializing_if = "String::is_empty")]
-		pub system: String,
+		#[serde(skip_serializing_if = "Option::is_none")]
+		pub system: Option<String>,
 		/// The model to use.
 		pub model: String,
 		/// The maximum number of tokens to generate before stopping.
 		pub max_tokens: usize,
 		/// The stop sequences to use.
-		#[serde(skip_serializing_if = "Vec::is_empty")]
+		#[serde(default, skip_serializing_if = "Vec::is_empty")]
 		pub stop_sequences: Vec<String>,
 		/// Whether to incrementally stream the response.
 		#[serde(default, skip_serializing_if = "is_default")]

@@ -1,3 +1,4 @@
+use async_openai::types::CreateChatCompletionRequest;
 pub use async_openai::types::{
 	ChatChoice, ChatChoiceStream, ChatCompletionMessageToolCall as MessageToolCall,
 	ChatCompletionNamedToolChoice as NamedToolChoice,
@@ -14,13 +15,12 @@ pub use async_openai::types::{
 	ChatCompletionRequestUserMessage as RequestUserMessage,
 	ChatCompletionRequestUserMessageContent as RequestUserMessageContent,
 	ChatCompletionResponseMessage as ResponseMessage, ChatCompletionStreamOptions as StreamOptions,
-	ChatCompletionStreamResponseDelta as StreamResponseDelta,
+	ChatCompletionStreamResponseDelta as StreamResponseDelta, ChatCompletionTool as Tool,
 	ChatCompletionToolChoiceOption as ToolChoiceOption, ChatCompletionToolType as ToolType,
 	CompletionUsage as Usage, CreateChatCompletionRequest as Request,
 	CreateChatCompletionResponse as Response, CreateChatCompletionStreamResponse as StreamResponse,
-	FinishReason, FunctionCall, Role,
+	FinishReason, FunctionCall, FunctionName, FunctionObject, Role, Stop,
 };
-use async_openai::types::{CreateChatCompletionRequest, Stop};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
