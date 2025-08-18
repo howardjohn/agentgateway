@@ -719,7 +719,8 @@
                                 ],
                                 "format": "uint16",
                                 "minimum": 1,
-                                "maximum": 65535
+                                "maximum": 65535,
+                                "default": null
                               }
                             },
                             "additionalProperties": false,
