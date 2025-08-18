@@ -276,6 +276,93 @@
         "address",
         "port"
       ]
+    },
+    "mcp": {
+      "description": "`mcp` contains attributes about the MCP request.",
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "description": "The tool being accessed",
+              "type": "object",
+              "properties": {
+                "tool": {
+                  "type": "object",
+                  "properties": {
+                    "target": {
+                      "description": "The target of the resource",
+                      "type": "string",
+                      "default": ""
+                    },
+                    "name": {
+                      "description": "The name of the resource",
+                      "type": "string",
+                      "default": ""
+                    }
+                  }
+                }
+              },
+              "required": [
+                "tool"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "The prompt being accessed",
+              "type": "object",
+              "properties": {
+                "prompt": {
+                  "type": "object",
+                  "properties": {
+                    "target": {
+                      "description": "The target of the resource",
+                      "type": "string",
+                      "default": ""
+                    },
+                    "name": {
+                      "description": "The name of the resource",
+                      "type": "string",
+                      "default": ""
+                    }
+                  }
+                }
+              },
+              "required": [
+                "prompt"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "The resource being accessed",
+              "type": "object",
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "properties": {
+                    "target": {
+                      "description": "The target of the resource",
+                      "type": "string",
+                      "default": ""
+                    },
+                    "name": {
+                      "description": "The name of the resource",
+                      "type": "string",
+                      "default": ""
+                    }
+                  }
+                }
+              },
+              "required": [
+                "resource"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "additionalProperties": false

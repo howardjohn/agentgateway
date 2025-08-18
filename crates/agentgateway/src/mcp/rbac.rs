@@ -40,8 +40,11 @@ impl McpAuthorizationSet {
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum ResourceType {
+	/// The tool being accessed
 	Tool(ResourceId),
+	/// The prompt being accessed
 	Prompt(ResourceId),
+	/// The resource being accessed
 	Resource(ResourceId),
 }
 
@@ -50,8 +53,10 @@ pub enum ResourceType {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ResourceId {
 	#[serde(default)]
+	/// The target of the resource
 	target: String,
 	#[serde(rename = "name", default)]
+	/// The name of the resource
 	id: String,
 }
 

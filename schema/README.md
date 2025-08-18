@@ -337,3 +337,13 @@ This folder contains JSON schemas for various parts of the project
 |`source.identity.trustDomain`|The trust domain of the identity.|
 |`source.identity.namespace`|The namespace of the identity.|
 |`source.identity.serviceAccount`|The service account of the identity.|
+|`mcp`|`mcp` contains attributes about the MCP request.|
+|`mcp.(any)(1)tool`||
+|`mcp.(any)(1)tool.target`|The target of the resource|
+|`mcp.(any)(1)tool.name`|The name of the resource|
+|`mcp.(any)(1)prompt`||
+|`mcp.(any)(1)prompt.target`|The target of the resource|
+|`mcp.(any)(1)prompt.name`|The name of the resource|
+|`mcp.(any)(1)resource`||
+|`mcp.(any)(1)resource.target`|The target of the resource|
+|`mcp.(any)(1)resource.name`|The name of the resource|

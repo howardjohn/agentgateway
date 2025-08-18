@@ -183,7 +183,7 @@ struct Jwk {
 
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-	#[cfg_attr(feature = "schema", schemars(with = "Map<String, Value>"))]
+#[cfg_attr(feature = "schema", schemars(with = "Map<String, Value>"))]
 pub struct Claims {
 	pub inner: Map<String, Value>,
 	#[cfg_attr(feature = "schema", schemars(skip))]

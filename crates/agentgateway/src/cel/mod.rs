@@ -239,6 +239,7 @@ impl ContextBuilder {
 			jwt,
 			llm,
 			source,
+			mcp: _,
 		} = &self.context;
 
 		ctx.add_variable_from_value(REQUEST_ATTRIBUTE, opt_to_value(request)?);
@@ -328,6 +329,9 @@ pub struct ExpressionContext {
 	pub llm: Option<LLMContext>,
 	/// `source` contains attributes about the source of the request.
 	pub source: Option<SourceContext>,
+	/// `mcp` contains attributes about the MCP request.
+	// This is only included for schema generation; see build_with_mcp.
+	pub mcp: Option<crate::mcp::rbac::ResourceType>,
 }
 
 #[apply(schema_ser!)]
