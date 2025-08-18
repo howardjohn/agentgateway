@@ -208,6 +208,10 @@ codegen-units = 16
 lto = false
 incremental = true
 
+[profile.release]
+codegen-units = 1
+lto = true
+
 [profile.bench]
 inherits = "quick-release"
 debug = true

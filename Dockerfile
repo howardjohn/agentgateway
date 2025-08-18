@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
     echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache && \
     apt-get update && apt-get install -y --no-install-recommends \
-    protobuf-compiler make libssl-dev pkg-config musl-tools
+    make musl-tools
 
 RUN <<EOF
 mkdir /build
@@ -46,16 +46,9 @@ fi
 echo "Building $(cat /build/target)"
 EOF
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    rm -f /etc/apt/apt.conf.d/docker-clean && \
-    echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache && \
-    apt-get update && apt-get install -y --no-install-recommends \
-    protobuf-compiler make libssl-dev pkg-config
-
-
 FROM ${BUILDER}-builder AS builder
 ARG TARGETARCH
+ARG PROFILE=release
 
 WORKDIR /app
 
@@ -68,9 +61,9 @@ RUN --mount=type=cache,id=cargo,target=/usr/local/cargo/registry \
     cargo fetch --locked
 RUN --mount=type=cache,target=/app/target \
     --mount=type=cache,id=cargo,target=/usr/local/cargo/registry \
-    TARGET="$(cat /build/target)" make build-target &&  \
+    cargo build --features ui  --target "$(cat /build/target)"  --profile ${PROFILE} && \
     mkdir /out && \
-    mv /app/target/$(cat /build/target)/release/agentgateway /out
+    mv /app/target/$(cat /build/target)/${PROFILE}/agentgateway /out
 
 FROM gcr.io/distroless/cc-debian12 AS runner 
 

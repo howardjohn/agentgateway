@@ -125,5 +125,5 @@ jobs:
     - name: Build
       env:
         DOCKER_BUILDER: "docker buildx"
-        DOCKER_BUILD_ARGS: "--cache-from type=registry,ref=ghcr.io/agentgateway/agentgateway:buildcache"
+        DOCKER_BUILD_ARGS: "--cache-from type=registry,ref=ghcr.io/agentgateway/agentgateway:buildcache --build-arg PROFILE=quick-release"
       run: make docker
