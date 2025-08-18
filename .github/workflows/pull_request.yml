@@ -62,7 +62,7 @@ jobs:
     - name: Build
       run: make build
       env:
-        CARGO_BUILD_ARGS: "--target ${{ matrix.target }} -F ${{ matrix.features }}"
+        CARGO_BUILD_ARGS: "--target ${{ matrix.target }} -F ${{ matrix.features }} --profile quick-release"
 
   test:
     runs-on: ubuntu-latest
