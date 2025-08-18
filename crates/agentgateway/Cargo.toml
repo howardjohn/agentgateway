@@ -125,6 +125,7 @@ core_affinity.workspace = true
 macro_rules_attribute.workspace = true
 heck.workspace = true
 async-compression.workspace = true
+bpe-openai = "0.3.0"
 
 [build-dependencies]
 anyhow.workspace = true
