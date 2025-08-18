@@ -4,27 +4,33 @@
   "type": "object",
   "properties": {
     "request": {
+      "description": "`request` contains attributes about the incoming HTTP request",
       "type": [
         "object",
         "null"
       ],
       "properties": {
         "method": {
+          "description": "The HTTP method of the request.",
           "type": "string"
         },
         "uri": {
+          "description": "The URI of the request.",
           "type": "string"
         },
         "path": {
+          "description": "The path of the request URI.",
           "type": "string"
         },
         "headers": {
+          "description": "The headers of the request.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
           }
         },
         "body": {
+          "description": "The body of the request. Warning: accessing the body will cause the body to be buffered.",
           "type": [
             "array",
             "string",
@@ -47,12 +53,14 @@
       ]
     },
     "response": {
+      "description": "`response` contains attributes about the HTTP response",
       "type": [
         "object",
         "null"
       ],
       "properties": {
         "code": {
+          "description": "The HTTP status code of the response.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0,
@@ -65,42 +73,41 @@
       ]
     },
     "jwt": {
+      "description": "`jwt` contains the claims from a verified JWT token. This is only present if the JWT policy is enabled.",
       "type": [
         "object",
         "null"
       ],
-      "properties": {
-        "inner": {
-          "type": "object",
-          "additionalProperties": true
-        }
-      },
-      "required": [
-        "inner"
-      ]
+      "additionalProperties": true
     },
     "llm": {
+      "description": "`llm` contains attributes about an LLM request or response. This is only present when using an `ai` backend.",
       "type": [
         "object",
         "null"
       ],
       "properties": {
         "streaming": {
+          "description": "Whether the LLM response is streamed.",
           "type": "boolean"
         },
         "requestModel": {
+          "description": "The model requested for the LLM request. This may differ from the actual model used.",
           "type": "string"
         },
         "responseModel": {
+          "description": "The model that actually served the LLM response.",
           "type": [
             "string",
             "null"
           ]
         },
         "provider": {
+          "description": "The provider of the LLM.",
           "type": "string"
         },
         "inputTokens": {
+          "description": "The number of tokens in the input/prompt.",
           "type": [
             "integer",
             "null"
@@ -109,6 +116,7 @@
           "minimum": 0
         },
         "outputTokens": {
+          "description": "The number of tokens in the output/completion.",
           "type": [
             "integer",
             "null"
@@ -117,6 +125,7 @@
           "minimum": 0
         },
         "totalTokens": {
+          "description": "The total number of tokens for the request.",
           "type": [
             "integer",
             "null"
@@ -125,6 +134,7 @@
           "minimum": 0
         },
         "prompt": {
+          "description": "The prompt sent to the LLM. Warning: accessing this has some performance impacts for large prompts.",
           "type": [
             "array",
             "null"
@@ -147,6 +157,7 @@
           }
         },
         "completion": {
+          "description": "The completion from the LLM. Warning: accessing this has some performance impacts for large responses.",
           "type": [
             "array",
             "null"
@@ -156,6 +167,7 @@
           }
         },
         "params": {
+          "description": "The parameters for the LLM request.",
           "type": "object",
           "properties": {
             "temperature": {
@@ -213,34 +225,41 @@
       ]
     },
     "source": {
+      "description": "`source` contains attributes about the source of the request.",
       "type": [
         "object",
         "null"
       ],
       "properties": {
         "address": {
+          "description": "The IP address of the downstream connection.",
           "type": "string",
           "format": "ip"
         },
         "port": {
+          "description": "The port of the downstream connection.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0,
           "maximum": 65535
         },
         "identity": {
+          "description": "The (Istio SPIFFE) identity of the downstream connection, if available.",
           "type": [
             "object",
             "null"
           ],
           "properties": {
             "trustDomain": {
+              "description": "The trust domain of the identity.",
               "type": "string"
             },
             "namespace": {
+              "description": "The namespace of the identity.",
               "type": "string"
             },
             "serviceAccount": {
+              "description": "The service account of the identity.",
               "type": "string"
             }
           },

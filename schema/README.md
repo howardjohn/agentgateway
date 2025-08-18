@@ -3,7 +3,7 @@ This folder contains JSON schemas for various parts of the project
 
 ## Configuration File
 
-|Field|Column|
+|Field|Description|
 |-|-|
 |`config`||
 |`config.enableIpv6`||
@@ -30,14 +30,8 @@ This folder contains JSON schemas for various parts of the project
 |`config.tracing.fields`||
 |`config.tracing.fields.remove`||
 |`config.tracing.fields.add`||
-|`config.tracing.randomSampling`|Expression to determine the amount of *random sampling*.
-Random sampling will initiate a new trace span if the incoming request does not have a trace already.
-This should evaluate to either a float between 0.0-1.0 (0-100%) or true/false.
-This defaults to 'false'.|
-|`config.tracing.clientSampling`|Expression to determine the amount of *client sampling*.
-Client sampling determines whether to initiate a new trace span if the incoming request does have a trace already.
-This should evaluate to either a float between 0.0-1.0 (0-100%) or true/false.
-This defaults to 'true'.|
+|`config.tracing.randomSampling`|Expression to determine the amount of *random sampling*.<br>Random sampling will initiate a new trace span if the incoming request does not have a trace already.<br>This should evaluate to either a float between 0.0-1.0 (0-100%) or true/false.<br>This defaults to 'false'.|
+|`config.tracing.clientSampling`|Expression to determine the amount of *client sampling*.<br>Client sampling determines whether to initiate a new trace span if the incoming request does have a trace already.<br>This should evaluate to either a float between 0.0-1.0 (0-100%) or true/false.<br>This defaults to 'true'.|
 |`config.logging`||
 |`config.logging.filter`||
 |`config.logging.fields`||
@@ -281,9 +275,7 @@ This defaults to 'true'.|
 |`binds[].listeners[].routes[].backends[].(1)ai.provider.(1)bedrock.guardrailIdentifier`||
 |`binds[].listeners[].routes[].backends[].(1)ai.provider.(1)bedrock.guardrailVersion`||
 |`binds[].listeners[].routes[].backends[].(1)ai.hostOverride`||
-|`binds[].listeners[].routes[].backends[].(1)ai.tokenize`|Whether to tokenize on the request flow. This enables us to do more accurate rate limits,
-since we know (part of) the cost of the request upfront.
-This comes with the cost of an expensive operation.|
+|`binds[].listeners[].routes[].backends[].(1)ai.tokenize`|Whether to tokenize on the request flow. This enables us to do more accurate rate limits,<br>since we know (part of) the cost of the request upfront.<br>This comes with the cost of an expensive operation.|
 |`binds[].listeners[].tcpRoutes`||
 |`binds[].listeners[].tcpRoutes[].name`||
 |`binds[].listeners[].tcpRoutes[].ruleName`||
@@ -308,41 +300,40 @@ This comes with the cost of an expensive operation.|
 |`services`||
 ## CEL context
 
-|Field|Column|
+|Field|Description|
 |-|-|
-|`request`||
-|`request.method`||
-|`request.uri`||
-|`request.path`||
-|`request.headers`||
-|`request.body`||
-|`response`||
-|`response.code`||
-|`jwt`||
-|`jwt.inner`||
-|`llm`||
-|`llm.streaming`||
-|`llm.requestModel`||
-|`llm.responseModel`||
-|`llm.provider`||
-|`llm.inputTokens`||
-|`llm.outputTokens`||
-|`llm.totalTokens`||
-|`llm.prompt`||
+|`request`|`request` contains attributes about the incoming HTTP request|
+|`request.method`|The HTTP method of the request.|
+|`request.uri`|The URI of the request.|
+|`request.path`|The path of the request URI.|
+|`request.headers`|The headers of the request.|
+|`request.body`|The body of the request. Warning: accessing the body will cause the body to be buffered.|
+|`response`|`response` contains attributes about the HTTP response|
+|`response.code`|The HTTP status code of the response.|
+|`jwt`|`jwt` contains the claims from a verified JWT token. This is only present if the JWT policy is enabled.|
+|`llm`|`llm` contains attributes about an LLM request or response. This is only present when using an `ai` backend.|
+|`llm.streaming`|Whether the LLM response is streamed.|
+|`llm.requestModel`|The model requested for the LLM request. This may differ from the actual model used.|
+|`llm.responseModel`|The model that actually served the LLM response.|
+|`llm.provider`|The provider of the LLM.|
+|`llm.inputTokens`|The number of tokens in the input/prompt.|
+|`llm.outputTokens`|The number of tokens in the output/completion.|
+|`llm.totalTokens`|The total number of tokens for the request.|
+|`llm.prompt`|The prompt sent to the LLM. Warning: accessing this has some performance impacts for large prompts.|
 |`llm.prompt[].role`||
 |`llm.prompt[].content`||
-|`llm.completion`||
-|`llm.params`||
+|`llm.completion`|The completion from the LLM. Warning: accessing this has some performance impacts for large responses.|
+|`llm.params`|The parameters for the LLM request.|
 |`llm.params.temperature`||
 |`llm.params.top_p`||
 |`llm.params.frequency_penalty`||
 |`llm.params.presence_penalty`||
 |`llm.params.seed`||
 |`llm.params.max_tokens`||
-|`source`||
-|`source.address`||
-|`source.port`||
-|`source.identity`||
-|`source.identity.trustDomain`||
-|`source.identity.namespace`||
-|`source.identity.serviceAccount`||
+|`source`|`source` contains attributes about the source of the request.|
+|`source.address`|The IP address of the downstream connection.|
+|`source.port`|The port of the downstream connection.|
+|`source.identity`|The (Istio SPIFFE) identity of the downstream connection, if available.|
+|`source.identity.trustDomain`|The trust domain of the identity.|
+|`source.identity.namespace`|The namespace of the identity.|
+|`source.identity.serviceAccount`|The service account of the identity.|
