@@ -619,7 +619,7 @@ impl StreamableHttpClient for ClientWrapper {
 			.map_err(|e| StreamableHttpError::Client(HttpError::new(e)))?;
 
 		if resp.status() == http::StatusCode::METHOD_NOT_ALLOWED {
-			return Err(StreamableHttpError::SeverDoesNotSupportSse);
+			return Err(StreamableHttpError::ServerDoesNotSupportSse);
 		}
 
 		if resp.status().is_client_error() || resp.status().is_server_error() {

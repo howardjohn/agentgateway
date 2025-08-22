@@ -220,7 +220,7 @@ impl<T: Display> From<Option<T>> for DefaultedUnknown<EncodeDisplay<T>> {
 pub struct EncodeArc<T>(pub Arc<T>);
 
 impl<T: EncodeLabelSet> EncodeLabelSet for EncodeArc<T> {
-	fn encode(&self, encoder: LabelSetEncoder) -> Result<(), Error> {
+	fn encode(&self, encoder: &mut LabelSetEncoder) -> Result<(), Error> {
 		self.0.encode(encoder)
 	}
 }
@@ -245,7 +245,7 @@ impl CustomField {
 }
 
 impl EncodeLabelSet for CustomField {
-	fn encode(&self, encoder: LabelSetEncoder) -> Result<(), Error> {
+	fn encode(&self, encoder: &mut LabelSetEncoder) -> Result<(), Error> {
 		self.0.as_ref().encode(encoder)
 	}
 }

@@ -562,8 +562,7 @@ impl ServerHandler for Relay {
 							.map(|t| Tool {
 								annotations: None,
 								name: Cow::Owned(self.resource_name(_name.as_str(), &t.name)),
-								description: t.description,
-								input_schema: t.input_schema,
+								..t
 							})
 							.collect::<Vec<_>>(),
 					),

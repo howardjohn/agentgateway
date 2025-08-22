@@ -4316,9 +4316,9 @@ dependencies = [
 
 [[package]]
 name = "prometheus-client"
-version = "0.23.1"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf41c1a7c32ed72abe5082fb19505b969095c12da9f5732a4bc9878757fd087c"
+checksum = "e4500adecd7af8e0e9f4dbce15cfee07ce913fbf6ad605cc468b83f2d531ee94"
 dependencies = [
  "dtoa",
  "itoa",
@@ -4328,9 +4328,9 @@ dependencies = [
 
 [[package]]
 name = "prometheus-client-derive-encode"
-version = "0.4.2"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "440f724eba9f6996b75d63681b0a92b06947f1457076d503a4d2e2c8f56442b8"
+checksum = "9adf1691c04c0a5ff46ff8f262b58beb07b0dbb61f96f9f54f6cbd82106ed87f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4881,8 +4881,9 @@ dependencies = [
 
 [[package]]
 name = "rmcp"
-version = "0.3.1"
-source = "git+https://github.com/modelcontextprotocol/rust-sdk?rev=0a9a0a0b1f234bd296459fc98b41fd6215c8e3a9#0a9a0a0b1f234bd296459fc98b41fd6215c8e3a9"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb21cd3555f1059f27e4813827338dec44429a08ecd0011acc41d9907b160c00"
 dependencies = [
  "axum",
  "base64",
@@ -4915,8 +4916,9 @@ dependencies = [
 
 [[package]]
 name = "rmcp-macros"
-version = "0.3.1"
-source = "git+https://github.com/modelcontextprotocol/rust-sdk?rev=0a9a0a0b1f234bd296459fc98b41fd6215c8e3a9#0a9a0a0b1f234bd296459fc98b41fd6215c8e3a9"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab5d16ae1ff3ce2c5fd86c37047b2869b75bec795d53a4b1d8257b15415a2354"
 dependencies = [
  "darling 0.21.0",
  "proc-macro2",

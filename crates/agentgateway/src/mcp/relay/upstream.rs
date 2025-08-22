@@ -336,6 +336,8 @@ impl UpstreamTarget {
 					.await?;
 				Ok(CallToolResult {
 					content: vec![Content::text(res)],
+					// TODO: for JSON responses, return structured_content
+					structured_content: None,
 					is_error: None,
 				})
 			},
