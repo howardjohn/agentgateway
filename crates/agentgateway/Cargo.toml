@@ -15,6 +15,7 @@ ui = []
 schema = ["schemars"]
 tls-ring = ["rustls/ring", "tokio-rustls/ring"]
 internal_benches = ["divan"]
+testing = []
 
 [dependencies]
 a2a-sdk.workspace = true
@@ -142,6 +143,7 @@ tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 wiremock.workspace = true
 which.workspace = true
+agentgateway = { version = "0.7.0", path = ".", default-features = false, features = ["testing"] }
 
 [lints.clippy]
 # This rule makes code more confusing

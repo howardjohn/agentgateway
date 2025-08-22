@@ -110,6 +110,7 @@ dependencies = [
  "agent-core",
  "agent-hbone",
  "agent-xds",
+ "agentgateway",
  "anyhow",
  "arc-swap",
  "assert_matches",
