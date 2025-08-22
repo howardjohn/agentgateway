@@ -63,6 +63,7 @@ message Route {
   repeated RouteFilter filters = 7;
   repeated RouteBackend backends = 8;
   TrafficPolicy traffic_policy = 9;
+  repeated PolicySpec inline_policies = 10;
 }
 
 message TCPRoute {

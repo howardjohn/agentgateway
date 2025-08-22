@@ -264,6 +264,7 @@ fn basic_route(target: SocketAddr) -> Route {
 			query: vec![],
 		}],
 		filters: Default::default(),
+		inline_policies: Default::default(),
 		rule_name: None,
 		backends: vec![RouteBackendReference {
 			weight: 1,

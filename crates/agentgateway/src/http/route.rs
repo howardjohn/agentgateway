@@ -101,6 +101,7 @@ pub fn select_best_route(
 			hostnames: vec![],
 			matches: vec![],
 			filters: vec![],
+			inline_policies: vec![],
 			policies: None,
 			backends: vec![RouteBackendReference {
 				weight: 1,

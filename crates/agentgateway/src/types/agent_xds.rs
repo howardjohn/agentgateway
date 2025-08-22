@@ -242,6 +242,11 @@ impl TryFrom<&proto::agent::Route> for (Route, ListenerKey) {
 				.clone()
 				.map(TrafficPolicy::try_from)
 				.transpose()?,
+			inline_policies: s
+				.inline_policies
+				.iter()
+				.map(Policy::try_from)
+				.collect::<Result<Vec<_>, _>>()?,
 		};
 		Ok((r, strng::new(&s.listener_key)))
 	}
@@ -592,22 +597,10 @@ impl TryFrom<&proto::agent::policy_spec::Rbac> for McpAuthorization {
 	}
 }
 
-impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
+impl TryFrom<&proto::agent::PolicySpec> for Policy {
 	type Error = ProtoError;
-
-	fn try_from(s: &proto::agent::Policy) -> Result<Self, Self::Error> {
-		let name = PolicyName::from(&s.name);
-		let target = s.target.as_ref().ok_or(ProtoError::MissingRequiredField)?;
-		let spec = s.spec.as_ref().ok_or(ProtoError::MissingRequiredField)?;
-		let target = match &target.kind {
-			Some(proto::agent::policy_target::Kind::Gateway(v)) => PolicyTarget::Gateway(v.into()),
-			Some(proto::agent::policy_target::Kind::Listener(v)) => PolicyTarget::Listener(v.into()),
-			Some(proto::agent::policy_target::Kind::Route(v)) => PolicyTarget::Route(v.into()),
-			Some(proto::agent::policy_target::Kind::RouteRule(v)) => PolicyTarget::RouteRule(v.into()),
-			Some(proto::agent::policy_target::Kind::Backend(v)) => PolicyTarget::Backend(v.into()),
-			_ => return Err(ProtoError::EnumParse("unknown target kind".to_string())),
-		};
-		let policy = match &spec.kind {
+	fn try_from(spec: &proto::agent::PolicySpec) -> Result<Self, Self::Error> {
+		Ok(match &spec.kind {
 			Some(proto::agent::policy_spec::Kind::LocalRateLimit(lrl)) => {
 				let t = proto::agent::policy_spec::local_rate_limit::Type::try_from(lrl.r#type)?;
 				Policy::LocalRateLimit(vec![
@@ -744,7 +737,25 @@ impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
 				}))
 			},
 			_ => return Err(ProtoError::EnumParse("unknown spec kind".to_string())),
+		})
+	}
+}
+impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
+	type Error = ProtoError;
+
+	fn try_from(s: &proto::agent::Policy) -> Result<Self, Self::Error> {
+		let name = PolicyName::from(&s.name);
+		let target = s.target.as_ref().ok_or(ProtoError::MissingRequiredField)?;
+		let spec = s.spec.as_ref().ok_or(ProtoError::MissingRequiredField)?;
+		let target = match &target.kind {
+			Some(proto::agent::policy_target::Kind::Gateway(v)) => PolicyTarget::Gateway(v.into()),
+			Some(proto::agent::policy_target::Kind::Listener(v)) => PolicyTarget::Listener(v.into()),
+			Some(proto::agent::policy_target::Kind::Route(v)) => PolicyTarget::Route(v.into()),
+			Some(proto::agent::policy_target::Kind::RouteRule(v)) => PolicyTarget::RouteRule(v.into()),
+			Some(proto::agent::policy_target::Kind::Backend(v)) => PolicyTarget::Backend(v.into()),
+			_ => return Err(ProtoError::EnumParse("unknown target kind".to_string())),
 		};
+		let policy = spec.try_into()?;
 		Ok(TargetedPolicy {
 			name,
 			target,

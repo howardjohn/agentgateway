@@ -149,6 +149,8 @@ pub struct Route {
 	pub backends: Vec<RouteBackendReference>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub policies: Option<TrafficPolicy>,
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub inline_policies: Vec<Policy>,
 }
 
 pub type RouteKey = Strng;

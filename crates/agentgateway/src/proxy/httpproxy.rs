@@ -402,6 +402,7 @@ impl HTTPProxy {
 			selected_route.route_name.clone(),
 			selected_listener.key.clone(),
 			selected_listener.gateway_name.clone(),
+			&selected_route.inline_policies,
 		);
 		// Register all expressions
 		route_policies.register_cel_expressions(log.cel.ctx());

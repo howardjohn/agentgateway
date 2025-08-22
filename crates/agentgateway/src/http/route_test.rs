@@ -42,6 +42,7 @@ fn setup_listener(routes: &[(&str, Vec<&str>, Vec<RouteMatch>)]) -> Arc<Listener
 		rule_name: None,
 		backends: vec![],
 		policies: None,
+		inline_policies: vec![],
 	};
 
 	Arc::new(Listener {
@@ -721,6 +722,7 @@ fn bench(b: Bencher, (host, route): (u64, u64)) {
 					rule_name: None,
 					backends: vec![],
 					policies: None,
+					inline_policies: vec![],
 				})
 				.collect(),
 		),

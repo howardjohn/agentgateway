@@ -167,6 +167,7 @@ impl Store {
 		route: RouteName,
 		listener: ListenerKey,
 		gateway: GatewayName,
+		inline: &[Policy],
 	) -> RoutePolicies {
 		// Changes we must do:
 		// * Index the store by the target
@@ -188,7 +189,9 @@ impl Store {
 			.chain(route.iter().copied().flatten())
 			.chain(listener.iter().copied().flatten())
 			.chain(gateway.iter().copied().flatten())
-			.filter_map(|n| self.policies_by_name.get(n));
+			.filter_map(|n| self.policies_by_name.get(n))
+			.map(|p| &p.policy);
+		let rules = inline.iter().chain(rules);
 
 		let mut authz = Vec::new();
 		let mut pol = RoutePolicies {
@@ -201,7 +204,7 @@ impl Store {
 			llm: None,
 		};
 		for rule in rules {
-			match &rule.policy {
+			match &rule {
 				Policy::LocalRateLimit(p) => {
 					if pol.local_rate_limit.is_empty() {
 						pol.local_rate_limit = p.clone();
