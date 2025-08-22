@@ -144,11 +144,6 @@ pub async fn run(config: Arc<Config>) -> anyhow::Result<Bound> {
 			.context("stats server starts")?;
 	// Run the metrics sever in the current tokio worker pool.
 	metrics_server.spawn();
-	tokio::task::spawn_blocking(|| {
-		let t0 = std::time::Instant::now();
-		crate::llm::preload_tokenizers();
-		debug!("tokenizers loaded in {}ms", t0.elapsed().as_millis());
-	});
 	Ok(Bound {
 		drain_tx,
 		shutdown,

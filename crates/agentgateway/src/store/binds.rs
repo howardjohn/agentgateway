@@ -453,6 +453,11 @@ impl Store {
 
 	pub fn insert_backend(&mut self, b: Backend) {
 		let name = b.name();
+		if let Backend::AI(_, t) = &b
+			&& t.tokenize
+		{
+			preload_tokenizers()
+		}
 		let arc = Arc::new(b);
 		self.backends_by_name.insert(name, arc);
 	}
@@ -771,4 +776,16 @@ impl agent_xds::Handler<ADPResource> for StoreUpdater {
 		};
 		agent_xds::handle_single_resource(updates, handle)
 	}
+}
+
+fn preload_tokenizers() {
+	static INIT_TOKENIZERS: std::sync::Once = std::sync::Once::new();
+
+	tokio::task::spawn_blocking(|| {
+		INIT_TOKENIZERS.call_once(|| {
+			let t0 = std::time::Instant::now();
+			crate::llm::preload_tokenizers();
+			info!("tokenizers loaded in {}ms", t0.elapsed().as_millis());
+		});
+	});
 }
