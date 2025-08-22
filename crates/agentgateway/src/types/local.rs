@@ -620,20 +620,17 @@ async fn convert_route(
 	} = lr;
 
 	let route_name = route_name.unwrap_or_else(|| strng::format!("route{}", idx));
-	let key = strng::format!(
-		"{}/{}/{}",
-		listener_key,
-		route_name,
-		rule_name.clone().unwrap_or_else(|| strng::new("default"))
-	);
+	let rule_name = rule_name.clone().unwrap_or_else(|| strng::new("default"));
+	let key = strng::format!("{}/{}/{}", listener_key, route_name, rule_name,);
+	let rule_name = strng::format!("{route_name}/{rule_name}");
 	let mut filters = vec![];
 	let mut external_policies = vec![];
 	let mut pol = 0;
 	let mut tgt = |p: Policy| {
 		pol += 1;
 		TargetedPolicy {
-			name: format!("{key}/{pol}").into(),
-			target: RouteRule(key.clone()),
+			name: format!("{rule_name}/{pol}").into(),
+			target: RouteRule(rule_name.clone()),
 			policy: p,
 		}
 	};
@@ -800,7 +797,7 @@ async fn convert_route(
 	let route = Route {
 		key,
 		route_name,
-		rule_name,
+		rule_name: Some(rule_name),
 		hostnames,
 		matches,
 		filters,
