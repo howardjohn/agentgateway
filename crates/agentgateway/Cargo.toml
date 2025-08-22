@@ -96,6 +96,7 @@ serde_with.workspace = true
 serde_yaml.workspace = true
 shellexpand.workspace = true
 sse-stream.workspace = true
+socket2.workspace = true
 thiserror.workspace = true
 tiktoken-rs.workspace = true
 tokio = { workspace = true }
@@ -120,7 +121,6 @@ tikv-jemallocator = { workspace = true, optional = true }
 jemalloc_pprof = { workspace = true, optional = true }
 frozen-collections.workspace = true
 value-bag.workspace = true
-net2.workspace = true
 core_affinity.workspace = true
 macro_rules_attribute.workspace = true
 heck.workspace = true

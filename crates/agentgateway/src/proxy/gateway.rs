@@ -13,7 +13,7 @@ use http::StatusCode;
 use hyper_util::rt::TokioIo;
 use hyper_util::server::conn::auto;
 #[cfg(target_family = "unix")]
-use net2::unix::UnixTcpBuilderExt;
+use socket2::Domain;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;
 use tokio::task::{AbortHandle, JoinSet};
@@ -140,15 +140,15 @@ impl Gateway {
 			pi.upstream = client;
 			let pi = Arc::new(pi);
 			let builder = if b.address.is_ipv4() {
-				net2::TcpBuilder::new_v4()
+				socket2::Socket::new(Domain::IPV4, socket2::Type::STREAM, None)?
 			} else {
-				net2::TcpBuilder::new_v6()
+				socket2::Socket::new(Domain::IPV6, socket2::Type::STREAM, None)?
 			};
 			#[cfg(target_family = "unix")]
-			let builder = builder?;
-			#[cfg(target_family = "unix")]
-			let builder = builder.reuse_port(true);
-			let listener = builder?.bind(b.address)?.listen(1024)?;
+			builder.set_reuse_port(true)?;
+			builder.bind(&b.address.into())?;
+			builder.listen(1024)?;
+			let listener: std::net::TcpListener = builder.into();
 			listener.set_nonblocking(true)?;
 			let listener = tokio::net::TcpListener::from_std(listener)?;
 			(pi, listener)

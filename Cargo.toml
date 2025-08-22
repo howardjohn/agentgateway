@@ -198,7 +198,6 @@ core_affinity = "0.8.3"
 frozen-collections = "0.8.0"
 heck = "0.4"
 macro_rules_attribute = "0.2.2"
-net2 = "0.2.39"
 
 # Release optimized but without as many dependencies, suitable for incremental development
 [profile.quick-release]
