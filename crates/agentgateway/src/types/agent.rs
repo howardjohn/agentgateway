@@ -475,6 +475,7 @@ impl Backend {
 }
 
 pub type BackendName = Strng;
+pub type ServiceName = Strng;
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -980,6 +981,8 @@ pub enum PolicyTarget {
 	Listener(ListenerKey),
 	Route(RouteName),
 	RouteRule(RouteRuleName),
+	// Note: Backend includes Service:port, this is used when we are *only* attaching to service
+	Service(ServiceName),
 	Backend(BackendName),
 }
 

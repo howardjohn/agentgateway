@@ -753,6 +753,7 @@ impl TryFrom<&proto::agent::Policy> for TargetedPolicy {
 			Some(proto::agent::policy_target::Kind::Listener(v)) => PolicyTarget::Listener(v.into()),
 			Some(proto::agent::policy_target::Kind::Route(v)) => PolicyTarget::Route(v.into()),
 			Some(proto::agent::policy_target::Kind::RouteRule(v)) => PolicyTarget::RouteRule(v.into()),
+			Some(proto::agent::policy_target::Kind::Service(v)) => PolicyTarget::Service(v.into()),
 			Some(proto::agent::policy_target::Kind::Backend(v)) => PolicyTarget::Backend(v.into()),
 			_ => return Err(ProtoError::EnumParse("unknown target kind".to_string())),
 		};

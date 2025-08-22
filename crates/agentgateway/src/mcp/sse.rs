@@ -35,7 +35,7 @@ use crate::mcp::relay::Relay;
 use crate::proxy::httpproxy::PolicyClient;
 use crate::store::{BackendPolicies, Stores};
 use crate::telemetry::log::AsyncLog;
-use crate::types::agent::{BackendName, McpAuthentication, McpBackend, McpIDP, PolicyTarget};
+use crate::types::agent::{BackendName, McpAuthentication, McpBackend, McpIDP};
 use crate::{ProxyInputs, json};
 
 type SseTxs =
@@ -84,7 +84,7 @@ impl App {
 				.targets
 				.iter()
 				.map(|t| {
-					let backend_policies = binds.backend_policies(PolicyTarget::Backend(name.clone()));
+					let backend_policies = binds.backend_policies(name.clone(), None);
 					Arc::new(McpTarget {
 						name: t.name.clone(),
 						spec: t.spec.clone(),

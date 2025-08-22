@@ -724,8 +724,14 @@ async fn make_backend_call(
 		inputs: inputs.clone(),
 	};
 
-	let policy_target = PolicyTarget::Backend(backend.name());
-	let policies = inputs.stores.read_binds().backend_policies(policy_target);
+	let service = match backend {
+		Backend::Service(svc, _) => Some(strng::format!("{}/{}", svc.namespace, svc.hostname)),
+		_ => None,
+	};
+	let policies = inputs
+		.stores
+		.read_binds()
+		.backend_policies(backend.name(), service);
 	let mut maybe_inference = policies.build_inference(policy_client.clone());
 	let override_dest = maybe_inference.mutate_request(&mut req).await?;
 	log.add(|l| l.inference_pool = override_dest);

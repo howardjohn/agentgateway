@@ -19,7 +19,7 @@ use crate::store::Event;
 use crate::types::agent::{
 	A2aPolicy, Backend, BackendName, Bind, BindName, GatewayName, Listener, ListenerKey, ListenerSet,
 	McpAuthentication, Policy, PolicyName, PolicyTarget, Route, RouteKey, RouteName, RouteRuleName,
-	TCPRoute, TargetedPolicy,
+	ServiceName, TCPRoute, TargetedPolicy,
 };
 use crate::types::proto::agent::resource::Kind as XdsKind;
 use crate::types::proto::agent::{
@@ -239,12 +239,21 @@ impl Store {
 		pol
 	}
 
-	pub fn backend_policies(&self, tgt: PolicyTarget) -> BackendPolicies {
-		let rules = self.policies_by_target.get(&tgt);
-		let rules = rules
+	pub fn backend_policies(
+		&self,
+		backend: BackendName,
+		service: Option<ServiceName>,
+	) -> BackendPolicies {
+		let backend_rules = self.policies_by_target.get(&PolicyTarget::Backend(backend));
+		let service_rules =
+			service.and_then(|t| self.policies_by_target.get(&PolicyTarget::Service(t)));
+
+		// Backend > Service
+		let rules = backend_rules
 			.iter()
 			.copied()
 			.flatten()
+			.chain(service_rules.iter().copied().flatten())
 			.filter_map(|n| self.policies_by_name.get(n));
 
 		let mut pol = BackendPolicies {

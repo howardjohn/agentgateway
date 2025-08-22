@@ -249,9 +249,11 @@ message PolicyTarget {
     string route = 3;
     // Matches Route.rule_name
     string route_rule = 4;
-    // For Service: `service/{namespace}/{hostname}:{port}`
+    // For ServicePort: `service/{namespace}/{hostname}:{port}`
     // For Backend: `{ns}/{name}`
     string backend = 5;
+    // namespace}/{hostname}
+    string service = 6;
   }
 }
 message PolicySpec {

@@ -2600,6 +2600,7 @@ type PolicyTarget struct {
 	//	*PolicyTarget_Route
 	//	*PolicyTarget_RouteRule
 	//	*PolicyTarget_Backend
+	//	*PolicyTarget_Service
 	Kind          isPolicyTarget_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2687,6 +2688,15 @@ func (x *PolicyTarget) GetBackend() string {
 	return ""
 }
 
+func (x *PolicyTarget) GetService() string {
+	if x != nil {
+		if x, ok := x.Kind.(*PolicyTarget_Service); ok {
+			return x.Service
+		}
+	}
+	return ""
+}
+
 type isPolicyTarget_Kind interface {
 	isPolicyTarget_Kind()
 }
@@ -2712,9 +2722,14 @@ type PolicyTarget_RouteRule struct {
 }
 
 type PolicyTarget_Backend struct {
-	// For Service: `service/{namespace}/{hostname}:{port}`
+	// For ServicePort: `service/{namespace}/{hostname}:{port}`
 	// For Backend: `{ns}/{name}`
 	Backend string `protobuf:"bytes,5,opt,name=backend,proto3,oneof"`
+}
+
+type PolicyTarget_Service struct {
+	// namespace}/{hostname}
+	Service string `protobuf:"bytes,6,opt,name=service,proto3,oneof"`
 }
 
 func (*PolicyTarget_Gateway) isPolicyTarget_Kind() {}
@@ -2726,6 +2741,8 @@ func (*PolicyTarget_Route) isPolicyTarget_Kind() {}
 func (*PolicyTarget_RouteRule) isPolicyTarget_Kind() {}
 
 func (*PolicyTarget_Backend) isPolicyTarget_Kind() {}
+
+func (*PolicyTarget_Service) isPolicyTarget_Kind() {}
 
 type PolicySpec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -5048,14 +5065,15 @@ const file_resource_proto_rawDesc = "" +
 	"\fRouteBackend\x12E\n" +
 	"\abackend\x18\x01 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\abackend\x12\x16\n" +
 	"\x06weight\x18\x02 \x01(\x05R\x06weight\x12@\n" +
-	"\afilters\x18\x04 \x03(\v2&.agentgateway.dev.resource.RouteFilterR\afilters\"\xa5\x01\n" +
+	"\afilters\x18\x04 \x03(\v2&.agentgateway.dev.resource.RouteFilterR\afilters\"\xc1\x01\n" +
 	"\fPolicyTarget\x12\x1a\n" +
 	"\agateway\x18\x01 \x01(\tH\x00R\agateway\x12\x1c\n" +
 	"\blistener\x18\x02 \x01(\tH\x00R\blistener\x12\x16\n" +
 	"\x05route\x18\x03 \x01(\tH\x00R\x05route\x12\x1f\n" +
 	"\n" +
 	"route_rule\x18\x04 \x01(\tH\x00R\trouteRule\x12\x1a\n" +
-	"\abackend\x18\x05 \x01(\tH\x00R\abackendB\x06\n" +
+	"\abackend\x18\x05 \x01(\tH\x00R\abackend\x12\x1a\n" +
+	"\aservice\x18\x06 \x01(\tH\x00R\aserviceB\x06\n" +
 	"\x04kind\"\xaa!\n" +
 	"\n" +
 	"PolicySpec\x12`\n" +
@@ -5504,6 +5522,7 @@ func file_resource_proto_init() {
 		(*PolicyTarget_Route)(nil),
 		(*PolicyTarget_RouteRule)(nil),
 		(*PolicyTarget_Backend)(nil),
+		(*PolicyTarget_Service)(nil),
 	}
 	file_resource_proto_msgTypes[30].OneofWrappers = []any{
 		(*PolicySpec_LocalRateLimit_)(nil),

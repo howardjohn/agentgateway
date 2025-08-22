@@ -8,7 +8,6 @@ use crate::proxy::ProxyError;
 use crate::telemetry::log;
 use crate::telemetry::log::{DropOnLog, RequestLog};
 use crate::telemetry::metrics::TCPLabels;
-use crate::transport::stream;
 use crate::transport::stream::{Socket, TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::agent;
 use crate::types::agent::{
@@ -95,7 +94,7 @@ impl TCPProxy {
 			select_tcp_backend(selected_route.as_ref()).ok_or(ProxyError::NoValidBackends)?;
 		let selected_backend = resolve_backend(selected_backend, self.inputs.as_ref())?;
 
-		let (target, policy_key) = match &selected_backend.backend {
+		let (_target, _policy_key) = match &selected_backend.backend {
 			SimpleBackend::Service(svc, port) => {
 				let port = *port;
 				let (ep, wl) = tcp_load_balance(inputs.clone(), svc.as_ref(), port)
@@ -123,12 +122,13 @@ impl TCPProxy {
 			SimpleBackend::Invalid => return Err(ProxyError::BackendDoesNotExist),
 		};
 
+		/*
 		let _policies = inputs
 			.stores
 			.read_binds()
-			.backend_policies(policy_key.clone());
+			.backend_policies(todo!(), None);
 		// let transport = policies.i // TODO
-		let Target::Address(addr) = target else {
+		let Target::Address(addr) = _target else {
 			panic!("TODO")
 		};
 		let upstream = stream::Socket::dial(addr)
@@ -141,6 +141,8 @@ impl TCPProxy {
 		)
 		.await
 		.map_err(|e| ProxyError::Processing(e.into()))?;
+
+		 */
 		Ok(())
 	}
 }
