@@ -570,32 +570,35 @@ fn num_tokens_from_messages(
 		// Chat completion is only supported chat models
 		return Err(AIError::UnsupportedModel);
 	}
-	let bpe = match tokenizer {
-		Tokenizer::O200kBase => bpe_openai::o200k_base(),
-		Tokenizer::Cl100kBase => bpe_openai::cl100k_base(),
-		_ => {
-			// Chat completion is only supported chat models
-			return Err(AIError::UnsupportedModel);
-		},
-	};
+	let bpe = get_bpe_from_tokenizer(tokenizer);
 
 	let (tokens_per_message, tokens_per_name) = (3, 1);
 
-	let mut num_tokens: usize = 0;
+	let mut num_tokens: u64 = 0;
 	for message in messages {
 		num_tokens += tokens_per_message;
 		// Role is always 1 token
 		num_tokens += 1;
+		// num_tokens += bpe
+		// .encode_with_special_tokens(
+		// 	message.role
+		// )
+		// .len() as u64;
 		if let Some(t) = universal::message_text(message) {
-			num_tokens += bpe.count(t);
+			num_tokens += bpe
+				.encode_with_special_tokens(
+					// We filter non-text previously
+					t,
+				)
+				.len() as u64;
 		}
 		if let Some(name) = universal::message_name(message) {
-			num_tokens += bpe.count(name);
+			num_tokens += bpe.encode_with_special_tokens(name).len() as u64;
 			num_tokens += tokens_per_name;
 		}
 	}
 	num_tokens += 3; // every reply is primed with <|start|>assistant<|message|>
-	Ok(num_tokens as u64)
+	Ok(num_tokens)
 }
 
 /// Tokenizers take about 200ms to load and are lazy loaded. This loads them on demand, outside the
