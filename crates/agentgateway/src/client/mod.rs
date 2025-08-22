@@ -115,11 +115,15 @@ impl tower::Service<::http::Extensions> for Connector {
 					Ok(TokioIo::new(res))
 				},
 				Transport::Tls(tls) => {
-					let server_name = match target {
-						Target::Address(_) => ServerName::IpAddress(ep.ip().into()),
-						Target::Hostname(host, _) => ServerName::DnsName(
-							DnsName::try_from(host.to_string()).expect("TODO: hostname conversion failed"),
-						),
+					let server_name = if let Some(h) = tls.hostname_override {
+						h
+					} else {
+						match target {
+							Target::Address(_) => ServerName::IpAddress(ep.ip().into()),
+							Target::Hostname(host, _) => ServerName::DnsName(
+								DnsName::try_from(host.to_string()).expect("TODO: hostname conversion failed"),
+							),
+						}
 					};
 
 					let mut https = self::hyperrustls::HttpsConnector {

@@ -635,6 +635,7 @@ impl TryFrom<&proto::agent::PolicySpec> for Policy {
 					root: btls.root.clone(),
 					insecure: btls.insecure.unwrap_or_default(),
 					insecure_host: false,
+					hostname: btls.hostname.clone(),
 				}
 				.try_into()
 				.map_err(|e| ProtoError::Generic(e.to_string()))?;

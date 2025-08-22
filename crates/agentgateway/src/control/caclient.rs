@@ -157,6 +157,7 @@ impl WorkloadCertificate {
 		cc.resumption = Resumption::disabled();
 		// cc.enable_sni = false;
 		Ok(BackendTLS {
+			hostname_override: None,
 			config: Arc::new(cc),
 		})
 	}
@@ -177,6 +178,7 @@ impl WorkloadCertificate {
 		cc.resumption = Resumption::disabled();
 		cc.enable_sni = false;
 		Ok(BackendTLS {
+			hostname_override: None,
 			config: Arc::new(cc),
 		})
 	}

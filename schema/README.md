@@ -186,6 +186,7 @@ This folder contains JSON schemas for various parts of the project
 |`binds[].listeners[].routes[].policies.backendTLS.cert`||
 |`binds[].listeners[].routes[].policies.backendTLS.key`||
 |`binds[].listeners[].routes[].policies.backendTLS.root`||
+|`binds[].listeners[].routes[].policies.backendTLS.hostname`||
 |`binds[].listeners[].routes[].policies.backendTLS.insecure`||
 |`binds[].listeners[].routes[].policies.backendTLS.insecureHost`||
 |`binds[].listeners[].routes[].policies.backendAuth`|Authenticate to the backend.|
@@ -298,6 +299,7 @@ This folder contains JSON schemas for various parts of the project
 |`binds[].listeners[].tcpRoutes[].policies.backendTls.cert`||
 |`binds[].listeners[].tcpRoutes[].policies.backendTls.key`||
 |`binds[].listeners[].tcpRoutes[].policies.backendTls.root`||
+|`binds[].listeners[].tcpRoutes[].policies.backendTls.hostname`||
 |`binds[].listeners[].tcpRoutes[].policies.backendTls.insecure`||
 |`binds[].listeners[].tcpRoutes[].policies.backendTls.insecureHost`||
 |`binds[].listeners[].tcpRoutes[].backends`||

@@ -50,6 +50,7 @@ impl RootCert {
 			.with_no_client_auth();
 		ccb.alpn_protocols = vec![b"h2".to_vec()];
 		Ok(BackendTLS {
+			hostname_override: None,
 			config: Arc::new(ccb),
 		})
 	}

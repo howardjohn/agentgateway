@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use once_cell::sync::Lazy;
 use rustls::ClientConfig;
+use rustls_pki_types::ServerName;
 use serde::Serializer;
 
 use crate::transport;
@@ -17,6 +18,7 @@ pub static INSECURE_TRUST: Lazy<BackendTLS> = Lazy::new(|| {
 		cert: None,
 		key: None,
 		root: None,
+		hostname: None,
 		insecure: true,
 		insecure_host: false,
 	}
@@ -27,6 +29,7 @@ pub static INSECURE_TRUST: Lazy<BackendTLS> = Lazy::new(|| {
 // TODO: xds support
 #[derive(Debug, Clone)]
 pub struct BackendTLS {
+	pub hostname_override: Option<ServerName<'static>>,
 	pub config: Arc<ClientConfig>,
 }
 
@@ -63,6 +66,8 @@ pub struct LocalBackendTLS {
 	cert: Option<PathBuf>,
 	key: Option<PathBuf>,
 	root: Option<PathBuf>,
+	// If set, override the SNI. Otherwise, it will automatically be set.
+	hostname: Option<String>,
 	#[serde(default)]
 	insecure: bool,
 	#[serde(default)]
@@ -72,6 +77,8 @@ pub struct ResolvedBackendTLS {
 	pub cert: Option<Vec<u8>>,
 	pub key: Option<Vec<u8>>,
 	pub root: Option<Vec<u8>>,
+	// If set, override the SNI. Otherwise, it will automatically be set.
+	pub hostname: Option<String>,
 	pub insecure: bool,
 	pub insecure_host: bool,
 }
@@ -120,6 +127,7 @@ impl ResolvedBackendTLS {
 		cc.alpn_protocols = vec![b"h2".into(), b"http/1.1".into()];
 		// cc.alpn_protocols = vec![b"http/1.1".into()];
 		Ok(BackendTLS {
+			hostname_override: self.hostname.map(|s| s.try_into()).transpose()?,
 			config: Arc::new(cc),
 		})
 	}
@@ -131,6 +139,7 @@ impl LocalBackendTLS {
 			cert: self.cert.map(fs_err::read).transpose()?,
 			key: self.key.map(fs_err::read).transpose()?,
 			root: self.root.map(fs_err::read).transpose()?,
+			hostname: self.hostname,
 			insecure: self.insecure,
 			insecure_host: self.insecure_host,
 		}

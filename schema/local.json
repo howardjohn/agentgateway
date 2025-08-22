@@ -1567,6 +1567,12 @@
                                   "null"
                                 ]
                               },
+                              "hostname": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
                               "insecure": {
                                 "type": "boolean",
                                 "default": false
@@ -2627,6 +2633,12 @@
                                 ]
                               },
                               "root": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "hostname": {
                                 "type": [
                                   "string",
                                   "null"

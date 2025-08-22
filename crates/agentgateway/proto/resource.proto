@@ -380,6 +380,8 @@ message PolicySpec {
     google.protobuf.BytesValue root = 3;
     // Disable all verification
     google.protobuf.BoolValue insecure = 4;
+    // If set, override the SNI explicitly. Otherwise, it is auto-derived.
+    google.protobuf.StringValue hostname = 5;
   }
   message RBAC {
     repeated string allow = 1;

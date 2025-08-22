@@ -3782,7 +3782,9 @@ type PolicySpec_BackendTLS struct {
 	// If no verification is desired, use 'insecure'
 	Root *wrappers.BytesValue `protobuf:"bytes,3,opt,name=root,proto3" json:"root,omitempty"`
 	// Disable all verification
-	Insecure      *wrappers.BoolValue `protobuf:"bytes,4,opt,name=insecure,proto3" json:"insecure,omitempty"`
+	Insecure *wrappers.BoolValue `protobuf:"bytes,4,opt,name=insecure,proto3" json:"insecure,omitempty"`
+	// If set, override the SNI explicitly. Otherwise, it is auto-derived.
+	Hostname      *wrappers.StringValue `protobuf:"bytes,5,opt,name=hostname,proto3" json:"hostname,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3841,6 +3843,13 @@ func (x *PolicySpec_BackendTLS) GetRoot() *wrappers.BytesValue {
 func (x *PolicySpec_BackendTLS) GetInsecure() *wrappers.BoolValue {
 	if x != nil {
 		return x.Insecure
+	}
+	return nil
+}
+
+func (x *PolicySpec_BackendTLS) GetHostname() *wrappers.StringValue {
+	if x != nil {
+		return x.Hostname
 	}
 	return nil
 }
@@ -5047,7 +5056,7 @@ const file_resource_proto_rawDesc = "" +
 	"\n" +
 	"route_rule\x18\x04 \x01(\tH\x00R\trouteRule\x12\x1a\n" +
 	"\abackend\x18\x05 \x01(\tH\x00R\abackendB\x06\n" +
-	"\x04kind\"\xf0 \n" +
+	"\x04kind\"\xaa!\n" +
 	"\n" +
 	"PolicySpec\x12`\n" +
 	"\x10local_rate_limit\x18\x01 \x01(\v24.agentgateway.dev.resource.PolicySpec.LocalRateLimitH\x00R\x0elocalRateLimit\x12Q\n" +
@@ -5147,13 +5156,14 @@ const file_resource_proto_rawDesc = "" +
 	"\vFailureMode\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\x0f\n" +
 	"\vFAIL_CLOSED\x10\x01\x12\r\n" +
-	"\tFAIL_OPEN\x10\x02\x1a\xd5\x01\n" +
+	"\tFAIL_OPEN\x10\x02\x1a\x8f\x02\n" +
 	"\n" +
 	"BackendTLS\x12/\n" +
 	"\x04cert\x18\x01 \x01(\v2\x1b.google.protobuf.BytesValueR\x04cert\x12-\n" +
 	"\x03key\x18\x02 \x01(\v2\x1b.google.protobuf.BytesValueR\x03key\x12/\n" +
 	"\x04root\x18\x03 \x01(\v2\x1b.google.protobuf.BytesValueR\x04root\x126\n" +
-	"\binsecure\x18\x04 \x01(\v2\x1a.google.protobuf.BoolValueR\binsecure\x1a0\n" +
+	"\binsecure\x18\x04 \x01(\v2\x1a.google.protobuf.BoolValueR\binsecure\x128\n" +
+	"\bhostname\x18\x05 \x01(\v2\x1c.google.protobuf.StringValueR\bhostname\x1a0\n" +
 	"\x04RBAC\x12\x14\n" +
 	"\x05allow\x18\x01 \x03(\tR\x05allow\x12\x12\n" +
 	"\x04deny\x18\x02 \x03(\tR\x04denyB\x06\n" +
@@ -5401,36 +5411,37 @@ var file_resource_proto_depIdxs = []int32{
 	74,  // 76: agentgateway.dev.resource.PolicySpec.BackendTLS.key:type_name -> google.protobuf.BytesValue
 	74,  // 77: agentgateway.dev.resource.PolicySpec.BackendTLS.root:type_name -> google.protobuf.BytesValue
 	75,  // 78: agentgateway.dev.resource.PolicySpec.BackendTLS.insecure:type_name -> google.protobuf.BoolValue
-	52,  // 79: agentgateway.dev.resource.PolicySpec.Ai.PromptEnrichment.append:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Message
-	52,  // 80: agentgateway.dev.resource.PolicySpec.Ai.PromptEnrichment.prepend:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Message
-	2,   // 81: agentgateway.dev.resource.PolicySpec.Ai.RegexRule.builtin:type_name -> agentgateway.dev.resource.PolicySpec.Ai.BuiltinRegexRule
-	54,  // 82: agentgateway.dev.resource.PolicySpec.Ai.RegexRule.regex:type_name -> agentgateway.dev.resource.PolicySpec.Ai.NamedRegex
-	3,   // 83: agentgateway.dev.resource.PolicySpec.Ai.Action.kind:type_name -> agentgateway.dev.resource.PolicySpec.Ai.ActionKind
-	60,  // 84: agentgateway.dev.resource.PolicySpec.Ai.Action.reject_response:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RequestRejection
-	56,  // 85: agentgateway.dev.resource.PolicySpec.Ai.RegexRules.action:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Action
-	55,  // 86: agentgateway.dev.resource.PolicySpec.Ai.RegexRules.rules:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RegexRule
-	76,  // 87: agentgateway.dev.resource.PolicySpec.Ai.Moderation.model:type_name -> google.protobuf.StringValue
-	15,  // 88: agentgateway.dev.resource.PolicySpec.Ai.Moderation.auth:type_name -> agentgateway.dev.resource.BackendAuthPolicy
-	57,  // 89: agentgateway.dev.resource.PolicySpec.Ai.ResponseGuard.regex:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RegexRules
-	58,  // 90: agentgateway.dev.resource.PolicySpec.Ai.ResponseGuard.webhook:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Webhook
-	60,  // 91: agentgateway.dev.resource.PolicySpec.Ai.RequestGuard.rejection:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RequestRejection
-	57,  // 92: agentgateway.dev.resource.PolicySpec.Ai.RequestGuard.regex:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RegexRules
-	58,  // 93: agentgateway.dev.resource.PolicySpec.Ai.RequestGuard.webhook:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Webhook
-	59,  // 94: agentgateway.dev.resource.PolicySpec.Ai.RequestGuard.openai_moderation:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Moderation
-	62,  // 95: agentgateway.dev.resource.PolicySpec.Ai.PromptGuard.request:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RequestGuard
-	61,  // 96: agentgateway.dev.resource.PolicySpec.Ai.PromptGuard.response:type_name -> agentgateway.dev.resource.PolicySpec.Ai.ResponseGuard
-	76,  // 97: agentgateway.dev.resource.AIBackend.OpenAI.model:type_name -> google.protobuf.StringValue
-	76,  // 98: agentgateway.dev.resource.AIBackend.Gemini.model:type_name -> google.protobuf.StringValue
-	76,  // 99: agentgateway.dev.resource.AIBackend.Vertex.model:type_name -> google.protobuf.StringValue
-	76,  // 100: agentgateway.dev.resource.AIBackend.Anthropic.model:type_name -> google.protobuf.StringValue
-	76,  // 101: agentgateway.dev.resource.AIBackend.Bedrock.model:type_name -> google.protobuf.StringValue
-	76,  // 102: agentgateway.dev.resource.AIBackend.Bedrock.guardrail_identifier:type_name -> google.protobuf.StringValue
-	76,  // 103: agentgateway.dev.resource.AIBackend.Bedrock.guardrail_version:type_name -> google.protobuf.StringValue
-	104, // [104:104] is the sub-list for method output_type
-	104, // [104:104] is the sub-list for method input_type
-	104, // [104:104] is the sub-list for extension type_name
-	104, // [104:104] is the sub-list for extension extendee
-	0,   // [0:104] is the sub-list for field type_name
+	76,  // 79: agentgateway.dev.resource.PolicySpec.BackendTLS.hostname:type_name -> google.protobuf.StringValue
+	52,  // 80: agentgateway.dev.resource.PolicySpec.Ai.PromptEnrichment.append:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Message
+	52,  // 81: agentgateway.dev.resource.PolicySpec.Ai.PromptEnrichment.prepend:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Message
+	2,   // 82: agentgateway.dev.resource.PolicySpec.Ai.RegexRule.builtin:type_name -> agentgateway.dev.resource.PolicySpec.Ai.BuiltinRegexRule
+	54,  // 83: agentgateway.dev.resource.PolicySpec.Ai.RegexRule.regex:type_name -> agentgateway.dev.resource.PolicySpec.Ai.NamedRegex
+	3,   // 84: agentgateway.dev.resource.PolicySpec.Ai.Action.kind:type_name -> agentgateway.dev.resource.PolicySpec.Ai.ActionKind
+	60,  // 85: agentgateway.dev.resource.PolicySpec.Ai.Action.reject_response:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RequestRejection
+	56,  // 86: agentgateway.dev.resource.PolicySpec.Ai.RegexRules.action:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Action
+	55,  // 87: agentgateway.dev.resource.PolicySpec.Ai.RegexRules.rules:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RegexRule
+	76,  // 88: agentgateway.dev.resource.PolicySpec.Ai.Moderation.model:type_name -> google.protobuf.StringValue
+	15,  // 89: agentgateway.dev.resource.PolicySpec.Ai.Moderation.auth:type_name -> agentgateway.dev.resource.BackendAuthPolicy
+	57,  // 90: agentgateway.dev.resource.PolicySpec.Ai.ResponseGuard.regex:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RegexRules
+	58,  // 91: agentgateway.dev.resource.PolicySpec.Ai.ResponseGuard.webhook:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Webhook
+	60,  // 92: agentgateway.dev.resource.PolicySpec.Ai.RequestGuard.rejection:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RequestRejection
+	57,  // 93: agentgateway.dev.resource.PolicySpec.Ai.RequestGuard.regex:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RegexRules
+	58,  // 94: agentgateway.dev.resource.PolicySpec.Ai.RequestGuard.webhook:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Webhook
+	59,  // 95: agentgateway.dev.resource.PolicySpec.Ai.RequestGuard.openai_moderation:type_name -> agentgateway.dev.resource.PolicySpec.Ai.Moderation
+	62,  // 96: agentgateway.dev.resource.PolicySpec.Ai.PromptGuard.request:type_name -> agentgateway.dev.resource.PolicySpec.Ai.RequestGuard
+	61,  // 97: agentgateway.dev.resource.PolicySpec.Ai.PromptGuard.response:type_name -> agentgateway.dev.resource.PolicySpec.Ai.ResponseGuard
+	76,  // 98: agentgateway.dev.resource.AIBackend.OpenAI.model:type_name -> google.protobuf.StringValue
+	76,  // 99: agentgateway.dev.resource.AIBackend.Gemini.model:type_name -> google.protobuf.StringValue
+	76,  // 100: agentgateway.dev.resource.AIBackend.Vertex.model:type_name -> google.protobuf.StringValue
+	76,  // 101: agentgateway.dev.resource.AIBackend.Anthropic.model:type_name -> google.protobuf.StringValue
+	76,  // 102: agentgateway.dev.resource.AIBackend.Bedrock.model:type_name -> google.protobuf.StringValue
+	76,  // 103: agentgateway.dev.resource.AIBackend.Bedrock.guardrail_identifier:type_name -> google.protobuf.StringValue
+	76,  // 104: agentgateway.dev.resource.AIBackend.Bedrock.guardrail_version:type_name -> google.protobuf.StringValue
+	105, // [105:105] is the sub-list for method output_type
+	105, // [105:105] is the sub-list for method input_type
+	105, // [105:105] is the sub-list for extension type_name
+	105, // [105:105] is the sub-list for extension extendee
+	0,   // [0:105] is the sub-list for field type_name
 }
 
 func init() { file_resource_proto_init() }
