@@ -12,8 +12,6 @@ use futures_util::FutureExt;
 use http::StatusCode;
 use hyper_util::rt::TokioIo;
 use hyper_util::server::conn::auto;
-#[cfg(target_family = "unix")]
-use socket2::Domain;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;
 use tokio::task::{AbortHandle, JoinSet};
@@ -140,9 +138,9 @@ impl Gateway {
 			pi.upstream = client;
 			let pi = Arc::new(pi);
 			let builder = if b.address.is_ipv4() {
-				socket2::Socket::new(Domain::IPV4, socket2::Type::STREAM, None)?
+				socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::STREAM, None)?
 			} else {
-				socket2::Socket::new(Domain::IPV6, socket2::Type::STREAM, None)?
+				socket2::Socket::new(socket2::Domain::IPV6, socket2::Type::STREAM, None)?
 			};
 			#[cfg(target_family = "unix")]
 			builder.set_reuse_port(true)?;

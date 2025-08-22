@@ -373,7 +373,7 @@ async fn handle_jemalloc_pprof_heapgen(_req: Request<Incoming>) -> anyhow::Resul
 	)
 }
 
-#[cfg(not(feature = "jemalloc"))]
+#[cfg(all(not(feature = "jemalloc"), target_os = "linux"))]
 async fn handle_jemalloc_pprof_heapgen(_req: Request<Incoming>) -> anyhow::Result<Response> {
 	Ok(
 		::http::Response::builder()
