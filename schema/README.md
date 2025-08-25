@@ -311,6 +311,182 @@ This folder contains JSON schemas for various parts of the project
 |`binds[].listeners[].tcpRoutes[].backends[].backend.(1)service.name.hostname`||
 |`binds[].listeners[].tcpRoutes[].backends[].backend.(1)service.port`||
 |`binds[].listeners[].tcpRoutes[].backends[].backend.(1)host`||
+|`policies`||
+|`policies[].name`||
+|`policies[].target`||
+|`policies[].target.(1)gateway`||
+|`policies[].target.(1)listener`||
+|`policies[].target.(1)route`||
+|`policies[].target.(1)routeRule`||
+|`policies[].target.(1)service`||
+|`policies[].target.(1)backend`||
+|`policies[].policy`||
+|`policies[].policy.requestHeaderModifier`|Headers to be modified in the request.|
+|`policies[].policy.requestHeaderModifier.add`||
+|`policies[].policy.requestHeaderModifier.set`||
+|`policies[].policy.requestHeaderModifier.remove`||
+|`policies[].policy.responseHeaderModifier`|Headers to be modified in the response.|
+|`policies[].policy.responseHeaderModifier.add`||
+|`policies[].policy.responseHeaderModifier.set`||
+|`policies[].policy.responseHeaderModifier.remove`||
+|`policies[].policy.requestRedirect`|Directly respond to the request with a redirect.|
+|`policies[].policy.requestRedirect.scheme`||
+|`policies[].policy.requestRedirect.authority`||
+|`policies[].policy.requestRedirect.authority.(any)(1)full`||
+|`policies[].policy.requestRedirect.authority.(any)(1)host`||
+|`policies[].policy.requestRedirect.authority.(any)(1)port`||
+|`policies[].policy.requestRedirect.path`||
+|`policies[].policy.requestRedirect.path.(any)(1)full`||
+|`policies[].policy.requestRedirect.path.(any)(1)prefix`||
+|`policies[].policy.requestRedirect.status`||
+|`policies[].policy.urlRewrite`|Modify the URL path or authority.|
+|`policies[].policy.urlRewrite.authority`||
+|`policies[].policy.urlRewrite.authority.(any)(1)full`||
+|`policies[].policy.urlRewrite.authority.(any)(1)host`||
+|`policies[].policy.urlRewrite.authority.(any)(1)port`||
+|`policies[].policy.urlRewrite.path`||
+|`policies[].policy.urlRewrite.path.(any)(1)full`||
+|`policies[].policy.urlRewrite.path.(any)(1)prefix`||
+|`policies[].policy.requestMirror`|Mirror incoming requests to another destination.|
+|`policies[].policy.requestMirror.backend`||
+|`policies[].policy.requestMirror.backend.(1)service`||
+|`policies[].policy.requestMirror.backend.(1)service.name`||
+|`policies[].policy.requestMirror.backend.(1)service.name.namespace`||
+|`policies[].policy.requestMirror.backend.(1)service.name.hostname`||
+|`policies[].policy.requestMirror.backend.(1)service.port`||
+|`policies[].policy.requestMirror.backend.(1)host`||
+|`policies[].policy.requestMirror.percentage`||
+|`policies[].policy.directResponse`|Directly respond to the request with a static response.|
+|`policies[].policy.directResponse.body`||
+|`policies[].policy.directResponse.status`||
+|`policies[].policy.cors`|Handle CORS preflight requests and append configured CORS headers to applicable requests.|
+|`policies[].policy.cors.allowCredentials`||
+|`policies[].policy.cors.allowHeaders`||
+|`policies[].policy.cors.allowMethods`||
+|`policies[].policy.cors.allowOrigins`||
+|`policies[].policy.cors.exposeHeaders`||
+|`policies[].policy.cors.maxAge`||
+|`policies[].policy.mcpAuthorization`|Authorization policies for MCP access.|
+|`policies[].policy.mcpAuthorization.rules`||
+|`policies[].policy.authorization`|Authorization policies for HTTP access.|
+|`policies[].policy.authorization.rules`||
+|`policies[].policy.mcpAuthentication`|Authentication for MCP clients.|
+|`policies[].policy.mcpAuthentication.issuer`||
+|`policies[].policy.mcpAuthentication.audience`||
+|`policies[].policy.mcpAuthentication.jwksUrl`||
+|`policies[].policy.mcpAuthentication.provider`||
+|`policies[].policy.mcpAuthentication.provider.(any)(1)auth0`||
+|`policies[].policy.mcpAuthentication.provider.(any)(1)keycloak`||
+|`policies[].policy.mcpAuthentication.resourceMetadata`||
+|`policies[].policy.mcpAuthentication.resourceMetadata.resource`||
+|`policies[].policy.a2a`|Mark this traffic as A2A to enable A2A processing and telemetry.|
+|`policies[].policy.ai`|Mark this as LLM traffic to enable LLM processing.|
+|`policies[].policy.ai.promptGuard`||
+|`policies[].policy.ai.promptGuard.request`||
+|`policies[].policy.ai.promptGuard.request.rejection`||
+|`policies[].policy.ai.promptGuard.request.rejection.body`||
+|`policies[].policy.ai.promptGuard.request.rejection.status`||
+|`policies[].policy.ai.promptGuard.request.regex`||
+|`policies[].policy.ai.promptGuard.request.regex.action`||
+|`policies[].policy.ai.promptGuard.request.regex.action.(1)reject`||
+|`policies[].policy.ai.promptGuard.request.regex.action.(1)reject.response`||
+|`policies[].policy.ai.promptGuard.request.regex.action.(1)reject.response.body`||
+|`policies[].policy.ai.promptGuard.request.regex.action.(1)reject.response.status`||
+|`policies[].policy.ai.promptGuard.request.regex.rules`||
+|`policies[].policy.ai.promptGuard.request.regex.rules[].(any)builtin`||
+|`policies[].policy.ai.promptGuard.request.regex.rules[].(any)pattern`||
+|`policies[].policy.ai.promptGuard.request.regex.rules[].(any)name`||
+|`policies[].policy.ai.promptGuard.request.webhook`||
+|`policies[].policy.ai.promptGuard.request.webhook.target`||
+|`policies[].policy.ai.promptGuard.request.openaiModeration`||
+|`policies[].policy.ai.promptGuard.request.openaiModeration.model`|Model to use. Defaults to `omni-moderation-latest`|
+|`policies[].policy.ai.promptGuard.request.openaiModeration.auth`||
+|`policies[].policy.ai.promptGuard.request.openaiModeration.auth.(1)passthrough`||
+|`policies[].policy.ai.promptGuard.request.openaiModeration.auth.(1)key`||
+|`policies[].policy.ai.promptGuard.request.openaiModeration.auth.(1)key.(any)file`||
+|`policies[].policy.ai.promptGuard.response`||
+|`policies[].policy.ai.promptGuard.response.regex`||
+|`policies[].policy.ai.promptGuard.response.regex.action`||
+|`policies[].policy.ai.promptGuard.response.regex.action.(1)reject`||
+|`policies[].policy.ai.promptGuard.response.regex.action.(1)reject.response`||
+|`policies[].policy.ai.promptGuard.response.regex.action.(1)reject.response.body`||
+|`policies[].policy.ai.promptGuard.response.regex.action.(1)reject.response.status`||
+|`policies[].policy.ai.promptGuard.response.regex.rules`||
+|`policies[].policy.ai.promptGuard.response.regex.rules[].(any)builtin`||
+|`policies[].policy.ai.promptGuard.response.regex.rules[].(any)pattern`||
+|`policies[].policy.ai.promptGuard.response.regex.rules[].(any)name`||
+|`policies[].policy.ai.promptGuard.response.webhook`||
+|`policies[].policy.ai.promptGuard.response.webhook.target`||
+|`policies[].policy.ai.defaults`||
+|`policies[].policy.ai.overrides`||
+|`policies[].policy.ai.prompts`||
+|`policies[].policy.ai.prompts.append`||
+|`policies[].policy.ai.prompts.append.role`||
+|`policies[].policy.ai.prompts.append.content`||
+|`policies[].policy.ai.prompts.prepend`||
+|`policies[].policy.ai.prompts.prepend.role`||
+|`policies[].policy.ai.prompts.prepend.content`||
+|`policies[].policy.backendTLS`|Send TLS to the backend.|
+|`policies[].policy.backendTLS.cert`||
+|`policies[].policy.backendTLS.key`||
+|`policies[].policy.backendTLS.root`||
+|`policies[].policy.backendTLS.hostname`||
+|`policies[].policy.backendTLS.insecure`||
+|`policies[].policy.backendTLS.insecureHost`||
+|`policies[].policy.backendAuth`|Authenticate to the backend.|
+|`policies[].policy.backendAuth.(any)(1)passthrough`||
+|`policies[].policy.backendAuth.(any)(1)key`||
+|`policies[].policy.backendAuth.(any)(1)key.(any)file`||
+|`policies[].policy.backendAuth.(any)(1)gcp`||
+|`policies[].policy.backendAuth.(any)(1)aws`||
+|`policies[].policy.backendAuth.(any)(1)aws.(any)accessKeyId`||
+|`policies[].policy.backendAuth.(any)(1)aws.(any)secretAccessKey`||
+|`policies[].policy.backendAuth.(any)(1)aws.(any)region`||
+|`policies[].policy.backendAuth.(any)(1)aws.(any)sessionToken`||
+|`policies[].policy.localRateLimit`|Rate limit incoming requests. State is kept local.|
+|`policies[].policy.localRateLimit[].maxTokens`||
+|`policies[].policy.localRateLimit[].tokensPerFill`||
+|`policies[].policy.localRateLimit[].fillInterval`||
+|`policies[].policy.localRateLimit[].type`||
+|`policies[].policy.remoteRateLimit`|Rate limit incoming requests. State is managed by a remote server.|
+|`policies[].policy.remoteRateLimit.(any)(1)service`||
+|`policies[].policy.remoteRateLimit.(any)(1)service.name`||
+|`policies[].policy.remoteRateLimit.(any)(1)service.name.namespace`||
+|`policies[].policy.remoteRateLimit.(any)(1)service.name.hostname`||
+|`policies[].policy.remoteRateLimit.(any)(1)service.port`||
+|`policies[].policy.remoteRateLimit.(any)(1)host`||
+|`policies[].policy.jwtAuth`|Authenticate incoming JWT requests.|
+|`policies[].policy.jwtAuth.mode`||
+|`policies[].policy.jwtAuth.issuer`||
+|`policies[].policy.jwtAuth.audiences`||
+|`policies[].policy.jwtAuth.jwks`||
+|`policies[].policy.jwtAuth.jwks.(any)file`||
+|`policies[].policy.jwtAuth.jwks.(any)url`||
+|`policies[].policy.extAuthz`|Authenticate incoming requests by calling an external authorization server.|
+|`policies[].policy.extAuthz.(any)(1)service`||
+|`policies[].policy.extAuthz.(any)(1)service.name`||
+|`policies[].policy.extAuthz.(any)(1)service.name.namespace`||
+|`policies[].policy.extAuthz.(any)(1)service.name.hostname`||
+|`policies[].policy.extAuthz.(any)(1)service.port`||
+|`policies[].policy.extAuthz.(any)(1)host`||
+|`policies[].policy.transformations`|Modify requests and responses|
+|`policies[].policy.transformations.request`||
+|`policies[].policy.transformations.request.add`||
+|`policies[].policy.transformations.request.set`||
+|`policies[].policy.transformations.request.remove`||
+|`policies[].policy.transformations.request.body`||
+|`policies[].policy.transformations.response`||
+|`policies[].policy.transformations.response.add`||
+|`policies[].policy.transformations.response.set`||
+|`policies[].policy.transformations.response.remove`||
+|`policies[].policy.transformations.response.body`||
+|`policies[].policy.timeout`|Timeout requests that exceed the configured duration.|
+|`policies[].policy.timeout.requestTimeout`||
+|`policies[].policy.timeout.backendRequestTimeout`||
+|`policies[].policy.retry`|Retry matching requests.|
+|`policies[].policy.retry.attempts`||
+|`policies[].policy.retry.backoff`||
+|`policies[].policy.retry.codes`||
 |`workloads`||
 |`services`||
 ## CEL context

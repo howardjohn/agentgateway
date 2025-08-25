@@ -287,9 +287,8 @@ pub enum RouteFilter {
 	CORS(http::cors::Cors),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[derive(Default, Eq, PartialEq)]
+#[apply(schema!)]
 pub struct TrafficPolicy {
 	pub timeout: timeout::Policy,
 	pub retry: Option<retry::Policy>,
@@ -973,9 +972,8 @@ pub struct TargetedPolicy {
 	pub policy: Policy,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[derive(Hash, Eq, PartialEq)]
+#[apply(schema!)]
 pub enum PolicyTarget {
 	Gateway(GatewayName),
 	Listener(ListenerKey),
@@ -1009,7 +1007,6 @@ pub enum Policy {
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
 	Authorization(Authorization),
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
-	// Transformation(),
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
 	LocalRateLimit(Vec<crate::http::localratelimit::RateLimit>),
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
@@ -1017,11 +1014,9 @@ pub enum Policy {
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
 	RemoteRateLimit(remoteratelimit::RemoteRateLimit),
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
-	// ExtProc(),
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
 	JwtAuth(crate::http::jwt::Jwt),
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
-	// ExtProc(),
 	// Supported targets: Gateway < Route < RouteRule; single policy allowed
 	Transformation(crate::http::transformation_cel::Transformation),
 }

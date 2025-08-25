@@ -10,6 +10,7 @@ use crate::*;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[derive(Eq, PartialEq)]
 pub struct Policy {
 	#[serde(default = "default_attempts")]
 	pub attempts: NonZeroU8,
