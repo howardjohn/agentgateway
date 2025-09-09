@@ -360,7 +360,7 @@ impl Relay {
 	}
 	fn get_info(&self) -> ServerInfo {
 		ServerInfo {
-			protocol_version: ProtocolVersion::V_2025_03_26,
+			protocol_version: ProtocolVersion::V_2025_06_18,
 			capabilities: ServerCapabilities {
 				completions: None,
 				experimental: None,
