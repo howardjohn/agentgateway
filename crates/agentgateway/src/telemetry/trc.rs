@@ -6,7 +6,9 @@ use std::time::SystemTime;
 use agent_core::telemetry::ValueBag;
 use http::Version;
 use itertools::Itertools;
-use opentelemetry::trace::{Span, SpanContext, SpanKind, TraceState, Tracer as _, TracerProvider};
+use opentelemetry::trace::{
+	Span, SpanContext, SpanKind, Status, TraceState, Tracer as _, TracerProvider,
+};
 use opentelemetry::{Key, KeyValue, TraceFlags};
 use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::Resource;
@@ -15,6 +17,7 @@ pub use traceparent::TraceParent;
 
 use crate::cel;
 use crate::telemetry::log::{CelLoggingExecutor, LoggingFields, RequestLog};
+use ::http::StatusCode;
 
 #[derive(Clone, Debug)]
 pub struct Tracer {
@@ -158,6 +161,13 @@ impl Tracer {
 			_ => "unknown".to_string(),
 		});
 
+		let status = match request.status {
+			Some(s) if s.is_server_error() || s == StatusCode::TOO_MANY_REQUESTS => {
+				Status::error(format!("error code {s}"))
+			},
+			_ => Status::Unset,
+		};
+
 		let out_span = request.outgoing_span.as_ref().unwrap();
 		let mut sb = self
 			.tracer
@@ -166,6 +176,7 @@ impl Tracer {
 			.with_end_time(SystemTime::now())
 			.with_kind(SpanKind::Server)
 			.with_attributes(attributes)
+			.with_status(status)
 			.with_trace_id(out_span.trace_id.into())
 			.with_span_id(out_span.span_id.into());
 

@@ -12,6 +12,7 @@ pub use cel::Value;
 use cel::objects::Key;
 use cel::{Context, ExecutionError, ParseError, ParseErrors, Program};
 pub use functions::{FLATTEN_LIST, FLATTEN_LIST_RECURSIVE, FLATTEN_MAP, FLATTEN_MAP_RECURSIVE};
+use itertools::Itertools;
 use once_cell::sync::Lazy;
 use serde::{Serialize, Serializer};
 
@@ -214,6 +215,7 @@ impl ContextBuilder {
 			total_tokens: None,
 			prompt: None,
 			completion: None,
+			tool_calls: None,
 		});
 		self.attributes.contains(LLM_PROMPT_ATTRIBUTE)
 	}
@@ -239,6 +241,10 @@ impl ContextBuilder {
 			o.response_model = info.provider_model.clone();
 			// Not always set
 			o.completion = info.completion.clone();
+			o.tool_calls = info
+				.tool_calls
+				.as_ref()
+				.map(|t| t.iter().map(Into::into).collect_vec());
 		}
 	}
 
@@ -439,6 +445,9 @@ pub struct LLMContext {
 	/// The completion from the LLM. Warning: accessing this has some performance impacts for large responses.
 	#[serde(skip_serializing_if = "Option::is_none")]
 	completion: Option<Vec<String>>,
+	/// The completion from the LLM. Warning: accessing this has some performance impacts for large responses.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	tool_calls: Option<Vec<llm::SimpleToolCall>>,
 	/// The parameters for the LLM request.
 	params: llm::LLMRequestParams,
 }

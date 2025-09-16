@@ -1,4 +1,5 @@
 # yaml-language-server: $schema=../../../schema/local.json
+# Run Phoenix with: `docker run -p 6006:6006 -p 4317:4317 -i -t arizephoenix/phoenix:latest`
 config:
   tracing:
     otlpEndpoint: http://localhost:4317
@@ -9,10 +10,17 @@ config:
         openinference.span.kind: '"LLM"'
         llm.system: 'llm.provider'
         llm.input_messages: 'flatten_recursive(llm.prompt.map(c, {"message": c}))'
-        llm.output_messages: 'flatten_recursive(llm.completion.map(c, {"role":"assistant", "content": c}))'
+        llm.output_messages: |
+          flatten_recursive(
+            has(llm.toolCalls) ?
+              [{"message": {"role":"assistant", "tool_calls": llm.toolCalls.map(c, {"tool_call": c})}}] :
+              llm.completion.map(c, {"message": {"role":"assistant", "content": c}})
+          )
         llm.token_count.completion: 'llm.outputTokens'
         llm.token_count.prompt: 'llm.inputTokens'
         llm.token_count.total: 'llm.totalTokens'
+        llm.model_name: 'llm.responseModel'
+        llm.invocation_parameters: 'to_json(llm.params)'
 binds:
 - port: 3000
   listeners:
