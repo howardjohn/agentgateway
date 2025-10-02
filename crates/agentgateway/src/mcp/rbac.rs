@@ -40,12 +40,12 @@ impl McpAuthorizationSet {
 	}
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum ResourceType {
 	/// The tool being accessed
-	Tool(ResourceId),
+	Tool(ToolResource),
 	/// The prompt being accessed
 	Prompt(ResourceId),
 	/// The resource being accessed
@@ -70,6 +70,21 @@ impl ResourceId {
 	}
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct ToolResource {
+	#[serde(flatten)]
+	resource: ResourceId,
+	#[serde(default)]
+	annotations: Option<rmcp::model::ToolAnnotations>,
+}
+
+impl ToolResource {
+	pub fn new(resource: ResourceId, annotations: Option<rmcp::model::ToolAnnotations>) -> Self {
+		Self { resource, annotations }
+	}
+}
 #[derive(Clone, Debug, Default)]
 pub struct Identity {
 	pub claims: Option<Claims>,

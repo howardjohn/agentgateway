@@ -256,6 +256,12 @@ impl Session {
 							l.tool_call_name = Some(tool.to_string());
 							l.target_name = Some(service_name.to_string());
 						});
+
+						// TODO: how can we get the annotations?
+						let tr = rbac::ToolResource::new(
+							rbac::ResourceId::new(service_name.to_string(), tool.to_string()),
+							t.annotations.clone(),
+						);
 						if !self.relay.policies.validate(
 							&rbac::ResourceType::Tool(rbac::ResourceId::new(
 								service_name.to_string(),

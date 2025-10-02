@@ -896,6 +896,12 @@ This folder contains JSON schemas for various parts of the project
 |`mcp.(any)(1)tool`||
 |`mcp.(any)(1)tool.target`|The target of the resource|
 |`mcp.(any)(1)tool.name`|The name of the resource|
+|`mcp.(any)(1)tool.annotations`|Additional properties describing a Tool to clients.<br><br>NOTE: all properties in ToolAnnotations are **hints**.<br>They are not guaranteed to provide a faithful description of<br>tool behavior (including descriptive properties like `title`).<br><br>Clients should never make tool use decisions based on ToolAnnotations<br>received from untrusted servers.|
+|`mcp.(any)(1)tool.annotations.title`|A human-readable title for the tool.|
+|`mcp.(any)(1)tool.annotations.readOnlyHint`|If true, the tool does not modify its environment.<br><br>Default: false|
+|`mcp.(any)(1)tool.annotations.destructiveHint`|If true, the tool may perform destructive updates to its environment.<br>If false, the tool performs only additive updates.<br><br>(This property is meaningful only when `readOnlyHint == false`)<br><br>Default: true<br>A human-readable description of the tool's purpose.|
+|`mcp.(any)(1)tool.annotations.idempotentHint`|If true, calling the tool repeatedly with the same arguments<br>will have no additional effect on the its environment.<br><br>(This property is meaningful only when `readOnlyHint == false`)<br><br>Default: false.|
+|`mcp.(any)(1)tool.annotations.openWorldHint`|If true, this tool may interact with an "open world" of external<br>entities. If false, the tool's domain of interaction is closed.<br>For example, the world of a web search tool is open, whereas that<br>of a memory tool is not.<br><br>Default: true|
 |`mcp.(any)(1)prompt`||
 |`mcp.(any)(1)prompt.target`|The target of the resource|
 |`mcp.(any)(1)prompt.name`|The name of the resource|

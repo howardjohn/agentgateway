@@ -110,13 +110,11 @@ impl Relay {
 						.into_iter()
 						// Apply authorization policies, filtering tools that are not allowed.
 						.filter(|t| {
-							policies.validate(
-								&rbac::ResourceType::Tool(rbac::ResourceId::new(
-									server_name.to_string(),
-									t.name.to_string(),
-								)),
-								&cel,
-							)
+							let tr = rbac::ToolResource::new(
+								rbac::ResourceId::new(server_name.to_string(), t.name.to_string()),
+								t.annotations.clone(),
+							);
+							policies.validate(&rbac::ResourceType::Tool(tr), &cel)
 						})
 						// Rename to handle multiplexing
 						.map(|t| Tool {
@@ -346,7 +344,7 @@ impl Relay {
 			capabilities: ServerCapabilities {
 				completions: None,
 				experimental: None,
-				logging: None,
+				logging: Some(Default::default()),
 				prompts: Some(PromptsCapability::default()),
 				resources: Some(ResourcesCapability::default()),
 				tools: Some(ToolsCapability::default()),
