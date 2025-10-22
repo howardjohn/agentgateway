@@ -16,14 +16,14 @@ use tracing::{debug, trace};
 use types::agent::*;
 use types::discovery::*;
 
-use crate::client::Transport;
+use crate::client::{ApplicationTransport, Transport};
 use crate::http::backendtls::BackendTLS;
 use crate::http::ext_proc::ExtProcRequest;
 use crate::http::filters::AutoHostname;
 use crate::http::transformation_cel::Transformation;
 use crate::http::{
 	Authority, HeaderName, HeaderValue, PolicyResponse, Request, Response, Scheme, StatusCode, Uri,
-	auth, filters, get_host, merge_in_headers, retry,
+	auth, filters, merge_in_headers, retry,
 };
 use crate::llm::{LLMRequest, RequestResult, RouteType};
 use crate::proxy::{ProxyError, ProxyResponse, ProxyResponseReason, resolve_simple_backend};
@@ -866,6 +866,13 @@ pub async fn build_transport(
 	backend_tls: Option<BackendTLS>,
 	backend_http_version_override: Option<::http::Version>,
 ) -> Result<Transport, ProxyError> {
+
+    return Ok(Transport::Tunnel(
+        ApplicationTransport::Plaintext,
+        client::TunnelConfig {
+            proxy: Target::try_from("localhost:12345").unwrap(),
+        },
+    ));
 	let backend_tls = backend_tls.map(|btls| btls.config_for(backend_http_version_override));
 	// Check if we need double hbone
 	if let (
@@ -919,15 +926,15 @@ pub async fn build_transport(
 					.into()
 				} else {
 					warn!("wanted TLS but CA is not available");
-					Transport::Plaintext
+					ApplicationTransport::Plaintext.into()
 				}
 			},
 			(Some((InboundProtocol::HBONE, ident)), btls, Some(ca)) => {
 				if ca.get_identity().await.is_ok() {
-					Transport::Hbone(btls, ident.clone())
+					Transport::Hbone(btls.into(), ident.clone())
 				} else {
 					warn!("wanted TLS but CA is not available");
-					Transport::Plaintext
+					ApplicationTransport::Plaintext.into()
 				}
 			},
 			(_, pol, _) => pol.into(),
@@ -1070,13 +1077,11 @@ async fn make_backend_call(
 			backend_policies: policies,
 		},
 		Backend::Dynamic(_) => {
-			let port = req
-				.extensions()
-				.get::<TCPConnectionInfo>()
-				.unwrap()
-				.local_addr
-				.port();
-			let target = Target::try_from((get_host(&req)?, port)).map_err(ProxyError::Processing)?;
+			let target = dbg!(Target::try_from_with_default_port(
+				dbg!(http::get_host_with_port(&req)?),
+				80
+			))
+			.map_err(ProxyError::Processing)?;
 			BackendCall {
 				target: target.clone(),
 				http_version_override: None,

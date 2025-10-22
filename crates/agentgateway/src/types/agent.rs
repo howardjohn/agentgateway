@@ -1420,6 +1420,19 @@ impl TryFrom<&str> for Target {
 	}
 }
 
+impl Target {
+	pub fn try_from_with_default_port(
+		hostport: &str,
+		default_port: u16,
+	) -> Result<Self, anyhow::Error> {
+		let Some((host, port)) = hostport.split_once(":") else {
+			return Target::try_from((hostport, default_port));
+		};
+		let port: u16 = port.parse()?;
+		(host, port).try_into()
+	}
+}
+
 impl Display for Target {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let str = match self {

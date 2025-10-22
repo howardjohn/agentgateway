@@ -1,3 +1,4 @@
+mod azure;
 mod dns;
 mod hyperrustls;
 
@@ -6,16 +7,13 @@ use std::task;
 
 use ::http::Uri;
 use ::http::uri::{Authority, Scheme};
-use async_trait::async_trait;
-use azure_core::error::ResultExt;
-use azure_core::http::BufResponse;
 use futures::TryStreamExt;
 use http_body_util::BodyExt;
 use hyper_util_fork::rt::TokioIo;
 use rustls_pki_types::{DnsName, ServerName};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tonic::codegen::Service;
 use tracing::event;
-use typespec_client_core::http::Sanitizer;
 
 use crate::http::backendtls::VersionedBackendTLS;
 use crate::http::filters;
@@ -28,7 +26,6 @@ use crate::*;
 
 #[derive(Clone)]
 pub struct Client {
-	resolver: Arc<dns::CachedResolver>,
 	client: hyper_util_fork::client::legacy::Client<Connector, http::Body, PoolKey>,
 	connector: Connector,
 }
@@ -175,24 +172,70 @@ pub struct TCPCall {
 }
 
 #[derive(Default, Debug, Clone, Hash, PartialEq, Eq)]
-pub enum Transport {
+pub enum ApplicationTransport {
 	#[default]
 	Plaintext,
-	Tls(VersionedBackendTLS),
-	Hbone(Option<VersionedBackendTLS>, Identity),
-	DoubleHbone {
-		gateway_address: SocketAddr, // Address of network gateway to connect to
-		gateway_identity: Identity,  // Identity of network gateway
-		waypoint_identity: Identity, // Identity of waypoint/workload
-		inner_tls: Option<VersionedBackendTLS>,
-	},
+	Tls(BackendTLS),
 }
-impl Transport {
+
+impl From<Option<BackendTLS>> for ApplicationTransport {
+	fn from(value: Option<BackendTLS>) -> Self {
+		match value {
+			Some(tls) => ApplicationTransport::Tls(tls),
+			None => ApplicationTransport::Plaintext,
+		}
+	}
+}
+
+impl ApplicationTransport {
 	pub fn name(&self) -> &'static str {
 		match self {
-			Transport::Plaintext => "plaintext",
-			Transport::Tls(_) => "tls",
-			Transport::Hbone(_, _) => "hbone",
+			ApplicationTransport::Plaintext => "plaintext",
+			ApplicationTransport::Tls(_) => "tls",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct TunnelConfig {
+	pub proxy: Target,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum Transport {
+	Plain(ApplicationTransport),
+	Tunnel(ApplicationTransport, TunnelConfig),
+	Hbone(ApplicationTransport, Identity),
+}
+
+impl From<ApplicationTransport> for Transport {
+	fn from(value: ApplicationTransport) -> Self {
+		Transport::Plain(value)
+	}
+}
+
+impl Default for Transport {
+	fn default() -> Self {
+		Transport::Plain(ApplicationTransport::Plaintext)
+	}
+}
+
+impl Transport {
+	pub fn application(&self) -> &ApplicationTransport {
+		match self {
+			Transport::Plain(inner) => inner,
+			Transport::Tunnel(inner, _) => inner,
+			Transport::Hbone(inner, _) => inner,
+		}
+	}
+	pub fn name(&self) -> &'static str {
+		match self {
+			Transport::Hbone(ApplicationTransport::Plaintext, _) => "hbone",
+			Transport::Hbone(ApplicationTransport::Tls(_), _) => "hbone-tls",
+			Transport::Plain(ApplicationTransport::Plaintext) => "plaintext",
+			Transport::Plain(ApplicationTransport::Tls(_)) => "tls",
+			Transport::Tunnel(ApplicationTransport::Plaintext, _) => "tunnel",
+			Transport::Tunnel(ApplicationTransport::Tls(_), _) => "tunnel-tls",
 			Transport::DoubleHbone { .. } => "doublehbone",
 		}
 	}
@@ -201,9 +244,9 @@ impl Transport {
 impl From<Option<VersionedBackendTLS>> for Transport {
 	fn from(tls: Option<VersionedBackendTLS>) -> Self {
 		if let Some(tls) = tls {
-			client::Transport::Tls(tls)
+			ApplicationTransport::Tls(tls).into()
 		} else {
-			client::Transport::Plaintext
+			ApplicationTransport::Plaintext.into()
 		}
 	}
 }
@@ -216,26 +259,10 @@ pub struct ResolvedDestination(pub SocketAddr);
 
 impl Transport {
 	pub fn scheme(&self) -> Scheme {
-		match self {
-			Transport::Plaintext => Scheme::HTTP,
+		match *self.application() {
+			ApplicationTransport::Plaintext => Scheme::HTTP,
 			// TODO: make sure this is right, envoy had all sorts of issues around this.
-			Transport::Tls(_) => Scheme::HTTPS,
-			Transport::Hbone(inner, _) => {
-				if inner.is_some() {
-					Scheme::HTTPS
-				} else {
-					// It is a tunnel, so the fact its HTTPS is transparent!
-					Scheme::HTTP
-				}
-			},
-			Transport::DoubleHbone { inner_tls, .. } => {
-				if inner_tls.is_some() {
-					Scheme::HTTPS
-				} else {
-					// Double tunnel, so HTTPS is transparent!
-					Scheme::HTTP
-				}
-			},
+			ApplicationTransport::Tls(_) => Scheme::HTTPS,
 		}
 	}
 }
@@ -245,6 +272,7 @@ struct Connector {
 	hbone_pool: Option<agent_hbone::pool::WorkloadHBONEPool<hbone::WorkloadKey>>,
 	backend_config: Arc<crate::BackendConfig>,
 	metrics: Option<Arc<crate::metrics::Metrics>>,
+	resolver: Arc<dns::CachedResolver>,
 }
 
 impl Connector {
@@ -257,10 +285,12 @@ impl Connector {
 		let connect_start = std::time::Instant::now();
 		let transport_name = transport.name();
 		let mut socket = match transport {
-			Transport::Plaintext => Socket::dial(ep, self.backend_config.clone())
-				.await
-				.map_err(crate::http::Error::new)?,
-			Transport::Tls(tls) => {
+			Transport::Plain(ApplicationTransport::Plaintext) => {
+				Socket::dial(ep, self.backend_config.clone())
+					.await
+					.map_err(crate::http::Error::new)?
+			},
+			Transport::Plain(ApplicationTransport::Tls(tls)) => {
 				let server_name = if let Some(h) = tls.hostname_override {
 					h
 				} else {
@@ -280,8 +310,29 @@ impl Connector {
 
 				tls.call(ep).await.map_err(crate::http::Error::new)?
 			},
+			Transport::Tunnel(inner, tcfg) => {
+				if matches!(inner, ApplicationTransport::Tls(_)) {
+					return Err(crate::http::Error::new(anyhow::anyhow!(
+						"todo: inner TLS is not currently supported"
+					)));
+				}
+				let proxy_dst: SocketAddr = self
+					.resolve_target(&tcfg.proxy)
+					.await
+					.map_err(crate::http::Error::new)?;
+				let dest = target.to_string();
+
+				let mut con = Socket::dial(proxy_dst, self.backend_config.clone())
+					.await
+					.map_err(crate::http::Error::new)?;
+
+				Self::tunnel(&mut con, &dest)
+					.await
+					.map_err(crate::http::Error::new)?;
+				con
+			},
 			Transport::Hbone(inner, identity) => {
-				if inner.is_some() {
+				if matches!(inner, ApplicationTransport::Tls(_)) {
 					return Err(crate::http::Error::new(anyhow::anyhow!(
 						"todo: inner TLS is not currently supported"
 					)));
@@ -475,6 +526,62 @@ impl Connector {
 		socket.with_logging(LoggingMode::Upstream);
 		Ok(socket)
 	}
+
+	async fn tunnel(conn: &mut Socket, dest: &str) -> Result<(), anyhow::Error> {
+		let buf = format!(
+			"\
+         CONNECT {dest} HTTP/1.1\r\n\
+         Host: {dest}\r\n\
+         \r\n\
+         "
+		)
+		.into_bytes();
+
+		conn.write_all(&buf).await?;
+
+		let mut buf = [0; 8192];
+		let mut pos = 0;
+		loop {
+			let n = conn
+				.read(&mut buf[pos..])
+				.await
+				.map_err(crate::http::Error::new)?;
+			if n == 0 {
+				return Err(anyhow::anyhow!("tunnel unexecpted eof"));
+			}
+			pos += n;
+
+			let recvd = &buf[..pos];
+			if recvd.starts_with(b"HTTP/1.1 200") || recvd.starts_with(b"HTTP/1.0 200") {
+				if recvd.ends_with(b"\r\n\r\n") {
+					return Ok(());
+				}
+				if pos == buf.len() {
+					return Err(anyhow::anyhow!("headers too long"));
+				}
+			// else read more
+			} else if recvd.starts_with(b"HTTP/1.1 407") {
+				return Err(anyhow::anyhow!("tunnel required auth"));
+			} else {
+				return Err(anyhow::anyhow!("tunnel failed"));
+			}
+		}
+	}
+
+	async fn resolve_target(&self, target: &Target) -> Result<SocketAddr, ProxyError> {
+		let dest = match &target {
+			Target::Address(addr) => *addr,
+			Target::Hostname(hostname, port) => {
+				let ip = self
+					.resolver
+					.resolve(hostname.clone())
+					.await
+					.map_err(|_| ProxyError::DnsResolution)?;
+				SocketAddr::from((ip, *port))
+			},
+		};
+		Ok(dest)
+	}
 }
 
 impl tower::Service<::http::Extensions> for Connector {
@@ -523,16 +630,13 @@ impl Client {
 		};
 
 		let connector = Connector {
+			resolver: Arc::new(resolver),
 			hbone_pool,
 			backend_config: Arc::new(backend_config),
 			metrics,
 		};
 		let client = b.build_with_pool_key(connector.clone());
-		Client {
-			resolver: Arc::new(resolver),
-			client,
-			connector,
-		}
+		Client { client, connector }
 	}
 
 	pub async fn simple_call(&self, req: http::Request) -> Result<http::Response, ProxyError> {
@@ -550,9 +654,9 @@ impl Client {
 			.map(|p| p.as_u16())
 			.unwrap_or_else(|| if scheme == &Scheme::HTTPS { 443 } else { 80 });
 		let transport = if scheme == &Scheme::HTTPS {
-			Transport::Tls(http::backendtls::SYSTEM_TRUST.base_config())
+			ApplicationTransport::Tls(http::backendtls::SYSTEM_TRUST.base_config()).into()
 		} else {
-			Transport::Plaintext
+			ApplicationTransport::Plaintext.into()
 		};
 		let target = Target::try_from((host, port))
 			.map_err(|e| ProxyError::ProcessingString(format!("failed to parse host: {e}")))?;
@@ -572,33 +676,8 @@ impl Client {
 			target,
 			transport,
 		} = call;
-		// For double HBONE, we don't need to resolve the hostname locally
-		// The gateway will resolve it. Use a placeholder dest (won't be used).
-		let dest = match (&target, &transport) {
-			(Target::Address(addr), _) => *addr,
-			(
-				Target::Hostname(hostname, _port),
-				Transport::DoubleHbone {
-					gateway_address, ..
-				},
-			) => {
-				// Don't resolve hostname for double HBONE - gateway will handle it
-				tracing::debug!(
-					hostname=%hostname,
-					"skipping DNS resolution for double hbone, gateway will resolve"
-				);
-				*gateway_address // Placeholder, won't be used for actual connection
-			},
-			(Target::Hostname(hostname, port), _) => {
-				// For non-double-HBONE, resolve hostname locally
-				let ip = self
-					.resolver
-					.resolve(hostname.clone())
-					.await
-					.map_err(|_| ProxyError::DnsResolution)?;
-				SocketAddr::from((ip, *port))
-			},
-		};
+
+		let dest = self.connector.resolve_target(&target).await?;
 
 		let transport_name = transport.name();
 		let target_name = target.to_string();
@@ -649,33 +728,7 @@ impl Client {
 			target,
 			transport,
 		} = call;
-		// For double HBONE, we don't need to resolve the hostname locally
-		// The gateway will resolve it. Use a placeholder dest (won't be used).
-		let dest = match (&target, &transport) {
-			(Target::Address(addr), _) => *addr,
-			(
-				Target::Hostname(hostname, _port),
-				Transport::DoubleHbone {
-					gateway_address, ..
-				},
-			) => {
-				// Don't resolve hostname for double HBONE - gateway will handle it
-				tracing::debug!(
-					hostname=%hostname,
-					"skipping DNS resolution for double hbone (HTTP), gateway will resolve"
-				);
-				*gateway_address // Placeholder, won't be used for actual connection
-			},
-			(Target::Hostname(hostname, port), _) => {
-				// For non-double-HBONE, resolve hostname locally
-				let ip = self
-					.resolver
-					.resolve(hostname.clone())
-					.await
-					.map_err(|_| ProxyError::DnsResolution)?;
-				SocketAddr::from((ip, *port))
-			},
-		};
+		let dest = self.connector.resolve_target(&target).await?;
 		let auto_host = req.extensions().get::<filters::AutoHostname>().is_some();
 		http::modify_req_uri(&mut req, |uri| {
 			let scheme = transport.scheme();
