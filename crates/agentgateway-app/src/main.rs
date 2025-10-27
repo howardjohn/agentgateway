@@ -19,6 +19,9 @@ static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 #[unsafe(export_name = "malloc_conf")]
 pub static malloc_conf: &[u8] = b"prof:true,prof_active:true,lg_prof_sample:19\0";
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 lazy_static::lazy_static! {
 	// The memory is intentionally leaked here using Box::leak to achieve a 'static lifetime
 	// for the version string. This is necessary because the version string is used in a

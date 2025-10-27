@@ -28,6 +28,7 @@ tokio.workspace = true
 tokio-rustls.workspace = true
 tracing.workspace = true
 tikv-jemallocator = {workspace = true, optional = true}
+mimalloc = { version = "0.1.48", features = ["v3"] }
 
 [lints.clippy]
 # This rule makes code more confusing
