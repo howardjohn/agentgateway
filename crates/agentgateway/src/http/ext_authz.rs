@@ -11,9 +11,10 @@ use crate::http::ext_authz::proto::attribute_context::HttpRequest;
 use crate::http::ext_authz::proto::authorization_client::AuthorizationClient;
 use crate::http::ext_authz::proto::check_response::HttpResponse;
 use crate::http::ext_authz::proto::{
-	AttributeContext, CheckRequest, DeniedHttpResponse, HeaderValueOption, OkHttpResponse,
+	AttributeContext, CheckRequest, DeniedHttpResponse, HeaderValueOption, Metadata, OkHttpResponse,
 };
 use crate::http::ext_proc::GrpcReferenceChannel;
+use crate::http::jwt::Claims;
 use crate::http::{HeaderName, HeaderValue, PolicyResponse, Request};
 use crate::proxy::ProxyError;
 use crate::proxy::httpproxy::PolicyClient;
@@ -310,13 +311,18 @@ impl ExtAuthz {
 				sni: tls_info.server_name.clone().unwrap_or_default(),
 			}
 		});
-
+		let claims = req.extensions().get::<Claims>();
 		let authz_req = CheckRequest {
 			attributes: Some(AttributeContext {
 				source,
 				destination,
 				request: Some(request),
 				context_extensions: self.context.clone().unwrap_or_default(),
+				metadata_context: claims
+					.and_then(|c| json::convert(&c.inner).ok())
+					.map(|c| Metadata {
+						filter_metadata: HashMap::from([("agentgateway.jwt.claims".to_string(), c)]),
+					}),
 				tls_session,
 			}),
 		};
