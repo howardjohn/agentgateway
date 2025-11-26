@@ -4,10 +4,20 @@ use serde_json::json;
 use crate::insert_all;
 
 fn eval(expr: &str) -> anyhow::Result<Value> {
+	eval_with_optimizations_check(expr, true)
+}
+fn eval_with_optimizations_check(expr: &str, check: bool) -> anyhow::Result<Value> {
 	let prog = Program::compile(expr)?;
+	let optimized = Program::compile(expr)?.optimized_with(crate::DefaultOptimizer);
 	let mut c = Context::default();
 	insert_all(&mut c);
-	Ok(prog.execute(&c)?)
+	let a = prog.execute(&c)?;
+	let b = optimized.execute(&c)?;
+	if check {
+		assert_eq!(a, b, "optimizations changed behavior ({expr})");
+	}
+
+	Ok(a)
 }
 
 #[test]
@@ -25,7 +35,12 @@ fn json() {
 #[test]
 fn random() {
 	let expr = r#"int(random() * 10.0)"#;
-	let v = eval(expr).unwrap().json().unwrap().as_i64().unwrap();
+	let v = eval_with_optimizations_check(expr, false)
+		.unwrap()
+		.json()
+		.unwrap()
+		.as_i64()
+		.unwrap();
 	assert!((0..=10).contains(&v));
 }
 

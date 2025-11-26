@@ -16,7 +16,10 @@ use crate::types::agent::BackendInfo;
 use agent_core::strng::Strng;
 use bytes::Bytes;
 pub use cel::Value;
-use cel::{Context, ExecutionError, ParseError, ParseErrors, Program};
+use cel::common::ast::{CallExpr, Expr};
+use cel::extractors::This;
+use cel::objects::Opaque;
+use cel::{Context, ExecutionError, IdedExpr, ParseError, ParseErrors, Program};
 use once_cell::sync::Lazy;
 use prometheus_client::encoding::EncodeLabelValue;
 use serde::{Deserialize, Serialize, Serializer};
@@ -439,7 +442,8 @@ impl Expression {
 	/// new_strict compiles the expression, and returns an error if its invalid.
 	pub fn new_strict(original_expression: impl Into<String>) -> Result<Self, Error> {
 		let original_expression = original_expression.into();
-		let expression = Program::compile(&original_expression)?;
+		let expression =
+			Program::compile(&original_expression)?.optimized_with(agent_celx::DefaultOptimizer);
 
 		let mut props: Vec<Vec<&str>> = Vec::with_capacity(5);
 		properties(
@@ -710,7 +714,7 @@ fn properties<'e>(
 			}
 		},
 		Literal(_) => {},
-		// Inline(_) => {},
+		Inline(_) => {},
 		Ident(v) => {
 			if !v.starts_with("@") {
 				path.insert(0, v.as_str());

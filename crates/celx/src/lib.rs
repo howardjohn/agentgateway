@@ -2,10 +2,12 @@ use cel::Context;
 
 mod cidr;
 mod general;
+mod optimize;
 mod strings;
 #[cfg(test)]
 #[path = "function_tests.rs"]
 mod tests;
+pub use optimize::DefaultOptimizer;
 
 pub use general::FlattenSignal;
 
@@ -18,6 +20,8 @@ pub fn insert_all(ctx: &mut Context<'_>) {
 	// https://kubernetes.io/docs/reference/using-api/cel/#kubernetes-cidr-library and
 	// https://kubernetes.io/docs/reference/using-api/cel/#kubernetes-ip-address-library
 	cidr::insert_all(ctx);
+	// Optimized functions
+	optimize::insert_all(ctx);
 }
 
 mod helpers {

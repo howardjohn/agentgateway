@@ -2,6 +2,7 @@ use crate::cel::{ContextBuilder, Expression};
 use crate::function;
 use crate::http::{Body, Request};
 use divan::Bencher;
+use fs_err::exists;
 use http::Method;
 use http_body_util::BodyExt;
 use std::collections::HashSet;

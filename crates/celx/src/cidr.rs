@@ -31,10 +31,13 @@ fn is_ip(s: Arc<String>) -> bool {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
-struct Cidr(ipnet::IpNet);
+pub struct Cidr(ipnet::IpNet);
 crate::impl_opaque!(Cidr, "cidr");
 
 impl Cidr {
+	pub fn new(s: &str) -> Option<Cidr> {
+		Some(Cidr(ipnet::IpNet::from_str(s).ok()?))
+	}
 	fn parse(ftx: &FunctionContext, s: &str) -> FResult<Cidr> {
 		Ok(Cidr(ipnet::IpNet::from_str(s).map_err(|x| ftx.error(x))?))
 	}
@@ -76,10 +79,13 @@ impl Cidr {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
-struct IP(net::IpAddr);
+pub struct IP(net::IpAddr);
 crate::impl_opaque!(IP, "ip");
 
 impl IP {
+	pub fn new(s: &str) -> Option<IP> {
+		Some(IP(net::IpAddr::from_str(s).ok()?))
+	}
 	fn parse(ftx: &FunctionContext, s: &str) -> FResult<IP> {
 		Ok(IP(net::IpAddr::from_str(s).map_err(|x| ftx.error(x))?))
 	}
