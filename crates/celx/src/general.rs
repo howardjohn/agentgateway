@@ -6,13 +6,17 @@ use ::cel::extractors::{Identifier, This};
 use ::cel::objects::{Map, ValueType};
 use ::cel::parser::Expression;
 use ::cel::{Context, FunctionContext, ResolveResult, Value};
+use cel::ExecutionError;
+use rand::prelude::StdRng;
 use rand::random_range;
+use serde::de::DeserializeSeed;
 use serde::ser::Error;
-use serde::{Serialize, Serializer};
+use serde::{Deserializer, Serialize, Serializer};
 
 pub fn insert_all(ctx: &mut Context<'_>) {
 	// Custom to agentgateway
 	ctx.add_function("json", json_parse);
+	ctx.add_function("jsonField", json_parse_field);
 	ctx.add_function("to_json", to_json);
 	// Keep old and new name for compatibility
 	ctx.add_function("toJson", to_json);
@@ -189,6 +193,72 @@ fn json_parse(ftx: &FunctionContext, v: Value) -> ResolveResult {
 	};
 	let sv: serde_json::Value = sv.map_err(|e| ftx.error(e))?;
 	cel::to_value(sv).map_err(|e| ftx.error(e))
+}
+
+mod json_field {
+	use serde::Deserializer;
+	use serde::de::{Error, IgnoredAny, MapAccess, Visitor};
+	use std::fmt;
+
+	pub struct FieldExtractor {
+		target_field: String,
+	}
+
+	impl FieldExtractor {
+		pub fn new(field_name: &str) -> FieldExtractorVisitor {
+			FieldExtractorVisitor(field_name.to_string())
+			// Self {
+			// 	target_field: field_name.to_string(),
+			// }
+		}
+	}
+
+	pub struct FieldExtractorVisitor(String);
+
+	impl<'de> Visitor<'de> for FieldExtractorVisitor {
+		type Value = Option<cel::Value>;
+
+		fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+			formatter.write_str("a map")
+		}
+
+		fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+		where
+			A: MapAccess<'de>,
+		{
+			let mut val = None;
+			while let Some(key) = map.next_key::<String>()? {
+				if key == self.0 {
+					let value = map.next_value::<serde_json::Value>()?;
+					let value = cel::to_value(value).map_err(A::Error::custom)?;
+					val = Some(value);
+				} else {
+					map.next_value::<IgnoredAny>()?;
+				}
+				// Do not recurse into the values, we only allow top level access right now
+			}
+
+			Ok(val)
+		}
+	}
+}
+fn json_parse_field(ftx: &FunctionContext, v: Value, k: Arc<String>) -> ResolveResult {
+	let pv = match v {
+		Value::String(b) => {
+			let mut d = serde_json::de::Deserializer::from_str(b.as_str());
+			d.deserialize_map(json_field::FieldExtractor::new(&k))
+				.map_err(|e| ftx.error(e))?
+		},
+		Value::Bytes(b) => {
+			let mut d = serde_json::de::Deserializer::from_slice(b.as_ref());
+			d.deserialize_map(json_field::FieldExtractor::new(&k))
+				.map_err(|e| ftx.error(e))?
+		},
+		_ => return Err(ftx.error(format!("invalid type {}", v.type_of()))),
+	};
+
+	let pv = pv.ok_or_else(|| ExecutionError::NoSuchKey(k.clone()))?;
+	Ok(pv)
 }
 
 fn to_json(ftx: &FunctionContext, v: Value) -> ResolveResult {

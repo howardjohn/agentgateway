@@ -30,6 +30,16 @@ fn with() {
 fn json() {
 	let expr = r#"json('{"hi":1}').hi"#;
 	assert(json!(1), expr);
+	let expr = r#"json('{"hi":1}').unknown"#;
+	assert_fails(expr);
+}
+
+#[test]
+fn json_field() {
+	let expr = r#"jsonField('{"hi":1}', "hi")"#;
+	assert(json!(1), expr);
+	let expr = r#"jsonField('{"hi":1}', "unknown")"#;
+	assert_fails(expr);
 }
 
 #[test]

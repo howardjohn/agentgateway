@@ -50,7 +50,8 @@ fn test_cases() -> Vec<TestCase> {
 		},
 		TestCase {
 			name: "bbr",
-			expression: r#"json(request.body).model"#,
+			expression: r#"jsonField(request.body, "model")"#,
+			// expression: r#"json(request.body).model"#,
 			request_builder: || {
 				::http::Request::builder()
 					.method(Method::POST)
