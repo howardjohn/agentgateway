@@ -15,7 +15,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tonic::codegen::Service;
 use tracing::event;
 
-use crate::http::backendtls::VersionedBackendTLS;
+use crate::http::backendtls::{BackendTLS, VersionedBackendTLS};
 use crate::http::filters;
 use crate::proxy::ProxyError;
 use crate::transport::hbone::WorkloadKey;
@@ -36,129 +36,6 @@ impl Debug for Client {
 	}
 }
 
-#[async_trait]
-impl azure_core::http::HttpClient for Client {
-	async fn execute_request(
-		&self,
-		request: &azure_core::http::Request,
-	) -> azure_core::Result<BufResponse> {
-		let url = request.url().clone();
-		let method = request.method();
-		let mut req = ::http::Request::builder();
-		req = req.method(from_method(method)?).uri(url.as_str());
-		for (name, value) in request.headers().iter() {
-			req = req.header(name.as_str(), value.as_str());
-		}
-		let body = request.body().clone();
-
-		let request = match body {
-			azure_core::http::Body::Bytes(bytes) => req.body(crate::http::Body::from(bytes)),
-
-			// We cannot currently implement `Body::SeekableStream` for WASM
-			// because `reqwest::Body::wrap_stream()` is not implemented for WASM.
-			#[cfg(not(target_arch = "wasm32"))]
-			azure_core::http::Body::SeekableStream(seekable_stream) => {
-				req.body(crate::http::Body::from_stream(seekable_stream))
-			},
-		}
-		.map_err(|e| {
-			azure_core::Error::full(
-				azure_core::error::ErrorKind::Other,
-				e,
-				"failed to build `agentgateway::client::Client` request",
-			)
-		})?;
-
-		debug!(
-			"performing request {method} '{}' with `agentgateway::client::Client`",
-			url.sanitize(&typespec_client_core::http::DEFAULT_ALLOWED_QUERY_PARAMETERS)
-		);
-		let rsp = self
-			.call(Call {
-				req: request,
-				target: match url.host().expect("url must have a host") {
-					url::Host::Domain(h) => Target::try_from((h, url.port_or_known_default().unwrap_or(80)))
-						.map_err(|e| {
-							azure_core::Error::full(
-								azure_core::error::ErrorKind::Other,
-								e,
-								"failed to parse host for `agentgateway::client::Client` request",
-							)
-						})?,
-					url::Host::Ipv4(ip) => Target::Address(SocketAddr::from((
-						ip,
-						url.port_or_known_default().unwrap_or(80),
-					))),
-					url::Host::Ipv6(ip) => Target::Address(SocketAddr::from((
-						ip,
-						url.port_or_known_default().unwrap_or(80),
-					))),
-				},
-				transport: if url.scheme() == "https" {
-					Transport::Tls(http::backendtls::SYSTEM_TRUST.base_config())
-				} else {
-					Transport::Plaintext
-				},
-			})
-			.await
-			.map_err(|e| {
-				error!("request failed: {e}");
-				azure_core::Error::full(
-					azure_core::error::ErrorKind::Io,
-					e,
-					"failed to execute `agentgateway::client::Client` request",
-				)
-			})?;
-
-		let status = rsp.status();
-		let headers = to_headers(rsp.headers());
-
-		let body: azure_core::http::response::PinnedStream =
-			Box::pin(rsp.into_data_stream().map_err(|error| {
-				azure_core::Error::full(
-					azure_core::error::ErrorKind::Io,
-					error,
-					"error converting `reqwest` request into a byte stream",
-				)
-			}));
-
-		Ok(BufResponse::new(status.as_u16().into(), headers, body))
-	}
-}
-
-fn from_method(method: azure_core::http::Method) -> azure_core::Result<http::Method> {
-	match method {
-		azure_core::http::Method::Get => Ok(http::Method::GET),
-		azure_core::http::Method::Head => Ok(http::Method::HEAD),
-		azure_core::http::Method::Post => Ok(http::Method::POST),
-		azure_core::http::Method::Put => Ok(http::Method::PUT),
-		azure_core::http::Method::Delete => Ok(http::Method::DELETE),
-		azure_core::http::Method::Patch => Ok(http::Method::PATCH),
-		_ => {
-			http::Method::from_str(method.as_str()).map_kind(azure_core::error::ErrorKind::DataConversion)
-		},
-	}
-}
-
-fn to_headers(map: &::http::HeaderMap) -> azure_core::http::headers::Headers {
-	let map = map
-		.iter()
-		.filter_map(|(k, v)| {
-			let key = k.as_str();
-			if let Ok(value) = v.to_str() {
-				Some((
-					azure_core::http::headers::HeaderName::from(key.to_owned()),
-					azure_core::http::headers::HeaderValue::from(value.to_owned()),
-				))
-			} else {
-				warn!("header value for `{key}` is not utf8");
-				None
-			}
-		})
-		.collect::<HashMap<_, _>>();
-	azure_core::http::headers::Headers::from(map)
-}
-
 pub struct Call {
 	pub req: http::Request,
 	pub target: Target,
@@ -175,11 +52,11 @@ pub struct TCPCall {
 pub enum ApplicationTransport {
 	#[default]
 	Plaintext,
-	Tls(BackendTLS),
+	Tls(VersionedBackendTLS),
 }
 
-impl From<Option<BackendTLS>> for ApplicationTransport {
-	fn from(value: Option<BackendTLS>) -> Self {
+impl From<Option<VersionedBackendTLS>> for ApplicationTransport {
+	fn from(value: Option<VersionedBackendTLS>) -> Self {
 		match value {
 			Some(tls) => ApplicationTransport::Tls(tls),
 			None => ApplicationTransport::Plaintext,
@@ -236,7 +113,7 @@ impl Transport {
 			Transport::Plain(ApplicationTransport::Tls(_)) => "tls",
 			Transport::Tunnel(ApplicationTransport::Plaintext, _) => "tunnel",
 			Transport::Tunnel(ApplicationTransport::Tls(_), _) => "tunnel-tls",
-			Transport::DoubleHbone { .. } => "doublehbone",
+			// Transport::DoubleHbone { .. } => "doublehbone",
 		}
 	}
 }
@@ -370,133 +247,133 @@ impl Connector {
 				};
 				Socket::from_hbone(Arc::new(stream::Extension::new()), pool_key.dst, rw)
 			},
-			Transport::DoubleHbone {
-				gateway_address,
-				gateway_identity,
-				waypoint_identity,
-				inner_tls,
-			} => {
-				if inner_tls.is_some() {
-					return Err(crate::http::Error::new(anyhow::anyhow!(
-						"todo: inner TLS after double hbone is not currently supported"
-					)));
-				}
+			// Transport::DoubleHbone {
+			// 	gateway_address,
+			// 	gateway_identity,
+			// 	waypoint_identity,
+			// 	inner_tls,
+			// } => {
+			// 	if inner_tls.is_some() {
+			// 		return Err(crate::http::Error::new(anyhow::anyhow!(
+			// 			"todo: inner TLS after double hbone is not currently supported"
+			// 		)));
+			// 	}
+			//
+			// 	tracing::debug!(
+			// 		"will use DOUBLE HBONE: gateway {} -> workload {}",
+			// 		gateway_address,
+			// 		ep
+			// 	);
+			//
+			// 	// Fetch the pool once and reuse throughout this branch
+			// 	let pool = self.hbone_pool.as_ref().ok_or_else(|| {
+			// 		crate::http::Error::new(anyhow::anyhow!("hbone pool required for double hbone"))
+			// 	})?;
+			//
+			// 	// Create outer HBONE connection to network gateway
+			// 	// The outer HBONE CONNECT request uses the service hostname (target) as the authority
+			// 	// This tells the gateway what service we want to reach
+			// 	let outer_uri = Uri::builder()
+			// 		.scheme(Scheme::HTTPS)
+			// 		.authority(match &target {
+			// 			Target::Hostname(host, port) => format!("{}:{}", host, port),
+			// 			Target::Address(addr) => addr.to_string(),
+			// 		})
+			// 		.path_and_query("/")
+			// 		.build()
+			// 		.expect("uri build should not fail");
+			// 	let outer_req = ::http::Request::builder()
+			// 		.uri(outer_uri)
+			// 		.method(hyper::Method::CONNECT)
+			// 		.version(hyper::Version::HTTP_2)
+			// 		.body(())
+			// 		.expect("builder with known status code should not fail");
+			//
+			// 	// Connect to the network gateway at its HBONE port
+			// 	let outer_pool_key = Box::new(WorkloadKey {
+			// 		dst_id: vec![gateway_identity.clone()],
+			// 		dst: gateway_address,
+			// 	});
+			// 	let mut pool_clone = pool.clone();
+			//
+			// 	let outer_upgraded = Box::pin(pool_clone.send_request_pooled(&outer_pool_key, outer_req))
+			// 		.await
+			// 		.map_err(crate::http::Error::new)?;
+			//
+			// 	// Wrap upgraded to implement tokio's Async{Write,Read}
+			// 	let outer_rw = agent_hbone::RWStream {
+			// 		stream: outer_upgraded,
+			// 		buf: Default::default(),
+			// 		drain_tx: None,
+			// 	};
+			//
+			// 	// For the inner one, we do it manually to avoid connection pooling.
+			// 	// Otherwise, we would only ever reach one workload in the remote cluster.
+			// 	// We also need to abort tasks the right way to get graceful terminations.
+			// 	let wl_key = WorkloadKey {
+			// 		dst_id: vec![waypoint_identity.clone()],
+			// 		dst: ep,
+			// 	};
+			//
+			// 	// Use the pool's certificate fetcher to get TLS config for the waypoint
+			// 	let tls_config = pool
+			// 		.fetch_certificate(WorkloadKey {
+			// 			dst_id: vec![waypoint_identity.clone()],
+			// 			dst: ep,
+			// 		})
+			// 		.await
+			// 		.map_err(crate::http::Error::new)?;
+			//
+			// 	let tls_connector = tokio_rustls::TlsConnector::from(tls_config);
+			//
+			// 	// Use dummy value for domain because server name verification is not performed in this context.
+			// 	let tls_stream = tls_connector
+			// 		.connect(
+			// 			rustls_pki_types::ServerName::IpAddress(std::net::Ipv4Addr::new(0, 0, 0, 0).into()),
+			// 			outer_rw,
+			// 		)
+			// 		.await
+			// 		.map_err(crate::http::Error::new)?;
+			//
+			// 	// Spawn inner CONNECT tunnel
+			// 	let (drain_tx, drain_rx) = tokio::sync::watch::channel(false);
+			// 	let hbone_cfg = pool.config();
+			// 	let mut sender =
+			// 		agent_hbone::client::spawn_connection(hbone_cfg, tls_stream, drain_rx, wl_key)
+			// 			.await
+			// 			.map_err(crate::http::Error::new)?;
+			//
+			// 	// For inner HBONE, use the target (hostname or IP), not ep (which may be a placeholder)
+			// 	let inner_authority = match &target {
+			// 		Target::Hostname(host, port) => format!("{}:{}", host, port),
+			// 		Target::Address(addr) => addr.to_string(),
+			// 	};
+			// 	let inner_uri = Uri::builder()
+			// 		.scheme(Scheme::HTTPS)
+			// 		.authority(inner_authority)
+			// 		.path_and_query("/")
+			// 		.build()
+			// 		.expect("uri build should not fail");
+			// 	let inner_req = ::http::Request::builder()
+			// 		.uri(inner_uri)
+			// 		.method(hyper::Method::CONNECT)
+			// 		.version(hyper::Version::HTTP_2)
+			// 		.body(())
+			// 		.expect("builder with known status code should not fail");
+			//
+			// 	let inner_upgraded = sender
+			// 		.send_request(inner_req)
+			// 		.await
+			// 		.map_err(crate::http::Error::new)?;
+			//
+			// 	let final_rw = agent_hbone::RWStream {
+			// 		stream: inner_upgraded,
+			// 		buf: Default::default(),
+			// 		drain_tx: Some(drain_tx),
+			// 	};
 
-				tracing::debug!(
-					"will use DOUBLE HBONE: gateway {} -> workload {}",
-					gateway_address,
-					ep
-				);
-
-				// Fetch the pool once and reuse throughout this branch
-				let pool = self.hbone_pool.as_ref().ok_or_else(|| {
-					crate::http::Error::new(anyhow::anyhow!("hbone pool required for double hbone"))
-				})?;
-
-				// Create outer HBONE connection to network gateway
-				// The outer HBONE CONNECT request uses the service hostname (target) as the authority
-				// This tells the gateway what service we want to reach
-				let outer_uri = Uri::builder()
-					.scheme(Scheme::HTTPS)
-					.authority(match &target {
-						Target::Hostname(host, port) => format!("{}:{}", host, port),
-						Target::Address(addr) => addr.to_string(),
-					})
-					.path_and_query("/")
-					.build()
-					.expect("uri build should not fail");
-				let outer_req = ::http::Request::builder()
-					.uri(outer_uri)
-					.method(hyper::Method::CONNECT)
-					.version(hyper::Version::HTTP_2)
-					.body(())
-					.expect("builder with known status code should not fail");
-
-				// Connect to the network gateway at its HBONE port
-				let outer_pool_key = Box::new(WorkloadKey {
-					dst_id: vec![gateway_identity.clone()],
-					dst: gateway_address,
-				});
-				let mut pool_clone = pool.clone();
-
-				let outer_upgraded = Box::pin(pool_clone.send_request_pooled(&outer_pool_key, outer_req))
-					.await
-					.map_err(crate::http::Error::new)?;
-
-				// Wrap upgraded to implement tokio's Async{Write,Read}
-				let outer_rw = agent_hbone::RWStream {
-					stream: outer_upgraded,
-					buf: Default::default(),
-					drain_tx: None,
-				};
-
-				// For the inner one, we do it manually to avoid connection pooling.
-				// Otherwise, we would only ever reach one workload in the remote cluster.
-				// We also need to abort tasks the right way to get graceful terminations.
-				let wl_key = WorkloadKey {
-					dst_id: vec![waypoint_identity.clone()],
-					dst: ep,
-				};
-
-				// Use the pool's certificate fetcher to get TLS config for the waypoint
-				let tls_config = pool
-					.fetch_certificate(WorkloadKey {
-						dst_id: vec![waypoint_identity.clone()],
-						dst: ep,
-					})
-					.await
-					.map_err(crate::http::Error::new)?;
-
-				let tls_connector = tokio_rustls::TlsConnector::from(tls_config);
-
-				// Use dummy value for domain because server name verification is not performed in this context.
-				let tls_stream = tls_connector
-					.connect(
-						rustls_pki_types::ServerName::IpAddress(std::net::Ipv4Addr::new(0, 0, 0, 0).into()),
-						outer_rw,
-					)
-					.await
-					.map_err(crate::http::Error::new)?;
-
-				// Spawn inner CONNECT tunnel
-				let (drain_tx, drain_rx) = tokio::sync::watch::channel(false);
-				let hbone_cfg = pool.config();
-				let mut sender =
-					agent_hbone::client::spawn_connection(hbone_cfg, tls_stream, drain_rx, wl_key)
-						.await
-						.map_err(crate::http::Error::new)?;
-
-				// For inner HBONE, use the target (hostname or IP), not ep (which may be a placeholder)
-				let inner_authority = match &target {
-					Target::Hostname(host, port) => format!("{}:{}", host, port),
-					Target::Address(addr) => addr.to_string(),
-				};
-				let inner_uri = Uri::builder()
-					.scheme(Scheme::HTTPS)
-					.authority(inner_authority)
-					.path_and_query("/")
-					.build()
-					.expect("uri build should not fail");
-				let inner_req = ::http::Request::builder()
-					.uri(inner_uri)
-					.method(hyper::Method::CONNECT)
-					.version(hyper::Version::HTTP_2)
-					.body(())
-					.expect("builder with known status code should not fail");
-
-				let inner_upgraded = sender
-					.send_request(inner_req)
-					.await
-					.map_err(crate::http::Error::new)?;
-
-				let final_rw = agent_hbone::RWStream {
-					stream: inner_upgraded,
-					buf: Default::default(),
-					drain_tx: Some(drain_tx),
-				};
-
-				Socket::from_hbone(Arc::new(stream::Extension::new()), ep, final_rw)
-			},
+			// Socket::from_hbone(Arc::new(stream::Extension::new()), ep, final_rw)
+			// }
 		};
 
 		let connect_ms = connect_start.elapsed().as_millis();

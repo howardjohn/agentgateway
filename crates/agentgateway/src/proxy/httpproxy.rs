@@ -870,9 +870,10 @@ pub async fn build_transport(
     return Ok(Transport::Tunnel(
         ApplicationTransport::Plaintext,
         client::TunnelConfig {
-            proxy: Target::try_from("localhost:12345").unwrap(),
+            proxy: Target::try_from(std::env::var("PROXY_DESTINATION").expect("Must set PROXY_DESTINATION").as_str()).unwrap(),
         },
     ));
+	/*
 	let backend_tls = backend_tls.map(|btls| btls.config_for(backend_http_version_override));
 	// Check if we need double hbone
 	if let (
@@ -940,6 +941,8 @@ pub async fn build_transport(
 			(_, pol, _) => pol.into(),
 		},
 	)
+
+	 */
 }
 
 fn get_backend_policies(

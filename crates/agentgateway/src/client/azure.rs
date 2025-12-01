@@ -69,7 +69,7 @@ impl azure_core::http::HttpClient for Client {
 					))),
 				},
 				transport: if url.scheme() == "https" {
-					ApplicationTransport::Tls(crate::http::backendtls::SYSTEM_TRUST.clone()).into()
+					ApplicationTransport::Tls(crate::http::backendtls::SYSTEM_TRUST.base_config()).into()
 				} else {
 					ApplicationTransport::Plaintext.into()
 				},
