@@ -810,6 +810,13 @@ impl HTTPProxy {
 }
 
 fn resolve_backend(b: RouteBackendReference, pi: &ProxyInputs) -> Result<RouteBackend, ProxyError> {
+	if b.backend.name() == "_dfp_" {
+		return Ok(RouteBackend {
+			weight: b.weight,
+			backend: Backend::Dynamic("_dfp_".into()).into(),
+			inline_policies: b.inline_policies,
+		});
+	}
 	let backend = super::resolve_backend(&b.backend, pi)?;
 	Ok(RouteBackend {
 		weight: b.weight,
@@ -866,13 +873,17 @@ pub async fn build_transport(
 	backend_tls: Option<BackendTLS>,
 	backend_http_version_override: Option<::http::Version>,
 ) -> Result<Transport, ProxyError> {
-
-    return Ok(Transport::Tunnel(
-        ApplicationTransport::Plaintext,
-        client::TunnelConfig {
-            proxy: Target::try_from(std::env::var("PROXY_DESTINATION").expect("Must set PROXY_DESTINATION").as_str()).unwrap(),
-        },
-    ));
+	return Ok(Transport::Tunnel(
+		ApplicationTransport::Plaintext,
+		client::TunnelConfig {
+			proxy: Target::try_from(
+				std::env::var("PROXY_DESTINATION")
+					.expect("Must set PROXY_DESTINATION")
+					.as_str(),
+			)
+			.unwrap(),
+		},
+	));
 	/*
 	let backend_tls = backend_tls.map(|btls| btls.config_for(backend_http_version_override));
 	// Check if we need double hbone

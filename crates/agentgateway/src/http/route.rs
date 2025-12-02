@@ -51,13 +51,34 @@ pub fn select_best_route(
 			return None;
 		};
 		// We are going to get a VIP request. Look up the Service
-		let svc = stores
+		let Some(svc) = stores
 			.read_discovery()
 			.services
 			.get_by_vip(&NetworkAddress {
 				network,
 				address: dst.ip(),
-			})?;
+			})
+		else {
+			let default_route = Route {
+				key: strng::new("waypoint-default-dfp"),
+				route_name: strng::new("waypoint-default-dfp"),
+				rule_name: None,
+				hostnames: vec![],
+				matches: vec![],
+				inline_policies: vec![],
+				backends: vec![RouteBackendReference {
+					weight: 1,
+					backend: BackendReference::Backend("_dfp_".into()),
+					inline_policies: Vec::new(),
+				}],
+			};
+			// If there is no route, use a default one
+			let def = Some((
+				Arc::new(default_route),
+				PathMatch::PathPrefix(strng::new("/")),
+			));
+			return def
+		};
 		let wp = svc.waypoint.as_ref()?;
 		// Make sure the service is actually bound to us. TODO: should we have a more explicit setup?
 		match &wp.destination {
