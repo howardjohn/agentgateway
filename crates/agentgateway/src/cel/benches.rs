@@ -17,7 +17,7 @@ struct TestCase {
 }
 
 // keep in sync with test_cases
-const TEST_CASE_NAMES: &[&str] = &["simple_access", "header", "bbr", "cidr", "regex"];
+const TEST_CASE_NAMES: &[&str] = &["simple_access", "header", "bbr", "cidr", "regex", "trivial"];
 
 // Comprehensive test cases to be used across multiple tests
 fn test_cases() -> Vec<TestCase> {
@@ -87,6 +87,18 @@ fn test_cases() -> Vec<TestCase> {
 					.unwrap()
 			},
 			expected: serde_json::json!(true),
+		},
+		TestCase {
+			name: "trivial",
+			expression: r#"'hello'"#,
+			request_builder: || {
+				::http::Request::builder()
+					.method(Method::POST)
+					.uri("http://example.com/user/1234/view")
+					.body(Body::empty())
+					.unwrap()
+			},
+			expected: serde_json::json!("hello"),
 		},
 	]
 }
