@@ -16,6 +16,7 @@ use crate::types::agent::BackendInfo;
 use agent_core::strng::Strng;
 use bytes::Bytes;
 pub use cel::Value;
+use cel::context::VariableResolver;
 use cel::{Context, ExecutionError, ParseError, ParseErrors, Program};
 use once_cell::sync::Lazy;
 use prometheus_client::encoding::EncodeLabelValue;
@@ -347,16 +348,19 @@ impl ContextBuilder {
 			extauthz,
 		} = &self.context;
 
-		ctx.add_variable_from_value(REQUEST_ATTRIBUTE, opt_to_value(request)?);
-		ctx.add_variable_from_value(RESPONSE_ATTRIBUTE, opt_to_value(response)?);
-		ctx.add_variable_from_value(JWT_ATTRIBUTE, opt_to_value(jwt)?);
-		ctx.add_variable_from_value(BASIC_AUTH_ATTRIBUTE, opt_to_value(basic_auth)?);
-		ctx.add_variable_from_value(API_KEY_ATTRIBUTE, opt_to_value(api_key)?);
-		ctx.add_variable_from_value(MCP_ATTRIBUTE, opt_to_value(&mcp)?);
-		ctx.add_variable_from_value(BACKEND_ATTRIBUTE, opt_to_value(backend)?);
-		ctx.add_variable_from_value(LLM_ATTRIBUTE, opt_to_value(llm)?);
-		ctx.add_variable_from_value(SOURCE_ATTRIBUTE, opt_to_value(source)?);
-		ctx.add_variable_from_value(EXTAUTHZ_ATTRIBUTE, opt_to_value(extauthz)?);
+		let vc = ValueContext{
+			request: opt_to_value(request)?,
+			response: opt_to_value(response)?,
+			jwt: opt_to_value(jwt)?,
+			api_key: opt_to_value(api_key)?,
+			basic_auth: opt_to_value(basic_auth)?,
+			llm: opt_to_value(llm)?,
+			source: opt_to_value(source)?,
+			mcp: opt_to_value(&mcp)?,
+			backend: opt_to_value(backend)?,
+			extauthz: opt_to_value(extauthz)?,
+		};
+		ctx.set_variable_resolver(Arc::new(vc));
 
 		Ok(Executor { ctx })
 	}
@@ -482,6 +486,37 @@ impl Expression {
 			expression,
 			original_expression,
 		})
+	}
+}
+
+struct ValueContext {
+	request: Value,
+	response: Value,
+	jwt: Value,
+	api_key: Value,
+	basic_auth: Value,
+	llm: Value,
+	source: Value,
+	mcp: Value,
+	backend: Value,
+	extauthz: Value,
+}
+
+impl VariableResolver for ValueContext {
+	fn resolve(&self, expr: &str) -> Option<Value> {
+		match expr {
+			"request" => Some(self.request.clone()),
+			"response" => Some(self.response.clone()),
+			"jwt" => Some(self.jwt.clone()),
+			"apiKey" => Some(self.api_key.clone()),
+			"basicAuth" => Some(self.basic_auth.clone()),
+			"llm" => Some(self.llm.clone()),
+			"source" => Some(self.source.clone()),
+			"mcp" => Some(self.mcp.clone()),
+			"backend" => Some(self.backend.clone()),
+			"extauthz" => Some(self.extauthz.clone()),
+			_ => None,
+		}
 	}
 }
 

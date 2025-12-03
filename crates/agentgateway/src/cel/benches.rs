@@ -154,9 +154,10 @@ fn bench_build(b: Bencher, case_name: &str) {
 	let expr = Expression::new_strict(tc.expression).unwrap();
 	let req = (tc.request_builder)();
 	let cb = setup_context(&expr, req);
-
-	b.bench_local(|| {
-		let _ = divan::black_box(cb.build().unwrap());
+	with_profiling(&format!("bench_build_{case_name}"), || {
+		b.bench_local(|| {
+			let _ = divan::black_box(cb.build().unwrap());
+		});
 	});
 }
 

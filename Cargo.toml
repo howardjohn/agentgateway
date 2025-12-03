@@ -3,6 +3,7 @@ schemars = { git = "https://github.com/howardjohn/schemars", rev = "4364354fa418
 http-serde = { git = "https://gitlab.com/howardjohn/http-serde", rev = "163f20f551c2cf6032254b6dbbe246b91ce727ad" }
 wiremock = { git = "https://github.com/howardjohn/wiremock-rs", rev = "e55f5b96083125fdabc3e62f92790ee15ae3a10d" }
 
+
 [workspace]
 resolver = "2"
 members = [
@@ -197,7 +198,8 @@ url = "2.5"
 wiremock = { version = "0.6.3", features = ["tls"] }
 x509-parser = { version = "0.18", default-features = false, features = ["verify-aws"] }
 which = "8.0.0"
-cel = { git = "https://github.com/cel-rust/cel-rust", rev = "5d2e19934db441ad7dd2eeca62da1b5b238f41f8", features = [
+cel = { path = "/home/john/git/cel-rust/cel", features = [
+#cel = { git = "https://github.com/cel-rust/cel-rust", rev = "5d2e19934db441ad7dd2eeca62da1b5b238f41f8", features = [
     "json",
     "regex",
     "chrono",
