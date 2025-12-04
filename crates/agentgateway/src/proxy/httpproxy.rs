@@ -879,8 +879,8 @@ pub async fn build_transport(
 			client::TunnelConfig {
 				proxy: Target::try_from(
 					std::env::var("PROXY_DESTINATION")
-					.expect("Must set PROXY_DESTINATION")
-					.as_str(),
+						.expect("Must set PROXY_DESTINATION")
+						.as_str(),
 				)
 				.unwrap(),
 			},
@@ -926,7 +926,7 @@ pub async fn build_transport(
 	// 	}
 	// }
 
-		Ok(ApplicationTransport::Plaintext.into())
+	Ok(ApplicationTransport::Plaintext.into())
 	// Ok(
 	// 	match (&backend_call.transport_override, backend_tls, &inputs.ca) {
 	// 		// Use legacy mTLS if they did not define a TLS policy. We could do double TLS but Istio doesn't,
@@ -1082,7 +1082,7 @@ async fn make_backend_call(
 			}
 		},
 		Backend::Service(svc, port) => {
-			build_service_call(&inputs, policies, &mut log, override_dest, svc, port)?
+			build_service_call(&inputs, Some(&req), policies, &mut log, override_dest, svc, port)?
 		},
 		Backend::Opaque(_, target) => BackendCall {
 			target: target.clone(),
@@ -1343,6 +1343,7 @@ fn set_backend_cel_context(log: &mut Option<&mut RequestLog>) {
 
 pub fn build_service_call(
 	inputs: &ProxyInputs,
+	req: Option<&Request>,
 	backend_policies: BackendPolicies,
 	log: &mut Option<&mut RequestLog>,
 	override_dest: Option<SocketAddr>,
@@ -1428,12 +1429,21 @@ pub fn build_service_call(
 		);
 		Target::Hostname(svc.hostname.clone(), port)
 	} else {
-		// For direct connections, we need the workload IP
-		let Some(ip) = wl.workload_ips.first() else {
-			return Err(ProxyError::NoHealthyEndpoints);
-		};
-		let dest = SocketAddr::from((*ip, target_port));
-		Target::Address(dest)
+		if wl.workload_ips.is_empty() && wl.hostname.starts_with("*.") {
+			// DFP
+			dbg!(Target::try_from_with_default_port(
+				dbg!(http::get_host_with_port(&req.expect("must have request"))?),
+				80
+			))
+			.map_err(ProxyError::Processing)?
+		} else {
+			// For direct connections, we need the workload IP
+			let Some(ip) = wl.workload_ips.first() else {
+				return Err(ProxyError::NoHealthyEndpoints);
+			};
+			let dest = SocketAddr::from((*ip, target_port));
+			Target::Address(dest)
+		}
 	};
 
 	Ok(BackendCall {

@@ -108,6 +108,7 @@ impl TCPProxy {
 		let backend_call = match &selected_backend.backend {
 			SimpleBackend::Service(svc, port) => httpproxy::build_service_call(
 				inputs.as_ref(),
+				None,
 				backend_policies,
 				&mut Some(log),
 				None,
