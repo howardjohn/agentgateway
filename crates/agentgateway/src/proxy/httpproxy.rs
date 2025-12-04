@@ -873,87 +873,87 @@ pub async fn build_transport(
 	backend_tls: Option<BackendTLS>,
 	backend_http_version_override: Option<::http::Version>,
 ) -> Result<Transport, ProxyError> {
-	return Ok(Transport::Tunnel(
-		ApplicationTransport::Plaintext,
-		client::TunnelConfig {
-			proxy: Target::try_from(
-				std::env::var("PROXY_DESTINATION")
+	if backend_call.tunnel {
+		return Ok(Transport::Tunnel(
+			ApplicationTransport::Plaintext,
+			client::TunnelConfig {
+				proxy: Target::try_from(
+					std::env::var("PROXY_DESTINATION")
 					.expect("Must set PROXY_DESTINATION")
 					.as_str(),
-			)
-			.unwrap(),
-		},
-	));
-	/*
-	let backend_tls = backend_tls.map(|btls| btls.config_for(backend_http_version_override));
-	// Check if we need double hbone
-	if let (
-		Some((gw_addr, gw_identity)),
-		Some((InboundProtocol::HBONE, waypoint_identity)),
-		Some(ca),
-	) = (
-		&backend_call.network_gateway,
-		&backend_call.transport_override,
-		&inputs.ca,
-	) {
-		if ca.get_identity().await.is_ok() {
-			// Extract gateway IP from the gateway address
-			let gateway_ip = match &gw_addr.destination {
-				types::discovery::gatewayaddress::Destination::Address(net_addr) => net_addr.address,
-				types::discovery::gatewayaddress::Destination::Hostname(_) => {
-					warn!("hostname-based gateway addresses not yet supported");
-					return Ok(Transport::Plaintext);
-				},
-			};
-
-			let gateway_socket_addr = SocketAddr::new(gateway_ip, gw_addr.hbone_mtls_port);
-
-			tracing::debug!(
-				"using double hbone through gateway {:?} at {}",
-				gw_addr,
-				gateway_socket_addr
-			);
-			return Ok(Transport::DoubleHbone {
-				gateway_address: gateway_socket_addr,
-				gateway_identity: gw_identity.clone(),
-				waypoint_identity: waypoint_identity.clone(),
-				inner_tls: backend_tls,
-			});
-		} else {
-			warn!("wanted double hbone but CA is not available");
-			return Ok(Transport::Plaintext);
-		}
+				)
+				.unwrap(),
+			},
+		));
 	}
+	// let backend_tls = backend_tls.map(|btls| btls.config_for(backend_http_version_override));
+	// // Check if we need double hbone
+	// if let (
+	// 	Some((gw_addr, gw_identity)),
+	// 	Some((InboundProtocol::HBONE, waypoint_identity)),
+	// 	Some(ca),
+	// ) = (
+	// 	&backend_call.network_gateway,
+	// 	&backend_call.transport_override,
+	// 	&inputs.ca,
+	// ) {
+	// 	if ca.get_identity().await.is_ok() {
+	// 		// Extract gateway IP from the gateway address
+	// 		let gateway_ip = match &gw_addr.destination {
+	// 			types::discovery::gatewayaddress::Destination::Address(net_addr) => net_addr.address,
+	// 			types::discovery::gatewayaddress::Destination::Hostname(_) => {
+	// 				warn!("hostname-based gateway addresses not yet supported");
+	// 				return Ok(Transport::Plaintext);
+	// 			},
+	// 		};
+	//
+	// 		let gateway_socket_addr = SocketAddr::new(gateway_ip, gw_addr.hbone_mtls_port);
+	//
+	// 		tracing::debug!(
+	// 			"using double hbone through gateway {:?} at {}",
+	// 			gw_addr,
+	// 			gateway_socket_addr
+	// 		);
+	// 		return Ok(Transport::DoubleHbone {
+	// 			gateway_address: gateway_socket_addr,
+	// 			gateway_identity: gw_identity.clone(),
+	// 			waypoint_identity: waypoint_identity.clone(),
+	// 			inner_tls: backend_tls,
+	// 		});
+	// 	} else {
+	// 		warn!("wanted double hbone but CA is not available");
+	// 		return Ok(Transport::Plaintext);
+	// 	}
+	// }
 
-	Ok(
-		match (&backend_call.transport_override, backend_tls, &inputs.ca) {
-			// Use legacy mTLS if they did not define a TLS policy. We could do double TLS but Istio doesn't,
-			// so maintain bug-for-bug parity
-			(Some((InboundProtocol::LegacyIstioMtls, ident)), None, Some(ca)) => {
-				if let Ok(id) = ca.get_identity().await {
-					Some(
-						id.legacy_mtls(vec![ident.clone()])
-							.map_err(|e| ProxyError::Processing(anyhow!("{e}")))?,
-					)
-					.into()
-				} else {
-					warn!("wanted TLS but CA is not available");
-					ApplicationTransport::Plaintext.into()
-				}
-			},
-			(Some((InboundProtocol::HBONE, ident)), btls, Some(ca)) => {
-				if ca.get_identity().await.is_ok() {
-					Transport::Hbone(btls.into(), ident.clone())
-				} else {
-					warn!("wanted TLS but CA is not available");
-					ApplicationTransport::Plaintext.into()
-				}
-			},
-			(_, pol, _) => pol.into(),
-		},
-	)
-
-	 */
+		Ok(ApplicationTransport::Plaintext.into())
+	// Ok(
+	// 	match (&backend_call.transport_override, backend_tls, &inputs.ca) {
+	// 		// Use legacy mTLS if they did not define a TLS policy. We could do double TLS but Istio doesn't,
+	// 		// so maintain bug-for-bug parity
+	// 		(Some((InboundProtocol::LegacyIstioMtls, ident)), None, Some(ca)) => {
+	// 			if let Ok(id) = ca.get_identity().await {
+	// 				Some(
+	// 					id.legacy_mtls(vec![ident.clone()])
+	// 						.map_err(|e| ProxyError::Processing(anyhow!("{e}")))?,
+	// 				)
+	// 				.into()
+	// 			} else {
+	// 				warn!("wanted TLS but CA is not available");
+	// 				ApplicationTransport::Plaintext.into()
+	// 			}
+	// 		},
+	// 		(Some((InboundProtocol::HBONE, ident)), btls, Some(ca)) => {
+	// 			if ca.get_identity().await.is_ok() {
+	// 				Transport::Hbone(btls.into(), ident.clone())
+	// 			} else {
+	// 				warn!("wanted TLS but CA is not available");
+	// 				ApplicationTransport::Plaintext.into()
+	// 			}
+	// 		},
+	// 		(_, pol, _) => pol.into(),
+	// 	},
+	// )
 }
 
 fn get_backend_policies(
@@ -1078,6 +1078,7 @@ async fn make_backend_call(
 				http_version_override: None,
 				transport_override: None,
 				network_gateway: None,
+				tunnel: false,
 			}
 		},
 		Backend::Service(svc, port) => {
@@ -1089,6 +1090,7 @@ async fn make_backend_call(
 			transport_override: None,
 			network_gateway: None,
 			backend_policies: policies,
+			tunnel: false,
 		},
 		Backend::Dynamic(_) => {
 			let target = dbg!(Target::try_from_with_default_port(
@@ -1102,6 +1104,7 @@ async fn make_backend_call(
 				transport_override: None,
 				network_gateway: None,
 				backend_policies: policies,
+				tunnel: true,
 			}
 		},
 		Backend::MCP(name, backend) => {
@@ -1439,6 +1442,7 @@ pub fn build_service_call(
 		transport_override: Some((wl.protocol, wl.identity())),
 		network_gateway,
 		backend_policies,
+		tunnel: false,
 	})
 }
 
@@ -1588,6 +1592,7 @@ pub struct BackendCall {
 	pub transport_override: Option<(InboundProtocol, Identity)>,
 	pub network_gateway: Option<(GatewayAddress, Identity)>, // For double hbone: (gateway_address, gateway_identity)
 	pub backend_policies: BackendPolicies,
+	pub tunnel: bool,
 }
 
 #[derive(Debug, Default)]
