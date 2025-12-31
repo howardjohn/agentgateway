@@ -1581,12 +1581,11 @@ fn normalize_uri(connection: &Extension, req: &mut Request) -> anyhow::Result<()
 		let mut parts = std::mem::take(req.uri_mut()).into_parts();
 		// TODO: handle absolute HTTP/1.1 form
 		let host = req
-			.headers()
-			.get(http::header::HOST)
-			.and_then(|h| h.to_str().ok())
-			.and_then(|h| h.parse::<Authority>().ok())
+			.headers_mut()
+			.remove(http::header::HOST)
+			// TODO(https://github.com/hyperium/http/pull/811) actually make this shared
+			.and_then(|h| Authority::try_from(h.as_bytes()).ok())
 			.ok_or_else(|| anyhow::anyhow!("no authority or host"))?;
-		req.headers_mut().remove(http::header::HOST);
 
 		parts.authority = Some(host);
 		if parts.path_and_query.is_some() {

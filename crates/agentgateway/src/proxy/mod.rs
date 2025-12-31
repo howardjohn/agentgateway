@@ -4,6 +4,7 @@ pub mod proxy_protocol;
 #[cfg(any(test, feature = "testing"))]
 pub mod request_builder;
 pub mod tcpproxy;
+mod timer;
 
 pub use gateway::Gateway;
 use hyper_util_fork::client::legacy::Error as HyperError;

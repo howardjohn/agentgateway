@@ -204,7 +204,7 @@ async fn handle_pprof(_req: Request<Incoming>) -> anyhow::Result<Response> {
 		// .blocklist(&["libc", "libgcc", "pthread", "vdso"])
 		.build()?;
 
-	tokio::time::sleep(Duration::from_secs(10)).await;
+	tokio::time::sleep(Duration::from_secs(4)).await;
 	let report = guard.report().build()?;
 	let profile = report.pprof()?;
 

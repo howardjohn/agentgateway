@@ -111,6 +111,7 @@ percent-encoding = "2.3"
 phonenumber = "0.3"
 pin-project-lite = "0.2"
 pingora-pool = "0.6"
+pingora-timeout = "0.6"
 ppp = "2.3"
 pprof = { version = "0.15", features = [
     "protobuf",

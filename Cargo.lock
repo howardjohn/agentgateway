@@ -201,6 +201,7 @@ dependencies = [
  "percent-encoding",
  "phonenumber",
  "pin-project-lite",
+ "pingora-timeout",
  "ppp",
  "pprof",
  "prometheus-client",

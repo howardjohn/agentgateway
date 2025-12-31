@@ -87,6 +87,7 @@ opentelemetry_sdk.workspace = true
 parking_lot.workspace = true
 percent-encoding.workspace = true
 phonenumber.workspace = true
+pingora-timeout.workspace = true
 pin-project-lite.workspace = true
 ppp.workspace = true
 prometheus-client.workspace = true

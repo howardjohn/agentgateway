@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -11,6 +12,7 @@ use bytes::Bytes;
 use futures::pin_mut;
 use futures_util::FutureExt;
 use http::StatusCode;
+use hyper::rt::Sleep;
 use hyper_util::rt::TokioIo;
 use hyper_util::server::conn::auto;
 use tokio::net::{TcpListener, TcpStream};
@@ -847,8 +849,8 @@ fn tls_looks_like_http(d: Bytes) -> bool {
 
 pub fn auto_server(c: Option<&frontend::HTTP>) -> auto::Builder<::hyper_util::rt::TokioExecutor> {
 	let mut b = auto::Builder::new(::hyper_util::rt::TokioExecutor::new());
-	b.http2().timer(hyper_util::rt::tokio::TokioTimer::new());
-	b.http1().timer(hyper_util::rt::tokio::TokioTimer::new());
+	// b.http2().timer(hyper_util::rt::tokio::TokioTimer::new());
+	// b.http1().timer(crate::proxy::timer::PingoraTimer);
 	let def = frontend::HTTP::default();
 
 	let frontend::HTTP {
@@ -866,7 +868,7 @@ pub fn auto_server(c: Option<&frontend::HTTP>) -> auto::Builder<::hyper_util::rt
 		b.http1().max_headers(*m);
 	}
 	// See https://github.com/agentgateway/agentgateway/issues/504 for why "idle timeout" is used as "read header timeout"
-	b.http1().header_read_timeout(Some(*http1_idle_timeout));
+	// b.http1().header_read_timeout(Some(*http1_idle_timeout));
 
 	if http2_window_size.is_some() || http2_connection_window_size.is_some() {
 		if let Some(w) = http2_connection_window_size {
