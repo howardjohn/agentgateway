@@ -605,7 +605,13 @@ impl Client {
 			target,
 			transport,
 		} = call;
-		let dest = self.connector.resolve_target(&target).await?;
+		let dest = match transport {
+			Transport::Tunnel(_, _) => match &target {
+				Target::Address(a) => *a,
+				Target::Hostname(_, p) => SocketAddr::from((IpAddr::from([0, 0, 0, 0]), *p)),
+			},
+			_ => self.connector.resolve_target(&target).await?,
+		};
 		let auto_host = req.extensions().get::<filters::AutoHostname>().is_some();
 		http::modify_req_uri(&mut req, |uri| {
 			let scheme = transport.scheme();
