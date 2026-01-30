@@ -464,8 +464,10 @@ impl Gateway {
 				Self::proxy_bind(bind_name, bind_protocol, raw_stream, inputs, drain).await
 			},
 			TunnelProtocol::HboneWaypoint => {
-				let _ =
-					Self::terminate_waypoint_hbone(bind_name, inputs, raw_stream, policies, drain).await;
+				let err = Self::terminate_waypoint_hbone(bind_name, inputs, raw_stream, policies, drain).await;;
+				if let Err(e) = err {
+					warn!(src.addr = %peer_addr, "hbone error: {e}");
+				}
 			},
 			TunnelProtocol::HboneGateway => {
 				let _ = Self::terminate_gateway_hbone(inputs, raw_stream, policies, drain).await;

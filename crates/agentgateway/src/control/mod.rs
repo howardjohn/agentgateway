@@ -17,6 +17,7 @@ use tower::Service;
 use crate::client::{ApplicationTransport, Transport};
 use crate::http::HeaderValue;
 use crate::http::backendtls::{BackendTLS, PerAlpnConfig, SYSTEM_TRUST};
+use crate::transport::tls;
 use crate::types::agent::Target;
 use crate::*;
 
@@ -53,6 +54,10 @@ impl RootCert {
 			.with_protocol_versions(transport::tls::ALL_TLS_VERSIONS)?
 			.with_root_certificates(roots)
 			.with_no_client_auth();
+		// TODO: do not merge
+		ccb
+			.dangerous()
+			.set_certificate_verifier(Arc::new(tls::insecure::NoVerifier));
 		ccb.alpn_protocols = vec![b"h2".to_vec()];
 		Ok(BackendTLS {
 			hostname_override: None,
