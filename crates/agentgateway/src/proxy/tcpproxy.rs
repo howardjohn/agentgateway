@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use rand::prelude::IndexedRandom;
 
+use crate::http::Request;
 use crate::proxy::httpproxy::BackendCall;
 use crate::proxy::{ProxyError, httpproxy};
 use crate::store::{BackendPolicies, RoutePath};
@@ -12,9 +13,13 @@ use crate::telemetry::metrics::TCPLabels;
 use crate::transport::stream::{Socket, TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::agent;
 use crate::types::agent::{
-	BackendPolicy, BindKey, Listener, ListenerProtocol, SimpleBackend, SimpleBackendWithPolicies,
-	TCPRoute, TCPRouteBackend, TCPRouteBackendReference, TransportProtocol,
+	BackendPolicy, BackendReference, BindKey, Listener, ListenerProtocol, Route,
+	RouteBackendReference, RouteName, SimpleBackend, SimpleBackendReference,
+	SimpleBackendWithPolicies, TCPRoute, TCPRouteBackend, TCPRouteBackendReference,
+	TransportProtocol,
 };
+use crate::types::discovery::gatewayaddress::Destination;
+use crate::types::discovery::{NamespacedHostname, NetworkAddress};
 use crate::{ProxyInputs, *};
 
 #[derive(Clone)]
@@ -85,8 +90,15 @@ impl TCPProxy {
 		log.listener_name = Some(selected_listener.name.clone());
 		debug!(bind=%bind_name, listener=%selected_listener.key, "selected listener");
 
-		let selected_route =
-			select_best_route(sni, selected_listener.clone()).ok_or(ProxyError::RouteNotFound)?;
+		let selected_route = select_best_route(
+			sni,
+			inputs.stores.clone(),
+			inputs.cfg.network.clone(),
+			inputs.cfg.self_addr.clone(),
+			self.target_address,
+			&selected_listener,
+		)
+		.ok_or(ProxyError::RouteNotFound)?;
 		log.route_name = Some(selected_route.name.clone());
 
 		let route_path = RoutePath {
@@ -153,7 +165,14 @@ impl TCPProxy {
 	}
 }
 
-fn select_best_route(host: Option<&str>, listener: Arc<Listener>) -> Option<Arc<TCPRoute>> {
+fn select_best_route(
+	host: Option<&str>,
+	stores: Stores,
+	network: Strng,
+	self_addr: Option<Strng>,
+	dst: SocketAddr,
+	listener: &Listener,
+) -> Option<Arc<TCPRoute>> {
 	// TCP matching is much simpler than HTTP.
 	// We pick the best matching hostname, else fallback to precedence:
 	//
@@ -161,10 +180,78 @@ fn select_best_route(host: Option<&str>, listener: Arc<Listener>) -> Option<Arc<
 	//  * The Route appearing first in alphabetical order by "{namespace}/{name}".
 
 	// Assume matches are ordered already (not true today)
-	if matches!(listener.protocol, ListenerProtocol::HBONE) && listener.routes.is_empty() {
-		// TODO: TCP for waypoint
-		return None;
-	}
+	if matches!(listener.protocol, ListenerProtocol::HBONE)
+		&& listener.tcp_routes.is_empty()
+		&& listener.routes.is_empty()
+	{
+		let Some(self_addr) = self_addr else {
+			warn!("waypoint requires self address");
+			return None;
+		};
+		// We are going to get a VIP request. Look up the Service
+		// TODO: add a mode to fallback to a DFP backend
+		let svc = stores
+			.read_discovery()
+			.services
+			.get_by_vip(&NetworkAddress {
+				network,
+				address: dst.ip(),
+			})?;
+		let wp = svc.waypoint.as_ref()?;
+		// Make sure the service is actually bound to us. TODO: should we have a more explicit setup?
+		match &wp.destination {
+			Destination::Address(aadr) => {
+				// TODO: this is pretty sketchy
+				let Some(ns) = self_addr.split(".").nth(1) else {
+					warn!("waypoint cannot find self namespace");
+					return None;
+				};
+				let self_svc =
+					stores
+						.read_discovery()
+						.services
+						.get_by_namespaced_host(&NamespacedHostname {
+							namespace: ns.into(),
+							hostname: self_addr,
+						})?;
+				if !self_svc.vips.contains(aadr) {
+					warn!(
+						"service {} is meant for waypoint {}, but we are {:?}",
+						svc.hostname, aadr, self_svc.vips,
+					);
+				}
+			},
+			Destination::Hostname(n) => {
+				if n.hostname != self_addr {
+					warn!(
+						"service {} is meant for waypoint {}, but we are {}",
+						svc.hostname, n.hostname, self_addr
+					);
+					return None;
+				}
+			},
+		}
+		// TODO: only build this if we don't match one
+		let default_route = TCPRoute {
+			key: strng::literal!("_waypoint-default"),
+			name: RouteName {
+				name: strng::literal!("_waypoint-default"),
+				namespace: svc.namespace.clone(),
+				rule_name: None,
+				kind: None,
+			},
+			hostnames: vec![],
+			backends: vec![TCPRouteBackendReference {
+				weight: 1,
+				backend: SimpleBackendReference::Service {
+					name: svc.namespaced_hostname(),
+					port: dst.port(),
+				},
+				inline_policies: Vec::new(),
+			}],
+		};
+		return Some(Arc::new(default_route));
+	};
 	for hnm in agent::HostnameMatch::all_matches_or_none(host) {
 		if let Some(r) = listener.tcp_routes.get_hostname(&hnm) {
 			return Some(Arc::new(r.clone()));

@@ -443,6 +443,15 @@ impl Service {
 	pub fn port_is_http1(&self, port: u16) -> bool {
 		matches!(self.app_protocols.get(&port), Some(AppProtocol::Http11))
 	}
+	pub fn port_is_http(&self, port: u16) -> bool {
+		match self.app_protocols.get(&port) {
+			None => true, // Default to HTTP. TODO: use protocol sniffing instead
+			Some(AppProtocol::Http11) => true,
+			Some(AppProtocol::Http2) => true,
+			Some(AppProtocol::Grpc) => true,
+			Some(AppProtocol::Tcp) => false,
+		}
+	}
 	pub fn namespaced_hostname(&self) -> NamespacedHostname {
 		NamespacedHostname {
 			namespace: self.namespace.clone(),
@@ -464,6 +473,7 @@ pub enum AppProtocol {
 	Http11,
 	Http2,
 	Grpc,
+	Tcp,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
@@ -832,6 +842,7 @@ impl From<workload::AppProtocol> for Option<AppProtocol> {
 			workload::AppProtocol::Http11 => Some(AppProtocol::Http11),
 			workload::AppProtocol::Http2 => Some(AppProtocol::Http2),
 			workload::AppProtocol::Grpc => Some(AppProtocol::Grpc),
+			workload::AppProtocol::Tcp => Some(AppProtocol::Tcp),
 		}
 	}
 }

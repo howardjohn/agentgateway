@@ -27,6 +27,7 @@ use crate::transport::stream::{Extension, LoggingMode, Socket, TLSConnectionInfo
 use crate::types::agent::{
 	Bind, BindKey, BindProtocol, Listener, ListenerProtocol, TransportProtocol, TunnelProtocol,
 };
+use crate::types::discovery::NetworkAddress;
 use crate::types::frontend;
 use crate::{ProxyInputs, client};
 
@@ -464,7 +465,8 @@ impl Gateway {
 				Self::proxy_bind(bind_name, bind_protocol, raw_stream, inputs, drain).await
 			},
 			TunnelProtocol::HboneWaypoint => {
-				let err = Self::terminate_waypoint_hbone(bind_name, inputs, raw_stream, policies, drain).await;;
+				let err =
+					Self::terminate_waypoint_hbone(bind_name, inputs, raw_stream, policies, drain).await;
 				if let Err(e) = err {
 					warn!(src.addr = %peer_addr, "hbone error: {e}");
 				}
@@ -850,37 +852,46 @@ impl Gateway {
 				return;
 			},
 		};
-
-		let hbone_addr = match parsed_addr {
-			HboneAddress::SocketAddr(addr) => HboneAddress::from(addr),
+		let network = &pi.cfg.network;
+		let svc = match &parsed_addr {
+			HboneAddress::SocketAddr(addr) => {
+				let svc = pi
+					.stores
+					.read_discovery()
+					.services
+					.get_by_vip(&NetworkAddress {
+						network: network.clone(),
+						address: addr.ip(),
+					});
+				svc
+			},
 			HboneAddress::SvcHostname(hostname, port) => {
 				// Try service registry lookup
 				let hostname_str = hostname.to_string();
-				let svc = find_service_by_hostname(&pi.stores.read_discovery(), &hostname_str);
-
-				let vip = if let Some(svc) = svc {
-					// Found in service registry, get VIP for current network
-					let network = &pi.cfg.network;
-					if let Some(vip) = svc
-						.vips
-						.iter()
-						.find(|vip| vip.network == *network)
-						.or_else(|| svc.vips.first())
-					{
-						vip.address
-					} else {
-						warn!(
-							bind=?bind_name,
-							hostname=%hostname_str,
-							"serve_waypoint_connect: no VIP found for service"
-						);
-						return;
-					}
-				} else {
+				find_service_by_hostname(&pi.stores.read_discovery(), &hostname_str)
+			},
+		};
+		let Some(svc) = svc else {
+			warn!("failed to find service for {parsed_addr:?}");
+			let _ = req
+				.send_response(build_response(StatusCode::NOT_FOUND))
+				.await;
+			return;
+		};
+		let hbone_addr = match parsed_addr {
+			HboneAddress::SocketAddr(addr) => HboneAddress::from(addr),
+			HboneAddress::SvcHostname(hostname, port) => {
+				let Some(vip) = svc
+					.vips
+					.iter()
+					.find(|vip| vip.network == *network)
+					.or_else(|| svc.vips.first())
+					.map(|vip| vip.address)
+				else {
 					warn!(
 						bind=?bind_name,
-						hostname=%hostname_str,
-						"serve_waypoint_connect: no service found for hostname"
+						%hostname,
+						"serve_waypoint_connect: no VIP found for service"
 					);
 					return;
 				};
@@ -905,15 +916,26 @@ impl Gateway {
 			.socket_addr()
 			.ok_or_else(|| anyhow::anyhow!("hbone_addr should be resolved to SocketAddr"))
 			.unwrap();
-		let _ = Self::proxy(
-			bind_name,
-			pi,
-			None,
-			Socket::from_hbone(ext, socket_addr, con),
-			policies.clone(),
-			drain,
-		)
-		.await;
+		if svc.port_is_http(socket_addr.port()) {
+			let _ = Self::proxy(
+				bind_name,
+				pi,
+				None,
+				Socket::from_hbone(ext, socket_addr, con),
+				policies.clone(),
+				drain,
+			)
+			.await;
+		} else {
+			let _ = Self::proxy_tcp(
+				bind_name,
+				pi,
+				None,
+				Socket::from_hbone(ext, socket_addr, con),
+				drain,
+			)
+			.await;
+		}
 	}
 
 	/// serve_gateway_connect handles a single connection from a client.
