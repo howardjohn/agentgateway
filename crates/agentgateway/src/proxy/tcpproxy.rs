@@ -1,17 +1,17 @@
+use anyhow::anyhow;
+use futures::pin_mut;
+use rand::prelude::IndexedRandom;
 use std::net::SocketAddr;
 use std::sync::Arc;
-
-use rand::prelude::IndexedRandom;
 
 use crate::http::Request;
 use crate::proxy::httpproxy::BackendCall;
 use crate::proxy::{ProxyError, httpproxy};
-use crate::store::{BackendPolicies, RoutePath};
+use crate::store::{BackendPolicies, FrontendPolices, RoutePath};
 use crate::telemetry::log;
 use crate::telemetry::log::{DropOnLog, RequestLog};
 use crate::telemetry::metrics::TCPLabels;
 use crate::transport::stream::{Socket, TCPConnectionInfo, TLSConnectionInfo};
-use crate::types::agent;
 use crate::types::agent::{
 	BackendPolicy, BackendReference, BindKey, Listener, ListenerProtocol, Route,
 	RouteBackendReference, RouteName, SimpleBackend, SimpleBackendReference,
@@ -20,6 +20,7 @@ use crate::types::agent::{
 };
 use crate::types::discovery::gatewayaddress::Destination;
 use crate::types::discovery::{NamespacedHostname, NetworkAddress};
+use crate::types::{agent, frontend};
 use crate::{ProxyInputs, *};
 
 #[derive(Clone)]
@@ -59,6 +60,14 @@ impl TCPProxy {
 		connection: Socket,
 		log: &mut RequestLog,
 	) -> Result<(), ProxyError> {
+		let frontend_policies = self
+			.inputs
+			.stores
+			.read_binds()
+			.frontend_policies(self.inputs.cfg.gateway_ref());
+		let connection = Self::sniff_tls_sni(connection, &frontend_policies)
+			.await
+			.map_err(ProxyError::Processing)?;
 		log.tls_info = connection.ext::<TLSConnectionInfo>().cloned();
 		log.backend_protocol = Some(cel::BackendProtocol::tcp);
 		let tcp_labels = TCPLabels {
@@ -80,7 +89,7 @@ impl TCPProxy {
 		let sni = log
 			.tls_info
 			.as_ref()
-			.and_then(|tls| tls.server_name.as_deref());
+			.and_then(|tls| tls.server_name.as_deref()).map(|s| s.to_string());
 
 		let selected_listener = self.selected_listener.clone();
 		let inputs = self.inputs.clone();
@@ -91,7 +100,7 @@ impl TCPProxy {
 		debug!(bind=%bind_name, listener=%selected_listener.key, "selected listener");
 
 		let selected_route = select_best_route(
-			sni,
+			sni.as_deref(),
 			inputs.stores.clone(),
 			inputs.cfg.network.clone(),
 			inputs.cfg.self_addr.clone(),
@@ -125,6 +134,7 @@ impl TCPProxy {
 				None,
 				svc,
 				port,
+				sni.as_deref(),
 			)?,
 			SimpleBackend::Opaque(_, target) => BackendCall {
 				target: target.clone(),
@@ -163,6 +173,28 @@ impl TCPProxy {
 			})
 			.await?;
 		Ok(())
+	}
+	async fn sniff_tls_sni(raw_stream: Socket, policies: &FrontendPolices) -> anyhow::Result<Socket> {
+		let def = frontend::TLS::default();
+		let tls_pol = policies.tls.as_ref();
+		let to = tls_pol.unwrap_or(&def).handshake_timeout;
+		let handshake = async move {
+			let (mut ext, counter, inner) = raw_stream.into_parts();
+			let inner = Socket::new_rewind(inner);
+			let acceptor =
+				tokio_rustls::LazyConfigAcceptor::new(rustls::server::Acceptor::default(), inner);
+			pin_mut!(acceptor);
+			let mut start = acceptor.as_mut().await?;
+			let ch = start.client_hello();
+			let sni = ch.server_name().unwrap_or_default().to_string();
+			start.io.rewind();
+			ext.insert(TLSConnectionInfo {
+				server_name: Some(sni),
+				..Default::default()
+			});
+			Ok(Socket::from_rewind(ext, counter, start.io))
+		};
+		tokio::time::timeout(to, handshake).await?
 	}
 }
 

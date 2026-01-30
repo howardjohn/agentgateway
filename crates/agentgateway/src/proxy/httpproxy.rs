@@ -1296,7 +1296,7 @@ async fn make_backend_call(
 			}
 		},
 		Backend::Service(svc, port) => {
-			build_service_call(&inputs, policies, &mut log, override_dest, svc, port)?
+			build_service_call(&inputs, policies, &mut log, override_dest, svc, port, req.uri().host())?
 		},
 		Backend::Opaque(_, target) => BackendCall {
 			target: target.clone(),
@@ -1607,6 +1607,7 @@ pub fn build_service_call(
 	override_dest: Option<SocketAddr>,
 	svc: &Arc<Service>,
 	port: &u16,
+	request_host: Option<&str>,
 ) -> Result<BackendCall, ProxyError> {
 	let port = *port;
 	let workloads = &inputs.stores.read_discovery().workloads;
@@ -1688,13 +1689,16 @@ pub fn build_service_call(
 		Target::Hostname(svc.hostname.clone(), port)
 	} else {
 		// TODO: support a mode like ServiceEntry DYNAMIC_DNS. Need a way to signal this, though; perhaps:
-		// wl.workload_ips.is_empty() && wl.hostname.starts_with("*.")
-		// For direct connections, we need the workload IP
-		let Some(ip) = wl.workload_ips.first() else {
-			return Err(ProxyError::NoHealthyEndpoints);
-		};
-		let dest = SocketAddr::from((*ip, target_port));
-		Target::Address(dest)
+		if let Some(rh) = request_host && wl.workload_ips.is_empty() && wl.hostname.starts_with("*.")  {
+			Target::Hostname(rh.into(), port)
+		} else {
+			// For direct connections, we need the workload IP
+			let Some(ip) = wl.workload_ips.first() else {
+				return Err(ProxyError::NoHealthyEndpoints);
+			};
+			let dest = SocketAddr::from((*ip, target_port));
+			Target::Address(dest)
+		}
 	};
 
 	Ok(BackendCall {

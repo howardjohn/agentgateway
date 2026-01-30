@@ -937,6 +937,9 @@ message BackendPolicySpec {
     HttpVersion version = 1;
     google.protobuf.Duration request_timeout = 2;
   }
+  message BackendTunnel {
+    BackendReference proxy = 1;
+  }
   message BackendTCP {
     KeepaliveConfig keepalive = 1;
     google.protobuf.Duration connect_timeout = 2;
@@ -990,6 +993,7 @@ message BackendPolicySpec {
     RequestMirrors request_mirror = 11;
     BackendHTTP backend_http = 12;
     BackendTCP backend_tcp = 13;
+    BackendTunnel backend_tunnel = 14;
   }
 }
 
