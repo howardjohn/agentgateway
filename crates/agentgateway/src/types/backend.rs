@@ -1,7 +1,7 @@
 use crate::http::filters::BackendRequestTimeout;
 use crate::transport::stream::TLSConnectionInfo;
-use crate::{apply, *};
 use crate::types::agent::SimpleBackendReference;
+use crate::{apply, *};
 
 #[apply(schema!)]
 #[derive(Default)]
@@ -67,7 +67,6 @@ fn is_grpc(req: &http::Request) -> bool {
 		.get(http::header::CONTENT_TYPE)
 		.is_some_and(|value| value.as_bytes().starts_with("application/grpc".as_bytes()))
 }
-
 
 #[apply(schema!)]
 pub struct Tunnel {

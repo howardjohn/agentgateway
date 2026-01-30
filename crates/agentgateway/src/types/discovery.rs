@@ -450,6 +450,7 @@ impl Service {
 			Some(AppProtocol::Http2) => true,
 			Some(AppProtocol::Grpc) => true,
 			Some(AppProtocol::Tcp) => false,
+			Some(AppProtocol::Tls) => false,
 		}
 	}
 	pub fn namespaced_hostname(&self) -> NamespacedHostname {
@@ -474,6 +475,7 @@ pub enum AppProtocol {
 	Http2,
 	Grpc,
 	Tcp,
+	Tls,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
@@ -843,6 +845,7 @@ impl From<workload::AppProtocol> for Option<AppProtocol> {
 			workload::AppProtocol::Http2 => Some(AppProtocol::Http2),
 			workload::AppProtocol::Grpc => Some(AppProtocol::Grpc),
 			workload::AppProtocol::Tcp => Some(AppProtocol::Tcp),
+			workload::AppProtocol::Tls => Some(AppProtocol::Tls),
 		}
 	}
 }

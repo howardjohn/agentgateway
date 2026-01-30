@@ -855,15 +855,13 @@ impl Gateway {
 		let network = &pi.cfg.network;
 		let svc = match &parsed_addr {
 			HboneAddress::SocketAddr(addr) => {
-				let svc = pi
-					.stores
+				pi.stores
 					.read_discovery()
 					.services
 					.get_by_vip(&NetworkAddress {
 						network: network.clone(),
 						address: addr.ip(),
-					});
-				svc
+					})
 			},
 			HboneAddress::SvcHostname(hostname, port) => {
 				// Try service registry lookup

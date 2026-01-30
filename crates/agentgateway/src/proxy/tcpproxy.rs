@@ -1,10 +1,8 @@
-use anyhow::anyhow;
 use futures::pin_mut;
 use rand::prelude::IndexedRandom;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use crate::http::Request;
 use crate::proxy::httpproxy::BackendCall;
 use crate::proxy::{ProxyError, httpproxy};
 use crate::store::{BackendPolicies, FrontendPolices, RoutePath};
@@ -13,10 +11,9 @@ use crate::telemetry::log::{DropOnLog, RequestLog};
 use crate::telemetry::metrics::TCPLabels;
 use crate::transport::stream::{Socket, TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::agent::{
-	BackendPolicy, BackendReference, BindKey, Listener, ListenerProtocol, Route,
-	RouteBackendReference, RouteName, SimpleBackend, SimpleBackendReference,
-	SimpleBackendWithPolicies, TCPRoute, TCPRouteBackend, TCPRouteBackendReference,
-	TransportProtocol,
+	BackendPolicy, BindKey, Listener, ListenerProtocol, RouteName, SimpleBackend,
+	SimpleBackendReference, SimpleBackendWithPolicies, TCPRoute, TCPRouteBackend,
+	TCPRouteBackendReference, TransportProtocol,
 };
 use crate::types::discovery::gatewayaddress::Destination;
 use crate::types::discovery::{NamespacedHostname, NetworkAddress};
@@ -89,7 +86,8 @@ impl TCPProxy {
 		let sni = log
 			.tls_info
 			.as_ref()
-			.and_then(|tls| tls.server_name.as_deref()).map(|s| s.to_string());
+			.and_then(|tls| tls.server_name.as_deref())
+			.map(|s| s.to_string());
 
 		let selected_listener = self.selected_listener.clone();
 		let inputs = self.inputs.clone();

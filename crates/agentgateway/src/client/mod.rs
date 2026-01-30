@@ -15,7 +15,7 @@ use crate::http::backendtls::VersionedBackendTLS;
 use crate::http::filters;
 use crate::http::filters::BackendRequestTimeout;
 use crate::proxy::ProxyError;
-use crate::transport::hbone;
+use crate::transport::{hbone, stream};
 use crate::transport::stream::{LoggingMode, Socket};
 use crate::types::agent::Target;
 use crate::*;
@@ -194,6 +194,7 @@ impl Connector {
 		target: Target,
 		ep: SocketAddr,
 		transport: Transport,
+		http: bool,
 	) -> Result<Socket, http::Error> {
 		let connect_start = std::time::Instant::now();
 		let transport_name = transport.name();
@@ -201,9 +202,10 @@ impl Connector {
 			ApplicationTransport::Plaintext => None,
 			ApplicationTransport::Tls(application) => Some(application.clone()),
 		};
+		info!("connecting to tunnel {:?}", transport);
 		let stream = match transport {
 			Transport::Plain(_) => dial(&target, ep, &self.backend_config).await?,
-			Transport::Tunnel(_, tcfg) => {
+			Transport::Tunnel(_, tcfg) if tls.is_some() || !http => {
 				let proxy_dst: SocketAddr = self
 					// Never skip resolution for the actually proxy itself
 					.resolve_target(false, &tcfg.proxy)
@@ -216,7 +218,19 @@ impl Connector {
 				connect_tunnel::handshake(&mut con, &dest)
 					.await
 					.map_err(crate::http::Error::new)?;
+				info!(%dest, "connected to tunnel proxy");
 				con
+			},
+			Transport::Tunnel(_, tcfg) => {
+				let proxy_dst: SocketAddr = self
+					// Never skip resolution for the actually proxy itself
+					.resolve_target(false, &tcfg.proxy)
+					.await
+					.map_err(crate::http::Error::new)?;
+				info!("connected to tunnel proxy (HTTP)");
+				let mut socket = dial(&tcfg.proxy, proxy_dst, &self.backend_config).await?;
+				socket.ext_mut().insert(stream::HttpProxy);
+				socket
 			},
 			Transport::Hbone(_, identity) => {
 				let pool = self
@@ -329,7 +343,7 @@ impl tower::Service<::http::Extensions> for Connector {
 			let PoolKey(target, ep, transport, _) =
 				dst.remove::<PoolKey>().expect("pool key must be set");
 
-			it.connect(target, ep, transport).await.map(TokioIo::new)
+			it.connect(target, ep, transport, true).await.map(TokioIo::new)
 		})
 	}
 }
@@ -428,7 +442,7 @@ impl Client {
 		let upstream = self
 			.connector
 			.clone()
-			.connect(target, dest, transport)
+			.connect(target, dest, transport, false)
 			.await
 			.map_err(ProxyError::UpstreamTCPCallFailed)?;
 
@@ -482,6 +496,9 @@ impl Client {
 				&& let Some(a) = uri.authority.as_mut()
 			{
 				*a = Authority::from_str(h)?
+			}
+			if let Transport::Tunnel(ApplicationTransport::Plaintext, _) = transport {
+				// uri.authority
 			}
 			Ok(())
 		})

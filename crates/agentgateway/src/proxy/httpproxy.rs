@@ -772,7 +772,6 @@ impl HTTPProxy {
 					tokio::time::sleep(bo).await;
 					Ok(())
 				};
-				tracing::error!("howardjohn: TIMEOUT");
 				fut
 					.map_err(|_| ProxyError::RequestTimeout)
 					// This is safe because we guarantee in attempt_upstream to snapshot
@@ -1045,6 +1044,30 @@ async fn handle_upgrade(
 	Ok(resp)
 }
 
+fn hack_backend_call(inputs: &ProxyInputs, backend: &SimpleBackend) -> Result<Target, ProxyError> {
+	let mut log = None;
+	let backend_call = match backend {
+		SimpleBackend::Service(svc, port) => build_service_call(
+			inputs,
+			BackendPolicies::default(),
+			&mut log,
+			None,
+			svc,
+			port,
+			None,
+		)?,
+		SimpleBackend::Opaque(_, target) => BackendCall {
+			target: target.clone(),
+			http_version_override: None,
+			transport_override: None,
+			network_gateway: None,
+			backend_policies: BackendPolicies::default(),
+		},
+		SimpleBackend::Invalid => return Err(ProxyError::BackendDoesNotExist),
+	};
+	Ok(backend_call.target)
+}
+
 pub async fn build_transport(
 	inputs: &ProxyInputs,
 	backend_call: &BackendCall,
@@ -1059,12 +1082,10 @@ pub async fn build_transport(
 		ApplicationTransport::Plaintext
 	};
 	if let Some(tun) = backend_tunnel {
-		let t = match &*tun.proxy {
-			SimpleBackendReference::InlineBackend(t) => t,
-			// TODO
-			_ => panic!("unexpected tunnel proxy type"),
-		};
-		let tc = client::TunnelConfig { proxy: t.clone() };
+		let t = super::resolve_simple_backend_with_policies(&tun.proxy, inputs)?;
+		let t = hack_backend_call(inputs, &t.backend)?;
+     info!("built tunnel to {t:?}");
+		let tc = client::TunnelConfig { proxy: t };
 		return Ok(Transport::Tunnel(app_transport, tc));
 	}
 
@@ -1295,9 +1316,15 @@ async fn make_backend_call(
 				network_gateway: None,
 			}
 		},
-		Backend::Service(svc, port) => {
-			build_service_call(&inputs, policies, &mut log, override_dest, svc, port, req.uri().host())?
-		},
+		Backend::Service(svc, port) => build_service_call(
+			&inputs,
+			policies,
+			&mut log,
+			override_dest,
+			svc,
+			port,
+			req.uri().host(),
+		)?,
 		Backend::Opaque(_, target) => BackendCall {
 			target: target.clone(),
 			http_version_override: None,
@@ -1688,8 +1715,10 @@ pub fn build_service_call(
 		);
 		Target::Hostname(svc.hostname.clone(), port)
 	} else {
-		// TODO: support a mode like ServiceEntry DYNAMIC_DNS. Need a way to signal this, though; perhaps:
-		if let Some(rh) = request_host && wl.workload_ips.is_empty() && wl.hostname.starts_with("*.")  {
+		if let Some(rh) = request_host
+			&& wl.workload_ips.is_empty()
+			&& wl.hostname.starts_with("*.")
+		{
 			Target::Hostname(rh.into(), port)
 		} else {
 			// For direct connections, we need the workload IP
