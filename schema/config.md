@@ -251,6 +251,15 @@
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tcp.connectTimeout`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tcp.connectTimeout.secs`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tcp.connectTimeout.nanos`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel`|Specify a tunnel to use when connecting to the backend|
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy`|Reference to the proxy address|
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)service`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)service.name`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)service.name.namespace`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)service.name.hostname`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)service.port`||
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)host`|Hostname or IP address|
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)backend`|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].rejection`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].rejection.body`||
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].rejection.status`||
@@ -310,6 +319,15 @@
 |`binds[].listeners[].routes[].policies.backendTLS.insecureHost`||
 |`binds[].listeners[].routes[].policies.backendTLS.alpn`||
 |`binds[].listeners[].routes[].policies.backendTLS.subjectAltNames`||
+|`binds[].listeners[].routes[].policies.backendTunnel`|Tunnel to the backend.|
+|`binds[].listeners[].routes[].policies.backendTunnel.proxy`|Reference to the proxy address|
+|`binds[].listeners[].routes[].policies.backendTunnel.proxy.(1)service`||
+|`binds[].listeners[].routes[].policies.backendTunnel.proxy.(1)service.name`||
+|`binds[].listeners[].routes[].policies.backendTunnel.proxy.(1)service.name.namespace`||
+|`binds[].listeners[].routes[].policies.backendTunnel.proxy.(1)service.name.hostname`||
+|`binds[].listeners[].routes[].policies.backendTunnel.proxy.(1)service.port`||
+|`binds[].listeners[].routes[].policies.backendTunnel.proxy.(1)host`|Hostname or IP address|
+|`binds[].listeners[].routes[].policies.backendTunnel.proxy.(1)backend`|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].policies.backendAuth`|Authenticate to the backend.|
 |`binds[].listeners[].routes[].policies.backendAuth.(any)(1)passthrough`||
 |`binds[].listeners[].routes[].policies.backendAuth.(any)(1)key`||
@@ -610,6 +628,15 @@
 |`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tcp.connectTimeout`||
 |`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tcp.connectTimeout.secs`||
 |`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tcp.connectTimeout.nanos`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tunnel`|Specify a tunnel to use when connecting to the backend|
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tunnel.proxy`|Reference to the proxy address|
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tunnel.proxy.(1)service`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tunnel.proxy.(1)service.name`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tunnel.proxy.(1)service.name.namespace`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tunnel.proxy.(1)service.name.hostname`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tunnel.proxy.(1)service.port`||
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tunnel.proxy.(1)host`|Hostname or IP address|
+|`binds[].listeners[].routes[].backends[].(1)mcp.targets[].policies.tunnel.proxy.(1)backend`|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].backends[].(1)mcp.statefulMode`||
 |`binds[].listeners[].routes[].backends[].(1)mcp.prefixMode`||
 |`binds[].listeners[].routes[].backends[].(1)ai`||
@@ -781,6 +808,15 @@
 |`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tcp.connectTimeout`||
 |`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tcp.connectTimeout.secs`||
 |`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tcp.connectTimeout.nanos`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tunnel`|Specify a tunnel to use when connecting to the backend|
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tunnel.proxy`|Reference to the proxy address|
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tunnel.proxy.(1)service`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tunnel.proxy.(1)service.name`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tunnel.proxy.(1)service.name.namespace`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tunnel.proxy.(1)service.name.hostname`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tunnel.proxy.(1)service.port`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tunnel.proxy.(1)host`|Hostname or IP address|
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)policies.tunnel.proxy.(1)backend`|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].backends[].(1)ai.(any)groups`||
 |`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers`||
 |`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].name`||
@@ -951,6 +987,15 @@
 |`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tcp.connectTimeout`||
 |`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tcp.connectTimeout.secs`||
 |`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tcp.connectTimeout.nanos`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tunnel`|Specify a tunnel to use when connecting to the backend|
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tunnel.proxy`|Reference to the proxy address|
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tunnel.proxy.(1)service`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tunnel.proxy.(1)service.name`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tunnel.proxy.(1)service.name.namespace`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tunnel.proxy.(1)service.name.hostname`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tunnel.proxy.(1)service.port`||
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tunnel.proxy.(1)host`|Hostname or IP address|
+|`binds[].listeners[].routes[].backends[].(1)ai.(any)groups[].providers[].policies.tunnel.proxy.(1)backend`|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].backends[].weight`||
 |`binds[].listeners[].routes[].backends[].policies`||
 |`binds[].listeners[].routes[].backends[].policies.requestHeaderModifier`|Headers to be modified in the request.|
@@ -1096,6 +1141,15 @@
 |`binds[].listeners[].routes[].backends[].policies.tcp.connectTimeout`||
 |`binds[].listeners[].routes[].backends[].policies.tcp.connectTimeout.secs`||
 |`binds[].listeners[].routes[].backends[].policies.tcp.connectTimeout.nanos`||
+|`binds[].listeners[].routes[].backends[].policies.tunnel`|Specify a tunnel to use when connecting to the backend|
+|`binds[].listeners[].routes[].backends[].policies.tunnel.proxy`|Reference to the proxy address|
+|`binds[].listeners[].routes[].backends[].policies.tunnel.proxy.(1)service`||
+|`binds[].listeners[].routes[].backends[].policies.tunnel.proxy.(1)service.name`||
+|`binds[].listeners[].routes[].backends[].policies.tunnel.proxy.(1)service.name.namespace`||
+|`binds[].listeners[].routes[].backends[].policies.tunnel.proxy.(1)service.name.hostname`||
+|`binds[].listeners[].routes[].backends[].policies.tunnel.proxy.(1)service.port`||
+|`binds[].listeners[].routes[].backends[].policies.tunnel.proxy.(1)host`|Hostname or IP address|
+|`binds[].listeners[].routes[].backends[].policies.tunnel.proxy.(1)backend`|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].tcpRoutes`||
 |`binds[].listeners[].tcpRoutes[].name`||
 |`binds[].listeners[].tcpRoutes[].namespace`||
@@ -1427,6 +1481,15 @@
 |`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tcp.connectTimeout`||
 |`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tcp.connectTimeout.secs`||
 |`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tcp.connectTimeout.nanos`||
+|`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel`|Specify a tunnel to use when connecting to the backend|
+|`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy`|Reference to the proxy address|
+|`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)service`||
+|`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)service.name`||
+|`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)service.name.namespace`||
+|`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)service.name.hostname`||
+|`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)service.port`||
+|`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)host`|Hostname or IP address|
+|`policies[].policy.ai.promptGuard.request[].(1)openAIModeration.policies.tunnel.proxy.(1)backend`|Explicit backend reference. Backend must be defined in the top level backends list|
 |`policies[].policy.ai.promptGuard.request[].rejection`||
 |`policies[].policy.ai.promptGuard.request[].rejection.body`||
 |`policies[].policy.ai.promptGuard.request[].rejection.status`||
@@ -1486,6 +1549,15 @@
 |`policies[].policy.backendTLS.insecureHost`||
 |`policies[].policy.backendTLS.alpn`||
 |`policies[].policy.backendTLS.subjectAltNames`||
+|`policies[].policy.backendTunnel`|Tunnel to the backend.|
+|`policies[].policy.backendTunnel.proxy`|Reference to the proxy address|
+|`policies[].policy.backendTunnel.proxy.(1)service`||
+|`policies[].policy.backendTunnel.proxy.(1)service.name`||
+|`policies[].policy.backendTunnel.proxy.(1)service.name.namespace`||
+|`policies[].policy.backendTunnel.proxy.(1)service.name.hostname`||
+|`policies[].policy.backendTunnel.proxy.(1)service.port`||
+|`policies[].policy.backendTunnel.proxy.(1)host`|Hostname or IP address|
+|`policies[].policy.backendTunnel.proxy.(1)backend`|Explicit backend reference. Backend must be defined in the top level backends list|
 |`policies[].policy.backendAuth`|Authenticate to the backend.|
 |`policies[].policy.backendAuth.(any)(1)passthrough`||
 |`policies[].policy.backendAuth.(any)(1)key`||
@@ -1763,3 +1835,12 @@
 |`backends[].policies.tcp.connectTimeout`||
 |`backends[].policies.tcp.connectTimeout.secs`||
 |`backends[].policies.tcp.connectTimeout.nanos`||
+|`backends[].policies.tunnel`|Specify a tunnel to use when connecting to the backend|
+|`backends[].policies.tunnel.proxy`|Reference to the proxy address|
+|`backends[].policies.tunnel.proxy.(1)service`||
+|`backends[].policies.tunnel.proxy.(1)service.name`||
+|`backends[].policies.tunnel.proxy.(1)service.name.namespace`||
+|`backends[].policies.tunnel.proxy.(1)service.name.hostname`||
+|`backends[].policies.tunnel.proxy.(1)service.port`||
+|`backends[].policies.tunnel.proxy.(1)host`|Hostname or IP address|
+|`backends[].policies.tunnel.proxy.(1)backend`|Explicit backend reference. Backend must be defined in the top level backends list|

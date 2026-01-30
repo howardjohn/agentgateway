@@ -112,7 +112,11 @@ impl Transport {
 	pub fn skip_dns_resolution(&self) -> bool {
 		// For double HBONE, we don't need to resolve the hostname locally
 		// The gateway will resolve it. Use a placeholder dest (won't be used).
-		matches!(self, Transport::DoubleHbone { .. })
+		// Same with Tunnel
+		matches!(
+			self,
+			Transport::DoubleHbone { .. } | Transport::Tunnel(_, _)
+		)
 	}
 
 	pub fn name(&self) -> &'static str {
@@ -193,7 +197,6 @@ impl Connector {
 	) -> Result<Socket, http::Error> {
 		let connect_start = std::time::Instant::now();
 		let transport_name = transport.name();
-		let skip_dns = transport.skip_dns_resolution();
 		let tls = match transport.application() {
 			ApplicationTransport::Plaintext => None,
 			ApplicationTransport::Tls(application) => Some(application.clone()),
@@ -202,7 +205,8 @@ impl Connector {
 			Transport::Plain(_) => dial(&target, ep, &self.backend_config).await?,
 			Transport::Tunnel(_, tcfg) => {
 				let proxy_dst: SocketAddr = self
-					.resolve_target(skip_dns, &tcfg.proxy)
+					// Never skip resolution for the actually proxy itself
+					.resolve_target(false, &tcfg.proxy)
 					.await
 					.map_err(crate::http::Error::new)?;
 				let dest = target.to_string();
@@ -284,14 +288,14 @@ impl Connector {
 		skip_resolution: bool,
 		target: &Target,
 	) -> Result<SocketAddr, ProxyError> {
-		if skip_resolution {
-			// For double HBONE, we don't need to resolve the hostname locally
-			// The gateway will resolve it. Use a placeholder dest (won't be used).
-			return Ok(SocketAddr::from(([0, 0, 0, 0], 0)));
-		}
 		let dest = match &target {
 			Target::Address(addr) => *addr,
 			Target::Hostname(hostname, port) => {
+				if skip_resolution {
+					// For double HBONE, we don't need to resolve the hostname locally
+					// The gateway will resolve it. Use a placeholder dest (won't be used).
+					return Ok(SocketAddr::from(([0, 0, 0, 0], 0)));
+				}
 				let ip = self
 					.resolver
 					.resolve(hostname.clone())

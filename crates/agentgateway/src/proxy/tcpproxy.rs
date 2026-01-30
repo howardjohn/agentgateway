@@ -144,6 +144,7 @@ impl TCPProxy {
 			&inputs,
 			&backend_call,
 			backend_call.backend_policies.backend_tls.clone(),
+			backend_call.backend_policies.tunnel.as_ref(),
 			// TODO: for TCP we should actually probably do something here: telling it to not use ALPN at all?
 			None,
 		)

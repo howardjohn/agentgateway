@@ -2326,6 +2326,99 @@
                                                         "connectTimeout"
                                                       ],
                                                       "default": null
+                                                    },
+                                                    "tunnel": {
+                                                      "description": "Specify a tunnel to use when connecting to the backend",
+                                                      "type": [
+                                                        "object",
+                                                        "null"
+                                                      ],
+                                                      "properties": {
+                                                        "proxy": {
+                                                          "description": "Reference to the proxy address",
+                                                          "oneOf": [
+                                                            {
+                                                              "type": "string",
+                                                              "enum": [
+                                                                "invalid"
+                                                              ]
+                                                            },
+                                                            {
+                                                              "description": "Service reference. Service must be defined in the top level services list.",
+                                                              "type": "object",
+                                                              "properties": {
+                                                                "service": {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "name": {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "namespace": {
+                                                                          "type": "string"
+                                                                        },
+                                                                        "hostname": {
+                                                                          "type": "string"
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "namespace",
+                                                                        "hostname"
+                                                                      ]
+                                                                    },
+                                                                    "port": {
+                                                                      "type": "integer",
+                                                                      "format": "uint16",
+                                                                      "minimum": 0,
+                                                                      "maximum": 65535
+                                                                    }
+                                                                  },
+                                                                  "additionalProperties": false,
+                                                                  "required": [
+                                                                    "name",
+                                                                    "port"
+                                                                  ]
+                                                                }
+                                                              },
+                                                              "required": [
+                                                                "service"
+                                                              ],
+                                                              "additionalProperties": false
+                                                            },
+                                                            {
+                                                              "description": "Hostname or IP address",
+                                                              "type": "object",
+                                                              "properties": {
+                                                                "host": {
+                                                                  "description": "Hostname or IP address",
+                                                                  "type": "string"
+                                                                }
+                                                              },
+                                                              "required": [
+                                                                "host"
+                                                              ],
+                                                              "additionalProperties": false
+                                                            },
+                                                            {
+                                                              "type": "object",
+                                                              "properties": {
+                                                                "backend": {
+                                                                  "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+                                                                  "type": "string"
+                                                                }
+                                                              },
+                                                              "required": [
+                                                                "backend"
+                                                              ],
+                                                              "additionalProperties": false
+                                                            }
+                                                          ]
+                                                        }
+                                                      },
+                                                      "additionalProperties": false,
+                                                      "required": [
+                                                        "proxy"
+                                                      ],
+                                                      "default": null
                                                     }
                                                   },
                                                   "additionalProperties": false
@@ -2830,6 +2923,99 @@
                               }
                             },
                             "additionalProperties": false
+                          },
+                          "backendTunnel": {
+                            "description": "Tunnel to the backend.",
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "proxy": {
+                                "description": "Reference to the proxy address",
+                                "oneOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "invalid"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Service reference. Service must be defined in the top level services list.",
+                                    "type": "object",
+                                    "properties": {
+                                      "service": {
+                                        "type": "object",
+                                        "properties": {
+                                          "name": {
+                                            "type": "object",
+                                            "properties": {
+                                              "namespace": {
+                                                "type": "string"
+                                              },
+                                              "hostname": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "namespace",
+                                              "hostname"
+                                            ]
+                                          },
+                                          "port": {
+                                            "type": "integer",
+                                            "format": "uint16",
+                                            "minimum": 0,
+                                            "maximum": 65535
+                                          }
+                                        },
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "name",
+                                          "port"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "service"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "description": "Hostname or IP address",
+                                    "type": "object",
+                                    "properties": {
+                                      "host": {
+                                        "description": "Hostname or IP address",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "host"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "backend": {
+                                        "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "backend"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "proxy"
+                            ],
+                            "default": null
                           },
                           "backendAuth": {
                             "description": "Authenticate to the backend.",
@@ -5518,6 +5704,99 @@
                                     "connectTimeout"
                                   ],
                                   "default": null
+                                },
+                                "tunnel": {
+                                  "description": "Specify a tunnel to use when connecting to the backend",
+                                  "type": [
+                                    "object",
+                                    "null"
+                                  ],
+                                  "properties": {
+                                    "proxy": {
+                                      "description": "Reference to the proxy address",
+                                      "oneOf": [
+                                        {
+                                          "type": "string",
+                                          "enum": [
+                                            "invalid"
+                                          ]
+                                        },
+                                        {
+                                          "description": "Service reference. Service must be defined in the top level services list.",
+                                          "type": "object",
+                                          "properties": {
+                                            "service": {
+                                              "type": "object",
+                                              "properties": {
+                                                "name": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "namespace": {
+                                                      "type": "string"
+                                                    },
+                                                    "hostname": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "namespace",
+                                                    "hostname"
+                                                  ]
+                                                },
+                                                "port": {
+                                                  "type": "integer",
+                                                  "format": "uint16",
+                                                  "minimum": 0,
+                                                  "maximum": 65535
+                                                }
+                                              },
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "name",
+                                                "port"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "service"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "description": "Hostname or IP address",
+                                          "type": "object",
+                                          "properties": {
+                                            "host": {
+                                              "description": "Hostname or IP address",
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "host"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "backend": {
+                                              "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backend"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "proxy"
+                                  ],
+                                  "default": null
                                 }
                               },
                               "additionalProperties": false
@@ -6993,6 +7272,99 @@
                                                 "required": [
                                                   "keepalives",
                                                   "connectTimeout"
+                                                ],
+                                                "default": null
+                                              },
+                                              "tunnel": {
+                                                "description": "Specify a tunnel to use when connecting to the backend",
+                                                "type": [
+                                                  "object",
+                                                  "null"
+                                                ],
+                                                "properties": {
+                                                  "proxy": {
+                                                    "description": "Reference to the proxy address",
+                                                    "oneOf": [
+                                                      {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "invalid"
+                                                        ]
+                                                      },
+                                                      {
+                                                        "description": "Service reference. Service must be defined in the top level services list.",
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "service": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "name": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "namespace": {
+                                                                    "type": "string"
+                                                                  },
+                                                                  "hostname": {
+                                                                    "type": "string"
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "namespace",
+                                                                  "hostname"
+                                                                ]
+                                                              },
+                                                              "port": {
+                                                                "type": "integer",
+                                                                "format": "uint16",
+                                                                "minimum": 0,
+                                                                "maximum": 65535
+                                                              }
+                                                            },
+                                                            "additionalProperties": false,
+                                                            "required": [
+                                                              "name",
+                                                              "port"
+                                                            ]
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "service"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      },
+                                                      {
+                                                        "description": "Hostname or IP address",
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "host": {
+                                                            "description": "Hostname or IP address",
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "host"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      },
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "backend": {
+                                                            "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "backend"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "additionalProperties": false,
+                                                "required": [
+                                                  "proxy"
                                                 ],
                                                 "default": null
                                               }
@@ -8762,6 +9134,99 @@
                                                 "connectTimeout"
                                               ],
                                               "default": null
+                                            },
+                                            "tunnel": {
+                                              "description": "Specify a tunnel to use when connecting to the backend",
+                                              "type": [
+                                                "object",
+                                                "null"
+                                              ],
+                                              "properties": {
+                                                "proxy": {
+                                                  "description": "Reference to the proxy address",
+                                                  "oneOf": [
+                                                    {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "invalid"
+                                                      ]
+                                                    },
+                                                    {
+                                                      "description": "Service reference. Service must be defined in the top level services list.",
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "service": {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "name": {
+                                                              "type": "object",
+                                                              "properties": {
+                                                                "namespace": {
+                                                                  "type": "string"
+                                                                },
+                                                                "hostname": {
+                                                                  "type": "string"
+                                                                }
+                                                              },
+                                                              "required": [
+                                                                "namespace",
+                                                                "hostname"
+                                                              ]
+                                                            },
+                                                            "port": {
+                                                              "type": "integer",
+                                                              "format": "uint16",
+                                                              "minimum": 0,
+                                                              "maximum": 65535
+                                                            }
+                                                          },
+                                                          "additionalProperties": false,
+                                                          "required": [
+                                                            "name",
+                                                            "port"
+                                                          ]
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "service"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "description": "Hostname or IP address",
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "host": {
+                                                          "description": "Hostname or IP address",
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "host"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "backend": {
+                                                          "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "backend"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "proxy"
+                                              ],
+                                              "default": null
                                             }
                                           },
                                           "additionalProperties": false
@@ -10362,6 +10827,99 @@
                                                           "required": [
                                                             "keepalives",
                                                             "connectTimeout"
+                                                          ],
+                                                          "default": null
+                                                        },
+                                                        "tunnel": {
+                                                          "description": "Specify a tunnel to use when connecting to the backend",
+                                                          "type": [
+                                                            "object",
+                                                            "null"
+                                                          ],
+                                                          "properties": {
+                                                            "proxy": {
+                                                              "description": "Reference to the proxy address",
+                                                              "oneOf": [
+                                                                {
+                                                                  "type": "string",
+                                                                  "enum": [
+                                                                    "invalid"
+                                                                  ]
+                                                                },
+                                                                {
+                                                                  "description": "Service reference. Service must be defined in the top level services list.",
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "service": {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "name": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "namespace": {
+                                                                              "type": "string"
+                                                                            },
+                                                                            "hostname": {
+                                                                              "type": "string"
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "namespace",
+                                                                            "hostname"
+                                                                          ]
+                                                                        },
+                                                                        "port": {
+                                                                          "type": "integer",
+                                                                          "format": "uint16",
+                                                                          "minimum": 0,
+                                                                          "maximum": 65535
+                                                                        }
+                                                                      },
+                                                                      "additionalProperties": false,
+                                                                      "required": [
+                                                                        "name",
+                                                                        "port"
+                                                                      ]
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "service"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "description": "Hostname or IP address",
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "host": {
+                                                                      "description": "Hostname or IP address",
+                                                                      "type": "string"
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "host"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "backend": {
+                                                                      "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+                                                                      "type": "string"
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "backend"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                }
+                                                              ]
+                                                            }
+                                                          },
+                                                          "additionalProperties": false,
+                                                          "required": [
+                                                            "proxy"
                                                           ],
                                                           "default": null
                                                         }
@@ -13555,6 +14113,99 @@
                                             "connectTimeout"
                                           ],
                                           "default": null
+                                        },
+                                        "tunnel": {
+                                          "description": "Specify a tunnel to use when connecting to the backend",
+                                          "type": [
+                                            "object",
+                                            "null"
+                                          ],
+                                          "properties": {
+                                            "proxy": {
+                                              "description": "Reference to the proxy address",
+                                              "oneOf": [
+                                                {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "invalid"
+                                                  ]
+                                                },
+                                                {
+                                                  "description": "Service reference. Service must be defined in the top level services list.",
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "service": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "name": {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "namespace": {
+                                                              "type": "string"
+                                                            },
+                                                            "hostname": {
+                                                              "type": "string"
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "namespace",
+                                                            "hostname"
+                                                          ]
+                                                        },
+                                                        "port": {
+                                                          "type": "integer",
+                                                          "format": "uint16",
+                                                          "minimum": 0,
+                                                          "maximum": 65535
+                                                        }
+                                                      },
+                                                      "additionalProperties": false,
+                                                      "required": [
+                                                        "name",
+                                                        "port"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "service"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "description": "Hostname or IP address",
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "host": {
+                                                      "description": "Hostname or IP address",
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "host"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "backend": {
+                                                      "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "backend"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false,
+                                          "required": [
+                                            "proxy"
+                                          ],
+                                          "default": null
                                         }
                                       },
                                       "additionalProperties": false
@@ -14059,6 +14710,99 @@
                   }
                 },
                 "additionalProperties": false
+              },
+              "backendTunnel": {
+                "description": "Tunnel to the backend.",
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "proxy": {
+                    "description": "Reference to the proxy address",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "invalid"
+                        ]
+                      },
+                      {
+                        "description": "Service reference. Service must be defined in the top level services list.",
+                        "type": "object",
+                        "properties": {
+                          "service": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "object",
+                                "properties": {
+                                  "namespace": {
+                                    "type": "string"
+                                  },
+                                  "hostname": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "namespace",
+                                  "hostname"
+                                ]
+                              },
+                              "port": {
+                                "type": "integer",
+                                "format": "uint16",
+                                "minimum": 0,
+                                "maximum": 65535
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "name",
+                              "port"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "service"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "description": "Hostname or IP address",
+                        "type": "object",
+                        "properties": {
+                          "host": {
+                            "description": "Hostname or IP address",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "host"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "backend": {
+                            "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "backend"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "proxy"
+                ],
+                "default": null
               },
               "backendAuth": {
                 "description": "Authenticate to the backend.",
@@ -16762,6 +17506,99 @@
                   "connectTimeout"
                 ],
                 "default": null
+              },
+              "tunnel": {
+                "description": "Specify a tunnel to use when connecting to the backend",
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "proxy": {
+                    "description": "Reference to the proxy address",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "invalid"
+                        ]
+                      },
+                      {
+                        "description": "Service reference. Service must be defined in the top level services list.",
+                        "type": "object",
+                        "properties": {
+                          "service": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "object",
+                                "properties": {
+                                  "namespace": {
+                                    "type": "string"
+                                  },
+                                  "hostname": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "namespace",
+                                  "hostname"
+                                ]
+                              },
+                              "port": {
+                                "type": "integer",
+                                "format": "uint16",
+                                "minimum": 0,
+                                "maximum": 65535
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "name",
+                              "port"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "service"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "description": "Hostname or IP address",
+                        "type": "object",
+                        "properties": {
+                          "host": {
+                            "description": "Hostname or IP address",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "host"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "backend": {
+                            "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "backend"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "proxy"
+                ],
+                "default": null
               }
             },
             "additionalProperties": false
@@ -18180,6 +19017,99 @@
           "required": [
             "keepalives",
             "connectTimeout"
+          ],
+          "default": null
+        },
+        "tunnel": {
+          "description": "Specify a tunnel to use when connecting to the backend",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "proxy": {
+              "description": "Reference to the proxy address",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "invalid"
+                  ]
+                },
+                {
+                  "description": "Service reference. Service must be defined in the top level services list.",
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "object",
+                          "properties": {
+                            "namespace": {
+                              "type": "string"
+                            },
+                            "hostname": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "namespace",
+                            "hostname"
+                          ]
+                        },
+                        "port": {
+                          "type": "integer",
+                          "format": "uint16",
+                          "minimum": 0,
+                          "maximum": 65535
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "name",
+                        "port"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "service"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "description": "Hostname or IP address",
+                  "type": "object",
+                  "properties": {
+                    "host": {
+                      "description": "Hostname or IP address",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "host"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "backend": {
+                      "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "backend"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "proxy"
           ],
           "default": null
         }

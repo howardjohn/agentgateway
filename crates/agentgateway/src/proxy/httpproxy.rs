@@ -173,6 +173,8 @@ async fn apply_backend_policies(
 		// Doesn't currently have any options to set, todo
 		tcp: _,
 		// Applied elsewhere
+		tunnel: _,
+		// Applied elsewhere
 		llm_provider: _,
 		// Applied elsewhere
 		llm: _,
@@ -1047,6 +1049,7 @@ pub async fn build_transport(
 	inputs: &ProxyInputs,
 	backend_call: &BackendCall,
 	backend_tls: Option<BackendTLS>,
+	backend_tunnel: Option<&backend::Tunnel>,
 	backend_http_version_override: Option<::http::Version>,
 ) -> Result<Transport, ProxyError> {
 	let backend_tls = backend_tls.map(|btls| btls.config_for(backend_http_version_override));
@@ -1055,6 +1058,15 @@ pub async fn build_transport(
 	} else {
 		ApplicationTransport::Plaintext
 	};
+	if let Some(tun) = backend_tunnel {
+		let t = match &*tun.proxy {
+			SimpleBackendReference::InlineBackend(t) => t,
+			// TODO
+			_ => panic!("unexpected tunnel proxy type"),
+		};
+		let tc = client::TunnelConfig { proxy: t.clone() };
+		return Ok(Transport::Tunnel(app_transport, tc));
+	}
 
 	// Check if we need double hbone
 	if let (
@@ -1521,6 +1533,7 @@ async fn make_backend_call(
 		&inputs,
 		&backend_call,
 		backend_call.backend_policies.backend_tls.clone(),
+		backend_call.backend_policies.tunnel.as_ref(),
 		backend_call
 			.backend_policies
 			.http

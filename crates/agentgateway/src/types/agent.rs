@@ -1902,6 +1902,7 @@ pub enum BackendPolicy {
 	HTTP(backend::HTTP),
 	#[serde(rename = "tcp")]
 	TCP(backend::TCP),
+	Tunnel(backend::Tunnel),
 	#[serde(rename = "backendTLS")]
 	BackendTLS(http::backendtls::BackendTLS),
 	BackendAuth(BackendAuth),

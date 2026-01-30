@@ -17,7 +17,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;
 use tokio::task::{AbortHandle, JoinSet};
 use tokio_stream::StreamExt;
-use tracing::{Instrument, debug, error, event, info, info_span, warn};
+use tracing::{Instrument, debug, error, event, info, info_span, trace, warn};
 
 use crate::proxy::ProxyError;
 use crate::store::{Event, FrontendPolices};
@@ -893,6 +893,9 @@ impl Gateway {
 						%hostname,
 						"serve_waypoint_connect: no VIP found for service"
 					);
+					let _ = req
+						.send_response(build_response(StatusCode::NOT_FOUND))
+						.await;
 					return;
 				};
 				HboneAddress::from(SocketAddr::from((vip, port)))
@@ -917,6 +920,7 @@ impl Gateway {
 			.ok_or_else(|| anyhow::anyhow!("hbone_addr should be resolved to SocketAddr"))
 			.unwrap();
 		if svc.port_is_http(socket_addr.port()) {
+			trace!(protocol = "http", "serving waypoint {socket_addr}");
 			let _ = Self::proxy(
 				bind_name,
 				pi,
@@ -927,6 +931,7 @@ impl Gateway {
 			)
 			.await;
 		} else {
+			trace!(protocol = "tcp", "serving waypoint {socket_addr}");
 			let _ = Self::proxy_tcp(
 				bind_name,
 				pi,

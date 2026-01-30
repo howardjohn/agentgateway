@@ -714,6 +714,9 @@ pub struct LocalBackendPolicies {
 	/// Specify TCP settings for the backend
 	#[serde(default)]
 	pub tcp: Option<backend::TCP>,
+	/// Specify a tunnel to use when connecting to the backend
+	#[serde(default)]
+	pub tunnel: Option<backend::Tunnel>,
 }
 
 impl LocalBackendPolicies {
@@ -729,10 +732,14 @@ impl LocalBackendPolicies {
 			backend_auth,
 			http,
 			tcp,
+			tunnel,
 		} = self;
 		let mut pols = vec![];
 		if let Some(p) = tcp {
 			pols.push(BackendPolicy::TCP(p));
+		}
+		if let Some(p) = tunnel {
+			pols.push(BackendPolicy::Tunnel(p));
 		}
 		if let Some(p) = http {
 			pols.push(BackendPolicy::HTTP(p));
@@ -855,6 +862,9 @@ struct FilterOrPolicy {
 	/// Send TLS to the backend.
 	#[serde(rename = "backendTLS", default)]
 	backend_tls: Option<http::backendtls::LocalBackendTLS>,
+	/// Tunnel to the backend.
+	#[serde(default)]
+	backend_tunnel: Option<backend::Tunnel>,
 	/// Authenticate to the backend.
 	#[serde(default)]
 	backend_auth: Option<BackendAuth>,
@@ -1293,6 +1303,7 @@ async fn split_policies(client: Client, pol: FilterOrPolicy) -> Result<ResolvedP
 		a2a,
 		ai,
 		backend_tls,
+		backend_tunnel,
 		backend_auth,
 		authorization,
 		local_rate_limit,
@@ -1346,6 +1357,9 @@ async fn split_policies(client: Client, pol: FilterOrPolicy) -> Result<ResolvedP
 	}
 	if let Some(p) = backend_tls {
 		backend_policies.push(BackendPolicy::BackendTLS(p.try_into()?))
+	}
+	if let Some(p) = backend_tunnel {
+		backend_policies.push(BackendPolicy::Tunnel(p.try_into()?))
 	}
 	if let Some(p) = backend_auth {
 		backend_policies.push(BackendPolicy::BackendAuth(p))
