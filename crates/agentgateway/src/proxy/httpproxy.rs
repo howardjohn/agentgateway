@@ -1084,7 +1084,7 @@ pub async fn build_transport(
 	if let Some(tun) = backend_tunnel {
 		let t = super::resolve_simple_backend_with_policies(&tun.proxy, inputs)?;
 		let t = hack_backend_call(inputs, &t.backend)?;
-     info!("built tunnel to {t:?}");
+		info!("built tunnel to {t:?}");
 		let tc = client::TunnelConfig { proxy: t };
 		return Ok(Transport::Tunnel(app_transport, tc));
 	}
@@ -1715,9 +1715,9 @@ pub fn build_service_call(
 		);
 		Target::Hostname(svc.hostname.clone(), port)
 	} else {
+		// TODO: this should only be used with DNS resolution type! maybe?
 		if let Some(rh) = request_host
 			&& wl.workload_ips.is_empty()
-			&& wl.hostname.starts_with("*.")
 		{
 			Target::Hostname(rh.into(), port)
 		} else {
