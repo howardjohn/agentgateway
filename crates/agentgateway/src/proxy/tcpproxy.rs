@@ -62,6 +62,13 @@ impl TCPProxy {
 			.stores
 			.read_binds()
 			.frontend_policies(self.inputs.cfg.gateway_ref());
+
+		// Apply frontend policies for access logging (skip tracing for TCP)
+		frontend_policies.register_cel_expressions(log.cel.ctx());
+		if let Some(lp) = &frontend_policies.access_log {
+			httpproxy::apply_logging_policy_to_log(log, lp);
+		}
+
 		let connection = Self::sniff_tls_sni(connection, &frontend_policies)
 			.await
 			.map_err(ProxyError::Processing)?;

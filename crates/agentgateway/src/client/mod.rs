@@ -15,8 +15,8 @@ use crate::http::backendtls::VersionedBackendTLS;
 use crate::http::filters;
 use crate::http::filters::BackendRequestTimeout;
 use crate::proxy::ProxyError;
-use crate::transport::{hbone, stream};
 use crate::transport::stream::{LoggingMode, Socket};
+use crate::transport::{hbone, stream};
 use crate::types::agent::Target;
 use crate::*;
 
@@ -343,7 +343,9 @@ impl tower::Service<::http::Extensions> for Connector {
 			let PoolKey(target, ep, transport, _) =
 				dst.remove::<PoolKey>().expect("pool key must be set");
 
-			it.connect(target, ep, transport, true).await.map(TokioIo::new)
+			it.connect(target, ep, transport, true)
+				.await
+				.map(TokioIo::new)
 		})
 	}
 }
