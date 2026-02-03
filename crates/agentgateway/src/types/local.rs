@@ -891,3 +891,61 @@ pub struct LocalRemoteRateLimit {
 	pub target: SimpleLocalBackend,
 	pub descriptors: HashMap<String, Descriptor>,
 }
+
+#[cfg(test)]
+mod tests {
+	use std::fs;
+	use std::path::Path;
+
+	use super::*;
+
+	/// Test helper to load and deserialize a YAML config file.
+	/// This tests YAML parsing to ensure the configuration can be successfully loaded and parsed.
+	/// The snapshot captures the original YAML input for regression testing.
+	fn test_config_parsing(test_name: &str) {
+		let test_dir = Path::new("src/types/local_tests");
+		let input_path = test_dir.join(format!("{}_config.yaml", test_name));
+		
+		// Read the input YAML file
+		let yaml_str = fs::read_to_string(&input_path)
+			.expect(&format!("Failed to read input file: {:?}", input_path));
+		
+		// Remove the schema comment to avoid issues with shellexpand
+		let yaml_cleaned = yaml_str.replace("# yaml-language-server: $schema", "#");
+		
+		// Deserialize YAML -> LocalConfig
+		// This verifies the YAML structure is correct and parseable
+		let config: LocalConfig = serdes::yamlviajson::from_str(&yaml_cleaned)
+			.expect(&format!("Failed to deserialize config from: {:?}", input_path));
+		
+		// Verify we can parse the config successfully
+		assert!(config.binds.len() > 0 || config.workloads.len() > 0 || config.services.len() > 0,
+			"Config should have at least one bind, workload, or service");
+		
+		// Use insta to snapshot the input YAML
+		// This captures the config structure for regression testing
+		insta::with_settings!({
+			description => format!("Config parsing test for {}: verifies YAML can be parsed successfully", test_name),
+			omit_expression => true,
+			prepend_module_to_snapshot => false,
+			snapshot_path => "local_tests",
+		}, {
+			insta::assert_snapshot!(format!("{}_yaml", test_name), yaml_str);
+		});
+	}
+
+	#[test]
+	fn test_basic_config() {
+		test_config_parsing("basic");
+	}
+
+	#[test]
+	fn test_authorization_config() {
+		test_config_parsing("authorization");
+	}
+
+	#[test]
+	fn test_multiplex_config() {
+		test_config_parsing("multiplex");
+	}
+}
