@@ -9,12 +9,6 @@ binds:
           - "*"
           allowHeaders:
           - "*"
-        jwtAuth:
-          issuer: agentgateway.dev
-          audiences: [test.agentgateway.dev]
-          jwks:
-            # Relative to the folder the binary runs from, not the config file
-            file: ./manifests/jwt/pub-key
         mcpAuthorization:
           rules:
           # Allow anyone to call 'echo'
