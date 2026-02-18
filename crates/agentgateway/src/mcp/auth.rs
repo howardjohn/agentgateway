@@ -31,6 +31,7 @@ pub(crate) struct PassthroughProtectedResource {
 #[derive(Debug, Clone)]
 pub(crate) enum PassthroughWellKnown {
 	UnsupportedAuthorizationServer,
+	AuthorizationServer(Uri),
 	ProtectedResource(PassthroughProtectedResource),
 }
 
@@ -127,6 +128,27 @@ pub(crate) fn passthrough_well_known(req: &Request) -> Option<PassthroughWellKno
 	let path = request_path(req);
 	if path.trim_end_matches('/') == OAUTH_AUTHORIZATION_SERVER_PREFIX {
 		return Some(PassthroughWellKnown::UnsupportedAuthorizationServer);
+	}
+
+	if let Some(suffix) = path.strip_prefix(OAUTH_AUTHORIZATION_SERVER_PREFIX) {
+		let identifier = normalize_identifier_suffix(
+			suffix
+				.strip_suffix(CLIENT_REGISTRATION_SUFFIX)
+				.unwrap_or(suffix),
+		)?;
+		let new_path_and_query = if let Some(query) = req.uri().query() {
+			format!("{OAUTH_AUTHORIZATION_SERVER_PREFIX}?{query}")
+		} else {
+			OAUTH_AUTHORIZATION_SERVER_PREFIX.to_string()
+		};
+		let mut parts = req.uri().clone().into_parts();
+		parts.path_and_query = Some(PathAndQuery::from_str(&new_path_and_query).ok()?);
+		let upstream_uri = Uri::from_parts(parts).ok()?;
+		debug!(
+			"passthrough auth-server request for identifier {}; rewriting upstream path to {}",
+			identifier, OAUTH_AUTHORIZATION_SERVER_PREFIX
+		);
+		return Some(PassthroughWellKnown::AuthorizationServer(upstream_uri));
 	}
 
 	let suffix = path.strip_prefix(OAUTH_PROTECTED_RESOURCE_PREFIX)?;
@@ -581,6 +603,23 @@ mod tests {
 			passthrough_well_known(&req),
 			Some(PassthroughWellKnown::UnsupportedAuthorizationServer)
 		));
+	}
+
+	#[test]
+	fn passthrough_rewrites_authorization_server_suffix_upstream() {
+		let req = request_for_uri(
+			"http://example.com/.well-known/oauth-authorization-server/mcp/notion?foo=bar",
+		);
+		let Some(PassthroughWellKnown::AuthorizationServer(upstream_uri)) =
+			passthrough_well_known(&req)
+		else {
+			panic!("expected authorization server passthrough rewrite");
+		};
+		assert_eq!(
+			upstream_uri.path(),
+			"/.well-known/oauth-authorization-server"
+		);
+		assert_eq!(upstream_uri.query(), Some("foo=bar"));
 	}
 
 	#[test]

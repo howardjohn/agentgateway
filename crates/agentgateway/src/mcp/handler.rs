@@ -356,7 +356,7 @@ impl Relay {
 		let id = r.id.clone();
 		let mut streams = Vec::new();
 		for (name, con) in self.upstreams.iter_named() {
-			streams.push((name, con.generic_stream(r.clone(), &ctx).await?));
+			streams.push((name, Box::pin(con.generic_stream(r.clone(), &ctx)).await?));
 		}
 
 		let ms = mergestream::MergeStream::new(streams, id.clone(), merge);

@@ -1240,6 +1240,9 @@ async fn make_backend_call(
 					Some(crate::mcp::PassthroughWellKnown::UnsupportedAuthorizationServer) => {
 						return Err(ProxyResponse::from(ProxyError::RouteNotFound));
 					},
+					Some(crate::mcp::PassthroughWellKnown::AuthorizationServer(upstream_uri)) => {
+						*req.uri_mut() = upstream_uri;
+					},
 					Some(crate::mcp::PassthroughWellKnown::ProtectedResource(rewrite)) => {
 						*req.uri_mut() = rewrite.upstream_uri.clone();
 						mcp_passthrough_rewrite = Some(rewrite);
