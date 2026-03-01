@@ -13,6 +13,10 @@ on:
         description: 'Cache hash version'
         required: true
         type: string
+
+permissions:
+  contents: read
+
 jobs:
   cache-upload:
     runs-on: ubuntu-24.04
