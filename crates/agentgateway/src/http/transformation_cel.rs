@@ -30,7 +30,13 @@ pub struct LocalTransform {
 	pub remove: Vec<Strng>,
 	#[serde(default)]
 	pub body: Option<Strng>,
+	#[serde(default)]
+	#[serde_as(as = "serde_with::Map<_, _>")]
+	pub metadata: Vec<(Strng, Strng)>,
 }
+
+#[derive(Default, Clone, Debug, Serialize, Deserialize, ::cel::DynamicType)]
+pub struct TransformationMetadata(pub serde_json::Map<String, serde_json::Value>);
 
 impl TransformerConfig {
 	fn try_from_local_config(req: LocalTransform, strict: bool) -> anyhow::Result<Self> {
@@ -65,11 +71,17 @@ impl TransformerConfig {
 			.map(|k| HeaderName::try_from(k.as_str()))
 			.collect::<Result<_, _>>()?;
 		let body = req.body.map(|b| compile(b.as_str())).transpose()?;
+		let metadata = req
+			.metadata
+			.into_iter()
+			.map(|(k, v)| Ok::<_, anyhow::Error>((k, compile(v.as_str())?)))
+			.collect::<Result<_, _>>()?;
 		Ok(TransformerConfig {
 			set,
 			add,
 			remove,
 			body,
+			metadata,
 		})
 	}
 }
@@ -112,9 +124,11 @@ impl Transformation {
 			.map(|v| &v.1)
 			.chain(self.request.set.iter().map(|v| &v.1))
 			.chain(self.request.body.as_ref())
+			.chain(self.request.metadata.iter().map(|v| &v.1))
 			.chain(self.response.add.iter().map(|v| &v.1))
 			.chain(self.response.set.iter().map(|v| &v.1))
 			.chain(self.response.body.as_ref())
+			.chain(self.response.metadata.iter().map(|v| &v.1))
 	}
 }
 
@@ -126,6 +140,7 @@ pub struct TransformerConfig {
 	#[serde_as(serialize_as = "Vec<SerAsStr>")]
 	pub remove: Vec<HeaderName>,
 	pub body: Option<cel::Expression>,
+	pub metadata: Vec<(Strng, cel::Expression)>,
 }
 
 pub struct SerAsStr;
@@ -169,6 +184,29 @@ fn eval_body(
 			let exec = cel::Executor::new_response(request, r);
 			let v = exec.eval(expr)?;
 			cel::value_as_byte_or_json(v)
+		},
+	}
+}
+
+fn eval_metadata(
+	r: &RequestOrResponse,
+	expr: &Expression,
+	request: Option<&cel::RequestSnapshot>,
+) -> anyhow::Result<serde_json::Value> {
+	match r {
+		RequestOrResponse::Request(r) => {
+			let exec = cel::Executor::new_request(r);
+			exec
+				.eval(expr)
+				.and_then(|v| v.json().map_err(|e| cel::Error::Variable(e.to_string())))
+				.map_err(anyhow::Error::from)
+		},
+		RequestOrResponse::Response(r) => {
+			let exec = cel::Executor::new_response(request, r);
+			exec
+				.eval(expr)
+				.and_then(|v| v.json().map_err(|e| cel::Error::Variable(e.to_string())))
+				.map_err(anyhow::Error::from)
 		},
 	}
 }
@@ -227,6 +265,33 @@ impl Transformation {
 			let b = eval_body(&r, b, request).unwrap_or_default();
 			*r.body() = http::Body::from(b);
 			r.headers().remove(&header::CONTENT_LENGTH);
+		}
+		if !cfg.metadata.is_empty() {
+			let mut metadata = match &mut r {
+				RequestOrResponse::Request(req) => req
+					.extensions_mut()
+					.remove::<TransformationMetadata>()
+					.unwrap_or_default(),
+				RequestOrResponse::Response(resp) => resp
+					.extensions_mut()
+					.remove::<TransformationMetadata>()
+					.unwrap_or_default(),
+			};
+			for (name, expr) in &cfg.metadata {
+				if let Ok(v) = eval_metadata(&r, expr, request) {
+					metadata.0.insert(name.to_string(), v);
+				}
+			}
+			if !metadata.0.is_empty() {
+				match &mut r {
+					RequestOrResponse::Request(req) => {
+						req.extensions_mut().insert(metadata);
+					},
+					RequestOrResponse::Response(resp) => {
+						resp.extensions_mut().insert(metadata);
+					},
+				}
+			}
 		}
 	}
 }
