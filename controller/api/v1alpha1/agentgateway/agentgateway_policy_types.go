@@ -990,7 +990,7 @@ type Transformation struct {
 	Response *Transform `json:"response,omitempty"`
 }
 
-// +kubebuilder:validation:AtLeastOneOf=set;add;remove;body
+// +kubebuilder:validation:AtLeastOneOf=set;add;remove;body;metadata
 type Transform struct {
 	// set is a list of headers and the value they should be set to.
 	//
@@ -1022,6 +1022,12 @@ type Transform struct {
 	// body controls manipulation of the HTTP body.
 	// +optional
 	Body *shared.CELExpression `json:"body,omitempty"`
+
+	// metadata stores CEL-evaluated values under the `metadata` CEL variable for subsequent policy evaluations.
+	//
+	// +kubebuilder:validation:MaxProperties=32
+	// +optional
+	Metadata map[string]shared.CELExpression `json:"metadata,omitempty"`
 }
 
 // An HTTP Header Name.
