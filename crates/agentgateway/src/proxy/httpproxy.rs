@@ -642,6 +642,7 @@ impl HTTPProxy {
 			&req,
 		)
 		.snapshot_on_err(log, &mut req)?;
+		dbg!(&selected_route_chain);
 		let selected_route = selected_route_chain
 			.routes
 			.last()
