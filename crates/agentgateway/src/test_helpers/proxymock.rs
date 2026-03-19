@@ -181,7 +181,7 @@ pub fn basic_named_route(target: Strng) -> Route {
 		inline_policies: Default::default(),
 		backends: vec![RouteBackendReference {
 			weight: 1,
-			backend: BackendReference::Backend(target),
+			target: BackendReference::Backend(target).into(),
 			inline_policies: Default::default(),
 		}],
 	}

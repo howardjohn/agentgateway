@@ -34,6 +34,229 @@ import (
 	"github.com/agentgateway/agentgateway/controller/pkg/reports"
 )
 
+type routeGroupBindingKey struct {
+	GatewayNamespace string
+	GatewayName      string
+	Namespace        string
+	Name             string
+}
+
+func (k routeGroupBindingKey) String() string {
+	return strings.Join([]string{k.GatewayNamespace, k.GatewayName, k.Namespace, k.Name}, "/")
+}
+
+func (b routeGroupBindingKey) ResourceName() string {
+	return b.Gateway().String() + "/" + b.RouteGroupKey()
+}
+
+func (b routeGroupBindingKey) Equals(other routeGroupBindingKey) bool {
+	return b == other
+}
+
+func (b routeGroupBindingKey) Gateway() types.NamespacedName {
+	return types.NamespacedName{
+		Namespace: b.GatewayNamespace,
+		Name:      b.GatewayName,
+	}
+}
+
+func (b routeGroupBindingKey) RouteGroupKey() string {
+	return utils.InternalRouteGroupKey(b.Namespace, b.Name)
+}
+
+// TODO: allow parent refs
+func isDelegatedChildHTTPRoute(obj *gwv1.HTTPRoute) bool {
+	if len(obj.Spec.ParentRefs) == 0 {
+		// No explicit parents, all good
+		return true
+	}
+	// Else, we need an explicit reference to an HTTPRoute
+	for _, ref := range obj.Spec.ParentRefs {
+		if ref.Group != nil && *ref.Group == wellknown.GatewayGroup &&
+			ref.Kind != nil && *ref.Kind == wellknown.HTTPRouteKind {
+			return true
+		}
+	}
+	return false
+}
+func childAllowsParent(obj *gwv1.HTTPRoute, parentRef routeGroupBindingKey) bool {
+	// This is not currently supported
+	return true
+}
+
+func extractHTTPRouteGroupRefs(rule gwv1.HTTPRouteRule, routeNamespace string) []routeGroupBindingKey {
+	var res []routeGroupBindingKey
+	for _, backend := range rule.BackendRefs {
+		ref := NormalizeReference(backend.Group, backend.Kind, wellknown.ServiceGVK)
+		if ref != wellknown.HTTPRouteGVK {
+			continue
+		}
+		namespace := routeNamespace
+		if backend.Namespace != nil {
+			namespace = string(*backend.Namespace)
+		}
+		res = append(res, routeGroupBindingKey{
+			Namespace: namespace,
+			Name:      string(backend.Name),
+		})
+	}
+	return res
+}
+
+func routeMatchesRouteGroup(obj *gwv1.HTTPRoute, binding routeGroupBindingKey) bool {
+	if obj.Namespace != binding.Namespace {
+		return false
+	}
+	if binding.Name == "*" {
+		return true
+	}
+	if obj.Name == binding.Name {
+		return true
+	}
+	if k, v, ok := strings.Cut(binding.Name, "="); ok && obj.Labels[k] == v {
+		return true
+	}
+	return false
+}
+
+func delegatedRouteKey(routeKey, routeGroupKey string) string {
+	replacer := strings.NewReplacer("/", ".", "*", "wildcard")
+	return routeKey + ".routegroup." + replacer.Replace(routeGroupKey)
+}
+
+func buildHTTPRouteGroupBindings(
+	httpRouteCol krt.Collection[*gwv1.HTTPRoute],
+	inputs RouteContextInputs,
+	krtopts krtutil.KrtOptions,
+) krt.Collection[routeGroupBindingKey] {
+	raw := krt.NewManyCollection(httpRouteCol, func(krtctx krt.HandlerContext, obj *gwv1.HTTPRoute) []routeGroupBindingKey {
+		ctx := inputs.WithCtx(krtctx)
+		parentRefs := extractParentReferenceInfo(ctx, inputs.RouteParents, obj)
+		allowedParents := FilteredReferences(parentRefs)
+		bindings := sets.New[routeGroupBindingKey]()
+		for _, parent := range allowedParents {
+			for _, rule := range obj.Spec.Rules {
+				for _, binding := range extractHTTPRouteGroupRefs(rule, obj.Namespace) {
+					binding.GatewayNamespace = parent.ParentGateway.Namespace
+					binding.GatewayName = parent.ParentGateway.Name
+					bindings.Insert(binding)
+				}
+			}
+		}
+		return bindings.UnsortedList()
+	}, krtopts.ToOptions("HTTPRouteGroupBindingsRaw")...)
+	return raw
+}
+
+//func buildHTTPRouteGroupResources(
+//	bindings krt.Collection[routeGroupBinding],
+//	krtopts krtutil.KrtOptions,
+//) krt.Collection[agwir.AgwResource] {
+//	return krt.NewCollection(bindings, func(krtctx krt.HandlerContext, binding routeGroupBinding) *agwir.AgwResource {
+//		return ptr.Of(ToResourceForGateway(binding.Gateway(), AgwRouteGroup{
+//			RouteGroup: &api.RouteGroup{
+//				Key:       binding.RouteGroupKey(),
+//				Namespace: binding.Namespace,
+//				Name:      binding.Name,
+//			},
+//		}))
+//	}, krtopts.ToOptions("HTTPRouteGroups")...)
+//}
+
+func buildDelegatedHTTPRoutes(
+	httpRouteCol krt.Collection[*gwv1.HTTPRoute],
+	bindings krt.Collection[routeGroupBindingKey],
+	inputs RouteContextInputs,
+	krtopts krtutil.KrtOptions,
+) (krt.Collection[agwir.AgwResource], krt.Collection[*utils.AncestorBackend]) {
+	bindingsByNamespace := krt.NewIndex(bindings, "HTTPRouteGroupBindingsByNamespace", func(binding routeGroupBindingKey) []string {
+		return []string{binding.Namespace}
+	})
+	matchingBindings := func(krtctx krt.HandlerContext, obj *gwv1.HTTPRoute) []routeGroupBindingKey {
+		candidates := krt.Fetch(krtctx, bindings, krt.FilterIndex(bindingsByNamespace, obj.Namespace))
+		return slices.Filter(candidates, func(binding routeGroupBindingKey) bool {
+			return routeMatchesRouteGroup(obj, binding)
+		})
+	}
+
+	routes := krt.NewManyCollection(httpRouteCol, func(krtctx krt.HandlerContext, obj *gwv1.HTTPRoute) []agwir.AgwResource {
+		if !isDelegatedChildHTTPRoute(obj) {
+			return nil
+		}
+		ctx := inputs.WithCtx(krtctx)
+		var resources []agwir.AgwResource
+		for _, binding := range matchingBindings(krtctx, obj) {
+			if !childAllowsParent(obj, binding) {
+				continue
+			}
+			for n, rule := range obj.Spec.Rules {
+				route, err := ConvertHTTPRouteToAgw(ctx, rule, obj, n)
+				if err != nil {
+					log.Warnf("skipping delegated route %s/%s rule %d: %v", obj.Namespace, obj.Name, n, err)
+					continue
+				}
+				route.ListenerKey = ""
+				route.RouteGroupKey = ptr.Of(binding.RouteGroupKey())
+				route.Key = delegatedRouteKey(route.GetKey(), binding.RouteGroupKey())
+				resources = append(resources, ToResourceForGateway(binding.Gateway(), AgwRoute{Route: route}))
+			}
+		}
+		return resources
+	}, krtopts.ToOptions("DelegatedHTTPRoutes")...)
+
+	ancestors := krt.NewManyCollection(httpRouteCol, func(krtctx krt.HandlerContext, obj *gwv1.HTTPRoute) []*utils.AncestorBackend {
+		if !isDelegatedChildHTTPRoute(obj) {
+			return nil
+		}
+		source := utils.TypedNamespacedName{
+			NamespacedName: types.NamespacedName{
+				Namespace: obj.Namespace,
+				Name:      obj.Name,
+			},
+			Kind: wellknown.HTTPRouteKind,
+		}
+		gateways := sets.New[types.NamespacedName]()
+		for _, binding := range matchingBindings(krtctx, obj) {
+			if !childAllowsParent(obj, binding) {
+				continue
+			}
+			gateways.Insert(binding.Gateway())
+		}
+		if len(gateways) == 0 {
+			return nil
+		}
+		backends := sets.New[utils.TypedNamespacedName]()
+		for _, rule := range obj.Spec.Rules {
+			for _, backend := range rule.BackendRefs {
+				ref, refNs, refName := GetBackendRef(backend)
+				if ref == wellknown.HTTPRouteGVK {
+					continue
+				}
+				backends.Insert(utils.TypedNamespacedName{
+					NamespacedName: types.NamespacedName{
+						Namespace: defaultString(refNs, obj.Namespace),
+						Name:      string(refName),
+					},
+					Kind: ref.Kind,
+				})
+			}
+		}
+		res := make([]*utils.AncestorBackend, 0, len(gateways)*len(backends))
+		for _, gateway := range slices.SortBy(gateways.UnsortedList(), types.NamespacedName.String) {
+			for _, backend := range slices.SortBy(backends.UnsortedList(), utils.TypedNamespacedName.String) {
+				res = append(res, &utils.AncestorBackend{
+					Gateway: gateway,
+					Backend: backend,
+					Source:  source,
+				})
+			}
+		}
+		return res
+	}, krtopts.ToOptions("DelegatedHTTPRouteAncestors")...)
+
+	return routes, ancestors
+}
+
 // AgwRouteCollection creates the collection of translated Routes
 func AgwRouteCollection(
 	queue *status.StatusCollections,
@@ -59,6 +282,9 @@ func AgwRouteCollection(
 			return gwv1.HTTPRouteStatus{RouteStatus: status}
 		})
 	status.RegisterStatus(queue, httpRouteStatus, GetStatus)
+	httpRouteGroupBindings := buildHTTPRouteGroupBindings(httpRouteCol, inputs, krtopts)
+	//httpRouteGroups := buildHTTPRouteGroupResources(httpRouteGroupBindings, krtopts)
+	delegatedHTTPRoutes, delegatedHTTPAncestors := buildDelegatedHTTPRoutes(httpRouteCol, httpRouteGroupBindings, inputs, krtopts)
 
 	grpcRouteStatus, grpcRoutes := createRouteCollectionGeneric(grpcRouteCol, inputs, krtopts, "GRPCRoutes",
 		func(ctx RouteContext, obj *gwv1.GRPCRoute) (RouteContext, iter.Seq2[AgwRoute, *reporter.RouteCondition]) {
@@ -111,7 +337,17 @@ func AgwRouteCollection(
 		})
 	status.RegisterStatus(queue, tlsRouteStatus, GetStatus)
 
-	routes := krt.JoinCollection([]krt.Collection[agwir.AgwResource]{httpRoutes, grpcRoutes, tcpRoutes, tlsRoutes}, krtopts.ToOptions("ADPRoutes")...)
+	routes := krt.JoinCollection(
+		[]krt.Collection[agwir.AgwResource]{
+			httpRoutes,
+			//httpRouteGroups,
+			delegatedHTTPRoutes,
+			grpcRoutes,
+			tcpRoutes,
+			tlsRoutes,
+		},
+		krtopts.ToOptions("ADPRoutes")...,
+	)
 
 	routeAttachments := krt.JoinCollection([]krt.Collection[*plugins.RouteAttachment]{
 		gatewayRouteAttachmentCountCollection(inputs, httpRouteCol, wellknown.HTTPRouteGVK, krtopts),
@@ -127,6 +363,7 @@ func AgwRouteCollection(
 				return r.BackendRefs
 			})
 		}, krtopts.ToOptions("HTTPAncestors")...),
+		delegatedHTTPAncestors,
 		krt.NewManyCollection(grpcRouteCol, func(krtctx krt.HandlerContext, obj *gwv1.GRPCRoute) []*utils.AncestorBackend {
 			ctx := inputs.WithCtx(krtctx)
 			return extractAncestorBackends(ctx, obj, "GRPCRoute", obj.Spec.Rules, func(r gwv1.GRPCRouteRule) []gwv1.GRPCBackendRef {
@@ -573,6 +810,9 @@ func extractAncestorBackends[T controllers.Object, RT, BT any](ctx RouteContext,
 	for _, r := range rules {
 		for _, b := range extract(r) {
 			ref, refNs, refName := GetBackendRef(b)
+			if ref == wellknown.HTTPRouteGVK {
+				continue
+			}
 			be := utils.TypedNamespacedName{
 				NamespacedName: types.NamespacedName{
 					Namespace: defaultString(refNs, obj.GetNamespace()),

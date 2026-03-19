@@ -119,8 +119,8 @@ impl TCPProxy {
 		log.route_name = Some(selected_route.name.clone());
 
 		let route_path = RoutePath {
-			route: &selected_route.name,
-			listener: &selected_listener.name,
+			listener: selected_listener.name.clone(),
+			routes: vec![selected_route.name.clone()],
 		};
 
 		debug!(bind=%bind_name, listener=%selected_listener.key, route=%selected_route.key, "selected route");

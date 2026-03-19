@@ -1714,7 +1714,7 @@ type Resource_Workload struct {
 
 type Resource_Service struct {
 	// Service represents a service - a group of workloads that can be accessed together.
-	Service *workloadapi.Service `protobuf:"bytes,8,opt,name=service,proto3,oneof"`
+	Service *workloadapi.Service `protobuf:"bytes,8,opt,name=service,proto3,oneof"` //    RouteGroup route_group = 9;
 }
 
 func (*Resource_Bind) isResource_Kind() {}
@@ -2141,8 +2141,11 @@ type Route struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique key for this route
 	Key string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// Parent key. Must be one of listener or route group
 	// Key for the listener this is a part of.
 	ListenerKey string `protobuf:"bytes,2,opt,name=listener_key,json=listenerKey,proto3" json:"listener_key,omitempty"`
+	// Key for the route group this route is a part of.
+	RouteGroupKey *string `protobuf:"bytes,9,opt,name=route_group_key,json=routeGroupKey,proto3,oneof" json:"route_group_key,omitempty"`
 	// User facing name for this resource
 	Name            *RouteName           `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Hostnames       []string             `protobuf:"bytes,5,rep,name=hostnames,proto3" json:"hostnames,omitempty"`
@@ -2193,6 +2196,13 @@ func (x *Route) GetKey() string {
 func (x *Route) GetListenerKey() string {
 	if x != nil {
 		return x.ListenerKey
+	}
+	return ""
+}
+
+func (x *Route) GetRouteGroupKey() string {
+	if x != nil && x.RouteGroupKey != nil {
+		return *x.RouteGroupKey
 	}
 	return ""
 }
@@ -4595,6 +4605,7 @@ func (x *Header) GetValue() string {
 type RouteBackend struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Backend         *BackendReference      `protobuf:"bytes,1,opt,name=backend,proto3" json:"backend,omitempty"`
+	RouteGroupKey   *string                `protobuf:"bytes,6,opt,name=route_group_key,json=routeGroupKey,proto3,oneof" json:"route_group_key,omitempty"`
 	Weight          int32                  `protobuf:"varint,2,opt,name=weight,proto3" json:"weight,omitempty"`
 	BackendPolicies []*BackendPolicySpec   `protobuf:"bytes,5,rep,name=backend_policies,json=backendPolicies,proto3" json:"backend_policies,omitempty"`
 	unknownFields   protoimpl.UnknownFields
@@ -4636,6 +4647,13 @@ func (x *RouteBackend) GetBackend() *BackendReference {
 		return x.Backend
 	}
 	return nil
+}
+
+func (x *RouteBackend) GetRouteGroupKey() string {
+	if x != nil && x.RouteGroupKey != nil {
+		return *x.RouteGroupKey
+	}
+	return ""
 }
 
 func (x *RouteBackend) GetWeight() int32 {
@@ -11103,15 +11121,17 @@ const file_resource_proto_rawDesc = "" +
 	"\x04name\x18\x03 \x01(\v2'.agentgateway.dev.resource.ListenerNameR\x04name\x12\x1a\n" +
 	"\bhostname\x18\x04 \x01(\tR\bhostname\x12?\n" +
 	"\bprotocol\x18\x05 \x01(\x0e2#.agentgateway.dev.resource.ProtocolR\bprotocol\x126\n" +
-	"\x03tls\x18\x06 \x01(\v2$.agentgateway.dev.resource.TLSConfigR\x03tls\"\xf3\x02\n" +
+	"\x03tls\x18\x06 \x01(\v2$.agentgateway.dev.resource.TLSConfigR\x03tls\"\xb4\x03\n" +
 	"\x05Route\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12!\n" +
-	"\flistener_key\x18\x02 \x01(\tR\vlistenerKey\x128\n" +
+	"\flistener_key\x18\x02 \x01(\tR\vlistenerKey\x12+\n" +
+	"\x0froute_group_key\x18\t \x01(\tH\x00R\rrouteGroupKey\x88\x01\x01\x128\n" +
 	"\x04name\x18\x03 \x01(\v2$.agentgateway.dev.resource.RouteNameR\x04name\x12\x1c\n" +
 	"\thostnames\x18\x05 \x03(\tR\thostnames\x12?\n" +
 	"\amatches\x18\x06 \x03(\v2%.agentgateway.dev.resource.RouteMatchR\amatches\x12C\n" +
 	"\bbackends\x18\a \x03(\v2'.agentgateway.dev.resource.RouteBackendR\bbackends\x12W\n" +
-	"\x10traffic_policies\x18\b \x03(\v2,.agentgateway.dev.resource.TrafficPolicySpecR\x0ftrafficPolicies\"\xdc\x01\n" +
+	"\x10traffic_policies\x18\b \x03(\v2,.agentgateway.dev.resource.TrafficPolicySpecR\x0ftrafficPoliciesB\x12\n" +
+	"\x10_route_group_key\"\xdc\x01\n" +
 	"\bTCPRoute\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12!\n" +
 	"\flistener_key\x18\x02 \x01(\tR\vlistenerKey\x128\n" +
@@ -11295,11 +11315,13 @@ const file_resource_proto_rawDesc = "" +
 	"\x04path\"2\n" +
 	"\x06Header\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"\xcc\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"\x8d\x02\n" +
 	"\fRouteBackend\x12E\n" +
-	"\abackend\x18\x01 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\abackend\x12\x16\n" +
+	"\abackend\x18\x01 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\abackend\x12+\n" +
+	"\x0froute_group_key\x18\x06 \x01(\tH\x00R\rrouteGroupKey\x88\x01\x01\x12\x16\n" +
 	"\x06weight\x18\x02 \x01(\x05R\x06weight\x12W\n" +
-	"\x10backend_policies\x18\x05 \x03(\v2,.agentgateway.dev.resource.BackendPolicySpecR\x0fbackendPoliciesJ\x04\b\x04\x10\x05\"\xb1\x06\n" +
+	"\x10backend_policies\x18\x05 \x03(\v2,.agentgateway.dev.resource.BackendPolicySpecR\x0fbackendPoliciesB\x12\n" +
+	"\x10_route_group_keyJ\x04\b\x04\x10\x05\"\xb1\x06\n" +
 	"\fPolicyTarget\x12Q\n" +
 	"\agateway\x18\x01 \x01(\v25.agentgateway.dev.resource.PolicyTarget.GatewayTargetH\x00R\agateway\x12K\n" +
 	"\x05route\x18\x02 \x01(\v23.agentgateway.dev.resource.PolicyTarget.RouteTargetH\x00R\x05route\x12Q\n" +
@@ -12387,6 +12409,7 @@ func file_resource_proto_init() {
 		(*Resource_Service)(nil),
 	}
 	file_resource_proto_msgTypes[2].OneofWrappers = []any{}
+	file_resource_proto_msgTypes[7].OneofWrappers = []any{}
 	file_resource_proto_msgTypes[9].OneofWrappers = []any{
 		(*Policy_Traffic)(nil),
 		(*Policy_Backend)(nil),
@@ -12448,6 +12471,7 @@ func file_resource_proto_init() {
 		(*UrlRewrite_Full)(nil),
 		(*UrlRewrite_Prefix)(nil),
 	}
+	file_resource_proto_msgTypes[40].OneofWrappers = []any{}
 	file_resource_proto_msgTypes[41].OneofWrappers = []any{
 		(*PolicyTarget_Gateway)(nil),
 		(*PolicyTarget_Route)(nil),

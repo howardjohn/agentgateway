@@ -135,7 +135,6 @@ impl TryFrom<&proto::agent::RouteBackend> for RouteBackendReference {
 	type Error = ProtoError;
 
 	fn try_from(s: &proto::agent::RouteBackend) -> Result<Self, Self::Error> {
-		let backend = resolve_reference(s.backend.as_ref())?;
 		let inline_policies = s
 			.backend_policies
 			.iter()
@@ -144,11 +143,20 @@ impl TryFrom<&proto::agent::RouteBackend> for RouteBackendReference {
 			.into_iter()
 			.flatten()
 			.collect();
-		Ok(Self {
-			weight: s.weight as usize,
-			backend,
-			inline_policies,
-		})
+		if let Some(rgk) = s.route_group_key.as_ref() {
+			Ok(Self {
+				weight: s.weight as usize,
+				target: RouteBackendTarget::RouteGroup(strng::new(rgk)),
+				inline_policies,
+			})
+		} else {
+			let backend = resolve_reference(s.backend.as_ref())?;
+			Ok(Self {
+				weight: s.weight as usize,
+				target: backend.into(),
+				inline_policies,
+			})
+		}
 	}
 }
 
@@ -664,7 +672,9 @@ impl TCPRoute {
 }
 
 impl Route {
-	pub fn try_from_xds(s: &proto::agent::Route) -> Result<(Self, ListenerKey), ProtoError> {
+	pub fn try_from_xds(
+		s: &proto::agent::Route,
+	) -> Result<(Self, ListenerKey, Option<RouteGroupKey>), ProtoError> {
 		let name: RouteName = s
 			.name
 			.as_ref()
@@ -690,7 +700,11 @@ impl Route {
 				.map(TrafficPolicy::try_from)
 				.collect::<Result<Vec<_>, _>>()?,
 		};
-		Ok((r, strng::new(&s.listener_key)))
+		Ok((
+			r,
+			strng::new(&s.listener_key),
+			s.route_group_key.as_ref().map(strng::new),
+		))
 	}
 }
 

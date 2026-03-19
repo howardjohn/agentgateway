@@ -523,6 +523,7 @@ pub struct Route {
 }
 
 pub type RouteKey = Strng;
+pub type RouteGroupKey = Strng;
 pub type RouteRuleName = Strng;
 
 #[apply(schema!)]
@@ -868,11 +869,44 @@ pub enum PathRedirect {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub enum RouteBackendTarget {
+	Service { name: NamespacedHostname, port: u16 },
+	Backend(BackendKey),
+	RouteGroup(RouteGroupKey),
+	Invalid,
+}
+
+impl From<BackendReference> for RouteBackendTarget {
+	fn from(value: BackendReference) -> Self {
+		match value {
+			BackendReference::Service { name, port } => Self::Service { name, port },
+			BackendReference::Backend(key) => Self::Backend(key),
+			BackendReference::Invalid => Self::Invalid,
+		}
+	}
+}
+
+impl RouteBackendTarget {
+	pub fn as_backend_reference(&self) -> Option<BackendReference> {
+		match self {
+			Self::Service { name, port } => Some(BackendReference::Service {
+				name: name.clone(),
+				port: *port,
+			}),
+			Self::Backend(key) => Some(BackendReference::Backend(key.clone())),
+			Self::Invalid => Some(BackendReference::Invalid),
+			Self::RouteGroup(_) => None,
+		}
+	}
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RouteBackendReference {
 	#[serde(default = "default_weight")]
 	pub weight: usize,
 	#[serde(flatten)]
-	pub backend: BackendReference,
+	pub target: RouteBackendTarget,
 	// Inline policies ("filters") of the route backend
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub inline_policies: Vec<BackendPolicy>,
@@ -1464,6 +1498,10 @@ impl RouteSet {
 				.get(&rl.key)
 				.map(|r| (r.clone(), r.matches.get(rl.index).expect("corrupted state")))
 		})
+	}
+
+	pub fn get_by_name(&self, name: &RouteName) -> Option<Arc<Route>> {
+		self.all.values().find(|route| route.name == *name).cloned()
 	}
 
 	pub fn insert(&mut self, r: Route) {

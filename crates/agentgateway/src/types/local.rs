@@ -1762,7 +1762,7 @@ json(request.body).model
 			matches,
 			backends: vec![RouteBackendReference {
 				weight: 1,
-				backend: BackendReference::Backend(strng::format!("/{}", backend_key)),
+				target: BackendReference::Backend(strng::format!("/{}", backend_key)).into(),
 				inline_policies: vec![],
 			}],
 			inline_policies: vec![TrafficPolicy::AI(Arc::new(crate::llm::Policy {
@@ -1910,7 +1910,7 @@ async fn convert_mcp_config(
 		matches: default_matches(),
 		backends: vec![RouteBackendReference {
 			weight: 1,
-			backend: BackendReference::Backend(strng::new("/mcp")),
+			target: BackendReference::Backend(strng::new("/mcp")).into(),
 			inline_policies: resolved_policies.backend_policies,
 		}],
 		inline_policies: resolved_policies.route_policies,
@@ -2134,7 +2134,7 @@ pub async fn convert_route(
 			.await?;
 		let bref = RouteBackendReference {
 			weight: b.weight,
-			backend: bref,
+			target: bref.into(),
 			inline_policies: policies,
 		};
 		backend_refs.push(bref);

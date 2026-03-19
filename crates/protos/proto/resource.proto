@@ -19,6 +19,7 @@ message Resource {
     istio.workload.Workload workload = 7;
     // Service represents a service - a group of workloads that can be accessed together.
     istio.workload.Service service = 8;
+//    RouteGroup route_group = 9;
   }
 }
 
@@ -86,8 +87,13 @@ message Listener {
 message Route {
   // Unique key for this route
   string key = 1;
+
+  // Parent key. Must be one of listener or route group
   // Key for the listener this is a part of.
   string listener_key = 2;
+  // Key for the route group this route is a part of.
+  optional string route_group_key = 9;
+
   // User facing name for this resource
   RouteName name = 3;
 
@@ -96,6 +102,12 @@ message Route {
   repeated RouteBackend backends = 7;
   repeated TrafficPolicySpec traffic_policies = 8;
 }
+
+//message RouteGroup {
+//  string key = 1;
+//  string namespace = 2;
+//  string name = 3;
+//}
 
 message TCPRoute {
   // Unique key for this route
@@ -408,6 +420,7 @@ message Header {
 
 message RouteBackend {
   BackendReference backend = 1;
+  optional string route_group_key = 6;
   int32 weight = 2;
   // Reserved tag number for removed field: filters(4)
   reserved 4;

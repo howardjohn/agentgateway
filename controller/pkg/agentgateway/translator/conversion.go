@@ -597,6 +597,42 @@ func buildAgwHTTPDestination(
 	return res, invalidBackendErr, nil
 }
 
+func buildAgwRouteGroupDestination(
+	ctx RouteContext,
+	to gwv1.HTTPBackendRef,
+	ns string,
+	k schema.GroupVersionKind,
+) (*api.RouteBackend, *reporter.RouteCondition) {
+	namespace := ns
+	if to.Namespace != nil {
+		namespace = string(*to.Namespace)
+	}
+	if namespace == "" {
+		namespace = ns
+	}
+	if to.Port != nil {
+		return nil, &reporter.RouteCondition{
+			Type:    gwv1.RouteConditionAccepted,
+			Status:  metav1.ConditionFalse,
+			Reason:  gwv1.RouteReasonUnsupportedValue,
+			Message: "port is not supported for HTTPRoute backendRefs",
+		}
+	}
+	if to.Name == "" {
+		return nil, &reporter.RouteCondition{
+			Type:    gwv1.RouteConditionAccepted,
+			Status:  metav1.ConditionFalse,
+			Reason:  gwv1.RouteReasonUnsupportedValue,
+			Message: "name is required for HTTPRoute backendRefs",
+		}
+	}
+
+	return &api.RouteBackend{
+		Weight:        ptr.OrDefault(to.Weight, 1),
+		RouteGroupKey: ptr.Of(utils.InternalRouteGroupKey(namespace, string(to.Name))),
+	}, nil
+}
+
 func buildAgwDestination(
 	ctx RouteContext,
 	to gwv1.HTTPBackendRef,
@@ -633,6 +669,8 @@ func buildAgwDestination(
 	var port *gwv1.PortNumber
 
 	switch ref.GroupKind() {
+	case wellknown.HTTPRouteGVK.GroupKind():
+		return buildAgwRouteGroupDestination(ctx, to, ns, k)
 	case wellknown.InferencePoolGVK.GroupKind():
 		if strings.Contains(string(to.Name), ".") {
 			return nil, &reporter.RouteCondition{
