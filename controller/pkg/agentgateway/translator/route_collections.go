@@ -129,6 +129,7 @@ func buildHTTPRouteGroupBindings(
 	inputs RouteContextInputs,
 	krtopts krtutil.KrtOptions,
 ) krt.Collection[routeGroupBindingKey] {
+	// TODO: this can only get 1 layer. If we have multiple levels we will not have a binding since there is no parent.
 	raw := krt.NewManyCollection(httpRouteCol, func(krtctx krt.HandlerContext, obj *gwv1.HTTPRoute) []routeGroupBindingKey {
 		ctx := inputs.WithCtx(krtctx)
 		parentRefs := extractParentReferenceInfo(ctx, inputs.RouteParents, obj)
@@ -173,8 +174,10 @@ func buildDelegatedHTTPRoutes(
 		return []string{binding.Namespace}
 	})
 	matchingBindings := func(krtctx krt.HandlerContext, obj *gwv1.HTTPRoute) []routeGroupBindingKey {
+		log.Errorf("howardjohn: lookup bindings in %v", obj.Namespace)
 		candidates := krt.Fetch(krtctx, bindings, krt.FilterIndex(bindingsByNamespace, obj.Namespace))
 		return slices.Filter(candidates, func(binding routeGroupBindingKey) bool {
+			log.Errorf("howardjohn: %v matches %v? %v", config.NamespacedName(obj), binding, routeMatchesRouteGroup(obj, binding))
 			return routeMatchesRouteGroup(obj, binding)
 		})
 	}
@@ -222,6 +225,7 @@ func buildDelegatedHTTPRoutes(
 			}
 			gateways.Insert(binding.Gateway())
 		}
+		log.Errorf("howardjohn: ancestor %v -> %v", config.NamespacedName(obj), gateways)
 		if len(gateways) == 0 {
 			return nil
 		}
@@ -351,6 +355,7 @@ func AgwRouteCollection(
 
 	routeAttachments := krt.JoinCollection([]krt.Collection[*plugins.RouteAttachment]{
 		gatewayRouteAttachmentCountCollection(inputs, httpRouteCol, wellknown.HTTPRouteGVK, krtopts),
+		delegatedGatewayRouteAttachmentCountCollection(inputs, delegatedHTTPRoutes, krtopts),
 		gatewayRouteAttachmentCountCollection(inputs, grpcRouteCol, wellknown.GRPCRouteGVK, krtopts),
 		gatewayRouteAttachmentCountCollection(inputs, tlsRouteCol, wellknown.TLSRouteGVK, krtopts),
 		gatewayRouteAttachmentCountCollection(inputs, tcpRouteCol, wellknown.TCPRouteGVK, krtopts),
@@ -781,9 +786,9 @@ func gatewayRouteAttachmentCountCollection[T controllers.Object](
 
 		parentRefs := extractParentReferenceInfo(ctx, inputs.RouteParents, obj)
 		return slices.MapFilter(FilteredReferences(parentRefs), func(e RouteParentReference) **plugins.RouteAttachment {
-			if e.ParentKey.Kind != wellknown.GatewayGVK.Kind && e.ParentKey.Kind != wellknown.ListenerSetGVK.Kind {
-				return nil
-			}
+			//if e.ParentKey.Kind != wellknown.GatewayGVK.Kind && e.ParentKey.Kind != wellknown.ListenerSetGVK.Kind {
+			//	return nil
+			//}
 			return ptr.Of(&plugins.RouteAttachment{
 				From:         from,
 				To:           e.ParentKey,
@@ -792,6 +797,32 @@ func gatewayRouteAttachmentCountCollection[T controllers.Object](
 			})
 		})
 	}, opts.ToOptions(kind.Kind+"/count")...)
+}
+
+// gatewayRouteAttachmentCountCollection holds the generic logic to determine the parents a route is attached to, used for
+// computing the aggregated `attachedRoutes` status in Gateway.
+func delegatedGatewayRouteAttachmentCountCollection(
+	inputs RouteContextInputs,
+	col krt.Collection[agwir.AgwResource],
+	opts krtutil.KrtOptions,
+) krt.Collection[*plugins.RouteAttachment] {
+	return krt.NewManyCollection(col, func(krtctx krt.HandlerContext, obj agwir.AgwResource) []*plugins.RouteAttachment {
+		//ctx := inputs.WithCtx(krtctx)
+		n := obj.Resource.GetRoute().GetName()
+		from := utils.TypedNamespacedName{
+			Kind:           wellknown.HTTPRouteKind,
+			NamespacedName: types.NamespacedName{Namespace: n.Namespace, Name: n.Name},
+		}
+		return []*plugins.RouteAttachment{{
+			From: from,
+			// ?? If we set this to the Gateway, we can get attachedRoutes added. If we don't, we will not. Our choice.
+			// However, if we *do* we need to also figure out ListenerName which makes it probably more complex than its worth.
+			To: utils.TypedNamespacedName{},
+			// Never set
+			ListenerName: "",
+			Gateway:      obj.Gateway,
+		}}
+	}, opts.ToOptions("DelegatedHTTPRoute/count")...)
 }
 
 func extractAncestorBackends[T controllers.Object, RT, BT any](ctx RouteContext, obj T, kind string, rules []RT, extract func(RT) []BT) []*utils.AncestorBackend {

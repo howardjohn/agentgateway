@@ -111,7 +111,7 @@ func RunForDirectory[Status any, Output any](t *testing.T, base string, run func
 		}
 		runOnly := os.Getenv("GOLDEN_TEST")
 		t.Run(name, func(t *testing.T) {
-			if runOnly != "" && name != runOnly+".yaml" {
+			if runOnly != "" && name != runOnly+".yaml" && name != runOnly {
 				t.Skipf("only running %v, skipped", runOnly)
 				return
 			}

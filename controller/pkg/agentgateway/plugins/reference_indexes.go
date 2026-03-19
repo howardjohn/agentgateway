@@ -89,15 +89,14 @@ func (p ReferenceIndex) LookupGatewaysForTarget(ctx krt.HandlerContext, object u
 }
 
 func (p ReferenceIndex) LookupGatewaysForBackend(ctx krt.HandlerContext, object utils.TypedNamespacedName) sets.Set[types.NamespacedName] {
-	return p.lookupGatewaysForBackend(ctx, object, map[string]struct{}{})
+	return p.lookupGatewaysForBackend(ctx, object, sets.New[string]())
 }
 
-func (p ReferenceIndex) lookupGatewaysForBackend(ctx krt.HandlerContext, object utils.TypedNamespacedName, seen map[string]struct{}) sets.Set[types.NamespacedName] {
+func (p ReferenceIndex) lookupGatewaysForBackend(ctx krt.HandlerContext, object utils.TypedNamespacedName, seen sets.String) sets.Set[types.NamespacedName] {
 	key := object.String()
-	if _, ok := seen[key]; ok {
+	if seen.InsertContains(key) {
 		return sets.New[types.NamespacedName]()
 	}
-	seen[key] = struct{}{}
 
 	base := p.LookupGatewaysForTarget(ctx, object)
 	if p.PolicyAttachments == nil {

@@ -1,16 +1,3 @@
-# This gateway should NOT see any routes attached
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: not-test-gateway
-  namespace: default
-spec:
-  gatewayClassName: agentgateway
-  listeners:
-    - name: http
-      port: 80
-      protocol: HTTP
----
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -88,6 +75,38 @@ spec:
 ---
 # Output
 output:
+- gateway:
+    Name: test-gateway
+    Namespace: default
+  resource:
+    backend:
+      key: team1/policy-be
+      name:
+        name: policy-be
+        namespace: team1
+      static:
+        host: example.com
+        port: 80
+- gateway:
+    Name: test-gateway
+    Namespace: default
+  resource:
+    policy:
+      key: traffic/team1/agw:extauth:team1/child-team1-foo
+      name:
+        kind: AgentgatewayPolicy
+        name: agw
+        namespace: team1
+      target:
+        route:
+          kind: HTTPRoute
+          name: child-team1-foo
+          namespace: team1
+      traffic:
+        extAuthz:
+          grpc: {}
+          target:
+            backend: team1/policy-be
 - gateway:
     Name: test-gateway
     Namespace: default
