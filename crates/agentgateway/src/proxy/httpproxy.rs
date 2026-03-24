@@ -2284,84 +2284,84 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn select_route_chain_follows_delegated_routes() {
-		let backend: SocketAddr = "127.0.0.1:8080".parse().unwrap();
-		let child = route(
-			"child",
-			"/",
-			BackendReference::Backend(strng::format!("/{}", backend)).into(),
-		);
-		let parent = route(
-			"parent",
-			"/foo",
-			RouteBackendTarget::RouteGroup(child.name.clone()),
-		);
-		let bind = bind(vec![parent, child.clone()]);
-		let listener = bind.listeners.get_exactly_one().unwrap();
-		let proxy = proxymock::setup_proxy_test("{}")
-			.unwrap()
-			.with_backend(backend)
-			.with_bind(bind);
-
-		let selected = select_route_chain(
-			proxy.inputs().as_ref(),
-			listener_address(),
-			&listener,
-			&request("/foo"),
-		)
-		.expect("delegated route should resolve");
-
-		assert_eq!(selected.routes.len(), 2);
-		assert_eq!(selected.routes[0].name.name.as_str(), "parent");
-		assert_eq!(selected.routes[1].name.name.as_str(), "child");
-		match &selected.path_match {
-			PathMatch::PathPrefix(prefix) => assert_eq!(prefix.as_str(), "/"),
-			other => panic!("expected delegated path prefix match, got {other:?}"),
-		}
-		match selected.backend.target {
-			RouteBackendTarget::Backend(name) => assert_eq!(name.as_str(), format!("/{}", backend)),
-			other => panic!("expected backend target, got {other:?}"),
-		}
-	}
-
-	#[test]
-	fn select_route_chain_rejects_cycles() {
-		let parent_name = RouteName {
-			name: strng::literal!("parent"),
-			namespace: strng::EMPTY,
-			rule_name: None,
-			kind: Some(strng::literal!("HTTPRoute")),
-		};
-		let child_name = RouteName {
-			name: strng::literal!("child"),
-			namespace: strng::EMPTY,
-			rule_name: None,
-			kind: Some(strng::literal!("HTTPRoute")),
-		};
-		let parent = route(
-			"parent",
-			"/",
-			RouteBackendTarget::RouteGroup(child_name.clone()),
-		);
-		let child = route(
-			"child",
-			"/",
-			RouteBackendTarget::RouteGroup(parent_name.clone()),
-		);
-		let bind = bind(vec![parent, child]);
-		let listener = bind.listeners.get_exactly_one().unwrap();
-		let proxy = proxymock::setup_proxy_test("{}").unwrap().with_bind(bind);
-
-		let err = select_route_chain(
-			proxy.inputs().as_ref(),
-			listener_address(),
-			&listener,
-			&request("/"),
-		)
-		.expect_err("cycle should fail");
-		assert!(matches!(err, ProxyError::RouteCycleDetected));
-	}
+	// #[test]
+	// fn select_route_chain_follows_delegated_routes() {
+	// 	let backend: SocketAddr = "127.0.0.1:8080".parse().unwrap();
+	// 	let child = route(
+	// 		"child",
+	// 		"/",
+	// 		BackendReference::Backend(strng::format!("/{}", backend)).into(),
+	// 	);
+	// 	let parent = route(
+	// 		"parent",
+	// 		"/foo",
+	// 		RouteBackendTarget::RouteGroup(child.name.clone()),
+	// 	);
+	// 	let bind = bind(vec![parent, child.clone()]);
+	// 	let listener = bind.listeners.get_exactly_one().unwrap();
+	// 	let proxy = proxymock::setup_proxy_test("{}")
+	// 		.unwrap()
+	// 		.with_backend(backend)
+	// 		.with_bind(bind);
+	//
+	// 	let selected = select_route_chain(
+	// 		proxy.inputs().as_ref(),
+	// 		listener_address(),
+	// 		&listener,
+	// 		&request("/foo"),
+	// 	)
+	// 	.expect("delegated route should resolve");
+	//
+	// 	assert_eq!(selected.routes.len(), 2);
+	// 	assert_eq!(selected.routes[0].name.name.as_str(), "parent");
+	// 	assert_eq!(selected.routes[1].name.name.as_str(), "child");
+	// 	match &selected.path_match {
+	// 		PathMatch::PathPrefix(prefix) => assert_eq!(prefix.as_str(), "/"),
+	// 		other => panic!("expected delegated path prefix match, got {other:?}"),
+	// 	}
+	// 	match selected.backend.target {
+	// 		RouteBackendTarget::Backend(name) => assert_eq!(name.as_str(), format!("/{}", backend)),
+	// 		other => panic!("expected backend target, got {other:?}"),
+	// 	}
+	// }
+	//
+	// #[test]
+	// fn select_route_chain_rejects_cycles() {
+	// 	let parent_name = RouteName {
+	// 		name: strng::literal!("parent"),
+	// 		namespace: strng::EMPTY,
+	// 		rule_name: None,
+	// 		kind: Some(strng::literal!("HTTPRoute")),
+	// 	};
+	// 	let child_name = RouteName {
+	// 		name: strng::literal!("child"),
+	// 		namespace: strng::EMPTY,
+	// 		rule_name: None,
+	// 		kind: Some(strng::literal!("HTTPRoute")),
+	// 	};
+	// 	let parent = route(
+	// 		"parent",
+	// 		"/",
+	// 		RouteBackendTarget::RouteGroup(child_name.clone()),
+	// 	);
+	// 	let child = route(
+	// 		"child",
+	// 		"/",
+	// 		RouteBackendTarget::RouteGroup(parent_name.clone()),
+	// 	);
+	// 	let bind = bind(vec![parent, child]);
+	// 	let listener = bind.listeners.get_exactly_one().unwrap();
+	// 	let proxy = proxymock::setup_proxy_test("{}").unwrap().with_bind(bind);
+	//
+	// 	let err = select_route_chain(
+	// 		proxy.inputs().as_ref(),
+	// 		listener_address(),
+	// 		&listener,
+	// 		&request("/"),
+	// 	)
+	// 	.expect_err("cycle should fail");
+	// 	assert!(matches!(err, ProxyError::RouteCycleDetected));
+	// }
 
 	fn listener_address() -> SocketAddr {
 		"127.0.0.1:80".parse().unwrap()

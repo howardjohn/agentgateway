@@ -146,7 +146,7 @@ pub fn select_best_route_group(
 	// criteria.
 
 	let host = http::get_host(request).ok()?;
-	for hnm in agent::HostnameMatch::all_matches(&host) {
+	for hnm in agent::HostnameMatch::all_matches(host) {
 		let mut candidates = rg.get_hostname(&hnm);
 		let best_match = candidates.find(|(_, m)| route_match_applies(m, request));
 		if let Some((route, matcher)) = best_match {
