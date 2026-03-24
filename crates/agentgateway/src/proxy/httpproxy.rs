@@ -53,7 +53,7 @@ fn select_backend(route: &Route, _req: &Request) -> Option<RouteBackendReference
 struct SelectedRouteChain {
 	routes: Vec<Arc<Route>>,
 	path_match: PathMatch,
-	backend: RouteBackendReference,
+	backend: Option<RouteBackendReference>,
 }
 
 fn select_route_chain(
@@ -75,13 +75,18 @@ fn select_route_chain(
 	let mut routes = vec![selected_route.clone()];
 	let mut seen = HashSet::from([selected_route.key.clone()]);
 	loop {
-		let selected_backend =
-			dbg!(select_backend(selected_route.as_ref(), req)).ok_or(ProxyError::NoValidBackends)?;
+		let Some(selected_backend) = dbg!(select_backend(selected_route.as_ref(), req)) else {
+			return Ok(SelectedRouteChain {
+				routes,
+				path_match,
+				backend: None,
+			});
+		};
 		let RouteBackendTarget::RouteGroup(route_name) = &selected_backend.target else {
 			return Ok(SelectedRouteChain {
 				routes,
 				path_match,
-				backend: selected_backend,
+				backend: Some(selected_backend),
 			});
 		};
 
@@ -710,7 +715,11 @@ impl HTTPProxy {
 		)
 		.await
 		.snapshot_on_err(log, &mut req)?;
-		let selected_backend = resolve_backend(selected_route_chain.backend, self.inputs.as_ref())
+		let selected_backend_ref = selected_route_chain
+			.backend
+			.ok_or(ProxyError::NoValidBackends)
+			.snapshot_on_err(log, &mut req)?;
+		let selected_backend = resolve_backend(selected_backend_ref, self.inputs.as_ref())
 			.snapshot_on_err(log, &mut req)?;
 		let backend_policies = get_backend_policies(
 			self.inputs.as_ref(),
@@ -2259,6 +2268,27 @@ mod tests {
 		}
 	}
 
+	fn route_without_backends(name: &str, path: &str) -> Route {
+		Route {
+			key: strng::new(name),
+			name: RouteName {
+				name: strng::new(name),
+				namespace: strng::EMPTY,
+				rule_name: None,
+				kind: Some(strng::literal!("HTTPRoute")),
+			},
+			hostnames: Vec::new(),
+			matches: vec![RouteMatch {
+				headers: Vec::new(),
+				path: PathMatch::PathPrefix(strng::new(path)),
+				method: None,
+				query: Vec::new(),
+			}],
+			backends: Vec::new(),
+			inline_policies: Vec::new(),
+		}
+	}
+
 	fn request(path: &str) -> Request {
 		::http::Request::builder()
 			.uri(format!("http://example.com{path}"))
@@ -2362,6 +2392,28 @@ mod tests {
 	// 	.expect_err("cycle should fail");
 	// 	assert!(matches!(err, ProxyError::RouteCycleDetected));
 	// }
+
+	#[test]
+	fn select_route_chain_allows_backendless_terminal_route() {
+		let bind = bind(vec![route_without_backends("direct", "/")]);
+		let listener = bind.listeners.get_exactly_one().unwrap();
+		let proxy = proxymock::setup_proxy_test("{}").unwrap().with_bind(bind);
+
+		let selected = select_route_chain(
+			proxy.inputs().as_ref(),
+			listener_address(),
+			&listener,
+			&request("/"),
+		)
+		.expect("backendless route should still resolve");
+
+		assert_eq!(selected.routes.len(), 1);
+		assert!(selected.backend.is_none());
+		match &selected.path_match {
+			PathMatch::PathPrefix(prefix) => assert_eq!(prefix.as_str(), "/"),
+			other => panic!("expected path prefix match, got {other:?}"),
+		}
+	}
 
 	fn listener_address() -> SocketAddr {
 		"127.0.0.1:80".parse().unwrap()
