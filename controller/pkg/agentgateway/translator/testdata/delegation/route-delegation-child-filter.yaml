@@ -1,4 +1,3 @@
-# TODO: THIS IS NOT CURRENTLY SUPPORTED. TEST IS FAILING AS INTENDED TO MATCH CURRENT STATE
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -145,27 +144,6 @@ output:
       name:
         kind: HTTPRoute
         name: child-team1-implicit
-        namespace: team1
-      routeGroupKey: team1/*
-- gateway:
-    Name: test-gateway
-    Namespace: default
-  resource:
-    route:
-      backends:
-      - backend:
-          port: 8000
-          service:
-            hostname: httpbin.team1.svc.cluster.local
-            namespace: team1
-        weight: 1
-      key: team1/child-team1-not.00.routegroup.team1.wildcard
-      matches:
-      - path:
-          pathPrefix: /anything/team1/not
-      name:
-        kind: HTTPRoute
-        name: child-team1-not
         namespace: team1
       routeGroupKey: team1/*
 status:

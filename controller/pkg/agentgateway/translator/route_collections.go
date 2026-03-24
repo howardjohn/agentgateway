@@ -37,6 +37,7 @@ import (
 
 type resolvedBinding struct {
 	Gateway types.NamespacedName
+	Parent  types.NamespacedName
 	Target  types.NamespacedName
 }
 
@@ -96,8 +97,19 @@ func isDelegatedChildHTTPRoute(obj *gwv1.HTTPRoute) bool {
 	return false
 }
 func childAllowsParent(obj *gwv1.HTTPRoute, parentRef resolvedBinding) bool {
-	// This is not currently supported
-	return true
+	allowedParents := slices.MapFilter(obj.Spec.ParentRefs, func(ref gwv1.ParentReference) *types.NamespacedName {
+		if NormalizeReference(ref.Group, ref.Kind, wellknown.GatewayGVK) != wellknown.HTTPRouteGVK {
+			return nil
+		}
+		return ptr.Of(types.NamespacedName{
+			Namespace: defaultString(ref.Namespace, obj.Namespace),
+			Name:      string(ref.Name),
+		})
+	})
+	if len(allowedParents) == 0 {
+		return true
+	}
+	return slices.Contains(allowedParents, parentRef.Parent)
 }
 
 func extractHTTPRouteGroupRefs(rule gwv1.HTTPRouteRule, routeNamespace string) []routeGroupBindingKey {
@@ -238,11 +250,12 @@ func buildDelegatedHTTPRoutes(
 				Namespace: c.Namespace,
 				Name:      c.Name,
 			}
-			for _, gateway := range resolveGateways(krtctx, c, sets.New[string]()) {
-				resolvedBinding := resolvedBinding{
-					Gateway: gateway,
-					Target:  target,
-				}
+				for _, gateway := range resolveGateways(krtctx, c, sets.New[string]()) {
+					resolvedBinding := resolvedBinding{
+						Gateway: gateway,
+						Parent:  c.Source,
+						Target:  target,
+					}
 				if seen.InsertContains(resolvedBinding.Gateway.String() + "/" + resolvedBinding.RouteGroupKey()) {
 					continue
 				}
