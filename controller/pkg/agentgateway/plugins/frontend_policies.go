@@ -425,6 +425,16 @@ func translateFrontendHTTP(policy *agentgateway.AgentgatewayPolicy, name string)
 	if v := http.HTTP2KeepaliveTimeout; v != nil {
 		spec.Http2KeepaliveTimeout = durationpb.New(v.Duration)
 	}
+	for _, normalize := range http.Normalize {
+		switch normalize {
+		case agentgateway.FrontendHTTPNormalizeMergeSlash:
+			spec.Normalize = append(spec.Normalize, api.FrontendPolicySpec_HTTP_MERGE_SLASH)
+		case agentgateway.FrontendHTTPNormalizeDotSegment:
+			spec.Normalize = append(spec.Normalize, api.FrontendPolicySpec_HTTP_DOT_SEGMENT)
+		default:
+			logger.Warn("unknown http normalization rule", "normalize", normalize)
+		}
+	}
 
 	httpPolicy := &api.Policy{
 		Key:  name + frontendHttpPolicySuffix,

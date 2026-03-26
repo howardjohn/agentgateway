@@ -5974,13 +5974,29 @@ spec:
                         format: int32
                         minimum: 1
                         type: integer
+                      normalize:
+                        description: |-
+                          `normalize` defines path normalization rules applied before route matching
+                          and before forwarding upstream.
+
+                          `MergeSlash` collapses repeated `/` characters into a single `/`.
+                          `DotSegment` removes `/./` segments and resolves `/../` segments.
+                        items:
+                          enum:
+                          - MergeSlash
+                          - DotSegment
+                          type: string
+                        maxItems: 2
+                        minItems: 1
+                        type: array
+                        x-kubernetes-list-type: set
                     type: object
                     x-kubernetes-validations:
                     - message: at least one of the fields in [http1IdleTimeout http1MaxHeaders
                         http2ConnectionWindowSize http2FrameSize http2KeepaliveInterval
-                        http2KeepaliveTimeout http2WindowSize maxBufferSize] must
-                        be set
-                      rule: '[has(self.http1IdleTimeout),has(self.http1MaxHeaders),has(self.http2ConnectionWindowSize),has(self.http2FrameSize),has(self.http2KeepaliveInterval),has(self.http2KeepaliveTimeout),has(self.http2WindowSize),has(self.maxBufferSize)].filter(x,x==true).size()
+                        http2KeepaliveTimeout http2WindowSize maxBufferSize normalize]
+                        must be set
+                      rule: '[has(self.http1IdleTimeout),has(self.http1MaxHeaders),has(self.http2ConnectionWindowSize),has(self.http2FrameSize),has(self.http2KeepaliveInterval),has(self.http2KeepaliveTimeout),has(self.http2WindowSize),has(self.maxBufferSize),has(self.normalize)].filter(x,x==true).size()
                         >= 1'
                   networkAuthorization:
                     description: |-

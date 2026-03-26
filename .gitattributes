@@ -3,3 +3,4 @@ controller/pkg/client/** linguist-generated=true
 controller/pkg/generated/** linguist-generated=true
 crates/agentgateway/src/llm/tests/** text eol=lf
 crates/agentgateway/src/llm/tests/**/*.bin -text
+api/resource.pb.go diff=nodiff

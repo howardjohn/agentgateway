@@ -11,6 +11,12 @@ fn empty_string_set(set: &Arc<FzHashSet<String>>) -> bool {
 	set.is_empty()
 }
 
+#[apply(schema_enum!)]
+pub enum PathNormalization {
+	MergeSlash,
+	DotSegment,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[allow(non_camel_case_types)]
@@ -60,6 +66,8 @@ pub struct HTTP {
 	#[cfg_attr(feature = "schema", schemars(with = "Option<String>"))]
 	#[serde(default)]
 	pub http2_keepalive_timeout: Option<Duration>,
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub normalize: Vec<PathNormalization>,
 }
 
 impl Default for HTTP {
@@ -76,6 +84,7 @@ impl Default for HTTP {
 
 			http2_keepalive_interval: None,
 			http2_keepalive_timeout: None,
+			normalize: vec![],
 		}
 	}
 }

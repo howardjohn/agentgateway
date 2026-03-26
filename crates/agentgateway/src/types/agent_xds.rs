@@ -1747,6 +1747,15 @@ impl TryFrom<&proto::agent::FrontendPolicySpec> for FrontendPolicy {
 				http2_frame_size: h.http2_frame_size,
 				http2_keepalive_interval: h.http2_keepalive_interval.map(convert_duration),
 				http2_keepalive_timeout: h.http2_keepalive_timeout.map(convert_duration),
+				normalize: h
+					.normalize
+					.iter()
+					.filter_map(|raw| match fps::http::Normalize::try_from(*raw).ok() {
+						Some(fps::http::Normalize::MergeSlash) => Some(frontend::PathNormalization::MergeSlash),
+						Some(fps::http::Normalize::DotSegment) => Some(frontend::PathNormalization::DotSegment),
+						_ => None,
+					})
+					.collect(),
 			}),
 			Some(fps::Kind::Tls(t)) => FrontendPolicy::TLS(frontend::TLS {
 				handshake_timeout: t

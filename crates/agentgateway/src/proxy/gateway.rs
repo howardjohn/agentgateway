@@ -1209,6 +1209,7 @@ pub fn auto_server(c: Option<&frontend::HTTP>) -> auto::Builder<::hyper_util::rt
 		http2_frame_size,
 		http2_keepalive_interval,
 		http2_keepalive_timeout,
+		normalize: _,
 	} = c.unwrap_or(&def);
 
 	if let Some(m) = http1_max_headers {

@@ -3698,6 +3698,7 @@
 |`frontendPolicies.http.http2FrameSize`|integer||
 |`frontendPolicies.http.http2KeepaliveInterval`|string||
 |`frontendPolicies.http.http2KeepaliveTimeout`|string||
+|`frontendPolicies.http.normalize`|[]string||
 |`frontendPolicies.tls`|object|Settings for handling incoming TLS connections.|
 |`frontendPolicies.tls.handshakeTimeout`|string||
 |`frontendPolicies.tls.alpn`|array||

@@ -5265,9 +5265,22 @@
             "null"
           ],
           "default": null
+        },
+        "normalize": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PathNormalization"
+          }
         }
       },
       "additionalProperties": false
+    },
+    "PathNormalization": {
+      "type": "string",
+      "enum": [
+        "mergeSlash",
+        "dotSegment"
+      ]
     },
     "TLS": {
       "type": "object",

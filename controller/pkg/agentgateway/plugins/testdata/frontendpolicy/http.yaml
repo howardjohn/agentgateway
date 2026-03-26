@@ -24,6 +24,9 @@ spec:
     http:
       http2FrameSize: 16384
       maxBufferSize: 2048
+      normalize:
+      - MergeSlash
+      - DotSegment
 ---
 # Output
 output:
@@ -36,6 +39,9 @@ output:
         http:
           http2FrameSize: 16384
           maxBufferSize: 2048
+          normalize:
+          - MERGE_SLASH
+          - DOT_SEGMENT
       key: frontend/default/http-policy:frontend-http:default/test
       name:
         kind: AgentgatewayPolicy

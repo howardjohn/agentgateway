@@ -461,6 +461,12 @@ message KeepaliveConfig {
 
 message FrontendPolicySpec {
   message HTTP {
+    enum Normalize {
+      NORMALIZE_UNSPECIFIED = 0;
+      MERGE_SLASH = 1;
+      DOT_SEGMENT = 2;
+    }
+
     optional uint32 max_buffer_size = 1;
     optional uint32 http1_max_headers = 2;
     google.protobuf.Duration http1_idle_timeout = 3;
@@ -469,6 +475,7 @@ message FrontendPolicySpec {
     optional uint32 http2_frame_size = 6;
     google.protobuf.Duration http2_keepalive_interval = 7;
     google.protobuf.Duration http2_keepalive_timeout = 8;
+    repeated Normalize normalize = 9;
   }
   message TLS {
     // TLS handshake timeout

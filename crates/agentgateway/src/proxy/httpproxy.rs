@@ -514,13 +514,6 @@ impl HTTPProxy {
 			.snapshot_on_err(log, &mut req)?;
 		log.host = Some(host.clone());
 		log.method = Some(req.method().clone());
-		log.path = Some(
-			req
-				.uri()
-				.path_and_query()
-				.map(|pq| pq.to_string())
-				.unwrap_or_else(|| req.uri().path().to_string()),
-		);
 		log.version = Some(req.version());
 
 		// Now check if we actually have a listener - fail after tracing is set up
@@ -537,7 +530,9 @@ impl HTTPProxy {
 
 				self
 					.handle_frontend_policies(&frontend_policies, log, &mut req)
-					.await;
+					.await
+					.snapshot_on_err(log, &mut req)?;
+				log.path = Some(http::path_and_query_string(req.uri()));
 				l
 			},
 			Err(e) => {
@@ -547,7 +542,9 @@ impl HTTPProxy {
 					.frontend_policies(self.inputs.cfg.gateway_ref());
 				self
 					.handle_frontend_policies(&frontend_policies, log, &mut req)
-					.await;
+					.await
+					.snapshot_on_err(log, &mut req)?;
+				log.path = Some(http::path_and_query_string(req.uri()));
 				return Err(ProxyResponse::Error(e)).snapshot_on_err(log, &mut req);
 			},
 		};
@@ -800,7 +797,12 @@ impl HTTPProxy {
 		frontend_policies: &FrontendPolices,
 		log: &mut RequestLog,
 		req: &mut Request,
-	) {
+	) -> Result<(), ProxyError> {
+		if let Some(http_policy) = &frontend_policies.http {
+			http::normalize_path_for_proxy(req, &http_policy.normalize)
+				.map_err(ProxyError::Processing)?;
+		}
+
 		frontend_policies.register_cel_expressions(log.cel.ctx());
 
 		if let Some(lp) = &frontend_policies.access_log {
@@ -877,6 +879,7 @@ impl HTTPProxy {
 			req.extensions_mut().insert(ns.clone());
 			log.outgoing_span = Some(ns);
 		}
+		Ok(())
 	}
 
 	fn detect_misdirected(

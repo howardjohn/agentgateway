@@ -375,6 +375,14 @@ type Frontend struct {
 	Tracing *Tracing `json:"tracing,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=MergeSlash;DotSegment
+type FrontendHTTPNormalize string
+
+const (
+	FrontendHTTPNormalizeMergeSlash FrontendHTTPNormalize = "MergeSlash"
+	FrontendHTTPNormalizeDotSegment FrontendHTTPNormalize = "DotSegment"
+)
+
 // +kubebuilder:validation:AtLeastOneFieldSet
 type FrontendHTTP struct {
 	// `maxBufferSize` defines the maximum HTTP body size that will be buffered
@@ -424,6 +432,18 @@ type FrontendHTTP struct {
 	// +kubebuilder:validation:XValidation:rule="duration(self) >= duration('1s')",message="http2KeepaliveTimeout must be at least 1 second"
 	// +optional
 	HTTP2KeepaliveTimeout *metav1.Duration `json:"http2KeepaliveTimeout,omitempty"`
+
+	// `normalize` defines path normalization rules applied before route matching
+	// and before forwarding upstream.
+	//
+	// `MergeSlash` collapses repeated `/` characters into a single `/`.
+	// `DotSegment` removes `/./` segments and resolves `/../` segments.
+	//
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=2
+	// +optional
+	Normalize []FrontendHTTPNormalize `json:"normalize,omitempty"`
 }
 
 // +kubebuilder:validation:AtLeastOneFieldSet
