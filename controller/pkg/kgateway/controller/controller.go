@@ -11,11 +11,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/agentgateway/agentgateway/controller/api/v1alpha1/agentgateway"
+	agwplugins "github.com/agentgateway/agentgateway/controller/pkg/agentgateway/plugins"
 	"github.com/agentgateway/agentgateway/controller/pkg/apiclient"
 	"github.com/agentgateway/agentgateway/controller/pkg/deployer"
 	internaldeployer "github.com/agentgateway/agentgateway/controller/pkg/kgateway/deployer"
 	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk"
-	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk/collections"
 )
 
 // rateLimiter uses token bucket for overall rate limiting and exponential backoff for per-item rate limiting
@@ -42,8 +42,8 @@ type GatewayConfig struct {
 	ImageInfo *deployer.ImageInfo
 	// DiscoveryNamespaceFilter filters namespaced objects based on the discovery namespace filter.
 	DiscoveryNamespaceFilter kubetypes.DynamicObjectFilter
-	// CommonCollections used to fetch ir.Gateways for the deployer to generate the ports for the proxy service
-	CommonCollections *collections.CommonCollections
+	// AgwCollections used to fetch ir.Gateways for the deployer to generate the ports for the proxy service
+	AgwCollections *agwplugins.AgwCollections
 	// AgentgatewayClassName is the configured agent gateway class name.
 	AgentgatewayClassName string
 	// Additional GatewayClass definitions to support extending to other well-known gateway classes
@@ -91,9 +91,9 @@ func watchGw(
 		Dev:                        cfg.Dev,
 		ImageDefaults:              cfg.ImageDefaults,
 		ControlPlane:               cfg.ControlPlane,
-		NoListenersDummyPort:       cfg.CommonCollections.Settings.NoListenersDummyPort,
+		NoListenersDummyPort:       cfg.AgwCollections.Settings.NoListenersDummyPort,
 		ImageInfo:                  cfg.ImageInfo,
-		CommonCollections:          cfg.CommonCollections,
+		AgwCollections:             cfg.AgwCollections,
 		AgentgatewayClassName:      cfg.AgentgatewayClassName,
 		AgentgatewayControllerName: cfg.AgwControllerName,
 	}

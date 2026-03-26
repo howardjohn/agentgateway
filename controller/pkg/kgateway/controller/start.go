@@ -28,7 +28,6 @@ import (
 	agentgatewaybackend "github.com/agentgateway/agentgateway/controller/pkg/kgateway/agentgatewaysyncer/backend"
 	"github.com/agentgateway/agentgateway/controller/pkg/kgateway/wellknown"
 	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk"
-	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk/collections"
 	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk/krtutil"
 	"github.com/agentgateway/agentgateway/controller/pkg/utils/kubeutils"
 	"github.com/agentgateway/agentgateway/controller/pkg/utils/namespaces"
@@ -73,8 +72,7 @@ type StartConfig struct {
 
 	Client apiclient.Client
 
-	AgwCollections    *agwplugins.AgwCollections
-	CommonCollections *collections.CommonCollections
+	AgwCollections *agwplugins.AgwCollections
 
 	KrtOptions                     krtutil.KrtOptions
 	ExtraAgwResourceStatusHandlers map[schema.GroupVersionKind]agentgatewaysyncer.ResourceStatusSyncer
@@ -93,7 +91,6 @@ type ControllerBuilder struct {
 	agwSyncer *agentgatewaysyncer.Syncer
 	cfg       StartConfig
 	mgr       ctrl.Manager
-	commoncol *collections.CommonCollections
 
 	ready atomic.Bool
 }
@@ -145,7 +142,7 @@ func NewControllerBuilder(ctx context.Context, cfg StartConfig) (*ControllerBuil
 		agwSyncer.StatusCollections(),
 		agwSyncer.CacheSyncs(),
 		cfg.ExtraAgwResourceStatusHandlers,
-		cfg.CommonCollections.Settings.EnableInferExt,
+		cfg.AgwCollections.Settings.EnableInferExt,
 	)
 	if err := cfg.Manager.Add(agwStatusSyncer); err != nil {
 		setupLog.Error(err, "unable to add agentgateway StatusSyncer runnable")
@@ -157,7 +154,6 @@ func NewControllerBuilder(ctx context.Context, cfg StartConfig) (*ControllerBuil
 		agwSyncer: agwSyncer,
 		cfg:       cfg,
 		mgr:       cfg.Manager,
-		commoncol: cfg.CommonCollections,
 	}
 
 	// wait for the ControllerBuilder to Start
@@ -245,7 +241,7 @@ func (c *ControllerBuilder) Build(ctx context.Context) (*agentgatewaysyncer.Sync
 			PullPolicy: globalSettings.DefaultImagePullPolicy,
 		},
 		DiscoveryNamespaceFilter: c.cfg.Client.ObjectFilter(),
-		CommonCollections:        c.commoncol,
+		AgwCollections:           c.cfg.AgwCollections,
 		AgentgatewayClassName:    c.cfg.AgentgatewayClassName,
 		CertWatcher:              c.cfg.SetupOpts.CertWatcher,
 	}

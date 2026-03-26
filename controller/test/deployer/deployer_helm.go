@@ -17,10 +17,10 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/agentgateway/agentgateway/controller/api/v1alpha1/agentgateway"
+	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/plugins"
 	"github.com/agentgateway/agentgateway/controller/pkg/apiclient"
 	pkgdeployer "github.com/agentgateway/agentgateway/controller/pkg/deployer"
 	internaldeployer "github.com/agentgateway/agentgateway/controller/pkg/kgateway/deployer"
-	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk/collections"
 	"github.com/agentgateway/agentgateway/controller/pkg/utils/envutils"
 	"github.com/agentgateway/agentgateway/controller/test/testutils"
 )
@@ -111,7 +111,7 @@ func VerifyAllYAMLFilesReferenced(t *testing.T, testDataDir string, testCases []
 	require.Empty(t, unreferencedGolden, "Found golden output files in %s without corresponding test cases: %v", testDataDir, unreferencedGolden)
 }
 
-// ExtractCommonObjs will return a collection containing only objects necessary for collections.CommonCollections,
+// ExtractCommonObjs will return a collection containing only objects necessary for AgwCollections,
 // so we don't add unknown objects to avoid logging from krttest package re: objects not consumed
 func ExtractCommonObjs(t *testing.T, objs []client.Object) ([]client.Object, *gwv1.Gateway) {
 	var commonObjs []client.Object
@@ -171,8 +171,8 @@ func (dt DeployerTester) RunHelmChartTest(
 		t.Log("No Gateway found in test files, failing...")
 		t.FailNow()
 	}
-	commonCols := NewCommonCols(t)
-	inputs := DefaultDeployerInputs(dt, commonCols)
+	agwCols := NewAgwCols(t)
+	inputs := DefaultDeployerInputs(dt, agwCols)
 	if tt.Inputs != nil {
 		inputs = tt.Inputs
 	}
@@ -253,10 +253,10 @@ func objectsToYAML(objs []client.Object) ([]byte, error) {
 	return result, nil
 }
 
-func DefaultDeployerInputs(dt DeployerTester, commonCols *collections.CommonCollections) *pkgdeployer.Inputs {
+func DefaultDeployerInputs(dt DeployerTester, agwCols *plugins.AgwCollections) *pkgdeployer.Inputs {
 	return &pkgdeployer.Inputs{
-		Dev:               false,
-		CommonCollections: commonCols,
+		Dev:            false,
+		AgwCollections: agwCols,
 		ControlPlane: pkgdeployer.ControlPlaneInfo{
 			XdsHost:    "xds.cluster.local",
 			AgwXdsPort: 9978,

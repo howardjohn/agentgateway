@@ -36,7 +36,6 @@ import (
 	"github.com/agentgateway/agentgateway/controller/pkg/logging"
 	"github.com/agentgateway/agentgateway/controller/pkg/metrics"
 	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk"
-	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk/collections"
 	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk/krtutil"
 	"github.com/agentgateway/agentgateway/controller/pkg/schemes"
 	"github.com/agentgateway/agentgateway/controller/pkg/utils/namespaces"
@@ -60,7 +59,7 @@ type Options struct {
 	RestConfig                     *rest.Config
 	CtrlMgrOptions                 func(context.Context) *ctrl.Options
 	ExtraManagerConfig             []func(context.Context, manager.Manager, kubetypes.DynamicObjectFilter) error
-	ExtraRunnables                 []func(ctx context.Context, commoncol *collections.CommonCollections, agw *agwplugins.AgwCollections, s *apisettings.Settings) (bool, manager.Runnable)
+	ExtraRunnables                 []func(ctx context.Context, agw *agwplugins.AgwCollections, s *apisettings.Settings) (bool, manager.Runnable)
 	KrtDebugger                    *krt.DebugHandler
 	GlobalSettings                 *apisettings.Settings
 	LeaderElectionID               string
@@ -203,26 +202,17 @@ func (s *setup) Start(ctx context.Context) error {
 	slog.Info("creating krt collections")
 	krtOpts := krtutil.NewKrtOptions(ctx.Done(), setupOpts.KrtDebugger)
 
-	commoncol, err := collections.NewCommonCollections(
+	agwCollections, err := agwplugins.NewAgwCollections(
 		krtOpts,
 		s.APIClient,
 		s.AgentgatewayControllerName,
 		*s.GlobalSettings,
-	)
-	if err != nil {
-		slog.Error("error creating common collections", "error", err)
-		return err
-	}
-
-	agwCollections, err := agwplugins.NewAgwCollections(
-		commoncol,
-		s.AgentgatewayControllerName,
 		// control plane system namespace (default is agentgateway-system)
 		namespaces.GetPodNamespace(),
 		s.APIClient.ClusterID().String(),
 	)
 	if err != nil {
-		slog.Error("error creating agw common collections", "error", err)
+		slog.Error("error creating agw collections", "error", err)
 		return err
 	}
 
@@ -238,7 +228,7 @@ func (s *setup) Start(ctx context.Context) error {
 
 	runnablesRegistry := make(map[string]any)
 	for _, runnable := range s.ExtraRunnables {
-		enabled, r := runnable(ctx, commoncol, agwCollections, s.GlobalSettings)
+		enabled, r := runnable(ctx, agwCollections, s.GlobalSettings)
 		if !enabled {
 			continue
 		}
@@ -252,12 +242,12 @@ func (s *setup) Start(ctx context.Context) error {
 
 	// rebuild jwks store if it doesn't exist
 	if _, exists := runnablesRegistry[jwks.RunnableName]; !exists {
-		if err := buildJwksStore(ctx, mgr, s.APIClient, commoncol, agwCollections); err != nil {
+		if err := buildJwksStore(ctx, mgr, s.APIClient, agwCollections); err != nil {
 			return fmt.Errorf("error creating jwks store %w", err)
 		}
 	}
 
-	agw, err := s.buildKgatewayWithConfig(ctx, mgr, setupOpts, commoncol, agwCollections)
+	agw, err := s.buildKgatewayWithConfig(ctx, mgr, setupOpts, agwCollections)
 	if err != nil {
 		return err
 	}
@@ -282,7 +272,6 @@ func (s *setup) buildKgatewayWithConfig(
 	ctx context.Context,
 	mgr manager.Manager,
 	setupOpts *controller.SetupOpts,
-	commonCollections *collections.CommonCollections,
 	agwCollections *agwplugins.AgwCollections,
 ) (*agentgatewaysyncer.Syncer, error) {
 	slog.Info("creating krt collections")
@@ -309,7 +298,6 @@ func (s *setup) buildKgatewayWithConfig(
 		Client:                         s.APIClient,
 		Dev:                            logging.MustGetLevel(logging.DefaultComponent) <= logging.LevelTrace,
 		KrtOptions:                     krtOpts,
-		CommonCollections:              commonCollections,
 		AgwCollections:                 agwCollections,
 		ExtraAgwResourceStatusHandlers: s.ExtraAgwResourceStatusHandlers,
 		GatewayControllerExtension:     s.GatewayControllerExtension,
@@ -354,14 +342,14 @@ func SetupLogging(levelStr string) {
 	})
 }
 
-func buildJwksStore(ctx context.Context, mgr manager.Manager, apiClient apiclient.Client, commonCollections *collections.CommonCollections, agwCollections *agwplugins.AgwCollections) error {
+func buildJwksStore(ctx context.Context, mgr manager.Manager, apiClient apiclient.Client, agwCollections *agwplugins.AgwCollections) error {
 	jwksStorePolicyCtrl := agentjwksstore.NewJWKSStorePolicyController(apiClient, agwCollections, jwks_url.JwksUrlBuilderFactory)
 	if err := mgr.Add(jwksStorePolicyCtrl); err != nil {
 		return err
 	}
 	jwksStorePolicyCtrl.Init(ctx)
 
-	jwksStore := jwks.BuildJwksStore(ctx, apiClient, commonCollections, jwksStorePolicyCtrl.JwksChanges(), jwks.DefaultJwksStorePrefix, namespaces.GetPodNamespace())
+	jwksStore := jwks.BuildJwksStore(ctx, apiClient, agwCollections.KrtOpts, jwksStorePolicyCtrl.JwksChanges(), jwks.DefaultJwksStorePrefix, namespaces.GetPodNamespace())
 	if err := mgr.Add(jwksStore); err != nil {
 		return err
 	}

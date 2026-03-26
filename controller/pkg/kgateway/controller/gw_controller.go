@@ -207,7 +207,7 @@ func NewGatewayReconciler(
 	// this is necessary for two reasons:
 	// 1. we don't Fetch() the GatewayForDeployer, so we must reconcile to prevent a stale reference
 	// 2. if a ListenerSet adds a port to a GatewayForDeployer, we need to deploy the new ports
-	cfg.CommonCollections.GatewaysForDeployer.Register(func(o krt.Event[collections.GatewayForDeployer]) {
+	cfg.AgwCollections.GatewaysForDeployer.Register(func(o krt.Event[collections.GatewayForDeployer]) {
 		gw := o.Latest()
 		ref := types.NamespacedName{Namespace: gw.Namespace, Name: gw.Name}
 		logger.Debug("explicitly reconciling Gateway for deployer due to GatewayForDeployer change", "ref", ref)

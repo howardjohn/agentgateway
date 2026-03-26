@@ -19,6 +19,7 @@ import (
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/agentgateway/agentgateway/controller/api/v1alpha1/agentgateway"
+	agwplugins "github.com/agentgateway/agentgateway/controller/pkg/agentgateway/plugins"
 	"github.com/agentgateway/agentgateway/controller/pkg/apiclient"
 	"github.com/agentgateway/agentgateway/controller/pkg/deployer"
 	"github.com/agentgateway/agentgateway/controller/pkg/deployer/strategicpatch"
@@ -319,7 +320,7 @@ func (g *agentgatewayParametersHelmValuesGenerator) GetCacheSyncHandlers() []cac
 func (g *agentgatewayParametersHelmValuesGenerator) GetResolvedParametersForGateway(gw *gwv1.Gateway) (*resolvedParameters, error) {
 	return g.resolveParameters(gw)
 }
-func DefaultGatewayIRGetter(gw *gwv1.Gateway, commonCollections *collections.CommonCollections) *collections.GatewayForDeployer {
+func DefaultGatewayIRGetter(gw *gwv1.Gateway, agwCollections *agwplugins.AgwCollections) *collections.GatewayForDeployer {
 	gwKey := collections.ObjectSource{
 		Group:     wellknown.GatewayGVK.GroupKind().Group,
 		Kind:      wellknown.GatewayGVK.GroupKind().Kind,
@@ -327,17 +328,17 @@ func DefaultGatewayIRGetter(gw *gwv1.Gateway, commonCollections *collections.Com
 		Namespace: gw.GetNamespace(),
 	}
 
-	irGW := commonCollections.GatewaysForDeployer.GetKey(gwKey.ResourceName())
+	irGW := agwCollections.GatewaysForDeployer.GetKey(gwKey.ResourceName())
 	if irGW == nil {
 		// If its not in the IR we cannot tell, so need to make a guess.
-		controllerNameGuess := commonCollections.AgentgatewayControllerName
+		controllerNameGuess := agwCollections.ControllerName
 		irGW = GatewayIRFrom(gw, controllerNameGuess)
 	}
 
 	return irGW
 }
 func (g *agentgatewayParametersHelmValuesGenerator) getDefaultAgentgatewayHelmValues(gw *gwv1.Gateway) (*deployer.HelmConfig, error) {
-	irGW := DefaultGatewayIRGetter(gw, g.inputs.CommonCollections)
+	irGW := DefaultGatewayIRGetter(gw, g.inputs.AgwCollections)
 	ports := deployer.GetPortsValues(irGW, int32(g.inputs.NoListenersDummyPort))
 	if len(ports) == 0 {
 		return nil, ErrNoValidPorts

@@ -2,7 +2,7 @@ package deployer
 
 import (
 	"github.com/agentgateway/agentgateway/controller/api/v1alpha1/agentgateway"
-	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk/collections"
+	agwplugins "github.com/agentgateway/agentgateway/controller/pkg/agentgateway/plugins"
 )
 
 // Inputs is the set of options used to configure gateway/inference pool deployment.
@@ -12,7 +12,7 @@ type Inputs struct {
 	ControlPlane               ControlPlaneInfo
 	NoListenersDummyPort       uint16
 	ImageInfo                  *ImageInfo
-	CommonCollections          *collections.CommonCollections
+	AgwCollections             *agwplugins.AgwCollections
 	AgentgatewayClassName      string
 	AgentgatewayControllerName string
 }
