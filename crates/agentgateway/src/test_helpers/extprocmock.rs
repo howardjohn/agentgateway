@@ -178,7 +178,7 @@ where
 
 	pub async fn spawn(&self) -> ExtProcMockInstance {
 		use hyper::server::conn::http2;
-		let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+		let listener = tokio::net::TcpListener::bind("127.0.0.1:12345").await.unwrap();
 
 		let addr = listener.local_addr().unwrap();
 		let s: ExtProcMock<T> = self.clone();

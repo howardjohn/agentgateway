@@ -363,19 +363,17 @@ impl ExtProcInstance {
 			.unwrap_or_default();
 
 		let (parts, body) = req.into_parts();
-
-		// For fail open we need a copy of the body. There is definitely a better way to do this, but for
-		// now its good enough?
-		let (body_copy, body) = if self.failure_mode == FailureMode::FailOpen {
-			let buffered = http::read_body_with_limit(body, buffer)
-				.await
-				.map_err(|e| Error::BodyBuffer(e.to_string()))?;
-			(Some(buffered.clone()), http::Body::from(buffered))
-		} else {
-			(None, body)
-		};
 		let end_of_stream = body.is_end_stream();
 		let had_body = !end_of_stream;
+		let body_copy = if had_body {
+			Some(
+				http::read_body_with_limit(body, buffer)
+					.await
+					.map_err(|e| Error::BodyBuffer(e.to_string()))?,
+			)
+		} else {
+			None
+		};
 
 		// Send the request headers to ext_proc.
 		self
@@ -391,138 +389,79 @@ impl ExtProcInstance {
 			})
 			.await?;
 
-		// The EPP will await for our headers and body. The body is going to be streaming in.
-		// We will spin off a task that is going to pipe the body to the ext_proc server as we read it.
-		let tx = self.tx_req.clone();
-
-		if had_body {
-			tokio::task::spawn(async move {
-				let mut stream = BodyStream::new(body);
-				while let Some(Ok(frame)) = stream.next().await {
-					let request = Some(if frame.is_data() {
-						let frame = frame.into_data().expect("already checked");
-						trace!("sending request body chunk...",);
-						Request::RequestBody(HttpBody {
-							body: frame.into(),
-							end_of_stream: false,
-						})
-					} else if frame.is_trailers() {
-						let frame = frame.into_trailers().expect("already checked");
-						Request::RequestTrailers(HttpTrailers {
-							trailers: to_header_map(&frame),
-						})
-					} else {
-						// http_body::Frame only has data and trailers variants
-						unreachable!("Frame is neither data nor trailers")
-					});
-
-					trace!("sending request body chunk...");
-					let Ok(()) = tx
-						.send(ProcessingRequest {
-							request,
-							metadata_context: metadata_context.as_deref().cloned(),
-							attributes: Default::default(),
-							protocol_config: Default::default(),
-							observability_mode: false,
-						})
-						.await
-					else {
-						// TODO: on error here we need a way to signal to the outer task to fail fast
-						return;
-					};
-				}
-
-				// Send end of stream marker - try to unwrap Arc to avoid final clone
-				let final_metadata = metadata_context.and_then(Arc::into_inner);
-				let _ = tx
-					.send(ProcessingRequest {
-						request: Some(Request::RequestBody(HttpBody {
-							body: Default::default(),
-							end_of_stream: true,
-						})),
-						metadata_context: final_metadata,
-						attributes: Default::default(),
-						protocol_config: Default::default(),
-						observability_mode: false,
-					})
-					.await;
-				trace!("body request done");
-			});
+		if let Some(body) = body_copy.as_ref() {
+			self
+				.send_request(ProcessingRequest {
+					request: Some(Request::RequestBody(HttpBody {
+						body: body.clone().into(),
+						end_of_stream: true,
+					})),
+					metadata_context: metadata_context.and_then(Arc::into_inner),
+					attributes: Default::default(),
+					protocol_config: Default::default(),
+					observability_mode: false,
+				})
+				.await?;
+			trace!("body request done");
 		}
-		// Now we need to build the new body. This is going to be streamed in from the ext_proc server.
-		let (tx_chunk, rx_chunk) = tokio::sync::mpsc::channel(1);
-
-		let body = http_body_util::StreamBody::new(ReceiverStream::new(rx_chunk));
-		let mut req = http::Request::from_parts(parts, http::Body::new(body));
-		req.headers_mut().remove(http::header::CONTENT_LENGTH);
-		let (tx_done, rx_done) = tokio::sync::oneshot::channel();
+		let mut req = Some(http::Request::from_parts(parts, http::Body::empty()));
+		req
+			.as_mut()
+			.expect("request initialized")
+			.headers_mut()
+			.remove(http::header::CONTENT_LENGTH);
 		let mut rx = self
 			.rx_resp_for_request
 			.take()
 			.expect("mutate_request called twice");
 		let failure_mode = self.failure_mode;
 		let skipped = self.skipped.clone();
-		tokio::task::spawn(async move {
-			let mut req = Some(req);
-			let mut tx_done = Some(tx_done);
-			let mut tx_chunkh = Some(tx_chunk);
-			loop {
-				// Loop through all the ext_proc responses and process them
-				let Some(presp) = rx.recv().await else {
-					trace!("done receiving request");
-					if failure_mode == FailureMode::FailOpen
-						&& let Some(req) = req.take()
-						&& let Some(tx_done) = tx_done.take()
-					{
-						trace!("fail open triggered");
-						skipped.store(true, Ordering::SeqCst);
-						let (parts, _) = req.into_parts();
-						let new_req = http::Request::from_parts(parts, http::Body::from(body_copy.unwrap()));
-						let _ = tx_done.send(Ok((new_req, None)));
-						tx_chunkh.take();
-					}
-					return;
-				};
-				if let Some(resp) = to_immediate_response(&presp) {
-					trace!("got immediate response in request handler");
-					let _ = tx_done
-						.take()
-						.unwrap()
-						.send(Ok((http::Request::default(), Some(resp))));
-					tx_chunkh.take();
-					return;
-				}
-				if let Some(dm) = &presp.dynamic_metadata
-					&& let Err(e) = Self::extract_dynamic_metadata(req.as_mut(), dm)
+		let original_body = body_copy.unwrap_or_default();
+		let mut mutated_body = None;
+		loop {
+			// Loop through all the ext_proc responses and process them
+			let Some(presp) = rx.recv().await else {
+				trace!("done receiving request");
+				if failure_mode == FailureMode::FailOpen
+					&& let Some(req) = req.take()
 				{
-					warn!("Failed to extract ext_proc dynamic metadata: {}", e);
+					trace!("fail open triggered");
+					skipped.store(true, Ordering::SeqCst);
+					let (parts, _) = req.into_parts();
+					let new_req = http::Request::from_parts(parts, http::Body::from(original_body));
+					return Ok((new_req, None));
 				}
-				let Some(tx_chunk) = tx_chunkh.as_mut() else {
-					return;
-				};
-				let r = handle_response_for_request_mutation(had_body, req.as_mut(), tx_chunk, presp).await;
-				match r {
-					Ok((headers_done, eos)) => {
-						if headers_done
-							&& let Some(req) = req.take()
-							&& let Some(tx_done) = tx_done.take()
-						{
-							trace!("request complete!");
-							let _ = tx_done.send(Ok((req, None)));
-						}
-						if eos || !had_body {
-							trace!("request EOS!");
-							tx_chunkh.take();
-						}
-					},
-					Err(e) => {
-						warn!("error {e:?}");
-						return;
-					},
-				}
+				return Err(Error::ResponseDropped);
+			};
+			if let Some(resp) = to_immediate_response(&presp) {
+				trace!("got immediate response in request handler");
+				return Ok((http::Request::default(), Some(resp)));
 			}
-		});
-		rx_done.await.map_err(|_| Error::ResponseDropped)?
+			if let Some(dm) = &presp.dynamic_metadata
+				&& let Err(e) = Self::extract_dynamic_metadata(req.as_mut(), dm)
+			{
+				warn!("Failed to extract ext_proc dynamic metadata: {}", e);
+			}
+			match handle_response_for_request_mutation(had_body, req.as_mut(), &mut mutated_body, presp) {
+				Ok((_, eos)) if eos => {
+					trace!("request complete!");
+					let req = req.take().expect("request should still exist");
+					let (parts, _) = req.into_parts();
+					let body = mutated_body
+						.map(|body: bytes::BytesMut| body.freeze())
+						.unwrap_or(original_body);
+					return Ok((
+						http::Request::from_parts(parts, http::Body::from(body)),
+						None,
+					));
+				},
+				Ok(_) => {},
+				Err(e) => {
+					warn!("error {e:?}");
+					return Err(e);
+				},
+			}
+		}
 	}
 
 	pub async fn mutate_response(
@@ -773,11 +712,12 @@ fn to_immediate_response(rp: &ProcessingResponse) -> Option<PolicyResponse> {
 	}
 }
 
-// handle_response_for_request_mutation handles a single ext_proc response. If it returns 'true' we are done processing.
-async fn handle_response_for_request_mutation(
+// handle_response_for_request_mutation handles a single ext_proc response. If it returns
+// `true` for EOS, request-phase processing is complete and the request can be released upstream.
+fn handle_response_for_request_mutation(
 	had_body: bool,
 	req: Option<&mut http::Request>,
-	body_tx: &mut Sender<Result<Frame<Bytes>, Infallible>>,
+	body: &mut Option<bytes::BytesMut>,
 	presp: ProcessingResponse,
 ) -> Result<(bool, bool), Error> {
 	let res = matches!(presp.response, Some(Response::RequestHeaders(_)));
@@ -811,17 +751,21 @@ async fn handle_response_for_request_mutation(
 		match b {
 			Mutation::StreamedResponse(bb) => {
 				let eos = bb.end_of_stream;
-				let by = bytes::Bytes::from(bb.body);
-				let _ = body_tx.send(Ok(Frame::data(by.clone()))).await;
-
+				body
+					.get_or_insert_with(bytes::BytesMut::new)
+					.extend_from_slice(&bb.body);
 				trace!(eos, "got stream request body");
 				return Ok((res, eos));
 			},
-			Mutation::Body(_) => {
-				warn!("Body() not valid for streaming mode, skipping...");
+			Mutation::Body(bb) => {
+				*body = Some(bytes::BytesMut::from(bb.as_slice()));
+				trace!("got buffered request body");
+				return Ok((res, true));
 			},
 			Mutation::ClearBody(_) => {
-				warn!("ClearBody() not valid for streaming mode, skipping...");
+				*body = Some(bytes::BytesMut::new());
+				trace!("got clear request body");
+				return Ok((res, true));
 			},
 		}
 	} else if !had_body {

@@ -122,6 +122,23 @@ async fn immediate_response_request() {
 }
 
 #[tokio::test]
+async fn immediate_response_request_body() {
+	let mock = simple_mock().await;
+	let (_mock, _ext_proc, _bind, io) = setup_ext_proc_mock(
+		mock,
+		ext_proc::FailureMode::FailClosed,
+		ExtProcMock::new(ImmediateResponseRequestBodyExtProc::default),
+		"{}",
+	)
+	.await;
+	tokio::time::sleep(Duration::from_secs(100)).await;
+	let res = send_request_body(io, Method::POST, "http://lo", b"request").await;
+	assert_eq!(res.status(), 403);
+	let body = read_body_raw(res.into_body()).await;
+	assert_eq!(body.as_ref(), b"Access denied");
+}
+
+#[tokio::test]
 async fn immediate_response_response() {
 	let mock = simple_mock().await;
 	let (_mock, _ext_proc, _bind, io) = setup_ext_proc_mock(
@@ -379,6 +396,40 @@ impl Handler for ImmediateResponseExtProc {
 			.send(immediate_response(proto::ImmediateResponse {
 				status: Some(proto::HttpStatus { code: 202 }),
 				body: "immediate".to_string(),
+				headers: None,
+				grpc_status: None,
+				details: "".to_string(),
+			}))
+			.await;
+		Ok(())
+	}
+}
+
+#[derive(Debug, Default)]
+struct ImmediateResponseRequestBodyExtProc {}
+
+#[async_trait::async_trait]
+impl Handler for ImmediateResponseRequestBodyExtProc {
+	async fn handle_request_headers(
+		&mut self,
+		_: &HttpHeaders,
+		sender: &mpsc::Sender<Result<ProcessingResponse, Status>>,
+	) -> Result<(), Status> {
+		let _ = sender.send(request_header_response(None)).await;
+		Ok(())
+	}
+
+	async fn handle_request_body(
+		&mut self,
+		_: &proto::HttpBody,
+		sender: &mpsc::Sender<Result<ProcessingResponse, Status>>,
+	) -> Result<(), Status> {
+		let _ = sender
+			.send(immediate_response(proto::ImmediateResponse {
+				status: Some(proto::HttpStatus {
+					code: proto::StatusCode::Forbidden as i32,
+				}),
+				body: "Access denied".to_string(),
 				headers: None,
 				grpc_status: None,
 				details: "".to_string(),
