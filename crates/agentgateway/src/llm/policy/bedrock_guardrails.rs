@@ -168,7 +168,7 @@ async fn send_guardrail_request(
 	);
 
 	let resp = client
-		.call_with_explicit_policies(req, mock_be, pols)
+		.call_with_explicit_policies_list(req, mock_be, pols)
 		.await?;
 
 	let status = resp.status();

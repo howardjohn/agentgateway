@@ -693,6 +693,7 @@ impl Store {
 		gateway: Option<&ListenerName>,
 		route: Option<&RouteName>,
 	) -> BackendPolicies {
+		tracing::error!("howardjohn: lookup {:?} {:?} {:?} {:?} {:?}", backend, sub_backend, inline_policies, gateway, route);
 		let backend_rules =
 			backend.and_then(|t| self.policies_by_target.get(&PolicyTargetRef::Backend(t)));
 		let sub_backend_rules =

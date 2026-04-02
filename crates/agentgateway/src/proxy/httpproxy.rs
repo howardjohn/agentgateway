@@ -180,6 +180,10 @@ async fn apply_backend_policies(
 	log: &mut Option<&mut RequestLog>,
 	response_policies: &mut ResponsePolicies,
 ) -> Result<(), ProxyResponse> {
+	tracing::error!(
+		"howardjohn: apply backend pol for {:?}",
+		backend_call.target
+	);
 	let BackendPolicies {
 		backend_tls: _,
 		backend_auth,
@@ -1277,6 +1281,7 @@ async fn make_backend_call(
 	let policy_client = PolicyClient {
 		inputs: inputs.clone(),
 	};
+	tracing::error!("howardjohn: CALL {backend:?}");
 
 	// The MCP backend aggregates multiple backends into a single backend.
 	// In some cases, we want to treat this as a normal backend, so we swap it out.
@@ -2177,20 +2182,20 @@ impl PolicyClient {
 			.await
 	}
 
-	pub async fn call_with_default_policies(
+	pub async fn call_with_explicit_policies(
 		&self,
 		req: Request,
 		backend: &SimpleBackend,
-		defaults: BackendPolicies,
+		policies: BackendPolicies,
 	) -> Result<Response, ProxyError> {
-		let backend = Backend::from(backend.clone()).into();
-		let pols = defaults.merge(get_backend_policies(&self.inputs, &backend, &[], None));
+		let backend = Backend::from(backend.clone());
+		tracing::error!("howardjohn: EXPLICIT END {:?}", &policies.transformation);
 		self
-			.internal_call_with_policies(req, backend.backend, pols)
+			.internal_call_with_policies(req, backend, policies)
 			.await
 	}
 
-	pub async fn call_with_explicit_policies(
+	pub async fn call_with_explicit_policies_list(
 		&self,
 		req: Request,
 		backend: SimpleBackend,

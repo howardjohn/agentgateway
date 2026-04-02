@@ -87,6 +87,7 @@ impl App {
 					let backend_policies = backend_policies
 						.clone()
 						.merge(binds.sub_backend_policies(sub_backend_target, inline_pols));
+					tracing::error!("howardjohn: merged policies {:#?}", backend_policies);
 					Ok::<_, ProxyError>(Arc::new(McpTarget {
 						name: t.name.clone(),
 						spec: t.spec.clone(),
@@ -105,6 +106,7 @@ impl App {
 		};
 		let sm = self.session.clone();
 		let client = PolicyClient { inputs: pi.clone() };
+		tracing::error!("howardjohn: lookup authn from {backend_policies:#?}");
 		let authorization_policies = backend_policies
 			.mcp_authorization
 			.unwrap_or_else(|| McpAuthorizationSet::new(RuleSets::from(Vec::new())));
