@@ -35,9 +35,9 @@ use crate::transport::stream::{Socket, TCPConnectionInfo};
 use crate::transport::tls;
 use crate::types::agent::{
 	Backend, BackendPolicy, BackendReference, BackendTarget, BackendWithPolicies, Bind, BindKey,
-	BindProtocol, Listener, ListenerProtocol, ListenerSet, McpBackend, McpTarget, McpTargetSpec,
-	PathMatch, PolicyPhase, PolicyTarget, ResourceName, Route, RouteBackendReference, RouteMatch,
-	RouteName, SimpleBackendReference, SseTargetSpec, StreamableHTTPTargetSpec, TCPRoute,
+	BindProtocol, Listener, ListenerProtocol, McpBackend, McpTarget, McpTargetSpec, PathMatch,
+	PolicyPhase, PolicyTarget, ResourceName, Route, RouteBackendReference, RouteMatch, RouteName,
+	SimpleBackendReference, SseTargetSpec, StreamableHTTPTargetSpec, TCPRoute,
 	TCPRouteBackendReference, Target, TargetedPolicy,
 };
 use crate::types::local;
@@ -117,6 +117,7 @@ pub fn base_gateway(mock: &MockServer) -> TestBind {
 		.unwrap()
 		.with_backend(*mock.address())
 		.with_bind(simple_bind())
+		.with_listener(BIND_KEY, simple_listener())
 		.with_route(basic_route(*mock.address()))
 }
 
@@ -125,6 +126,7 @@ pub fn setup_tcp_mock(mock: MockServer) -> (MockServer, TestBind, Client<MemoryC
 		.unwrap()
 		.with_backend(*mock.address())
 		.with_bind(simple_tcp_bind())
+		.with_listener(BIND_KEY, simple_tcp_listener())
 		.with_tcp_route(basic_named_tcp_route(strng::format!("/{}", mock.address())));
 	let io = t.serve_http(BIND_KEY);
 	(mock, t, io)
@@ -156,6 +158,7 @@ pub fn setup_llm_named_provider_mock(
 	t.pi.stores.binds.write().insert_backend(b.name(), b.into());
 	let t = t
 		.with_bind(simple_bind())
+		.with_listener(BIND_KEY, simple_listener())
 		.with_route(basic_route(*mock.address()));
 	let io = t.serve_http(BIND_KEY);
 	(mock, t, io)
@@ -234,34 +237,40 @@ pub fn simple_bind() -> Bind {
 		key: BIND_KEY,
 		// not really used
 		address: "127.0.0.1:0".parse().unwrap(),
-		listeners: ListenerSet::from_list([Listener {
-			key: LISTENER_KEY,
-			name: Default::default(),
-			hostname: Default::default(),
-			protocol: ListenerProtocol::HTTP,
-		}]),
 		protocol: BindProtocol::http,
 		tunnel_protocol: Default::default(),
 	}
 }
 
-pub fn waypoint_bind(protocol: ListenerProtocol) -> Bind {
+pub fn simple_listener() -> Listener {
+	Listener {
+		key: LISTENER_KEY,
+		name: Default::default(),
+		hostname: Default::default(),
+		protocol: ListenerProtocol::HTTP,
+	}
+}
+
+pub fn waypoint_bind(_protocol: ListenerProtocol) -> Bind {
 	Bind {
 		key: BIND_KEY,
 		address: "127.0.0.1:15008".parse().unwrap(),
-		listeners: ListenerSet::from_list([Listener {
-			key: LISTENER_KEY,
-			name: crate::types::agent::ListenerName {
-				gateway_name: strng::literal!("default"),
-				gateway_namespace: strng::literal!("default"),
-				listener_name: strng::EMPTY,
-				listener_set: None,
-			},
-			hostname: Default::default(),
-			protocol,
-		}]),
 		protocol: BindProtocol::http,
 		tunnel_protocol: Default::default(),
+	}
+}
+
+pub fn waypoint_listener(protocol: ListenerProtocol) -> Listener {
+	Listener {
+		key: LISTENER_KEY,
+		name: crate::types::agent::ListenerName {
+			gateway_name: strng::literal!("default"),
+			gateway_namespace: strng::literal!("default"),
+			listener_name: strng::EMPTY,
+			listener_set: None,
+		},
+		hostname: Default::default(),
+		protocol,
 	}
 }
 
@@ -270,14 +279,17 @@ pub fn simple_tcp_bind() -> Bind {
 		key: BIND_KEY,
 		// not really used
 		address: "127.0.0.1:0".parse().unwrap(),
-		listeners: ListenerSet::from_list([Listener {
-			key: LISTENER_KEY,
-			name: Default::default(),
-			hostname: Default::default(),
-			protocol: ListenerProtocol::TCP,
-		}]),
 		protocol: BindProtocol::tcp,
 		tunnel_protocol: Default::default(),
+	}
+}
+
+pub fn simple_tcp_listener() -> Listener {
+	Listener {
+		key: LISTENER_KEY,
+		name: Default::default(),
+		hostname: Default::default(),
+		protocol: ListenerProtocol::TCP,
 	}
 }
 
@@ -401,8 +413,20 @@ impl TestBind {
 		drop(binds);
 		self
 	}
+	pub fn with_listener(self, bind_name: BindKey, listener: Listener) -> Self {
+		self
+			.pi
+			.stores
+			.binds
+			.write()
+			.insert_listener(listener, bind_name);
+		self
+	}
 	pub fn inputs(&self) -> Arc<ProxyInputs> {
 		self.pi.clone()
+	}
+	pub fn drain(&self) -> DrainWatcher {
+		self.drain_rx.clone()
 	}
 	pub fn with_route(self, r: Route) -> Self {
 		self.pi.stores.binds.write().insert_route(r, LISTENER_KEY);

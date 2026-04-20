@@ -20,6 +20,7 @@ use crate::proxy::httpproxy::PolicyClient;
 use crate::test_helpers::extauthmock::{ExtAuthMock, deny_response};
 use crate::test_helpers::proxymock::{
 	BIND_KEY, TestBind, basic_named_route, basic_route, setup_proxy_test, simple_bind,
+	simple_listener,
 };
 use crate::test_helpers::ratelimitmock::{RateLimitMock, over_limit_response};
 use crate::types::agent::{BackendPolicy, FrontendPolicy, PolicyTarget, TargetedPolicy};
@@ -72,6 +73,7 @@ async fn stream_to_multiplex() {
 			true,
 		)
 		.with_bind(simple_bind())
+		.with_listener(BIND_KEY, simple_listener())
 		.with_route(basic_named_route(strng::new("/mcp")));
 	let io = t.serve_real_listener(strng::new("bind")).await;
 	let client = mcp_streamable_client(io).await;
@@ -155,6 +157,7 @@ async fn stateless_multiplex_tool_call_initializes_only_target() {
 			false,
 		)
 		.with_bind(simple_bind())
+		.with_listener(BIND_KEY, simple_listener())
 		.with_route(basic_named_route(strng::new("/mcp")));
 	let io = t.serve_real_listener(strng::new("bind")).await;
 	let client = mcp_streamable_client(io).await;
@@ -191,6 +194,7 @@ async fn stateless_multiplex_get_prompt_initializes_only_target() {
 			false,
 		)
 		.with_bind(simple_bind())
+		.with_listener(BIND_KEY, simple_listener())
 		.with_route(basic_named_route(strng::new("/mcp")));
 	let io = t.serve_real_listener(strng::new("bind")).await;
 	let client = mcp_streamable_client(io).await;
@@ -744,9 +748,8 @@ async fn setup_access_log_mcp_proxy(mock: &MockServer) -> (TestBind, SocketAddr)
 		.pi
 		.stores
 		.read_binds()
-		.bind(&BIND_KEY)
+		.get_bind_listeners(&BIND_KEY)
 		.unwrap()
-		.listeners
 		.iter()
 		.next()
 		.unwrap()
@@ -1005,6 +1008,7 @@ async fn setup_proxy_policies(
 		.unwrap()
 		.with_mcp_backend_policies(mock.addr, stateful, legacy_sse, policies)
 		.with_bind(simple_bind())
+		.with_listener(BIND_KEY, simple_listener())
 		.with_route(basic_route(mock.addr));
 	let io = t.serve_real_listener(BIND_KEY).await;
 	(t, io)
@@ -2353,6 +2357,7 @@ async fn mcp_local_ratelimit() {
 		.unwrap()
 		.with_mcp_backend(mock.addr, true, false)
 		.with_bind(simple_bind())
+		.with_listener(BIND_KEY, simple_listener())
 		.with_route(basic_route(mock.addr));
 
 	// Attach local rate limit policy
@@ -2422,6 +2427,7 @@ async fn mcp_extauth_deny() {
 		.unwrap()
 		.with_mcp_backend(mock.addr, true, false)
 		.with_bind(simple_bind())
+		.with_listener(BIND_KEY, simple_listener())
 		.with_route(basic_route(mock.addr));
 
 	// Attach extAuthz policy pointing to our mock server
@@ -2485,6 +2491,7 @@ async fn mcp_remote_ratelimit_deny() {
 		.unwrap()
 		.with_mcp_backend(mock.addr, true, false)
 		.with_bind(simple_bind())
+		.with_listener(BIND_KEY, simple_listener())
 		.with_route(basic_route(mock.addr));
 
 	// Attach remoteRateLimit policy pointing to our mock server

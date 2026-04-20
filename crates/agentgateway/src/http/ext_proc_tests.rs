@@ -273,6 +273,7 @@ pub async fn setup_ext_proc_mock_with_meta<T: Handler + Send + Sync + 'static>(
 		.with_backend(*mock.address())
 		.with_backend(ext_proc.address)
 		.with_bind(simple_bind())
+		.with_listener(BIND_KEY, simple_listener())
 		.with_route(basic_route(*mock.address()))
 		.attach_route_policy_builder(json!({
 			"extProc": {

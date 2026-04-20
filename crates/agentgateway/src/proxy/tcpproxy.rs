@@ -12,9 +12,9 @@ use crate::telemetry::log::{DropOnLog, RequestLog};
 use crate::telemetry::metrics::TCPLabels;
 use crate::transport::stream::{Socket, TCPConnectionInfo, TLSConnectionInfo, WaypointTLSInfo};
 use crate::types::agent::{
-	BackendPolicy, BindKey, Listener, ListenerProtocol, SimpleBackend, SimpleBackendReference,
-	SimpleBackendWithPolicies, TCPRoute, TCPRouteBackend, TCPRouteBackendReference, Target,
-	TransportProtocol,
+	BackendPolicy, BindKey, Listener, ListenerKey, ListenerProtocol, SimpleBackend,
+	SimpleBackendReference, SimpleBackendWithPolicies, TCPRoute, TCPRouteBackend,
+	TCPRouteBackendReference, Target, TransportProtocol,
 };
 use crate::types::discovery::{NetworkAddress, WaypointIdentity, gatewayaddress::Destination};
 use crate::types::{agent, frontend};
@@ -24,7 +24,7 @@ use crate::{ProxyInputs, Stores, *};
 pub struct TCPProxy {
 	pub(super) bind_name: BindKey,
 	pub(super) inputs: Arc<ProxyInputs>,
-	pub(super) selected_listener: Arc<Listener>,
+	pub(super) selected_listener: ListenerKey,
 	#[allow(unused)]
 	pub(super) target_address: SocketAddr,
 }
@@ -70,8 +70,14 @@ impl TCPProxy {
 		connection: Socket,
 		log: &mut RequestLog,
 	) -> Result<(), ProxyError> {
+		let selected_listener = self
+			.inputs
+			.stores
+			.read_binds()
+			.get_listener(&self.selected_listener)
+			.ok_or(ProxyError::ListenerNotFound)?;
 		let frontend_policies = self.inputs.stores.read_binds().listener_frontend_policies(
-			&self.selected_listener.name,
+			&selected_listener.name,
 			connection
 				.ext::<WaypointService>()
 				.map(WaypointService::as_policy_ref),
@@ -108,8 +114,8 @@ impl TCPProxy {
 		log.backend_protocol = Some(cel::BackendProtocol::tcp);
 		let tcp_labels = TCPLabels {
 			bind: Some(&self.bind_name).into(),
-			gateway: Some(&self.selected_listener.name.as_gateway_name()).into(),
-			listener: self.selected_listener.name.listener_name.clone().into(),
+			gateway: Some(&selected_listener.name.as_gateway_name()).into(),
+			listener: selected_listener.name.listener_name.clone().into(),
 			protocol: if log.tls_info.is_some() {
 				TransportProtocol::tls
 			} else {
@@ -128,7 +134,6 @@ impl TCPProxy {
 			.and_then(|tls| tls.server_name.as_deref())
 			.map(|s| s.to_string());
 
-		let selected_listener = self.selected_listener.clone();
 		let inputs = self.inputs.clone();
 		let bind_name = self.bind_name.clone();
 		debug!(bind=%bind_name, "route for bind");

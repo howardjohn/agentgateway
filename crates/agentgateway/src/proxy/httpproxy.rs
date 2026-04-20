@@ -392,7 +392,7 @@ async fn apply_llm_request_policies(
 pub struct HTTPProxy {
 	pub(super) bind_name: BindKey,
 	pub(super) inputs: Arc<ProxyInputs>,
-	pub(super) selected_listener: Option<Arc<Listener>>,
+	pub(super) selected_listener: Option<ListenerKey>,
 	pub(super) target_address: SocketAddr,
 }
 
@@ -559,8 +559,16 @@ impl HTTPProxy {
 		debug!(bind=%bind_name, "route for bind");
 		let mut req = req.map(http::Body::new);
 
-		let Some(bind) = inputs.stores.read_binds().bind(&bind_name) else {
-			return Err(ProxyResponse::Error(ProxyError::BindNotFound)).snapshot_on_err(log, &mut req);
+		let bind_listeners = {
+			let binds = inputs.stores.read_binds();
+			let Some(_) = binds.bind(&bind_name) else {
+				return Err(ProxyResponse::Error(ProxyError::BindNotFound)).snapshot_on_err(log, &mut req);
+			};
+			let Some(bind_listeners) = binds.get_bind_listeners(&bind_name) else {
+				return Err(ProxyResponse::Error(ProxyError::ListenerNotFound))
+					.snapshot_on_err(log, &mut req);
+			};
+			bind_listeners
 		};
 
 		sensitive_headers(&mut req);
@@ -584,9 +592,11 @@ impl HTTPProxy {
 		log.version = Some(req.version());
 
 		// Now check if we actually have a listener - fail after tracing is set up
-		let selected_listener = selected_listener
-			.or_else(|| bind.listeners.best_match_http(&host))
-			.ok_or(ProxyError::ListenerNotFound);
+		let selected_listener = match selected_listener {
+			Some(listener) => inputs.stores.read_binds().get_listener(&listener),
+			None => bind_listeners.best_match_http(&host),
+		}
+		.ok_or(ProxyError::ListenerNotFound);
 		let selected_listener = match selected_listener {
 			Ok(l) => {
 				debug!(bind=%bind_name, listener=%l.key, "selected listener");
@@ -642,7 +652,8 @@ impl HTTPProxy {
 		.await
 		.snapshot_on_err(log, &mut req)?;
 
-		Self::detect_misdirected(log, bind, &req, &selected_listener).snapshot_on_err(log, &mut req)?;
+		Self::detect_misdirected(log, bind_listeners.as_ref(), &req, &selected_listener)
+			.snapshot_on_err(log, &mut req)?;
 
 		let selected_route_chain =
 			select_route_chain(&inputs, self.target_address, &selected_listener, &req)
@@ -957,9 +968,9 @@ impl HTTPProxy {
 
 	fn detect_misdirected(
 		log: &RequestLog,
-		bind: Arc<Bind>,
+		listeners: &ListenerSet,
 		req: &Request,
-		selected_listener: &Arc<Listener>,
+		selected_listener: &Listener,
 	) -> Result<(), ProxyError> {
 		if log.tls_info.is_none() {
 			// Only applicable for HTTPS
@@ -980,8 +991,7 @@ impl HTTPProxy {
 		// filter, an HTTP listener with the same wildcard hostname could be
 		// returned by best_match(), causing a spurious 421 when BindProtocol::auto
 		// serves both HTTP and HTTPS listeners on the same bind.
-		let new_best_listener = bind
-			.listeners
+		let new_best_listener = listeners
 			.best_match_tls(host)
 			.filter(|l| l.key != selected_listener.key);
 
@@ -2555,12 +2565,6 @@ mod route_chain_tests {
 		Bind {
 			key: proxymock::BIND_KEY,
 			address: "127.0.0.1:0".parse().unwrap(),
-			listeners: ListenerSet::from_list([Listener {
-				key: proxymock::LISTENER_KEY,
-				name: Default::default(),
-				hostname: Default::default(),
-				protocol: ListenerProtocol::HTTP,
-			}]),
 			protocol: BindProtocol::http,
 			tunnel_protocol: Default::default(),
 		}
@@ -2580,13 +2584,21 @@ mod route_chain_tests {
 			RouteBackendTarget::RouteGroup(child.key.clone()),
 		);
 		let bind = bind();
-		let listener = bind.listeners.get_exactly_one().unwrap();
 		let proxy = proxymock::setup_proxy_test("{}")
 			.unwrap()
 			.with_backend(backend)
 			.with_bind(bind)
+			.with_listener(proxymock::BIND_KEY, proxymock::simple_listener())
 			.with_route(parent)
 			.with_route_group(child.key.clone(), vec![child.clone()]);
+		let listener = proxy
+			.inputs()
+			.stores
+			.read_binds()
+			.get_bind_listeners(&proxymock::BIND_KEY)
+			.unwrap()
+			.get_exactly_one()
+			.unwrap();
 
 		let selected = select_route_chain(
 			proxy.inputs().as_ref(),
@@ -2622,14 +2634,22 @@ mod route_chain_tests {
 			RouteBackendTarget::RouteGroup(strng::literal!("parent")),
 		);
 		let bind = bind();
-		let listener = bind.listeners.get_exactly_one().unwrap();
 		let proxy = proxymock::setup_proxy_test("{}")
 			.unwrap()
 			.with_bind(bind)
+			.with_listener(proxymock::BIND_KEY, proxymock::simple_listener())
 			.with_route(parent.clone())
 			.with_route(child.clone())
 			.with_route_group(strng::literal!("child"), vec![child])
 			.with_route_group(strng::literal!("parent"), vec![parent]);
+		let listener = proxy
+			.inputs()
+			.stores
+			.read_binds()
+			.get_bind_listeners(&proxymock::BIND_KEY)
+			.unwrap()
+			.get_exactly_one()
+			.unwrap();
 
 		let err = select_route_chain(
 			proxy.inputs().as_ref(),
@@ -2644,11 +2664,19 @@ mod route_chain_tests {
 	#[test]
 	fn select_route_chain_allows_backendless_terminal_route() {
 		let bind = bind();
-		let listener = bind.listeners.get_exactly_one().unwrap();
 		let proxy = proxymock::setup_proxy_test("{}")
 			.unwrap()
 			.with_bind(bind)
+			.with_listener(proxymock::BIND_KEY, proxymock::simple_listener())
 			.with_route(route_without_backends("direct", "/"));
+		let listener = proxy
+			.inputs()
+			.stores
+			.read_binds()
+			.get_bind_listeners(&proxymock::BIND_KEY)
+			.unwrap()
+			.get_exactly_one()
+			.unwrap();
 
 		let selected = select_route_chain(
 			proxy.inputs().as_ref(),

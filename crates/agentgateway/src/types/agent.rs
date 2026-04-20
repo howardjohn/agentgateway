@@ -43,7 +43,6 @@ pub struct Bind {
 	pub address: SocketAddr,
 	pub protocol: BindProtocol,
 	pub tunnel_protocol: TunnelProtocol,
-	pub listeners: ListenerSet,
 }
 
 pub type BindKey = Strng;
@@ -1429,6 +1428,10 @@ impl ListenerSet {
 
 	pub fn remove(&mut self, key: &ListenerKey) -> Option<Arc<Listener>> {
 		self.inner.remove(key)
+	}
+
+	pub fn is_empty(&self) -> bool {
+		self.inner.is_empty()
 	}
 
 	pub fn iter(&self) -> impl Iterator<Item = &Listener> {

@@ -21,7 +21,7 @@ use crate::mcp::McpAuthorization;
 use crate::store::LocalWorkload;
 use crate::types::agent::{
 	A2aPolicy, Authorization, Backend, BackendKey, BackendPolicy, BackendReference,
-	BackendWithPolicies, Bind, BindProtocol, FrontendPolicy, HeaderMatch, HeaderValueMatch,
+	BackendWithPolicies, Bind, BindKey, BindProtocol, FrontendPolicy, HeaderMatch, HeaderValueMatch,
 	JwtAuthentication, Listener, ListenerKey, ListenerName, ListenerProtocol, ListenerSet,
 	ListenerTarget, LocalMcpAuthentication, McpAuthentication, McpBackend, McpTarget, McpTargetName,
 	McpTargetSpec, OpenAPITarget, PathMatch, PolicyPhase, PolicyTarget, PolicyType, ResourceName,
@@ -239,6 +239,7 @@ fn merge_deprecated_frontend_policies(
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct NormalizedLocalConfig {
 	pub binds: Vec<Bind>,
+	pub listeners: Vec<(BindKey, Listener)>,
 	pub listener_routes: Vec<(ListenerKey, Vec<Route>)>,
 	pub listener_tcp_routes: Vec<(ListenerKey, Vec<TCPRoute>)>,
 	pub policies: Vec<TargetedPolicy>,
@@ -1514,11 +1515,12 @@ async fn convert(
 	let mut all_policies = vec![];
 	let mut all_backends = vec![];
 	let mut all_binds = vec![];
+	let mut all_listeners = vec![];
 	let mut all_listener_routes = vec![];
 	let mut all_listener_tcp_routes = vec![];
 	for b in binds {
 		let bind_name = strng::format!("bind/{}", b.port);
-		let mut ls = ListenerSet::default();
+		let mut listeners = Vec::with_capacity(b.listeners.len());
 		for (idx, l) in b.listeners.into_iter().enumerate() {
 			let (l, routes, tcp_routes, pol, backends) = convert_listener(
 				client.clone(),
@@ -1533,8 +1535,20 @@ async fn convert(
 			all_listener_tcp_routes.push((l.key.clone(), tcp_routes));
 			all_policies.extend_from_slice(&pol);
 			all_backends.extend_from_slice(&backends);
-			ls.insert(l)
+			listeners.push(l);
 		}
+		let listener_set = ListenerSet {
+			inner: listeners
+				.iter()
+				.cloned()
+				.map(|listener| (listener.key.clone(), Arc::new(listener)))
+				.collect(),
+		};
+		all_listeners.extend(
+			listeners
+				.into_iter()
+				.map(|listener| (bind_name.clone(), listener)),
+		);
 		let sockaddr = if cfg!(target_family = "unix") && config.ipv6_enabled {
 			SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), b.port)
 		} else {
@@ -1544,8 +1558,7 @@ async fn convert(
 		let b = Bind {
 			key: bind_name,
 			address: sockaddr,
-			protocol: detect_bind_protocol(&ls),
-			listeners: ls,
+			protocol: detect_bind_protocol(&listener_set),
 			tunnel_protocol: b.tunnel_protocol,
 		};
 		all_binds.push(b)
@@ -1613,19 +1626,21 @@ async fn convert(
 
 	// Convert llm config if present
 	if let Some(llm_config) = llm {
-		let (llm_bind, llm_routes, llm_policies, llm_backends) =
+		let (llm_bind, llm_listener, llm_routes, llm_policies, llm_backends) =
 			convert_llm_config(client.clone(), config, gateway.clone(), llm_config).await?;
 		all_listener_routes.push((strng::new("llm"), llm_routes));
 		all_listener_tcp_routes.push((strng::new("llm"), Vec::new()));
+		all_listeners.push((llm_bind.key.clone(), llm_listener));
 		all_binds.push(llm_bind);
 		all_policies.extend_from_slice(&llm_policies);
 		all_backends.extend_from_slice(&llm_backends);
 	}
 	if let Some(mcp_config) = mcp {
-		let (mcp_bind, mcp_routes, mcp_policies, mcp_backends) =
+		let (mcp_bind, mcp_listener, mcp_routes, mcp_policies, mcp_backends) =
 			convert_mcp_config(client.clone(), config, gateway.clone(), mcp_config).await?;
 		all_listener_routes.push((strng::new("mcp"), mcp_routes));
 		all_listener_tcp_routes.push((strng::new("mcp"), Vec::new()));
+		all_listeners.push((mcp_bind.key.clone(), mcp_listener));
 		all_binds.push(mcp_bind);
 		all_policies.extend_from_slice(&mcp_policies);
 		all_backends.extend_from_slice(&mcp_backends);
@@ -1651,6 +1666,7 @@ async fn convert(
 
 	let normalized = NormalizedLocalConfig {
 		binds: all_binds,
+		listeners: all_listeners,
 		listener_routes: all_listener_routes,
 		listener_tcp_routes: all_listener_tcp_routes,
 		policies: all_policies,
@@ -1700,6 +1716,7 @@ async fn convert_llm_config(
 	llm_config: LocalLLMConfig,
 ) -> anyhow::Result<(
 	Bind,
+	Listener,
 	Vec<Route>,
 	Vec<TargetedPolicy>,
 	Vec<BackendWithPolicies>,
@@ -2097,9 +2114,6 @@ json(request.body).model
 	};
 	all_policies.push(transformation_policy);
 
-	let mut listener_set = ListenerSet::default();
-	listener_set.insert(listener);
-
 	// Create bind
 	let sockaddr = if cfg!(target_family = "unix") && config.ipv6_enabled {
 		SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port)
@@ -2111,11 +2125,10 @@ json(request.body).model
 		key: strng::format!("bind/{}", port),
 		address: sockaddr,
 		protocol: BindProtocol::http,
-		listeners: listener_set,
 		tunnel_protocol: TunnelProtocol::Direct,
 	};
 
-	Ok((bind, routes, all_policies, all_backends))
+	Ok((bind, listener, routes, all_policies, all_backends))
 }
 
 async fn convert_mcp_config(
@@ -2125,6 +2138,7 @@ async fn convert_mcp_config(
 	mcp_config: LocalSimpleMcpConfig,
 ) -> anyhow::Result<(
 	Bind,
+	Listener,
 	Vec<Route>,
 	Vec<TargetedPolicy>,
 	Vec<BackendWithPolicies>,
@@ -2179,9 +2193,6 @@ async fn convert_mcp_config(
 		protocol: ListenerProtocol::HTTP,
 	};
 
-	let mut listener_set = ListenerSet::default();
-	listener_set.insert(listener);
-
 	let sockaddr = if cfg!(target_family = "unix") && config.ipv6_enabled {
 		SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port)
 	} else {
@@ -2192,7 +2203,6 @@ async fn convert_mcp_config(
 		key: strng::format!("bind/{}", port),
 		address: sockaddr,
 		protocol: BindProtocol::http,
-		listeners: listener_set,
 		tunnel_protocol: TunnelProtocol::Direct,
 	};
 
@@ -2204,7 +2214,7 @@ async fn convert_mcp_config(
 		)
 		.await?;
 
-	Ok((bind, routes, vec![], backends))
+	Ok((bind, listener, routes, vec![], backends))
 }
 
 fn detect_bind_protocol(listeners: &ListenerSet) -> BindProtocol {

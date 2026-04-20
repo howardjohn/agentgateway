@@ -29,7 +29,7 @@ use crate::transport::stream::{
 	Extension, LoggingMode, Socket, TCPConnectionInfo, TLSConnectionInfo,
 };
 use crate::types::agent::{
-	BindKey, BindProtocol, Listener, ListenerProtocol, TransportProtocol, TunnelProtocol,
+	BindKey, BindProtocol, Listener, ListenerKey, ListenerProtocol, TransportProtocol, TunnelProtocol,
 };
 use crate::types::discovery::Service;
 use crate::types::discovery::gatewayaddress::Destination;
@@ -147,8 +147,8 @@ impl Gateway {
 		};
 		let mut active: HashMap<BindKey, AbortHandle> = HashMap::new();
 		let mut handle_bind = |js: &mut JoinSet<anyhow::Result<()>>, b: BindEvent| {
-			let (bind_key, bind, listeners) = match b {
-				BindEvent::Add(bind, listeners) => (bind.key.clone(), bind, listeners),
+			let (bind_key, listeners) = match b {
+				BindEvent::Add(bind_key, listeners) => (bind_key, listeners),
 				BindEvent::Remove(bind_key) => {
 					if let Some(h) = active.remove(&bind_key) {
 						h.abort();
@@ -160,12 +160,16 @@ impl Gateway {
 				h.abort();
 			}
 
-			debug!("add bind {}", bind.address);
 			match listeners {
 				BindListeners::Single(listener) => {
 					let task = js.spawn(
-						Self::run_bind(self.pi.clone(), subdrain.clone(), Arc::new(bind), listener)
-							.in_current_span(),
+						Self::run_bind(
+							self.pi.clone(),
+							subdrain.clone(),
+							bind_key.clone(),
+							listener,
+						)
+						.in_current_span(),
 					);
 					active.insert(bind_key, task);
 				},
@@ -173,7 +177,7 @@ impl Gateway {
 					for (core_id, listener) in listeners {
 						let subdrain = subdrain.clone();
 						let pi = self.pi.clone();
-						let bind = bind.clone();
+						let bind_key = bind_key.clone();
 						std::thread::spawn(move || {
 							let res = core_affinity::set_for_current(core_id);
 							if !res {
@@ -184,7 +188,7 @@ impl Gateway {
 								.build()
 								.unwrap()
 								.block_on(async {
-									let _ = Self::run_bind(pi, subdrain, Arc::new(bind), listener)
+									let _ = Self::run_bind(pi, subdrain, bind_key, listener)
 										.in_current_span()
 										.await;
 								})
@@ -218,14 +222,12 @@ impl Gateway {
 	pub(super) async fn run_bind(
 		pi: Arc<ProxyInputs>,
 		drain: DrainWatcher,
-		bind: Arc<crate::types::agent::Bind>,
+		bind_name: BindKey,
 		listener: std::net::TcpListener,
 	) -> anyhow::Result<()> {
 		let min_deadline = pi.cfg.termination_min_deadline;
 		let max_deadline = pi.cfg.termination_max_deadline;
-		let name = bind.key.clone();
-		let bind_protocol = bind.protocol;
-		let tunnel_protocol = bind.tunnel_protocol;
+		let name = bind_name.clone();
 		let pi = if pi.cfg.threading_mode == crate::ThreadingMode::ThreadPerCore {
 			let mut pi = Arc::unwrap_or_clone(pi);
 			let client = client::Client::new(
@@ -278,13 +280,24 @@ impl Gateway {
 				let mut force_shutdown = force_shutdown.clone();
 				let name = name.clone();
 				tokio::spawn(async move {
-					debug!(bind=?name, "connection started");
+					let Some(bind) = pi.stores.read_binds().bind(&name) else {
+						warn!(bind=?name, "bind removed before connection could be handled");
+						return;
+					};
+					debug!(bind=?name, address=%bind.address, "connection started");
 					tokio::select! {
 						// We took too long; shutdown now.
 						_ = force_shutdown.changed() => {
 							info!(bind=?name, "connection forcefully terminated");
 						}
-						_ = Self::handle_tunnel(name.clone(), bind_protocol, tunnel_protocol, stream, pi, drain) => {}
+						_ = Self::handle_tunnel(
+							name.clone(),
+							bind.protocol,
+							bind.tunnel_protocol,
+							stream,
+							pi,
+							drain,
+						) => {}
 					}
 					debug!(bind=?name, dur=?start.elapsed(), "connection completed");
 				});
@@ -442,7 +455,7 @@ impl Gateway {
 							let _ = Self::proxy(
 								bind_name,
 								inputs,
-								Some(selected_listener),
+								Some(selected_listener.key.clone()),
 								stream,
 								Arc::new(policies),
 								drain,
@@ -450,7 +463,14 @@ impl Gateway {
 							.await;
 						},
 						ListenerProtocol::TLS(_) => {
-							Self::proxy_tcp(bind_name, inputs, Some(selected_listener), stream, drain).await
+							Self::proxy_tcp(
+								bind_name,
+								inputs,
+								Some(selected_listener.key.clone()),
+								stream,
+								drain,
+							)
+							.await
 						},
 						_ => {
 							error!(
@@ -501,7 +521,7 @@ impl Gateway {
 										let _ = Self::proxy(
 											bind_name,
 											inputs,
-											Some(selected_listener),
+											Some(selected_listener.key.clone()),
 											tls_stream,
 											Arc::new(policies),
 											drain,
@@ -512,7 +532,7 @@ impl Gateway {
 										Self::proxy_tcp(
 											bind_name,
 											inputs,
-											Some(selected_listener),
+											Some(selected_listener.key.clone()),
 											tls_stream,
 											drain,
 										)
@@ -605,7 +625,7 @@ impl Gateway {
 	async fn proxy(
 		bind_name: BindKey,
 		inputs: Arc<ProxyInputs>,
-		selected_listener: Option<Arc<Listener>>,
+		selected_listener: Option<ListenerKey>,
 		mut stream: Socket,
 		policies: Arc<FrontendPolices>,
 		drain: DrainWatcher,
@@ -623,6 +643,9 @@ impl Gateway {
 		} else {
 			TransportProtocol::http
 		};
+		let selected_listener = selected_listener
+			.as_ref()
+			.and_then(|listener| inputs.stores.read_binds().get_listener(listener));
 
 		let transport_labels = TCPLabels {
 			bind: Some(&bind_name).into(),
@@ -664,7 +687,7 @@ impl Gateway {
 		let proxy = super::httpproxy::HTTPProxy {
 			bind_name,
 			inputs,
-			selected_listener,
+			selected_listener: selected_listener.as_ref().map(|l| l.key.clone()),
 			target_address,
 		};
 		let connection = Arc::new(stream.get_ext());
@@ -707,21 +730,21 @@ impl Gateway {
 	async fn proxy_tcp(
 		bind_name: BindKey,
 		inputs: Arc<ProxyInputs>,
-		selected_listener: Option<Arc<Listener>>,
+		selected_listener: Option<ListenerKey>,
 		stream: Socket,
 		_drain: DrainWatcher,
 	) {
 		let selected_listener = match selected_listener {
 			Some(l) => l,
 			None => {
-				let Some(bind) = inputs.stores.read_binds().bind(&bind_name) else {
+				let Some(listeners) = inputs.stores.read_binds().get_bind_listeners(&bind_name) else {
 					error!("no bind found for {bind_name}");
 					return;
 				};
-				let Ok(selected_listener) = bind.listeners.get_exactly_one() else {
+				let Ok(selected_listener) = listeners.get_exactly_one() else {
 					return;
 				};
-				selected_listener
+				selected_listener.key.clone()
 			},
 		};
 		let target_address = stream.target_address();
@@ -748,10 +771,9 @@ impl Gateway {
 		let tls_pol = policies.tls.as_ref();
 		let to = tls_pol.unwrap_or(&def).handshake_timeout;
 		let handshake = async move {
-			let Some(bind) = inp.stores.read_binds().bind(&bind_key) else {
+			let Some(listeners) = inp.stores.read_binds().get_bind_listeners(&bind_key) else {
 				return Err(ProxyError::BindNotFound.into());
 			};
-			let listeners = &bind.listeners;
 			let (mut ext, counter, inner) = raw_stream.into_parts();
 			let inner = Socket::new_rewind(inner);
 			let acceptor =
@@ -1022,9 +1044,9 @@ impl Gateway {
 		let listener = pi
 			.stores
 			.read_binds()
-			.bind(&bind_name)
-			.and_then(|b| {
-				b.listeners
+			.get_bind_listeners(&bind_name)
+			.and_then(|listeners| {
+				listeners
 					.inner
 					.values()
 					.find(|l| matches!(l.protocol, ListenerProtocol::HBONE))
@@ -1058,7 +1080,7 @@ impl Gateway {
 			let _ = Self::proxy(
 				bind_name,
 				pi,
-				Some(listener),
+				Some(listener.key.clone()),
 				socket,
 				Arc::new(policies),
 				drain,
@@ -1070,7 +1092,7 @@ impl Gateway {
 				.ext_mut()
 				.insert(crate::transport::stream::WaypointTLSInfo { should_sniff_tls });
 
-			Self::proxy_tcp(bind_name, pi, Some(listener), socket, drain).await;
+			Self::proxy_tcp(bind_name, pi, Some(listener.key.clone()), socket, drain).await;
 		}
 	}
 

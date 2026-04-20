@@ -14,7 +14,7 @@ use crate::mcp::McpAuthorizationSet;
 use crate::proxy::httpproxy::PolicyClient;
 use crate::types::agent::{
 	A2aPolicy, Backend, BackendKey, BackendPolicy, BackendTargetRef, BackendWithPolicies, Bind,
-	BindKey, FrontendPolicy, JwtAuthentication, Listener, ListenerKey, ListenerName,
+	BindKey, FrontendPolicy, JwtAuthentication, Listener, ListenerKey, ListenerName, ListenerSet,
 	McpAuthentication, PolicyKey, PolicyTarget, Route, RouteGroupKey, RouteKey, RouteName, RouteSet,
 	TCPRoute, TCPRouteSet, TargetedPolicy, TrafficPolicy,
 };
@@ -84,6 +84,8 @@ pub struct Store {
 	ipv6_enabled: bool,
 	core_ids: Option<Vec<core_affinity::CoreId>>,
 	binds: HashMap<BindKey, Arc<Bind>>,
+	listeners: HashMap<BindKey, Arc<ListenerSet>>,
+	listener_bindings: HashMap<ListenerKey, BindKey>,
 	resources: HashMap<Strng, ResourceKind>,
 
 	policies_by_key: HashMap<PolicyKey, Arc<TargetedPolicy>>,
@@ -102,7 +104,7 @@ pub struct Store {
 
 #[derive(Debug)]
 pub enum BindEvent {
-	Add(Bind, BindListeners),
+	Add(BindKey, BindListeners),
 	Remove(BindKey),
 }
 
@@ -503,6 +505,8 @@ impl Store {
 				},
 			},
 			binds: Default::default(),
+			listeners: Default::default(),
+			listener_bindings: Default::default(),
 			resources: Default::default(),
 			policies_by_key: Default::default(),
 			policies_by_target: Default::default(),
@@ -544,6 +548,19 @@ impl Store {
 			.cloned()
 	}
 
+	pub fn get_bind_listeners(&self, bind: &BindKey) -> Option<Arc<ListenerSet>> {
+		self.listeners.get(bind).cloned()
+	}
+
+	pub fn get_listener(&self, listener: &ListenerKey) -> Option<Arc<Listener>> {
+		let bind = self.listener_bindings.get(listener)?;
+		self
+			.listeners
+			.get(bind)
+			.and_then(|listeners| listeners.inner.get(listener))
+			.cloned()
+	}
+
 	fn insert_http_route_target(&mut self, target: RouteTarget, route: Route) {
 		let routes = self
 			.http_routes
@@ -560,18 +577,34 @@ impl Store {
 		Arc::make_mut(routes).insert(route);
 	}
 
-	fn upsert_bind(&mut self, key: BindKey, mut bind: Bind) {
-		debug!(bind=%bind.key, "insert bind");
-
-		for (_, listener) in self
-			.pending_listeners
-			.remove(&bind.key)
-			.into_iter()
-			.flatten()
+	fn insert_listener_target(&mut self, bind: BindKey, listener: Listener) {
+		if let Some(old_bind) = self
+			.listener_bindings
+			.insert(listener.key.clone(), bind.clone())
+			.filter(|old_bind| old_bind != &bind)
+			&& let Some(listeners) = self.listeners.get_mut(&old_bind)
 		{
-			debug!("adding pending listener {} to {}", listener.key, bind.key);
-			bind.listeners.insert(listener);
+			Arc::make_mut(listeners).remove(&listener.key);
+			if listeners.is_empty() {
+				self.listeners.remove(&old_bind);
+			}
 		}
+		let listeners = self
+			.listeners
+			.entry(bind)
+			.or_insert_with(|| Arc::new(ListenerSet::default()));
+		Arc::make_mut(listeners).insert(listener);
+	}
+
+	fn promote_pending_listeners(&mut self, bind: &BindKey) {
+		for (_, listener) in self.pending_listeners.remove(bind).into_iter().flatten() {
+			debug!("adding pending listener {} to {}", listener.key, bind);
+			self.insert_listener_target(bind.clone(), listener);
+		}
+	}
+
+	fn upsert_bind(&mut self, key: BindKey, bind: Bind) {
+		debug!(bind=%bind.key, "insert bind");
 
 		let listeners = if self.binds.contains_key(&key) {
 			None
@@ -584,9 +617,10 @@ impl Store {
 				},
 			}
 		};
-		self.binds.insert(key.clone(), Arc::new(bind.clone()));
+		self.binds.insert(key.clone(), Arc::new(bind));
+		self.promote_pending_listeners(&key);
 		if let Some(listeners) = listeners {
-			let _ = self.tx.send(BindEvent::Add(bind, listeners));
+			let _ = self.tx.send(BindEvent::Add(key, listeners));
 		}
 	}
 
@@ -1041,6 +1075,13 @@ impl Store {
     )]
 	pub fn remove_bind(&mut self, bind: BindKey) {
 		self.binds.remove(&bind);
+		if let Some(listeners) = self.listeners.remove(&bind) {
+			let pending = self.pending_listeners.entry(bind.clone()).or_default();
+			for listener in listeners.iter() {
+				self.listener_bindings.remove(&listener.key);
+				pending.insert(listener.key.clone(), listener.clone());
+			}
+		}
 		let _ = self.tx.send(BindEvent::Remove(bind));
 	}
 	#[instrument(
@@ -1073,17 +1114,20 @@ impl Store {
         fields(listener),
     )]
 	pub fn remove_listener(&mut self, listener: ListenerKey) {
-		let Some((bind_key, bind)) = self.binds.iter().find_map(|(bind_key, bind)| {
-			bind
-				.listeners
-				.contains(&listener)
-				.then(|| (bind_key.clone(), bind.clone()))
-		}) else {
+		if let Some(bind) = self.listener_bindings.remove(&listener)
+			&& let Some(listeners) = self.listeners.get_mut(&bind)
+		{
+			Arc::make_mut(listeners).remove(&listener);
+			if listeners.is_empty() {
+				self.listeners.remove(&bind);
+			}
 			return;
-		};
-		let mut bind = Arc::unwrap_or_clone(bind);
-		bind.listeners.remove(&listener);
-		self.upsert_bind(bind_key, bind);
+		}
+		for listeners in self.pending_listeners.values_mut() {
+			if listeners.remove(&listener).is_some() {
+				return;
+			}
+		}
 	}
 
 	pub fn remove_route_group(&mut self, rg: RouteGroupKey) {
@@ -1179,11 +1223,8 @@ impl Store {
 
 	pub fn insert_listener(&mut self, lis: Listener, bind_name: BindKey) {
 		debug!(listener=%lis.key,bind=%bind_name, "insert listener");
-		if let Some(b) = self.binds.get(&bind_name) {
-			let mut bind = Arc::unwrap_or_clone(b.clone());
-			bind.listeners.remove(&lis.key);
-			bind.listeners.insert(lis);
-			self.upsert_bind(bind_name, bind);
+		if self.binds.contains_key(&bind_name) {
+			self.insert_listener_target(bind_name, lis);
 		} else {
 			debug!("no bind found, keeping listener pending");
 			self
@@ -1291,13 +1332,7 @@ impl Store {
 	}
 
 	fn insert_xds_bind(&mut self, raw: XdsBind) -> anyhow::Result<()> {
-		let mut bind = Bind::try_from_xds(&raw, self.ipv6_enabled)?;
-		// If XDS server pushes the same bind twice (which it shouldn't really do, but oh well),
-		// we need to copy the listeners over.
-		if let Some(old) = self.binds.get(&bind.key) {
-			debug!("bind update, copy old listeners over");
-			bind.listeners = Arc::unwrap_or_clone(old.clone()).listeners;
-		}
+		let bind = Bind::try_from_xds(&raw, self.ipv6_enabled)?;
 		self.insert_bind(bind);
 		Ok(())
 	}
@@ -1396,11 +1431,12 @@ impl StoreUpdater {
 			.binds
 			.iter()
 			.sorted_by_key(|k| k.0)
-			.map(|(_, bind)| DumpBind {
+			.map(|(bind_key, bind)| DumpBind {
 				bind: bind.clone(),
-				listeners: bind
-					.listeners
-					.iter()
+				listeners: store
+					.get_bind_listeners(bind_key)
+					.into_iter()
+					.flat_map(|listeners| listeners.iter().cloned().collect_vec())
 					.map(|listener| {
 						(
 							listener.key.clone(),
@@ -1454,6 +1490,7 @@ impl StoreUpdater {
 	pub fn sync_local(
 		&self,
 		binds: Vec<Bind>,
+		listeners: Vec<(BindKey, Listener)>,
 		listener_routes: Vec<(ListenerKey, Vec<Route>)>,
 		listener_tcp_routes: Vec<(ListenerKey, Vec<TCPRoute>)>,
 		policies: Vec<TargetedPolicy>,
@@ -1463,6 +1500,7 @@ impl StoreUpdater {
 	) -> PreviousState {
 		let mut s = self.state.write().expect("mutex acquired");
 		let mut old_binds = prev.binds;
+		let mut old_listeners = prev.listeners;
 		let mut old_routes = prev.routes;
 		let mut old_tcp_routes = prev.tcp_routes;
 		let mut old_pols = prev.policies;
@@ -1470,6 +1508,7 @@ impl StoreUpdater {
 		let mut old_route_groups = prev.route_groups;
 		let mut next_state = PreviousState {
 			binds: Default::default(),
+			listeners: Default::default(),
 			routes: Default::default(),
 			tcp_routes: Default::default(),
 			policies: Default::default(),
@@ -1480,6 +1519,11 @@ impl StoreUpdater {
 			old_binds.remove(&b.key);
 			next_state.binds.insert(b.key.clone());
 			s.insert_bind(b);
+		}
+		for (bind_key, listener) in listeners {
+			old_listeners.remove(&listener.key);
+			next_state.listeners.insert(listener.key.clone());
+			s.insert_listener(listener, bind_key);
 		}
 		for b in backends {
 			// Here we use the 'name' as the key. This is appropriate for local case only
@@ -1516,6 +1560,9 @@ impl StoreUpdater {
 		for remaining_bind in old_binds {
 			s.remove_bind(remaining_bind);
 		}
+		for remaining_listener in old_listeners {
+			s.remove_listener(remaining_listener);
+		}
 		for remaining_route in old_routes {
 			s.remove_route(remaining_route);
 		}
@@ -1538,6 +1585,7 @@ impl StoreUpdater {
 #[derive(Clone, Debug, Default)]
 pub struct PreviousState {
 	pub binds: HashSet<BindKey>,
+	pub listeners: HashSet<ListenerKey>,
 	pub routes: HashSet<RouteKey>,
 	pub tcp_routes: HashSet<RouteKey>,
 	pub policies: HashSet<PolicyKey>,
@@ -1586,7 +1634,7 @@ mod tests {
 	use super::*;
 	use crate::telemetry::log::OrderedStringMap;
 	use crate::types::agent::{
-		BackendTarget, BindProtocol, ListenerProtocol, ListenerSet, PolicyType, TunnelProtocol,
+		BackendTarget, BindProtocol, ListenerProtocol, PolicyType, TunnelProtocol,
 	};
 	use crate::types::frontend::LoggingPolicy;
 
@@ -1669,17 +1717,17 @@ mod tests {
 			address: "127.0.0.1:0".parse().unwrap(),
 			protocol: BindProtocol::http,
 			tunnel_protocol: TunnelProtocol::Direct,
-			listeners: ListenerSet::from_list([Listener {
-				key: strng::literal!("listener"),
-				name: ListenerName {
-					gateway_name: strng::literal!("gw"),
-					gateway_namespace: strng::literal!("ns"),
-					listener_name: strng::literal!("listener"),
-					listener_set: None,
-				},
-				hostname: strng::literal!("example.com"),
-				protocol: ListenerProtocol::HTTP,
-			}]),
+		};
+		let listener = Listener {
+			key: strng::literal!("listener"),
+			name: ListenerName {
+				gateway_name: strng::literal!("gw"),
+				gateway_namespace: strng::literal!("ns"),
+				listener_name: strng::literal!("listener"),
+				listener_set: None,
+			},
+			hostname: strng::literal!("example.com"),
+			protocol: ListenerProtocol::HTTP,
 		};
 		let route = Route {
 			key: strng::literal!("route"),
@@ -1699,6 +1747,7 @@ mod tests {
 		{
 			let mut store = updater.write();
 			store.insert_bind(bind);
+			store.insert_listener(listener, strng::literal!("bind"));
 			store.insert_route(route, strng::literal!("listener"));
 		}
 
