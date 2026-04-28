@@ -455,6 +455,7 @@ impl ExtAuthz {
 		};
 
 		let scope = dtrace::start_scope("ext_authz");
+		proxy::name_external_call("ext_authz");
 		let resp = grpc_client.check(authz_req).await;
 		drop(scope);
 
@@ -658,6 +659,7 @@ impl ExtAuthz {
 			.extensions_mut()
 			.insert(BackendRequestTimeout(Duration::from_millis(200)));
 		let scope = dtrace::start_scope("ext_authz");
+		proxy::name_external_call("ext_authz");
 		let resp = client.call_reference(check_req, &self.target).await;
 		let mut resp = match resp {
 			Ok(r) => r,

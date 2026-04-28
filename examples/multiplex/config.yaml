@@ -11,6 +11,5 @@ binds:
               cmd: uvx
               args: ["mcp-server-time"]
           - name: everything
-            stdio:
-              cmd: npx
-              args: ["@modelcontextprotocol/server-everything"]
+            mcp:
+              host: localhost:3001

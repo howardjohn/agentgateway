@@ -1,12 +1,15 @@
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::Arc;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
 use agent_core::drain::{DrainUpgrader, DrainWatcher};
-use agent_core::{drain, strng};
+use agent_core::{drain, durfmt, strng};
 use agent_hbone::server::H2Request;
 use anyhow::anyhow;
 use bytes::Bytes;
@@ -15,6 +18,7 @@ use futures_util::FutureExt;
 use http::StatusCode;
 use hyper_util::rt::TokioIo;
 use hyper_util::server::conn::auto;
+use itertools::Itertools;
 use rand::RngExt;
 use tokio::net::TcpStream;
 use tokio::sync::watch;
@@ -731,7 +735,16 @@ impl Gateway {
 				let proxy = proxy.clone();
 				let connection = connection.clone();
 				req.extensions_mut().insert(BufferLimit::new(buffer));
-				async move { proxy.proxy(connection, req).map(Ok::<_, Infallible>).await }
+				let timings = Arc::new(TimedWrapperTimings::new());
+
+				async move {
+					let fut = TimedWrapper::new(proxy.proxy(connection, req).map(Ok::<_, Infallible>));
+					let res = TIMED_WRAPPER_TIMINGS.scope(timings.clone(), fut).await;
+					timings.report();
+					res.map(|r| r.map(|b| crate::http::DropBody::new(b, timings)))
+					// timings.report();
+					// res
+				}
 			}),
 		);
 		let (connection_drain_tx, connection_drain_rx) = drain::new();
@@ -1459,3 +1472,175 @@ fn find_service_by_hostname(
 #[derive(Debug)]
 #[allow(dead_code)]
 struct InboundError(anyhow::Error, StatusCode);
+
+tokio::task_local! {
+	static TIMED_WRAPPER_TIMINGS: Arc<TimedWrapperTimings>;
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub(crate) struct OutOfProxy {
+	pub duration: Duration,
+	pub name: &'static str,
+}
+
+#[derive(Debug)]
+pub(crate) struct TimedWrapperTimings {
+	start: Instant,
+	external_calls: Arc<Mutex<Vec<OutOfProxy>>>,
+	next_external_name: Arc<Mutex<Option<&'static str>>>,
+}
+
+impl Drop for TimedWrapperTimings {
+	fn drop(&mut self) {
+		self.report()
+	}
+}
+impl TimedWrapperTimings {
+	fn new() -> Self {
+		Self {
+			start: Instant::now(),
+			external_calls: Arc::new(Mutex::new(Vec::new())),
+			next_external_name: Arc::new(Mutex::new(None)),
+		}
+	}
+
+	pub(crate) fn report(&self) {
+		let dur = self.start.elapsed();
+		let ext = self
+			.external_calls
+			.lock()
+			.unwrap()
+			.iter()
+			.map(|x| format!("{}={}", x.name, durfmt::format(x.duration)))
+			.join(",");
+		// In some cases we can have negative since we don't properly handle the parallel calls as "happening in parallel"
+		let overhead = dur.saturating_sub(
+			self
+				.external_calls
+				.lock()
+				.unwrap()
+				.iter()
+				.map(|x| x.duration)
+				.sum::<Duration>(),
+		);
+		tracing::error!(
+			"duration={}, overhead={}, external={ext}",
+			durfmt::format(dur),
+			durfmt::format(overhead)
+		);
+	}
+	pub(crate) fn start(&self) -> Instant {
+		self.start
+	}
+
+	pub(crate) fn external_calls(&self) -> Vec<OutOfProxy> {
+		self
+			.external_calls
+			.lock()
+			.expect("timed wrapper timings mutex poisoned")
+			.clone()
+	}
+
+	pub(crate) fn name_next_external(&self, name: &'static str) {
+		let mut m = self.next_external_name.lock().expect("poison");
+		*m = Some(name);
+	}
+	pub(crate) fn start_external(&self, name: &'static str) -> OutOfProxyTimingGuard {
+		let name = self
+			.next_external_name
+			.lock()
+			.expect("poison")
+			.take()
+			.unwrap_or(name);
+		OutOfProxyTimingGuard {
+			external_calls: Arc::clone(&self.external_calls),
+			name,
+			start: Instant::now(),
+		}
+	}
+}
+
+pub(crate) struct OutOfProxyTimingGuard {
+	external_calls: Arc<Mutex<Vec<OutOfProxy>>>,
+	name: &'static str,
+	start: Instant,
+}
+
+impl Drop for OutOfProxyTimingGuard {
+	fn drop(&mut self) {
+		self
+			.external_calls
+			.lock()
+			.expect("timed wrapper timings mutex poisoned")
+			.push(OutOfProxy {
+				duration: self.start.elapsed(),
+				name: self.name.clone(),
+			});
+	}
+}
+
+pub fn name_external_call(name: &'static str) {
+	let _ = TIMED_WRAPPER_TIMINGS.try_with(|timings| timings.name_next_external(name));
+}
+
+pub(crate) fn start_external(name: &'static str) -> Option<OutOfProxyTimingGuard> {
+	TIMED_WRAPPER_TIMINGS
+		.try_with(|timings| timings.start_external(name))
+		.ok()
+}
+
+#[pin_project::pin_project] // This generates a `project` method
+pub struct TimedWrapper<Fut: Future> {
+	// For each field, we need to choose whether `project` returns an
+	// unpinned (&mut T) or pinned (Pin<&mut T>) reference to the field.
+	// By default, it assumes unpinned:
+	start: Option<Instant>,
+	total_runtime: std::time::Duration,
+	total_executions: usize,
+	// Opt into pinned references with this attribute:
+	#[pin]
+	future: Fut,
+}
+
+impl<Fut: Future> TimedWrapper<Fut> {
+	pub fn new(future: Fut) -> Self {
+		Self {
+			future,
+			total_runtime: Duration::new(0, 0),
+			total_executions: 0,
+			start: None,
+		}
+	}
+}
+
+impl<Fut: Future> Future for TimedWrapper<Fut> {
+	type Output = Fut::Output;
+
+	fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+		let mut this = self.project();
+		// Call the inner poll, measuring how long it took.
+		let t0 = Instant::now();
+		if this.start.is_none() {
+			*this.start = Some(t0)
+		}
+		*this.total_executions += 1;
+		let inner_poll = this.future.as_mut().poll(cx);
+		*this.total_runtime += t0.elapsed();
+
+		match inner_poll {
+			// The inner future needs more time, so this future needs more time too
+			Poll::Pending => Poll::Pending,
+			// Success!
+			Poll::Ready(output) => {
+				tracing::error!(
+					wall_time=?this.start.unwrap().elapsed(),
+					cpu_time=?this.total_runtime,
+					executions=this.total_executions,
+					"future complete",
+				);
+				Poll::Ready(output)
+			},
+		}
+	}
+}

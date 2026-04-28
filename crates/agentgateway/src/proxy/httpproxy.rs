@@ -850,6 +850,7 @@ impl HTTPProxy {
 				);
 			}
 			let req = Request::from_parts(head, http::Body::new(this));
+			proxy::name_external_call("primary_backend_call");
 			let res = self
 				.attempt_upstream(
 					log,

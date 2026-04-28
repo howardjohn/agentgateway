@@ -63,6 +63,7 @@ impl Process {
 			.unwrap()
 			.insert(req_id.clone(), sender);
 
+		let _out_of_proxy_timing = crate::proxy::start_external("stdio::send");
 		if self
 			.sender
 			.send((JsonRpcMessage::Request(req), ctx.clone()))
@@ -96,6 +97,7 @@ impl Process {
 		if !self.is_alive() {
 			return Err(UpstreamError::Send);
 		}
+		let _out_of_proxy_timing = crate::proxy::start_external("stdio::send");
 		self
 			.sender
 			.send((JsonRpcMessage::notification(req), ctx.clone()))

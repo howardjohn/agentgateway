@@ -517,6 +517,7 @@ impl Client {
 	}
 
 	pub async fn call(&self, call: Call) -> Result<http::Response, ProxyError> {
+		let _out_of_proxy_timing = crate::proxy::start_external("Client::call");
 		let start = std::time::Instant::now();
 		let Call {
 			mut req,

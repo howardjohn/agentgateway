@@ -9,6 +9,8 @@ use std::sync::Arc;
 
 use agent_pool::Error as HyperError;
 pub use gateway::Gateway;
+pub(crate) use gateway::start_external;
+pub(crate) use gateway::name_external_call;
 use rmcp::ErrorData;
 use rmcp::model::{ErrorCode, JsonRpcError};
 
