@@ -225,7 +225,7 @@ pub struct OtlpLoggingConfig {
 		feature = "schema",
 		schemars(with = "Option<crate::types::local::SimpleLocalBackendPolicies>")
 	)]
-	pub policies: Vec<super::agent::BackendPolicy>,
+	pub policies: Vec<super::agent::BackendTrafficPolicy>,
 	#[serde(default)]
 	pub protocol: super::agent::TracingProtocol,
 	#[serde(
