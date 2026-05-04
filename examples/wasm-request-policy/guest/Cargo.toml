@@ -1,0 +1,13 @@
+[package]
+name = "wasm-request-policy-guest"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasip3 = "0.4.0"

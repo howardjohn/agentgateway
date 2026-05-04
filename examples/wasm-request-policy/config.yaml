@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://agentgateway.dev/schema/config
+binds:
+- port: 3000
+  listeners:
+  - protocol: HTTP
+    routes:
+    - name: wasm-policy
+      policies:
+        wasm:
+          file: ./examples/wasm-request-policy/guest/target/wasm32-unknown-unknown/release/wasm_request_policy_guest.wasm
+      backends:
+      - host: 127.0.0.1:8080

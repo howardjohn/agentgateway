@@ -27,7 +27,7 @@ use crate::http::auth::BackendAuth;
 use crate::http::authorization::RuleSet;
 use crate::http::{
 	HeaderOrPseudo, HeaderValue, ext_authz, ext_proc, filters, health, remoteratelimit, retry,
-	timeout,
+	timeout, wasm,
 };
 use crate::mcp::{FailureMode, McpAuthorization};
 use crate::store::RequestPolicy;
@@ -2206,6 +2206,7 @@ pub enum TrafficPolicy {
 	RemoteRateLimit(RequestPolicy<remoteratelimit::RemoteRateLimit>),
 	ExtAuthz(RequestPolicy<ext_authz::ExtAuthz>),
 	ExtProc(RequestPolicy<ext_proc::ExtProc>),
+	Wasm(RequestPolicy<wasm::Wasm>),
 	JwtAuth(RequestPolicy<JwtAuthentication>),
 	Oidc(RequestPolicy<crate::http::oidc::OidcPolicy>),
 	BasicAuth(RequestPolicy<crate::http::basicauth::BasicAuthentication>),

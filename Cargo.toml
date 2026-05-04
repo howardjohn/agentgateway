@@ -217,6 +217,8 @@ vector-map = "1.0.2"
 flagset = "0.4.7"
 crossbeam-channel = "0.5"
 http-serde = "2.1"
+wasip3 = "0.4.0"
+wasmtime = { version = "43.0", features = ["async"] }
 itoa = "1.0"
 serde_urlencoded = "0.7"
 serde_with = { version = "3.17", features = [

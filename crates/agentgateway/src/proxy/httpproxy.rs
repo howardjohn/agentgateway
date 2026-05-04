@@ -157,6 +157,10 @@ async fn apply_request_policies(
 		.ext_authz
 		.apply_without_response("ext authz", c, l, req, rp.headers())
 		.await?;
+	pol
+		.wasm
+		.apply_without_response("wasm", c, l, req, rp.headers())
+		.await?;
 
 	pol
 		.authorization
@@ -342,6 +346,10 @@ async fn apply_gateway_policies(
 	policies
 		.ext_authz
 		.apply_without_response("gateway ext authz", c, l, req, response_policies.headers())
+		.await?;
+	policies
+		.wasm
+		.apply_without_response("gateway wasm", c, l, req, response_policies.headers())
 		.await?;
 
 	// ExtProc uses RequestPolicy for conditional selection and CEL registration only.

@@ -146,6 +146,7 @@ websocket-sans-io.workspace = true
 vector-map.workspace = true
 flagset.workspace = true
 wiremock.workspace = true
+wasmtime.workspace = true
 
 # Linux only dependencies
 [target.'cfg(target_family = "unix")'.dependencies]

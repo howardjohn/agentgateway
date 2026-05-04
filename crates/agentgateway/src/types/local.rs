@@ -1273,6 +1273,9 @@ struct LocalGatewayPolicy {
 	/// Extend agentgateway with an external processor
 	#[serde(default)]
 	ext_proc: Option<crate::http::ext_proc::ExtProc>,
+	/// Execute a WebAssembly request policy.
+	#[serde(default)]
+	wasm: Option<crate::http::wasm::LocalWasm>,
 	/// Modify requests and responses
 	#[serde(default)]
 	#[serde(deserialize_with = "de_transform")]
@@ -1296,6 +1299,7 @@ impl From<LocalGatewayPolicy> for FilterOrPolicy {
 			jwt_auth,
 			ext_authz,
 			ext_proc,
+			wasm,
 			transformations,
 			basic_auth,
 			api_key,
@@ -1305,6 +1309,7 @@ impl From<LocalGatewayPolicy> for FilterOrPolicy {
 			jwt_auth,
 			ext_authz,
 			ext_proc,
+			wasm,
 			transformations,
 			basic_auth,
 			api_key,
@@ -1627,6 +1632,9 @@ pub struct FilterOrPolicy {
 	/// Extend agentgateway with an external processor
 	#[serde(default)]
 	ext_proc: Option<crate::http::ext_proc::ExtProc>,
+	/// Execute a WebAssembly request policy.
+	#[serde(default)]
+	wasm: Option<crate::http::wasm::LocalWasm>,
 	/// Modify requests and responses
 	#[serde(default)]
 	#[serde(deserialize_with = "de_transform")]
@@ -2739,6 +2747,7 @@ pub(crate) async fn split_policies(
 		csrf,
 		ext_authz,
 		ext_proc,
+		wasm,
 		timeout,
 		retry,
 	} = pol;
@@ -2850,6 +2859,11 @@ pub(crate) async fn split_policies(
 	}
 	if let Some(p) = ext_proc {
 		route_policies.push(TrafficPolicy::ExtProc(RequestPolicy::single(p)))
+	}
+	if let Some(p) = wasm {
+		route_policies.push(TrafficPolicy::Wasm(RequestPolicy::single(
+			p.try_into_policy()?,
+		)))
 	}
 	if !local_rate_limit.is_empty() {
 		route_policies.push(TrafficPolicy::LocalRateLimit(RequestPolicy::single(

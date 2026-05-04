@@ -15,7 +15,9 @@ use crate::http::auth::BackendAuth;
 use crate::http::authorization::{HTTPAuthorizationSet, NetworkAuthorizationSet};
 use crate::http::backendtls::BackendTLS;
 use crate::http::ext_proc::InferenceRouting;
-use crate::http::{ext_authz, ext_proc, filters, health, oidc, remoteratelimit, retry, timeout};
+use crate::http::{
+	ext_authz, ext_proc, filters, health, oidc, remoteratelimit, retry, timeout, wasm,
+};
 use crate::llm::policy::ResponseGuard;
 use crate::mcp::McpAuthorizationSet;
 use crate::proxy::dtrace;
@@ -284,6 +286,7 @@ pub struct RoutePolicies {
 	pub api_key: RequestPolicy<http::apikey::APIKeyAuthentication>,
 	pub ext_authz: RequestPolicy<ext_authz::ExtAuthz>,
 	pub ext_proc: RequestPolicy<ext_proc::ExtProc>,
+	pub wasm: RequestPolicy<wasm::Wasm>,
 	pub transformation: RequestPolicy<http::transformation_cel::Transformation>,
 	pub csrf: RequestPolicy<http::csrf::Csrf>,
 	pub direct_response: RequestPolicy<filters::DirectResponse>,
@@ -313,6 +316,7 @@ pub struct GatewayPolicies {
 	pub transformation: RequestPolicy<http::transformation_cel::Transformation>,
 	pub basic_auth: RequestPolicy<http::basicauth::BasicAuthentication>,
 	pub api_key: RequestPolicy<http::apikey::APIKeyAuthentication>,
+	pub wasm: RequestPolicy<wasm::Wasm>,
 }
 
 impl GatewayPolicies {
@@ -321,6 +325,7 @@ impl GatewayPolicies {
 		self.transformation.register_expressions(ctx);
 		self.ext_authz.register_expressions(ctx);
 		self.ext_proc.register_expressions(ctx);
+		self.wasm.register_expressions(ctx);
 	}
 }
 
@@ -331,6 +336,7 @@ impl RoutePolicies {
 		self.transformation.register_expressions(ctx);
 		self.ext_authz.register_expressions(ctx);
 		self.ext_proc.register_expressions(ctx);
+		self.wasm.register_expressions(ctx);
 	}
 }
 
@@ -676,6 +682,9 @@ impl Store {
 				TrafficPolicy::ExtProc(p) => {
 					pol.ext_proc.set_if_unset(p);
 				},
+				TrafficPolicy::Wasm(p) => {
+					pol.wasm.set_if_unset(p);
+				},
 				TrafficPolicy::RemoteRateLimit(p) => {
 					pol.remote_rate_limit.set_if_unset(p);
 				},
@@ -789,6 +798,9 @@ impl Store {
 				},
 				TrafficPolicy::ExtProc(p) => {
 					pol.ext_proc.set_if_unset(p);
+				},
+				TrafficPolicy::Wasm(p) => {
+					pol.wasm.set_if_unset(p);
 				},
 				TrafficPolicy::Transformation(p) => {
 					pol.transformation.set_if_unset(p);

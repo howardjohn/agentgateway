@@ -431,6 +431,11 @@ impl<'a> Executor<'a> {
 		this.set_request(req);
 		this
 	}
+	pub fn new_request_snapshot(req: &'a RequestSnapshot) -> Self {
+		let mut this = Self::new_empty();
+		this.set_request_snapshot(req);
+		this
+	}
 	pub fn new_request_and_response(
 		req: &'a crate::http::Request,
 		resp: &'a crate::http::Response,
