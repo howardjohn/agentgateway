@@ -1,0 +1,21 @@
+package agentgateway:policy;
+
+interface host {
+  http-call: async func(url: string) -> result<string, string>;
+  cel-eval-bool: async func(expr: string) -> result<bool, string>;
+}
+
+interface policy {
+  record request {
+    method: string,
+    path-with-query: string,
+    headers: list<tuple<string, list<u8>>>,
+  }
+
+  apply: async func(request: request) -> result<bool, string>;
+}
+
+world request-policy {
+  import host;
+  export policy;
+}

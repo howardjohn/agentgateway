@@ -11,3 +11,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wasip3 = "0.4.0"
+wit-bindgen = { version = "0.51.0", features = ["async", "macros"] }

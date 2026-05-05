@@ -1,30 +1,45 @@
-use wasip3 as _;
+wit_bindgen::generate!({
+	path: "wit",
+	world: "request-policy",
+	async: true,
+	generate_all,
+});
 
-#[link(wasm_import_module = "agentgateway:policy/host")]
-unsafe extern "C" {
-	fn http_get(url_ptr: *const u8, url_len: usize, out_ptr: *mut u8, out_cap: usize) -> i32;
-	fn cel_eval_bool(expr_ptr: *const u8, expr_len: usize) -> i32;
-}
+struct Policy;
 
-#[unsafe(no_mangle)]
-pub extern "C" fn policy_apply() -> i32 {
-	if !cel(r#"request.headers["x-user"] == "admin""#) {
-		return 1;
+impl exports::agentgateway::policy::policy::Guest for Policy {
+	async fn apply(request: exports::agentgateway::policy::policy::Request) -> Result<bool, String> {
+		let user = first_header(&request.headers, "x-user")?;
+
+		if request.method != "GET" || request.path_with_query != "/admin" {
+			return Ok(false);
+		}
+		if user.as_deref() != Some("admin") {
+			return Ok(false);
+		}
+
+		if !agentgateway::policy::host::cel_eval_bool(
+			r#"request.headers["x-user"] == "admin""#.to_string(),
+		)
+		.await?
+		{
+			return Ok(false);
+		}
+    return Ok(true);
+
+		let body =
+			agentgateway::policy::host::http_call("http://127.0.0.1:8081/allow".to_string()).await?;
+		Ok(body == "allow")
 	}
-
-	let mut out = [0u8; 128];
-	let n = get("http://127.0.0.1:8081/allow", &mut out);
-	if n < 0 {
-		return 1;
-	}
-
-	if &out[..n as usize] == b"allow" { 0 } else { 1 }
 }
 
-fn cel(expr: &str) -> bool {
-	unsafe { cel_eval_bool(expr.as_ptr(), expr.len()) == 1 }
+fn first_header(headers: &[(String, Vec<u8>)], name: &str) -> Result<Option<String>, String> {
+	headers
+		.iter()
+		.find(|(header_name, _)| header_name.eq_ignore_ascii_case(name))
+		.map(|(_, value)| String::from_utf8(value.clone()))
+		.transpose()
+		.map_err(|err| err.to_string())
 }
 
-fn get(url: &str, out: &mut [u8]) -> i32 {
-	unsafe { http_get(url.as_ptr(), url.len(), out.as_mut_ptr(), out.len()) }
-}
+export!(Policy);

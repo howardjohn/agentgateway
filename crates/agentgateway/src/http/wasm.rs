@@ -1,18 +1,28 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use base64::Engine as _;
 use macro_rules_attribute::apply;
-use wasmtime::{Caller, Engine as WasmtimeEngine, Linker, Module, Store};
+use wasmtime::component::{Accessor, Component, HasSelf, Linker};
+use wasmtime::{Config, Engine as WasmtimeEngine, Store};
 
 use crate::cel::RequestSnapshot;
-use crate::http::{Body, Request, StatusCode};
+use crate::http::{Body, Request};
 use crate::proxy::httpproxy::PolicyClient;
 use crate::proxy::{ProxyError, ProxyResponse};
 use crate::types::agent::{ResourceName, SimpleBackend, SimpleBackendWithPolicies, Target};
 use crate::*;
 
-const HOST_MODULE: &str = "agentgateway:policy/host";
+wasmtime::component::bindgen!({
+	world: "request-policy",
+	path: "wit",
+	imports: { default: async | store | trappable },
+	exports: { default: async | trappable },
+});
+
+const MAX_IDLE_INSTANCES: usize = 64;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
 	#[error("wasm policy failed: {0}")]
@@ -22,7 +32,9 @@ pub enum Error {
 #[derive(Clone)]
 pub struct Wasm {
 	engine: Arc<WasmtimeEngine>,
-	module: Arc<Module>,
+	pre: RequestPolicyPre<WasmState>,
+	cel_cache: CelExpressionCache,
+	instances: Arc<tokio::sync::Mutex<Vec<WasmInstance>>>,
 }
 
 impl std::fmt::Debug for Wasm {
@@ -43,62 +55,88 @@ impl serde::Serialize for Wasm {
 struct WasmState {
 	client: PolicyClient,
 	req: RequestSnapshot,
+	cel_cache: CelExpressionCache,
+}
+
+type CelExpressionCache = Arc<Mutex<HashMap<String, Arc<cel::Expression>>>>;
+
+struct WasmInstance {
+	store: Store<WasmState>,
+	instance: RequestPolicy,
 }
 
 impl Wasm {
 	pub fn new(bytes: &[u8]) -> anyhow::Result<Self> {
-		let engine = Arc::new(WasmtimeEngine::default());
-		let module = Arc::new(Module::new(&engine, bytes)?);
-		Ok(Self { engine, module })
+		let mut config = Config::new();
+		config.wasm_component_model(true);
+		config.wasm_component_model_async(true);
+		config.concurrency_support(true);
+		let engine = Arc::new(WasmtimeEngine::new(&config)?);
+		let component = Component::new(&engine, bytes)?;
+		let mut linker = Linker::new(&engine);
+		RequestPolicy::add_to_linker::<_, HasSelf<WasmState>>(&mut linker, |state| state)?;
+		let pre = RequestPolicyPre::new(linker.instantiate_pre(&component)?)?;
+		Ok(Self {
+			engine,
+			pre,
+			cel_cache: Default::default(),
+			instances: Default::default(),
+		})
 	}
 
-	async fn run(&self, client: &PolicyClient, req: &mut Request) -> Result<i32, Error> {
-		let mut linker = Linker::new(&self.engine);
+	async fn run(&self, client: &PolicyClient, req: &mut Request) -> Result<bool, Error> {
+		let policy_req = policy_request_from(req);
+		let state = WasmState {
+			client: client.clone(),
+			req: cel::snapshot_request(req, false),
+			cel_cache: self.cel_cache.clone(),
+		};
+		let mut instance = self.instance(state).await?;
+		let allowed = instance.call(policy_req).await;
+		if allowed.is_ok() {
+			instance.store.data_mut().req = empty_request_snapshot();
+			let mut instances = self.instances.lock().await;
+			if instances.len() < MAX_IDLE_INSTANCES {
+				instances.push(instance);
+			}
+		}
+		let allowed = allowed?;
+		Ok(allowed)
+	}
 
-		linker
-			.func_wrap_async(
-				HOST_MODULE,
-				"http_get",
-				|caller: Caller<'_, WasmState>,
-				 (url_ptr, url_len, out_ptr, out_cap): (i32, i32, i32, i32)| {
-					Box::new(async move {
-						host_http_get(caller, url_ptr, url_len, out_ptr, out_cap)
-							.await
-							.unwrap_or(-1)
-					})
-				},
-			)
-			.map_err(wasmtime_error)?;
-		linker
-			.func_wrap_async(
-				HOST_MODULE,
-				"cel_eval_bool",
-				|caller: Caller<'_, WasmState>, (expr_ptr, expr_len): (i32, i32)| {
-					Box::new(async move { host_cel_eval_bool(caller, expr_ptr, expr_len).unwrap_or(-1) })
-				},
-			)
-			.map_err(wasmtime_error)?;
-
-		let mut store = Store::new(
-			&self.engine,
-			WasmState {
-				client: client.clone(),
-				req: cel::snapshot_request(req, false),
-			},
-		);
-		let instance = linker
-			.instantiate_async(&mut store, &self.module)
+	async fn instance(&self, state: WasmState) -> Result<WasmInstance, Error> {
+		if let Some(mut instance) = self.instances.lock().await.pop() {
+			*instance.store.data_mut() = state;
+			return Ok(instance);
+		}
+		let mut store = Store::new(&self.engine, state);
+		let instance = self
+			.pre
+			.instantiate_async(&mut store)
 			.await
 			.map_err(wasmtime_error)?;
-		let apply = instance
-			.get_typed_func::<(), i32>(&mut store, "policy_apply")
-			.map_err(wasmtime_error)?;
-		Ok(
-			apply
-				.call_async(&mut store, ())
-				.await
-				.map_err(wasmtime_error)?,
-		)
+		Ok(WasmInstance { store, instance })
+	}
+}
+
+impl WasmInstance {
+	async fn call(
+		&mut self,
+		policy_req: exports::agentgateway::policy::policy::Request,
+	) -> Result<bool, Error> {
+		let policy = self.instance.agentgateway_policy_policy();
+		let allowed = self
+			.store
+			.run_concurrent(async |accessor| {
+				policy
+					.call_apply(accessor, policy_req)
+					.await
+					.map_err(wasmtime_error)?
+					.map_err(|err| Error::Trap(anyhow::Error::msg(err)))
+			})
+			.await
+			.map_err(wasmtime_error)??;
+		Ok(allowed)
 	}
 }
 
@@ -110,32 +148,105 @@ impl crate::store::RequestPolicyTrait for Wasm {
 		req: &mut Request,
 	) -> Result<crate::http::PolicyResponse, ProxyResponse> {
 		match self.run(client, req).await {
-			Ok(0) => Ok(crate::http::PolicyResponse::default()),
-			Ok(1) => Err(ProxyResponse::from(ProxyError::AuthorizationFailed)),
-			Ok(code) => Err(ProxyResponse::from(ProxyError::ProcessingString(format!(
-				"wasm policy returned invalid status code {code}"
-			)))),
+			Ok(true) => Ok(crate::http::PolicyResponse::default()),
+			Ok(false) => Err(ProxyResponse::from(ProxyError::AuthorizationFailed)),
 			Err(err) => Err(ProxyResponse::from(ProxyError::Processing(err.into()))),
 		}
 	}
 }
 
-async fn host_http_get(
-	mut caller: Caller<'_, WasmState>,
-	url_ptr: i32,
-	url_len: i32,
-	out_ptr: i32,
-	out_cap: i32,
-) -> anyhow::Result<i32> {
-	let url = read_guest_string(&mut caller, url_ptr, url_len)?;
-	let uri: http::Uri = url.parse()?;
+impl agentgateway::policy::host::Host for WasmState {}
+
+impl agentgateway::policy::host::HostWithStore for HasSelf<WasmState> {
+	fn http_call<T: Send>(
+		accessor: &Accessor<T, Self>,
+		url: String,
+	) -> impl Future<Output = wasmtime::Result<Result<String, String>>> + Send {
+		let client = accessor.with(|mut access| access.get().client.clone());
+		async move {
+			Ok(
+				host_http_call(&client, &url)
+					.await
+					.map_err(|err| err.to_string()),
+			)
+		}
+	}
+
+	fn cel_eval_bool<T: Send>(
+		accessor: &Accessor<T, Self>,
+		expr: String,
+	) -> impl Future<Output = wasmtime::Result<Result<bool, String>>> + Send {
+		let res = accessor.with(|mut access| {
+			let state = access.get();
+			host_cel_eval_bool(&state.req, &state.cel_cache, &expr).map_err(|err| err.to_string())
+		});
+		async move { Ok(res) }
+	}
+}
+
+fn policy_request_from(req: &Request) -> exports::agentgateway::policy::policy::Request {
+	exports::agentgateway::policy::policy::Request {
+		method: req.method().to_string(),
+		path_with_query: req
+			.uri()
+			.path_and_query()
+			.map(|path| path.as_str())
+			.unwrap_or("/")
+			.to_string(),
+		headers: req
+			.headers()
+			.iter()
+			.map(|(name, value)| (name.as_str().to_string(), value.as_bytes().to_vec()))
+			.collect(),
+	}
+}
+
+fn empty_request_snapshot() -> RequestSnapshot {
+	RequestSnapshot {
+		method: ::http::Method::GET,
+		path: ::http::Uri::from_static("/"),
+		host: None,
+		scheme: None,
+		version: ::http::Version::HTTP_11,
+		headers: ::http::HeaderMap::new(),
+		body: None,
+		recorded_body: None,
+		jwt: None,
+		api_key: None,
+		basic_auth: None,
+		backend: None,
+		source: None,
+		start_time: None,
+		extauthz: None,
+		extproc: None,
+		metadata: None,
+		llm: None,
+	}
+}
+
+async fn host_http_call(client: &PolicyClient, url: &str) -> anyhow::Result<String> {
+	let uri: ::http::Uri = url.parse()?;
+	let backend = backend_from_uri(uri.clone())?;
+	let req = ::http::Request::builder()
+		.method(::http::Method::GET)
+		.uri(uri)
+		.body(Body::empty())?;
+	let resp = client.call(req, backend).await?;
+	if resp.status() != crate::http::StatusCode::OK {
+		anyhow::bail!("http_call returned {}", resp.status());
+	}
+	let body = crate::http::read_resp_body(resp).await?;
+	Ok(String::from_utf8(body.to_vec())?)
+}
+
+fn backend_from_uri(uri: ::http::Uri) -> anyhow::Result<SimpleBackendWithPolicies> {
 	let scheme = uri.scheme_str().unwrap_or("http");
 	if scheme != "http" {
-		anyhow::bail!("wasm http_get supports http URLs only");
+		anyhow::bail!("wasm http_call supports http URLs only");
 	}
 	let authority = uri
 		.authority()
-		.ok_or_else(|| anyhow::anyhow!("wasm http_get URL must include an authority"))?;
+		.ok_or_else(|| anyhow::anyhow!("wasm http_call URL must include an authority"))?;
 	let host = authority
 		.host()
 		.trim_start_matches('[')
@@ -143,92 +254,52 @@ async fn host_http_get(
 		.to_string();
 	let port = authority.port_u16().unwrap_or(80);
 	let target = Target::from((host.as_str(), port));
-	let backend = SimpleBackendWithPolicies {
+	Ok(SimpleBackendWithPolicies {
 		backend: SimpleBackend::Opaque(
-			ResourceName::new(strng::format!("wasm-http-get-{host}-{port}"), strng::EMPTY),
+			ResourceName::new(strng::format!("wasm-http-call-{host}-{port}"), strng::EMPTY),
 			target,
 		),
 		inline_policies: Vec::new(),
-	};
-	let req = ::http::Request::builder()
-		.method(http::Method::GET)
-		.uri(uri)
-		.body(Body::empty())?;
-	let resp = caller.data().client.call(req, backend).await?;
-	let status = resp.status();
-	if status != StatusCode::OK {
-		return Ok(-(status.as_u16() as i32));
-	}
-	let body = crate::http::read_resp_body(resp).await?;
-	write_guest_bytes(&mut caller, out_ptr, out_cap, &body)
+	})
 }
 
 fn host_cel_eval_bool(
-	mut caller: Caller<'_, WasmState>,
-	expr_ptr: i32,
-	expr_len: i32,
-) -> anyhow::Result<i32> {
-	let expr = read_guest_string(&mut caller, expr_ptr, expr_len)?;
-	let expr = cel::Expression::new_strict(&expr)?;
-	let exec = cel::Executor::new_request_snapshot(&caller.data().req);
-	Ok(i32::from(exec.eval_bool(&expr)))
+	req: &RequestSnapshot,
+	cache: &CelExpressionCache,
+	expr: &str,
+) -> anyhow::Result<bool> {
+	let expr = cached_cel_expression(cache, expr)?;
+	let exec = cel::Executor::new_request_snapshot(req);
+	Ok(exec.eval_bool(expr.as_ref()))
 }
 
-fn read_guest_string(
-	caller: &mut Caller<'_, WasmState>,
-	ptr: i32,
-	len: i32,
-) -> anyhow::Result<String> {
-	let bytes = read_guest_bytes(caller, ptr, len)?;
-	Ok(std::str::from_utf8(bytes)?.to_string())
-}
-
-fn read_guest_bytes<'a>(
-	caller: &'a mut Caller<'_, WasmState>,
-	ptr: i32,
-	len: i32,
-) -> anyhow::Result<&'a [u8]> {
-	let memory = caller
-		.get_export("memory")
-		.and_then(|export| export.into_memory())
-		.ok_or_else(|| anyhow::anyhow!("wasm policy must export memory"))?;
-	let ptr = usize::try_from(ptr)?;
-	let len = usize::try_from(len)?;
-	memory
-		.data(caller)
-		.get(ptr..ptr.saturating_add(len))
-		.ok_or_else(|| anyhow::anyhow!("wasm policy passed an invalid memory range"))
-}
-
-fn write_guest_bytes(
-	caller: &mut Caller<'_, WasmState>,
-	ptr: i32,
-	cap: i32,
-	bytes: &[u8],
-) -> anyhow::Result<i32> {
-	let memory = caller
-		.get_export("memory")
-		.and_then(|export| export.into_memory())
-		.ok_or_else(|| anyhow::anyhow!("wasm policy must export memory"))?;
-	let ptr = usize::try_from(ptr)?;
-	let cap = usize::try_from(cap)?;
-	if bytes.len() > cap {
-		return Ok(-2);
+fn cached_cel_expression(
+	cache: &CelExpressionCache,
+	expr: &str,
+) -> anyhow::Result<Arc<cel::Expression>> {
+	if let Some(expr) = cache
+		.lock()
+		.map_err(|_| anyhow::anyhow!("wasm CEL cache lock poisoned"))?
+		.get(expr)
+		.cloned()
+	{
+		return Ok(expr);
 	}
-	let dst = memory
-		.data_mut(caller)
-		.get_mut(ptr..ptr.saturating_add(bytes.len()))
-		.ok_or_else(|| anyhow::anyhow!("wasm policy passed an invalid output memory range"))?;
-	dst.copy_from_slice(bytes);
-	Ok(i32::try_from(bytes.len())?)
+
+	let key = expr.to_string();
+	let compiled = Arc::new(cel::Expression::new_strict(expr)?);
+	let mut cache = cache
+		.lock()
+		.map_err(|_| anyhow::anyhow!("wasm CEL cache lock poisoned"))?;
+	Ok(cache.entry(key).or_insert(compiled).clone())
 }
 
 #[apply(schema_de!)]
 pub struct LocalWasm {
-	/// Path to a core WebAssembly module.
+	/// Path to a WebAssembly component.
 	#[serde(default)]
 	pub file: Option<PathBuf>,
-	/// Base64-encoded core WebAssembly module bytes.
+	/// Base64-encoded WebAssembly component bytes.
 	#[serde(default)]
 	pub inline: Option<String>,
 }
