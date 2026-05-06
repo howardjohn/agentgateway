@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use ::http::request::Parts;
 use ::http::uri::{Authority, PathAndQuery};
-use ::http::{HeaderValue, header};
+use ::http::{HeaderMap, HeaderValue, header};
 use agent_core::prelude::Strng;
 use agent_core::strng;
 use axum_extra::headers::authorization::Bearer;
@@ -1026,12 +1026,14 @@ impl AIProvider {
 			(LLMResponse::default(), body)
 		} else {
 			let mut resp = self.process_success(&req, &bytes)?;
+			let prompt_guard_headers =
+				response_prompt_guard_headers(&parts.headers, rate_limit.request_traceparent.as_ref());
 
 			// Apply response prompt guard
 			if let Some(dr) = Policy::apply_response_prompt_guard(
 				&client,
 				resp.as_mut(),
-				&parts.headers,
+				&prompt_guard_headers,
 				&rate_limit.prompt_guard,
 			)
 			.await
@@ -1602,6 +1604,19 @@ pub enum AIError {
 	Encoding(axum_core::Error),
 	#[error("error computing tokens")]
 	JoinError(#[from] tokio::task::JoinError),
+}
+
+const TRACEPARENT_HEADER: &str = "traceparent";
+
+fn response_prompt_guard_headers(
+	response_headers: &HeaderMap,
+	request_traceparent: Option<&HeaderValue>,
+) -> HeaderMap {
+	let mut headers = response_headers.clone();
+	if let Some(traceparent) = request_traceparent {
+		headers.insert(TRACEPARENT_HEADER, traceparent.clone());
+	}
+	headers
 }
 
 fn amend_tokens(rate_limit: store::LLMResponsePolicies, llm_resp: &LLMInfo) {

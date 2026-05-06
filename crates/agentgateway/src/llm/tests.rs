@@ -16,6 +16,49 @@ fn fixture_path(relative_path: &str) -> PathBuf {
 	test_root().join(relative_path)
 }
 
+#[test]
+fn response_prompt_guard_headers_copies_request_traceparent() {
+	let traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+		.parse()
+		.unwrap();
+	let mut response_headers = ::http::HeaderMap::new();
+	response_headers.insert("x-upstream", "value".parse().unwrap());
+
+	let headers = response_prompt_guard_headers(&response_headers, Some(&traceparent));
+
+	assert_eq!(headers.get("x-upstream").unwrap(), "value");
+	assert_eq!(
+		headers.get(TRACEPARENT_HEADER).unwrap(),
+		"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+	);
+	assert!(!response_headers.contains_key(TRACEPARENT_HEADER));
+}
+
+#[test]
+fn response_prompt_guard_headers_overwrites_upstream_traceparent() {
+	let traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+		.parse()
+		.unwrap();
+	let mut response_headers = ::http::HeaderMap::new();
+	response_headers.insert(
+		TRACEPARENT_HEADER,
+		"00-11111111111111111111111111111111-2222222222222222-01"
+			.parse()
+			.unwrap(),
+	);
+
+	let headers = response_prompt_guard_headers(&response_headers, Some(&traceparent));
+
+	assert_eq!(
+		headers.get(TRACEPARENT_HEADER).unwrap(),
+		"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+	);
+	assert_eq!(
+		response_headers.get(TRACEPARENT_HEADER).unwrap(),
+		"00-11111111111111111111111111111111-2222222222222222-01"
+	);
+}
+
 fn snapshot_path_and_name(relative_path: &str, provider: &str) -> (String, String) {
 	let rel = Path::new(relative_path);
 	let parent = rel.parent().unwrap_or_else(|| Path::new(""));

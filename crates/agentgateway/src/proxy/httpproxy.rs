@@ -412,6 +412,7 @@ async fn apply_llm_request_policies(
 	Ok(store::LLMResponsePolicies {
 		local_rate_limit,
 		remote_rate_limit: response,
+		request_traceparent: req.headers().get(TRACEPARENT_HEADER).cloned(),
 		prompt_guard: policies
 			.llm
 			.as_deref()
@@ -1903,6 +1904,8 @@ fn set_backend_cel_context(req: &mut http::Request, log: Option<&&mut RequestLog
 		});
 	}
 }
+
+const TRACEPARENT_HEADER: &str = "traceparent";
 
 pub fn build_service_call(
 	inputs: &ProxyInputs,
