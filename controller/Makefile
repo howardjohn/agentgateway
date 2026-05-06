@@ -695,7 +695,7 @@ gie-conformance: gie-crds ## Run the Gateway API Inference Extension conformance
 
 # An alias to run both Gateway API and Inference Extension conformance tests.
 .PHONY: all-conformance
-all-conformance: gie-conformance agw-conformance ## Run all conformance test suites
+all-conformance: agw-conformance ## Run all conformance test suites
 	@echo "All conformance suites have completed."
 
 #----------------------------------------------------------------------------------

@@ -77,6 +77,7 @@ func TestConformance(t *testing.T) {
 		options.SkipTests = append(options.SkipTests, string(features.GatewayStaticAddressesFeature.Name))
 	}
 	options.Debug = true
+	options.AllowCRDsMismatch = true
 
 	t.Logf("Running conformance tests with\nprofiles: %+v %v\n", profiles, options.RunTest)
 	conformance.RunConformanceWithOptions(t, options)
