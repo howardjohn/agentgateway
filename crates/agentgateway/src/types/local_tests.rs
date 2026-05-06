@@ -374,6 +374,106 @@ binds:
 }
 
 #[tokio::test]
+async fn test_local_conditional_policy_types() {
+	let input = r#"
+binds:
+- port: 3000
+  listeners:
+  - routes:
+    - policies:
+        directResponse:
+          conditional:
+          - condition: request.path == "/direct"
+            status: 403
+            body: denied
+          - status: 404
+            body: missing
+        transformations:
+          conditional:
+          - condition: request.path == "/transform"
+            request:
+              set:
+                x-test: "'transform'"
+          - response:
+              add:
+                x-fallback: "'true'"
+        extProc:
+          conditional:
+          - condition: request.path == "/process"
+            host: 127.0.0.1:9000
+          - host: 127.0.0.1:9001
+        localRateLimit:
+          conditional:
+          - condition: request.path == "/local-limit"
+            maxTokens: 10
+            tokensPerFill: 1
+            fillInterval: 1s
+          - maxTokens: 1
+            tokensPerFill: 1
+            fillInterval: 60s
+        remoteRateLimit:
+          conditional:
+          - condition: request.path == "/remote-limit"
+            domain: agentgateway
+            host: 127.0.0.1:9002
+            descriptors:
+            - entries:
+              - key: user
+                value: '"test-user"'
+          - domain: fallback
+            host: 127.0.0.1:9003
+            descriptors:
+            - entries:
+              - key: user
+                value: '"fallback"'
+      backends:
+      - host: 127.0.0.1:8000
+"#;
+
+	let normalized = normalize_test_yaml(input).await.unwrap();
+	let route = &normalized.listener_routes[0].1[0];
+
+	for policy in [
+		"directResponse",
+		"transformation",
+		"extProc",
+		"localRateLimit",
+		"remoteRateLimit",
+	] {
+		let (len, fallback_is_none) = route
+			.inline_policies
+			.iter()
+			.find_map(|p| match (policy, p) {
+				("directResponse", TrafficPolicy::DirectResponse(p)) => {
+					let entries = p.iter().collect::<Vec<_>>();
+					Some((entries.len(), entries[1].condition.is_none()))
+				},
+				("transformation", TrafficPolicy::Transformation(p)) => {
+					let entries = p.iter().collect::<Vec<_>>();
+					Some((entries.len(), entries[1].condition.is_none()))
+				},
+				("extProc", TrafficPolicy::ExtProc(p)) => {
+					let entries = p.iter().collect::<Vec<_>>();
+					Some((entries.len(), entries[1].condition.is_none()))
+				},
+				("localRateLimit", TrafficPolicy::LocalRateLimit(p)) => {
+					let entries = p.iter().collect::<Vec<_>>();
+					Some((entries.len(), entries[1].condition.is_none()))
+				},
+				("remoteRateLimit", TrafficPolicy::RemoteRateLimit(p)) => {
+					let entries = p.iter().collect::<Vec<_>>();
+					Some((entries.len(), entries[1].condition.is_none()))
+				},
+				_ => None,
+			})
+			.unwrap_or_else(|| panic!("expected {policy} policy"));
+
+		assert_eq!(len, 2, "expected two {policy} entries");
+		assert!(fallback_is_none, "expected {policy} fallback condition");
+	}
+}
+
+#[tokio::test]
 async fn test_inference_routing_rejects_failure_mode() {
 	let input = r#"
 binds:

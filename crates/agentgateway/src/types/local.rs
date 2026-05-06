@@ -43,6 +43,11 @@ use crate::types::{backend, frontend};
 use crate::{agentcore, *};
 
 type LocalExtAuthzPolicy = LocalExplicitOrConditional<crate::http::ext_authz::ExtAuthz>;
+type LocalDirectResponsePolicy = LocalExplicitOrConditional<filters::DirectResponse>;
+type LocalExtProcPolicy = LocalExplicitOrConditional<crate::http::ext_proc::ExtProc>;
+type LocalRemoteRateLimitPolicy =
+	LocalExplicitOrConditional<crate::http::remoteratelimit::RemoteRateLimit>;
+type LocalTransformationPolicy = LocalExplicitOrConditional<LocalTransformationConfig>;
 
 // Windows has different output, for now easier to just not deal with it
 #[cfg(all(test, target_family = "unix"))]
@@ -364,31 +369,95 @@ where
 	}
 }
 
-impl<T: crate::store::RequestPolicyTrait> LocalExplicitOrConditional<T> {
-	fn into_request_policy(self) -> anyhow::Result<RequestPolicy<T>> {
+impl<T> LocalExplicitOrConditional<T> {
+	fn into_policy(self) -> anyhow::Result<RequestPolicy<T>> {
 		match self {
 			LocalExplicitOrConditional::Explicit(policy) => Ok(RequestPolicy::single(policy)),
 			LocalExplicitOrConditional::Conditional(policies) => {
-				if policies.conditional.is_empty() {
-					bail!("conditional policies must have at least one entry");
-				}
-				if policies.conditional.len() > 64 {
-					bail!("conditional policies may have at most 64 entries");
-				}
-				if let Some(unconditional_idx) = policies
-					.conditional
-					.iter()
-					.position(|entry| entry.condition.is_none())
-					&& unconditional_idx + 1 != policies.conditional.len()
-				{
-					bail!("conditional policy entries without condition must be last");
-				}
-
+				validate_local_conditional_policies(&policies)?;
 				Ok(RequestPolicy::from_policies(
 					policies
 						.conditional
 						.into_iter()
 						.map(|entry| (entry.policy, entry.condition)),
+				))
+			},
+		}
+	}
+}
+
+fn validate_local_conditional_policies<T>(
+	policies: &LocalConditionalPolicies<T>,
+) -> anyhow::Result<()> {
+	if policies.conditional.is_empty() {
+		bail!("conditional policies must have at least one entry");
+	}
+	if policies.conditional.len() > 64 {
+		bail!("conditional policies may have at most 64 entries");
+	}
+	if let Some(unconditional_idx) = policies
+		.conditional
+		.iter()
+		.position(|entry| entry.condition.is_none())
+		&& unconditional_idx + 1 != policies.conditional.len()
+	{
+		bail!("conditional policy entries without condition must be last");
+	}
+	Ok(())
+}
+
+impl LocalExplicitOrConditional<LocalTransformationConfig> {
+	fn into_transformation_policy(self) -> anyhow::Result<RequestPolicy<Transformation>> {
+		match self {
+			LocalExplicitOrConditional::Explicit(policy) => Ok(RequestPolicy::single(
+				Transformation::try_from_local_config(policy, true)?,
+			)),
+			LocalExplicitOrConditional::Conditional(policies) => {
+				validate_local_conditional_policies(&policies)?;
+				Ok(RequestPolicy::from_policies(
+					policies
+						.conditional
+						.into_iter()
+						.map(|entry| {
+							Transformation::try_from_local_config(entry.policy, true)
+								.map(|policy| (policy, entry.condition))
+						})
+						.collect::<anyhow::Result<Vec<_>>>()?,
+				))
+			},
+		}
+	}
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(untagged)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(untagged, deny_unknown_fields))]
+enum LocalRateLimitPolicy {
+	Conditional(LocalConditionalPolicies<crate::http::localratelimit::RateLimit>),
+	Explicit(Vec<crate::http::localratelimit::RateLimit>),
+}
+
+impl LocalRateLimitPolicy {
+	fn is_empty(&self) -> bool {
+		match self {
+			LocalRateLimitPolicy::Conditional(policies) => policies.conditional.is_empty(),
+			LocalRateLimitPolicy::Explicit(policies) => policies.is_empty(),
+		}
+	}
+
+	fn into_request_policy(
+		self,
+	) -> anyhow::Result<RequestPolicy<Vec<crate::http::localratelimit::RateLimit>>> {
+		match self {
+			LocalRateLimitPolicy::Explicit(policies) => Ok(RequestPolicy::single(policies)),
+			LocalRateLimitPolicy::Conditional(policies) => {
+				validate_local_conditional_policies(&policies)?;
+				Ok(RequestPolicy::from_policies(
+					policies
+						.conditional
+						.into_iter()
+						.map(|entry| (vec![entry.policy], entry.condition)),
 				))
 			},
 		}
@@ -1276,15 +1345,14 @@ struct LocalGatewayPolicy {
 	ext_authz: Option<LocalExtAuthzPolicy>,
 	/// Extend agentgateway with an external processor
 	#[serde(default)]
-	ext_proc: Option<crate::http::ext_proc::ExtProc>,
+	ext_proc: Option<LocalExtProcPolicy>,
 	/// Modify requests and responses
 	#[serde(default)]
-	#[serde(deserialize_with = "de_transform")]
 	#[cfg_attr(
 		feature = "schema",
-		schemars(with = "Option<http::transformation_cel::LocalTransformationConfig>")
+		schemars(with = "Option<LocalTransformationPolicy>")
 	)]
-	transformations: Option<crate::http::transformation_cel::Transformation>,
+	transformations: Option<LocalTransformationPolicy>,
 	/// Authenticate incoming requests using Basic Authentication with htpasswd.
 	#[serde(default)]
 	basic_auth: Option<crate::http::basicauth::LocalBasicAuth>,
@@ -1576,7 +1644,7 @@ pub struct FilterOrPolicy {
 
 	/// Directly respond to the request with a static response.
 	#[serde(default)]
-	direct_response: Option<filters::DirectResponse>,
+	direct_response: Option<LocalDirectResponsePolicy>,
 
 	/// Handle CORS preflight requests and append configured CORS headers to applicable requests.
 	#[serde(default)]
@@ -1609,10 +1677,10 @@ pub struct FilterOrPolicy {
 	backend_auth: Option<BackendAuth>,
 	/// Rate limit incoming requests. State is kept local.
 	#[serde(default)]
-	local_rate_limit: Vec<crate::http::localratelimit::RateLimit>,
+	local_rate_limit: Option<LocalRateLimitPolicy>,
 	/// Rate limit incoming requests. State is managed by a remote server.
 	#[serde(default)]
-	remote_rate_limit: Option<crate::http::remoteratelimit::RemoteRateLimit>,
+	remote_rate_limit: Option<LocalRemoteRateLimitPolicy>,
 	/// Authenticate incoming JWT requests.
 	#[serde(default)]
 	jwt_auth: Option<crate::http::jwt::LocalJwtConfig>,
@@ -1630,15 +1698,14 @@ pub struct FilterOrPolicy {
 	ext_authz: Option<LocalExtAuthzPolicy>,
 	/// Extend agentgateway with an external processor
 	#[serde(default)]
-	ext_proc: Option<crate::http::ext_proc::ExtProc>,
+	ext_proc: Option<LocalExtProcPolicy>,
 	/// Modify requests and responses
 	#[serde(default)]
-	#[serde(deserialize_with = "de_transform")]
 	#[cfg_attr(
 		feature = "schema",
-		schemars(with = "Option<http::transformation_cel::LocalTransformationConfig>")
+		schemars(with = "Option<LocalTransformationPolicy>")
 	)]
-	transformations: Option<crate::http::transformation_cel::Transformation>,
+	transformations: Option<LocalTransformationPolicy>,
 
 	/// Handle CSRF protection by validating request origins against configured allowed origins.
 	#[serde(default)]
@@ -2766,7 +2833,7 @@ pub(crate) async fn split_policies(
 
 	// Filters
 	if let Some(p) = direct_response {
-		route_policies.push(TrafficPolicy::DirectResponse(RequestPolicy::single(p)));
+		route_policies.push(TrafficPolicy::DirectResponse(p.into_policy()?));
 	}
 	if let Some(p) = cors {
 		route_policies.push(TrafficPolicy::CORS(RequestPolicy::single(p)));
@@ -2841,7 +2908,9 @@ pub(crate) async fn split_policies(
 		route_policies.push(TrafficPolicy::APIKey(RequestPolicy::single(p.into())));
 	}
 	if let Some(p) = transformations {
-		route_policies.push(TrafficPolicy::Transformation(RequestPolicy::single(p)));
+		route_policies.push(TrafficPolicy::Transformation(
+			p.into_transformation_policy()?,
+		));
 	}
 	if let Some(p) = csrf {
 		route_policies.push(TrafficPolicy::Csrf(RequestPolicy::single(p)))
@@ -2850,18 +2919,18 @@ pub(crate) async fn split_policies(
 		route_policies.push(TrafficPolicy::Authorization(p))
 	}
 	if let Some(p) = ext_authz {
-		route_policies.push(TrafficPolicy::ExtAuthz(p.into_request_policy()?))
+		route_policies.push(TrafficPolicy::ExtAuthz(p.into_policy()?))
 	}
 	if let Some(p) = ext_proc {
-		route_policies.push(TrafficPolicy::ExtProc(RequestPolicy::single(p)))
+		route_policies.push(TrafficPolicy::ExtProc(p.into_policy()?))
 	}
-	if !local_rate_limit.is_empty() {
-		route_policies.push(TrafficPolicy::LocalRateLimit(RequestPolicy::single(
-			local_rate_limit,
-		)))
+	if let Some(p) = local_rate_limit
+		&& !p.is_empty()
+	{
+		route_policies.push(TrafficPolicy::LocalRateLimit(p.into_request_policy()?))
 	}
 	if let Some(p) = remote_rate_limit {
-		route_policies.push(TrafficPolicy::RemoteRateLimit(RequestPolicy::single(p)))
+		route_policies.push(TrafficPolicy::RemoteRateLimit(p.into_policy()?))
 	}
 
 	// Traffic policies

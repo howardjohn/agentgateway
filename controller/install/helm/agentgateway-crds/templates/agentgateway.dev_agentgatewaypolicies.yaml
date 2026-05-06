@@ -6036,6 +6036,52 @@ spec:
                         maxLength: 4096
                         minLength: 1
                         type: string
+                      conditional:
+                        description: |-
+                          `conditional`, if set, will enable conditional policy execution. You must either set this, or set the top level directResponse fields.
+                          The first matching policy will be executed.
+                          A single policy may be provided without a condition set; if so, it must be the last policy and will be the fallback
+                          in case no conditions are met.
+                        items:
+                          properties:
+                            condition:
+                              description: '`condition` must evaluate to true for
+                                this policy to execute.'
+                              maxLength: 16384
+                              minLength: 1
+                              type: string
+                            policy:
+                              description: '`policy` definition.'
+                              properties:
+                                body:
+                                  description: |-
+                                    Body defines the content to be returned in the HTTP response body.
+                                    The maximum length of the body is restricted to prevent excessively large responses.
+                                    If this field is omitted, no body is included in the response.
+                                  maxLength: 4096
+                                  minLength: 1
+                                  type: string
+                                status:
+                                  description: StatusCode defines the HTTP status
+                                    code to return for this route.
+                                  format: int32
+                                  maximum: 599
+                                  minimum: 200
+                                  type: integer
+                              type: object
+                              x-kubernetes-validations:
+                              - message: status is required
+                                rule: has(self.status)
+                          required:
+                          - policy
+                          type: object
+                        maxItems: 16
+                        minItems: 1
+                        type: array
+                        x-kubernetes-validations:
+                        - message: conditional entries without condition must be last
+                          rule: self.filter(e, !has(e.condition)).size() <= 1 && (!self.exists(e,
+                            !has(e.condition)) || !has(self[size(self) - 1].condition))
                       status:
                         description: StatusCode defines the HTTP status code to return
                           for this route.
@@ -6043,9 +6089,13 @@ spec:
                         maximum: 599
                         minimum: 200
                         type: integer
-                    required:
-                    - status
                     type: object
+                    x-kubernetes-validations:
+                    - message: conditional cannot be set with any other field
+                      rule: 'has(self.conditional) ? [has(self.body),has(self.status)].filter(x,x==true).size()
+                        == 0 : true'
+                    - message: 'status: Required value'
+                      rule: 'has(self.conditional) ? true : has(self.status)'
                   extAuth:
                     description: |-
                       extAuth specifies the external authentication configuration for the policy.
@@ -6582,9 +6632,116 @@ spec:
                         - message: Must have port for Service reference
                           rule: '(size(self.group) == 0 && self.kind == ''Service'')
                             ? has(self.port) : true'
-                    required:
-                    - backendRef
+                      conditional:
+                        description: |-
+                          `conditional`, if set, will enable conditional policy execution. You must either set this, or set the top level extProc fields.
+                          The first matching policy will be executed.
+                          A single policy may be provided without a condition set; if so, it must be the last policy and will be the fallback
+                          in case no conditions are met.
+                        items:
+                          properties:
+                            condition:
+                              description: '`condition` must evaluate to true for
+                                this policy to execute.'
+                              maxLength: 16384
+                              minLength: 1
+                              type: string
+                            policy:
+                              description: '`policy` definition.'
+                              properties:
+                                backendRef:
+                                  description: |-
+                                    `backendRef` references the External Processor server to reach.
+                                    Supported types: `Service` and `Backend`.
+                                  properties:
+                                    group:
+                                      default: ""
+                                      description: |-
+                                        Group is the group of the referent. For example, "gateway.networking.k8s.io".
+                                        When unspecified or empty string, core API group is inferred.
+                                      maxLength: 253
+                                      pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                                      type: string
+                                    kind:
+                                      default: Service
+                                      description: |-
+                                        Kind is the Kubernetes resource kind of the referent. For example
+                                        "Service".
+
+                                        Defaults to "Service" when not specified.
+
+                                        ExternalName services can refer to CNAME DNS records that may live
+                                        outside of the cluster and as such are difficult to reason about in
+                                        terms of conformance. They also may not be safe to forward to (see
+                                        CVE-2021-25740 for more information). Implementations SHOULD NOT
+                                        support ExternalName Services.
+
+                                        Support: Core (Services with a type other than ExternalName)
+
+                                        Support: Implementation-specific (Services with type ExternalName)
+                                      maxLength: 63
+                                      minLength: 1
+                                      pattern: ^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
+                                      type: string
+                                    name:
+                                      description: Name is the name of the referent.
+                                      maxLength: 253
+                                      minLength: 1
+                                      type: string
+                                    namespace:
+                                      description: |-
+                                        Namespace is the namespace of the backend. When unspecified, the local
+                                        namespace is inferred.
+
+                                        Note that when a namespace different than the local namespace is specified,
+                                        a ReferenceGrant object is required in the referent namespace to allow that
+                                        namespace's owner to accept the reference. See the ReferenceGrant
+                                        documentation for details.
+
+                                        Support: Core
+                                      maxLength: 63
+                                      minLength: 1
+                                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                                      type: string
+                                    port:
+                                      description: |-
+                                        Port specifies the destination port number to use for this resource.
+                                        Port is required when the referent is a Kubernetes Service. In this
+                                        case, the port number is the service port number, not the target port.
+                                        For other resources, destination port might be derived from the referent
+                                        resource or this field.
+                                      format: int32
+                                      maximum: 65535
+                                      minimum: 1
+                                      type: integer
+                                  required:
+                                  - name
+                                  type: object
+                                  x-kubernetes-validations:
+                                  - message: Must have port for Service reference
+                                    rule: '(size(self.group) == 0 && self.kind ==
+                                      ''Service'') ? has(self.port) : true'
+                              type: object
+                              x-kubernetes-validations:
+                              - message: backendRef is required
+                                rule: has(self.backendRef)
+                          required:
+                          - policy
+                          type: object
+                        maxItems: 16
+                        minItems: 1
+                        type: array
+                        x-kubernetes-validations:
+                        - message: conditional entries without condition must be last
+                          rule: self.filter(e, !has(e.condition)).size() <= 1 && (!self.exists(e,
+                            !has(e.condition)) || !has(self[size(self) - 1].condition))
                     type: object
+                    x-kubernetes-validations:
+                    - message: conditional cannot be set with any other field
+                      rule: 'has(self.conditional) ? [has(self.backendRef)].filter(x,x==true).size()
+                        == 0 : true'
+                    - message: 'backendRef: Required value'
+                      rule: 'has(self.conditional) ? true : has(self.backendRef)'
                   headerModifiers:
                     description: headerModifiers defines the policy to modify request
                       and response headers.
@@ -7171,6 +7328,240 @@ spec:
                       rateLimit specifies the rate limiting configuration for the policy.
                       This controls the rate at which requests are allowed to be processed.
                     properties:
+                      conditional:
+                        description: |-
+                          `conditional`, if set, will enable conditional policy execution. You must either set this, or set the top level rateLimit fields.
+                          The first matching policy will be executed.
+                          A single policy may be provided without a condition set; if so, it must be the last policy and will be the fallback
+                          in case no conditions are met.
+                        items:
+                          properties:
+                            condition:
+                              description: '`condition` must evaluate to true for
+                                this policy to execute.'
+                              maxLength: 16384
+                              minLength: 1
+                              type: string
+                            policy:
+                              description: '`policy` definition.'
+                              properties:
+                                global:
+                                  description: Global defines a global rate limiting
+                                    policy using an external service.
+                                  properties:
+                                    backendRef:
+                                      description: |-
+                                        `backendRef` references the rate limit server to reach.
+                                        Supported types: `Service` and `Backend`.
+                                      properties:
+                                        group:
+                                          default: ""
+                                          description: |-
+                                            Group is the group of the referent. For example, "gateway.networking.k8s.io".
+                                            When unspecified or empty string, core API group is inferred.
+                                          maxLength: 253
+                                          pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                                          type: string
+                                        kind:
+                                          default: Service
+                                          description: |-
+                                            Kind is the Kubernetes resource kind of the referent. For example
+                                            "Service".
+
+                                            Defaults to "Service" when not specified.
+
+                                            ExternalName services can refer to CNAME DNS records that may live
+                                            outside of the cluster and as such are difficult to reason about in
+                                            terms of conformance. They also may not be safe to forward to (see
+                                            CVE-2021-25740 for more information). Implementations SHOULD NOT
+                                            support ExternalName Services.
+
+                                            Support: Core (Services with a type other than ExternalName)
+
+                                            Support: Implementation-specific (Services with type ExternalName)
+                                          maxLength: 63
+                                          minLength: 1
+                                          pattern: ^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
+                                          type: string
+                                        name:
+                                          description: Name is the name of the referent.
+                                          maxLength: 253
+                                          minLength: 1
+                                          type: string
+                                        namespace:
+                                          description: |-
+                                            Namespace is the namespace of the backend. When unspecified, the local
+                                            namespace is inferred.
+
+                                            Note that when a namespace different than the local namespace is specified,
+                                            a ReferenceGrant object is required in the referent namespace to allow that
+                                            namespace's owner to accept the reference. See the ReferenceGrant
+                                            documentation for details.
+
+                                            Support: Core
+                                          maxLength: 63
+                                          minLength: 1
+                                          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                                          type: string
+                                        port:
+                                          description: |-
+                                            Port specifies the destination port number to use for this resource.
+                                            Port is required when the referent is a Kubernetes Service. In this
+                                            case, the port number is the service port number, not the target port.
+                                            For other resources, destination port might be derived from the referent
+                                            resource or this field.
+                                          format: int32
+                                          maximum: 65535
+                                          minimum: 1
+                                          type: integer
+                                      required:
+                                      - name
+                                      type: object
+                                      x-kubernetes-validations:
+                                      - message: Must have port for Service reference
+                                        rule: '(size(self.group) == 0 && self.kind
+                                          == ''Service'') ? has(self.port) : true'
+                                    descriptors:
+                                      description: |-
+                                        `descriptors` define the dimensions for rate limiting. These values are
+                                        passed to the rate limit service which applies configured limits based
+                                        on them. Each descriptor represents a single rate limit rule with one or
+                                        more entries.
+                                      items:
+                                        properties:
+                                          entries:
+                                            description: '`entries` are the individual
+                                              components that make up this descriptor.'
+                                            items:
+                                              description: A descriptor entry defines
+                                                a single entry in a rate limit descriptor.
+                                              properties:
+                                                expression:
+                                                  description: |-
+                                                    `expression` is a Common Expression Language (`CEL`) expression that
+                                                    defines the value for the descriptor.
+
+                                                    For example, to rate limit based on the Client IP: `source.address`.
+
+                                                    See https://agentgateway.dev/docs/standalone/latest/reference/cel/ for more info.
+                                                  maxLength: 16384
+                                                  minLength: 1
+                                                  type: string
+                                                name:
+                                                  description: '`name` specifies the
+                                                    name of the descriptor.'
+                                                  maxLength: 64
+                                                  minLength: 1
+                                                  type: string
+                                              required:
+                                              - expression
+                                              - name
+                                              type: object
+                                            maxItems: 16
+                                            minItems: 1
+                                            type: array
+                                          unit:
+                                            description: |-
+                                              `unit` defines what to use as the cost function. If unspecified,
+                                              `Requests` is used.
+                                            enum:
+                                            - Requests
+                                            - Tokens
+                                            type: string
+                                        required:
+                                        - entries
+                                        type: object
+                                      maxItems: 16
+                                      minItems: 1
+                                      type: array
+                                    domain:
+                                      description: |-
+                                        `domain` specifies the domain under which this limit should apply.
+                                        This is an arbitrary string that enables a rate limit server to distinguish between different applications.
+                                      maxLength: 256
+                                      minLength: 1
+                                      type: string
+                                    failureMode:
+                                      description: |-
+                                        `failureMode` controls behavior when the remote rate limit service is
+                                        unavailable or returns an error. `FailOpen` allows the request to continue.
+                                        `FailClosed` (default) denies the request.
+                                      enum:
+                                      - FailOpen
+                                      - FailClosed
+                                      type: string
+                                  required:
+                                  - backendRef
+                                  - descriptors
+                                  - domain
+                                  type: object
+                                local:
+                                  description: Local defines a local rate limiting
+                                    policy.
+                                  items:
+                                    description: |-
+                                      Policy for local rate limiting. Local rate limits are handled locally on a per-proxy basis, without co-ordination
+                                      between instances of the proxy.
+                                    properties:
+                                      burst:
+                                        description: |-
+                                          `burst` specifies an allowance of requests above the request-per-unit
+                                          that should be allowed within a short period of time.
+                                        format: int32
+                                        type: integer
+                                      requests:
+                                        description: |-
+                                          `requests` specifies the number of HTTP requests per unit of time that
+                                          are allowed. Requests exceeding this limit will fail with a `429`
+                                          error.
+                                        format: int32
+                                        minimum: 1
+                                        type: integer
+                                      tokens:
+                                        description: |-
+                                          `tokens` specifies the number of LLM tokens per unit of time that are
+                                          allowed. Requests exceeding this limit will fail with a `429` error.
+
+                                          Both input and output tokens are counted. However, token counts are not known until the request completes. As a
+                                          result, token-based rate limits will apply to future requests only.
+                                        format: int32
+                                        minimum: 1
+                                        type: integer
+                                      unit:
+                                        description: '`unit` specifies the unit of
+                                          time that requests are limited on.'
+                                        enum:
+                                        - Seconds
+                                        - Minutes
+                                        - Hours
+                                        type: string
+                                    required:
+                                    - unit
+                                    type: object
+                                    x-kubernetes-validations:
+                                    - message: exactly one of the fields in [requests
+                                        tokens] must be set
+                                      rule: '[has(self.requests),has(self.tokens)].filter(x,x==true).size()
+                                        == 1'
+                                  maxItems: 16
+                                  minItems: 1
+                                  type: array
+                              type: object
+                              x-kubernetes-validations:
+                              - message: at least one of the fields in [global local]
+                                  must be set
+                                rule: '[has(self.global),has(self.local)].filter(x,x==true).size()
+                                  >= 1'
+                          required:
+                          - policy
+                          type: object
+                        maxItems: 16
+                        minItems: 1
+                        type: array
+                        x-kubernetes-validations:
+                        - message: conditional entries without condition must be last
+                          rule: self.filter(e, !has(e.condition)).size() <= 1 && (!self.exists(e,
+                            !has(e.condition)) || !has(self[size(self) - 1].condition))
                       global:
                         description: Global defines a global rate limiting policy
                           using an external service.
@@ -7373,10 +7764,13 @@ spec:
                         type: array
                     type: object
                     x-kubernetes-validations:
-                    - message: at least one of the fields in [global local] must be
-                        set
-                      rule: '[has(self.global),has(self.local)].filter(x,x==true).size()
+                    - message: at least one of the fields in [conditional global local]
+                        must be set
+                      rule: '[has(self.conditional),has(self.global),has(self.local)].filter(x,x==true).size()
                         >= 1'
+                    - message: conditional cannot be set with any other field
+                      rule: 'has(self.conditional) ? [has(self.global),has(self.local)].filter(x,x==true).size()
+                        == 0 : true'
                   retry:
                     description: retry defines the policy for retrying requests.
                     properties:
@@ -7486,6 +7880,287 @@ spec:
                       transformation is used to mutate and transform requests and responses
                       before forwarding them to the destination.
                     properties:
+                      conditional:
+                        description: |-
+                          `conditional`, if set, will enable conditional policy execution. You must either set this, or set the top level transformation fields.
+                          The first matching policy will be executed.
+                          A single policy may be provided without a condition set; if so, it must be the last policy and will be the fallback
+                          in case no conditions are met.
+                        items:
+                          properties:
+                            condition:
+                              description: '`condition` must evaluate to true for
+                                this policy to execute.'
+                              maxLength: 16384
+                              minLength: 1
+                              type: string
+                            policy:
+                              description: '`policy` definition.'
+                              properties:
+                                request:
+                                  description: '`request` is used to modify the request
+                                    path.'
+                                  properties:
+                                    add:
+                                      description: |-
+                                        `add` is a list of headers to add to the request and what that value
+                                        should be set to. If there is already a header with these values then
+                                        append the value as an extra entry.
+                                      items:
+                                        properties:
+                                          name:
+                                            description: The name of the header to
+                                              add.
+                                            maxLength: 256
+                                            minLength: 1
+                                            pattern: ^:?[A-Za-z0-9!#$%&'*+\-.^_\x60|~]+$
+                                            type: string
+                                            x-kubernetes-validations:
+                                            - message: pseudo-headers must be one
+                                                of :authority, :method, :path, :scheme,
+                                                or :status
+                                              rule: '!self.startsWith('':'') || self
+                                                in ['':authority'', '':method'', '':path'',
+                                                '':scheme'', '':status'']'
+                                          value:
+                                            description: |-
+                                              `value` is the CEL expression to apply to generate the output value for
+                                              the header.
+                                            maxLength: 16384
+                                            minLength: 1
+                                            type: string
+                                        required:
+                                        - name
+                                        - value
+                                        type: object
+                                      maxItems: 16
+                                      minItems: 1
+                                      type: array
+                                      x-kubernetes-list-map-keys:
+                                      - name
+                                      x-kubernetes-list-type: map
+                                    body:
+                                      description: '`body` controls manipulation of
+                                        the HTTP body.'
+                                      maxLength: 16384
+                                      minLength: 1
+                                      type: string
+                                    metadata:
+                                      additionalProperties:
+                                        description: CELExpression represents a Common
+                                          Expression Language (CEL) expression.
+                                        maxLength: 16384
+                                        minLength: 1
+                                        type: string
+                                      description: |-
+                                        `metadata` stores CEL-evaluated values under the `metadata` CEL variable
+                                        for subsequent policy evaluations. `metadata` is evaluated before header
+                                        or body transformations.
+                                      maxProperties: 16
+                                      minProperties: 1
+                                      type: object
+                                    remove:
+                                      description: |-
+                                        `remove` is a list of header names to remove from the request or
+                                        response.
+                                      items:
+                                        description: An HTTP Header Name.
+                                        maxLength: 256
+                                        minLength: 1
+                                        pattern: ^:?[A-Za-z0-9!#$%&'*+\-.^_\x60|~]+$
+                                        type: string
+                                        x-kubernetes-validations:
+                                        - message: pseudo-headers must be one of :authority,
+                                            :method, :path, :scheme, or :status
+                                          rule: '!self.startsWith('':'') || self in
+                                            ['':authority'', '':method'', '':path'',
+                                            '':scheme'', '':status'']'
+                                      maxItems: 16
+                                      minItems: 1
+                                      type: array
+                                      x-kubernetes-list-type: set
+                                    set:
+                                      description: '`set` is a list of headers and
+                                        the value they should be set to.'
+                                      items:
+                                        properties:
+                                          name:
+                                            description: The name of the header to
+                                              add.
+                                            maxLength: 256
+                                            minLength: 1
+                                            pattern: ^:?[A-Za-z0-9!#$%&'*+\-.^_\x60|~]+$
+                                            type: string
+                                            x-kubernetes-validations:
+                                            - message: pseudo-headers must be one
+                                                of :authority, :method, :path, :scheme,
+                                                or :status
+                                              rule: '!self.startsWith('':'') || self
+                                                in ['':authority'', '':method'', '':path'',
+                                                '':scheme'', '':status'']'
+                                          value:
+                                            description: |-
+                                              `value` is the CEL expression to apply to generate the output value for
+                                              the header.
+                                            maxLength: 16384
+                                            minLength: 1
+                                            type: string
+                                        required:
+                                        - name
+                                        - value
+                                        type: object
+                                      maxItems: 16
+                                      minItems: 1
+                                      type: array
+                                      x-kubernetes-list-map-keys:
+                                      - name
+                                      x-kubernetes-list-type: map
+                                  type: object
+                                  x-kubernetes-validations:
+                                  - message: at least one of the fields in [add body
+                                      metadata remove set] must be set
+                                    rule: '[has(self.add),has(self.body),has(self.metadata),has(self.remove),has(self.set)].filter(x,x==true).size()
+                                      >= 1'
+                                response:
+                                  description: '`response` is used to modify the response
+                                    path.'
+                                  properties:
+                                    add:
+                                      description: |-
+                                        `add` is a list of headers to add to the request and what that value
+                                        should be set to. If there is already a header with these values then
+                                        append the value as an extra entry.
+                                      items:
+                                        properties:
+                                          name:
+                                            description: The name of the header to
+                                              add.
+                                            maxLength: 256
+                                            minLength: 1
+                                            pattern: ^:?[A-Za-z0-9!#$%&'*+\-.^_\x60|~]+$
+                                            type: string
+                                            x-kubernetes-validations:
+                                            - message: pseudo-headers must be one
+                                                of :authority, :method, :path, :scheme,
+                                                or :status
+                                              rule: '!self.startsWith('':'') || self
+                                                in ['':authority'', '':method'', '':path'',
+                                                '':scheme'', '':status'']'
+                                          value:
+                                            description: |-
+                                              `value` is the CEL expression to apply to generate the output value for
+                                              the header.
+                                            maxLength: 16384
+                                            minLength: 1
+                                            type: string
+                                        required:
+                                        - name
+                                        - value
+                                        type: object
+                                      maxItems: 16
+                                      minItems: 1
+                                      type: array
+                                      x-kubernetes-list-map-keys:
+                                      - name
+                                      x-kubernetes-list-type: map
+                                    body:
+                                      description: '`body` controls manipulation of
+                                        the HTTP body.'
+                                      maxLength: 16384
+                                      minLength: 1
+                                      type: string
+                                    metadata:
+                                      additionalProperties:
+                                        description: CELExpression represents a Common
+                                          Expression Language (CEL) expression.
+                                        maxLength: 16384
+                                        minLength: 1
+                                        type: string
+                                      description: |-
+                                        `metadata` stores CEL-evaluated values under the `metadata` CEL variable
+                                        for subsequent policy evaluations. `metadata` is evaluated before header
+                                        or body transformations.
+                                      maxProperties: 16
+                                      minProperties: 1
+                                      type: object
+                                    remove:
+                                      description: |-
+                                        `remove` is a list of header names to remove from the request or
+                                        response.
+                                      items:
+                                        description: An HTTP Header Name.
+                                        maxLength: 256
+                                        minLength: 1
+                                        pattern: ^:?[A-Za-z0-9!#$%&'*+\-.^_\x60|~]+$
+                                        type: string
+                                        x-kubernetes-validations:
+                                        - message: pseudo-headers must be one of :authority,
+                                            :method, :path, :scheme, or :status
+                                          rule: '!self.startsWith('':'') || self in
+                                            ['':authority'', '':method'', '':path'',
+                                            '':scheme'', '':status'']'
+                                      maxItems: 16
+                                      minItems: 1
+                                      type: array
+                                      x-kubernetes-list-type: set
+                                    set:
+                                      description: '`set` is a list of headers and
+                                        the value they should be set to.'
+                                      items:
+                                        properties:
+                                          name:
+                                            description: The name of the header to
+                                              add.
+                                            maxLength: 256
+                                            minLength: 1
+                                            pattern: ^:?[A-Za-z0-9!#$%&'*+\-.^_\x60|~]+$
+                                            type: string
+                                            x-kubernetes-validations:
+                                            - message: pseudo-headers must be one
+                                                of :authority, :method, :path, :scheme,
+                                                or :status
+                                              rule: '!self.startsWith('':'') || self
+                                                in ['':authority'', '':method'', '':path'',
+                                                '':scheme'', '':status'']'
+                                          value:
+                                            description: |-
+                                              `value` is the CEL expression to apply to generate the output value for
+                                              the header.
+                                            maxLength: 16384
+                                            minLength: 1
+                                            type: string
+                                        required:
+                                        - name
+                                        - value
+                                        type: object
+                                      maxItems: 16
+                                      minItems: 1
+                                      type: array
+                                      x-kubernetes-list-map-keys:
+                                      - name
+                                      x-kubernetes-list-type: map
+                                  type: object
+                                  x-kubernetes-validations:
+                                  - message: at least one of the fields in [add body
+                                      metadata remove set] must be set
+                                    rule: '[has(self.add),has(self.body),has(self.metadata),has(self.remove),has(self.set)].filter(x,x==true).size()
+                                      >= 1'
+                              type: object
+                              x-kubernetes-validations:
+                              - message: at least one of the fields in [request response]
+                                  must be set
+                                rule: '[has(self.request),has(self.response)].filter(x,x==true).size()
+                                  >= 1'
+                          required:
+                          - policy
+                          type: object
+                        maxItems: 16
+                        minItems: 1
+                        type: array
+                        x-kubernetes-validations:
+                        - message: conditional entries without condition must be last
+                          rule: self.filter(e, !has(e.condition)).size() <= 1 && (!self.exists(e,
+                            !has(e.condition)) || !has(self[size(self) - 1].condition))
                       request:
                         description: '`request` is used to modify the request path.'
                         properties:
@@ -7720,10 +8395,13 @@ spec:
                             >= 1'
                     type: object
                     x-kubernetes-validations:
-                    - message: at least one of the fields in [request response] must
-                        be set
-                      rule: '[has(self.request),has(self.response)].filter(x,x==true).size()
+                    - message: at least one of the fields in [conditional request
+                        response] must be set
+                      rule: '[has(self.conditional),has(self.request),has(self.response)].filter(x,x==true).size()
                         >= 1'
+                    - message: conditional cannot be set with any other field
+                      rule: 'has(self.conditional) ? [has(self.request),has(self.response)].filter(x,x==true).size()
+                        == 0 : true'
                 type: object
                 x-kubernetes-validations:
                 - message: phase PreRouting only supports extAuth, transformation,

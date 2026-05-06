@@ -140,6 +140,10 @@
 |`binds[].listeners[].routes[].policies.requestMirror.backend.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].policies.requestMirror.percentage`|number||
 |`binds[].listeners[].routes[].policies.directResponse`|object|Directly respond to the request with a static response.|
+|`binds[].listeners[].routes[].policies.directResponse.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`binds[].listeners[].routes[].policies.directResponse.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`binds[].listeners[].routes[].policies.directResponse.conditional[].body`|array||
+|`binds[].listeners[].routes[].policies.directResponse.conditional[].status`|integer||
 |`binds[].listeners[].routes[].policies.directResponse.body`|array||
 |`binds[].listeners[].routes[].policies.directResponse.status`|integer||
 |`binds[].listeners[].routes[].policies.cors`|object|Handle CORS preflight requests and append configured CORS headers to applicable requests.|
@@ -1031,12 +1035,132 @@
 |`binds[].listeners[].routes[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
 |`binds[].listeners[].routes[].policies.backendAuth.azure.developerImplicit`|object||
 |`binds[].listeners[].routes[].policies.backendAuth.azure.implicit`|object||
-|`binds[].listeners[].routes[].policies.localRateLimit`|[]object|Rate limit incoming requests. State is kept local.|
+|`binds[].listeners[].routes[].policies.localRateLimit`|object|Rate limit incoming requests. State is kept local.|
+|`binds[].listeners[].routes[].policies.localRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`binds[].listeners[].routes[].policies.localRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`binds[].listeners[].routes[].policies.localRateLimit.conditional[].maxTokens`|integer||
+|`binds[].listeners[].routes[].policies.localRateLimit.conditional[].tokensPerFill`|integer||
+|`binds[].listeners[].routes[].policies.localRateLimit.conditional[].fillInterval`|string||
+|`binds[].listeners[].routes[].policies.localRateLimit.conditional[].type`|enum|Possible values: `requests`, `tokens`.|
 |`binds[].listeners[].routes[].policies.localRateLimit[].maxTokens`|integer||
 |`binds[].listeners[].routes[].policies.localRateLimit[].tokensPerFill`|integer||
 |`binds[].listeners[].routes[].policies.localRateLimit[].fillInterval`|string||
 |`binds[].listeners[].routes[].policies.localRateLimit[].type`|enum|Possible values: `requests`, `tokens`.|
 |`binds[].listeners[].routes[].policies.remoteRateLimit`|object|Rate limit incoming requests. State is managed by a remote server.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].service`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].service.name`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].service.name.namespace`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].service.name.hostname`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].service.port`|integer||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].host`|string|Hostname or IP address|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].domain`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies`|object|Policies to connect to the backend|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.requestHeaderModifier.add`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.requestHeaderModifier.set`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.requestHeaderModifier.remove`|[]string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request.add`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request.set`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request.remove`|[]string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request.body`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request.metadata`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response.add`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response.set`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response.remove`|[]string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response.body`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response.metadata`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS`|object|Send TLS to the backend.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.cert`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.key`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.root`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.hostname`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.insecure`|boolean||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.insecureHost`|boolean||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.alpn`|[]string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.subjectAltNames`|[]string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth`|object|Authenticate to the backend.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header.name`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header.prefix`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.queryParameter`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.cookie`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.cookie.name`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.value`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.value.file`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.header`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.header.name`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.header.prefix`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.queryParameter`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.queryParameter.name`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.cookie`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.cookie.name`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.aws`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.aws.accessKeyId`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.aws.secretAccessKey`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.aws.region`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.aws.sessionToken`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.developerImplicit`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.implicit`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.http`|object|Specify HTTP settings for the backend|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.http.version`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.http.requestTimeout`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.tcp`|object|Specify TCP settings for the backend|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.keepalives`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.keepalives.enabled`|boolean||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.keepalives.time`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.keepalives.interval`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.keepalives.retries`|integer||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.connectTimeout`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.connectTimeout.secs`|integer||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.connectTimeout.nanos`|integer||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name`|object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name.namespace`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name.hostname`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.port`|integer||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].descriptors`|[]object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].descriptors[].entries`|[]object||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].descriptors[].entries[].key`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].descriptors[].entries[].value`|string||
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].descriptors[].type`|enum|Possible values: `requests`, `tokens`.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].descriptors[].limitOverride`|string|limitOverride determines the optional expression to determine the limit of the request.<br>This tells the remote server what limit to apply to the request.<br>The expression must evaluate to a map with `unit` and `requestsPerUnit` keys. For example:<br>`{"unit":"second","requestsPerUnit":100}`.<br>Valid units: second, minute, hour, day, month, year<br>If the expression fails to evaluate, the descriptor is skipped.|
+|`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].failureMode`|enum|Behavior when the remote rate limit service is unavailable or returns an error.<br>Defaults to failClosed, denying requests with a 500 status on service failure.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].policies.remoteRateLimit.service`|object||
 |`binds[].listeners[].routes[].policies.remoteRateLimit.service.name`|object||
 |`binds[].listeners[].routes[].policies.remoteRateLimit.service.name.namespace`|string||
@@ -1470,6 +1594,116 @@
 |`binds[].listeners[].routes[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
 |`binds[].listeners[].routes[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`binds[].listeners[].routes[].policies.extProc`|object|Extend agentgateway with an external processor|
+|`binds[].listeners[].routes[].policies.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].service`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].service.name`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].service.name.namespace`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].service.name.hostname`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].service.port`|integer||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].host`|string|Hostname or IP address|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies`|object|Policies to connect to the backend|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.requestHeaderModifier.add`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.requestHeaderModifier.set`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.requestHeaderModifier.remove`|[]string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.request`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.request.add`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.request.set`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.request.remove`|[]string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.request.body`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.request.metadata`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.response`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.response.add`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.response.set`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.response.remove`|[]string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.response.body`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.transformations.response.metadata`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTLS`|object|Send TLS to the backend.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTLS.cert`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTLS.key`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTLS.root`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTLS.hostname`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTLS.insecure`|boolean||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTLS.insecureHost`|boolean||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTLS.alpn`|[]string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTLS.subjectAltNames`|[]string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth`|object|Authenticate to the backend.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.header`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.header.name`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.header.prefix`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.cookie`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.cookie.name`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.key`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.key.value`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.key.value.file`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.header`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.header.name`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.header.prefix`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.queryParameter`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.queryParameter.name`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.cookie`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.cookie.name`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.aws`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.aws.accessKeyId`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.aws.secretAccessKey`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.aws.region`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.aws.sessionToken`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.developerImplicit`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.implicit`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.http`|object|Specify HTTP settings for the backend|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.http.version`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.http.requestTimeout`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.tcp`|object|Specify TCP settings for the backend|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.tcp.keepalives`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.tcp.keepalives.enabled`|boolean||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.tcp.keepalives.time`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.tcp.keepalives.interval`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.tcp.keepalives.retries`|integer||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.tcp.connectTimeout`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.tcp.connectTimeout.secs`|integer||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.tcp.connectTimeout.nanos`|integer||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.service`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.name`|object||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.name.namespace`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.name.hostname`|string||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.port`|integer||
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].failureMode`|enum|Behavior when the ext_proc service is unavailable or returns an error<br>Possible values: `failClosed`, `failOpen`.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].metadataContext`|object|Additional metadata to send to the external processing service.<br>Maps to the `metadata_context.filter_metadata` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`binds[].listeners[].routes[].policies.extProc.conditional[].responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`binds[].listeners[].routes[].policies.extProc.service`|object||
 |`binds[].listeners[].routes[].policies.extProc.service.name`|object||
 |`binds[].listeners[].routes[].policies.extProc.service.name.namespace`|string||
@@ -1579,6 +1813,20 @@
 |`binds[].listeners[].routes[].policies.extProc.requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`binds[].listeners[].routes[].policies.extProc.responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`binds[].listeners[].routes[].policies.transformations`|object|Modify requests and responses|
+|`binds[].listeners[].routes[].policies.transformations.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`binds[].listeners[].routes[].policies.transformations.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`binds[].listeners[].routes[].policies.transformations.conditional[].request`|object||
+|`binds[].listeners[].routes[].policies.transformations.conditional[].request.add`|object||
+|`binds[].listeners[].routes[].policies.transformations.conditional[].request.set`|object||
+|`binds[].listeners[].routes[].policies.transformations.conditional[].request.remove`|[]string||
+|`binds[].listeners[].routes[].policies.transformations.conditional[].request.body`|string||
+|`binds[].listeners[].routes[].policies.transformations.conditional[].request.metadata`|object||
+|`binds[].listeners[].routes[].policies.transformations.conditional[].response`|object||
+|`binds[].listeners[].routes[].policies.transformations.conditional[].response.add`|object||
+|`binds[].listeners[].routes[].policies.transformations.conditional[].response.set`|object||
+|`binds[].listeners[].routes[].policies.transformations.conditional[].response.remove`|[]string||
+|`binds[].listeners[].routes[].policies.transformations.conditional[].response.body`|string||
+|`binds[].listeners[].routes[].policies.transformations.conditional[].response.metadata`|object||
 |`binds[].listeners[].routes[].policies.transformations.request`|object||
 |`binds[].listeners[].routes[].policies.transformations.request.add`|object||
 |`binds[].listeners[].routes[].policies.transformations.request.set`|object||
@@ -4905,6 +5153,116 @@
 |`binds[].listeners[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
 |`binds[].listeners[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`binds[].listeners[].policies.extProc`|object|Extend agentgateway with an external processor|
+|`binds[].listeners[].policies.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`binds[].listeners[].policies.extProc.conditional[].service`|object||
+|`binds[].listeners[].policies.extProc.conditional[].service.name`|object||
+|`binds[].listeners[].policies.extProc.conditional[].service.name.namespace`|string||
+|`binds[].listeners[].policies.extProc.conditional[].service.name.hostname`|string||
+|`binds[].listeners[].policies.extProc.conditional[].service.port`|integer||
+|`binds[].listeners[].policies.extProc.conditional[].host`|string|Hostname or IP address|
+|`binds[].listeners[].policies.extProc.conditional[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].policies.extProc.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`binds[].listeners[].policies.extProc.conditional[].policies`|object|Policies to connect to the backend|
+|`binds[].listeners[].policies.extProc.conditional[].policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.requestHeaderModifier.add`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.requestHeaderModifier.set`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.requestHeaderModifier.remove`|[]string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.request`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.request.add`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.request.set`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.request.remove`|[]string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.request.body`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.request.metadata`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.response`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.response.add`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.response.set`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.response.remove`|[]string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.response.body`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.transformations.response.metadata`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTLS`|object|Send TLS to the backend.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTLS.cert`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTLS.key`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTLS.root`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTLS.hostname`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTLS.insecure`|boolean||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTLS.insecureHost`|boolean||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTLS.alpn`|[]string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTLS.subjectAltNames`|[]string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth`|object|Authenticate to the backend.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.passthrough`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.passthrough.location`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.header`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.header.name`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.header.prefix`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.cookie`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.cookie.name`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.key`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.key.value`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.key.value.file`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.key.location`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.key.location.header`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.key.location.header.name`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.key.location.header.prefix`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.key.location.queryParameter`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.key.location.queryParameter.name`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.key.location.cookie`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.key.location.cookie.name`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.gcp`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.aws`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.aws.accessKeyId`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.aws.secretAccessKey`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.aws.region`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.aws.sessionToken`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.developerImplicit`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendAuth.azure.implicit`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.http`|object|Specify HTTP settings for the backend|
+|`binds[].listeners[].policies.extProc.conditional[].policies.http.version`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.http.requestTimeout`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.tcp`|object|Specify TCP settings for the backend|
+|`binds[].listeners[].policies.extProc.conditional[].policies.tcp.keepalives`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.tcp.keepalives.enabled`|boolean||
+|`binds[].listeners[].policies.extProc.conditional[].policies.tcp.keepalives.time`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.tcp.keepalives.interval`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.tcp.keepalives.retries`|integer||
+|`binds[].listeners[].policies.extProc.conditional[].policies.tcp.connectTimeout`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.tcp.connectTimeout.secs`|integer||
+|`binds[].listeners[].policies.extProc.conditional[].policies.tcp.connectTimeout.nanos`|integer||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTunnel.proxy.service`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.name`|object||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.name.namespace`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.name.hostname`|string||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.port`|integer||
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`binds[].listeners[].policies.extProc.conditional[].policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].policies.extProc.conditional[].failureMode`|enum|Behavior when the ext_proc service is unavailable or returns an error<br>Possible values: `failClosed`, `failOpen`.|
+|`binds[].listeners[].policies.extProc.conditional[].metadataContext`|object|Additional metadata to send to the external processing service.<br>Maps to the `metadata_context.filter_metadata` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`binds[].listeners[].policies.extProc.conditional[].requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`binds[].listeners[].policies.extProc.conditional[].responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`binds[].listeners[].policies.extProc.service`|object||
 |`binds[].listeners[].policies.extProc.service.name`|object||
 |`binds[].listeners[].policies.extProc.service.name.namespace`|string||
@@ -5014,6 +5372,20 @@
 |`binds[].listeners[].policies.extProc.requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`binds[].listeners[].policies.extProc.responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`binds[].listeners[].policies.transformations`|object|Modify requests and responses|
+|`binds[].listeners[].policies.transformations.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`binds[].listeners[].policies.transformations.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`binds[].listeners[].policies.transformations.conditional[].request`|object||
+|`binds[].listeners[].policies.transformations.conditional[].request.add`|object||
+|`binds[].listeners[].policies.transformations.conditional[].request.set`|object||
+|`binds[].listeners[].policies.transformations.conditional[].request.remove`|[]string||
+|`binds[].listeners[].policies.transformations.conditional[].request.body`|string||
+|`binds[].listeners[].policies.transformations.conditional[].request.metadata`|object||
+|`binds[].listeners[].policies.transformations.conditional[].response`|object||
+|`binds[].listeners[].policies.transformations.conditional[].response.add`|object||
+|`binds[].listeners[].policies.transformations.conditional[].response.set`|object||
+|`binds[].listeners[].policies.transformations.conditional[].response.remove`|[]string||
+|`binds[].listeners[].policies.transformations.conditional[].response.body`|string||
+|`binds[].listeners[].policies.transformations.conditional[].response.metadata`|object||
 |`binds[].listeners[].policies.transformations.request`|object||
 |`binds[].listeners[].policies.transformations.request.add`|object||
 |`binds[].listeners[].policies.transformations.request.set`|object||
@@ -5372,6 +5744,10 @@
 |`policies[].policy.requestMirror.backend.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`policies[].policy.requestMirror.percentage`|number||
 |`policies[].policy.directResponse`|object|Directly respond to the request with a static response.|
+|`policies[].policy.directResponse.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`policies[].policy.directResponse.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`policies[].policy.directResponse.conditional[].body`|array||
+|`policies[].policy.directResponse.conditional[].status`|integer||
 |`policies[].policy.directResponse.body`|array||
 |`policies[].policy.directResponse.status`|integer||
 |`policies[].policy.cors`|object|Handle CORS preflight requests and append configured CORS headers to applicable requests.|
@@ -6263,12 +6639,132 @@
 |`policies[].policy.backendAuth.azure.explicitConfig.workloadIdentity`|object||
 |`policies[].policy.backendAuth.azure.developerImplicit`|object||
 |`policies[].policy.backendAuth.azure.implicit`|object||
-|`policies[].policy.localRateLimit`|[]object|Rate limit incoming requests. State is kept local.|
+|`policies[].policy.localRateLimit`|object|Rate limit incoming requests. State is kept local.|
+|`policies[].policy.localRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`policies[].policy.localRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`policies[].policy.localRateLimit.conditional[].maxTokens`|integer||
+|`policies[].policy.localRateLimit.conditional[].tokensPerFill`|integer||
+|`policies[].policy.localRateLimit.conditional[].fillInterval`|string||
+|`policies[].policy.localRateLimit.conditional[].type`|enum|Possible values: `requests`, `tokens`.|
 |`policies[].policy.localRateLimit[].maxTokens`|integer||
 |`policies[].policy.localRateLimit[].tokensPerFill`|integer||
 |`policies[].policy.localRateLimit[].fillInterval`|string||
 |`policies[].policy.localRateLimit[].type`|enum|Possible values: `requests`, `tokens`.|
 |`policies[].policy.remoteRateLimit`|object|Rate limit incoming requests. State is managed by a remote server.|
+|`policies[].policy.remoteRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`policies[].policy.remoteRateLimit.conditional[].service`|object||
+|`policies[].policy.remoteRateLimit.conditional[].service.name`|object||
+|`policies[].policy.remoteRateLimit.conditional[].service.name.namespace`|string||
+|`policies[].policy.remoteRateLimit.conditional[].service.name.hostname`|string||
+|`policies[].policy.remoteRateLimit.conditional[].service.port`|integer||
+|`policies[].policy.remoteRateLimit.conditional[].host`|string|Hostname or IP address|
+|`policies[].policy.remoteRateLimit.conditional[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`policies[].policy.remoteRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`policies[].policy.remoteRateLimit.conditional[].domain`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies`|object|Policies to connect to the backend|
+|`policies[].policy.remoteRateLimit.conditional[].policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.requestHeaderModifier.add`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.requestHeaderModifier.set`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.requestHeaderModifier.remove`|[]string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.request`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.request.add`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.request.set`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.request.remove`|[]string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.request.body`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.request.metadata`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.response`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.response.add`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.response.set`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.response.remove`|[]string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.response.body`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.transformations.response.metadata`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTLS`|object|Send TLS to the backend.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTLS.cert`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTLS.key`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTLS.root`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTLS.hostname`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTLS.insecure`|boolean||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTLS.insecureHost`|boolean||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTLS.alpn`|[]string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTLS.subjectAltNames`|[]string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth`|object|Authenticate to the backend.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.passthrough`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header.name`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header.prefix`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.queryParameter`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.cookie`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.cookie.name`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.key`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.key.value`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.key.value.file`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.key.location`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.key.location.header`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.key.location.header.name`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.key.location.header.prefix`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.key.location.queryParameter`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.key.location.queryParameter.name`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.key.location.cookie`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.key.location.cookie.name`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.gcp`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.aws`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.aws.accessKeyId`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.aws.secretAccessKey`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.aws.region`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.aws.sessionToken`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.developerImplicit`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendAuth.azure.implicit`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.http`|object|Specify HTTP settings for the backend|
+|`policies[].policy.remoteRateLimit.conditional[].policies.http.version`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.http.requestTimeout`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.tcp`|object|Specify TCP settings for the backend|
+|`policies[].policy.remoteRateLimit.conditional[].policies.tcp.keepalives`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.tcp.keepalives.enabled`|boolean||
+|`policies[].policy.remoteRateLimit.conditional[].policies.tcp.keepalives.time`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.tcp.keepalives.interval`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.tcp.keepalives.retries`|integer||
+|`policies[].policy.remoteRateLimit.conditional[].policies.tcp.connectTimeout`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.tcp.connectTimeout.secs`|integer||
+|`policies[].policy.remoteRateLimit.conditional[].policies.tcp.connectTimeout.nanos`|integer||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name`|object||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name.namespace`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name.hostname`|string||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.port`|integer||
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`policies[].policy.remoteRateLimit.conditional[].policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`policies[].policy.remoteRateLimit.conditional[].descriptors`|[]object||
+|`policies[].policy.remoteRateLimit.conditional[].descriptors[].entries`|[]object||
+|`policies[].policy.remoteRateLimit.conditional[].descriptors[].entries[].key`|string||
+|`policies[].policy.remoteRateLimit.conditional[].descriptors[].entries[].value`|string||
+|`policies[].policy.remoteRateLimit.conditional[].descriptors[].type`|enum|Possible values: `requests`, `tokens`.|
+|`policies[].policy.remoteRateLimit.conditional[].descriptors[].limitOverride`|string|limitOverride determines the optional expression to determine the limit of the request.<br>This tells the remote server what limit to apply to the request.<br>The expression must evaluate to a map with `unit` and `requestsPerUnit` keys. For example:<br>`{"unit":"second","requestsPerUnit":100}`.<br>Valid units: second, minute, hour, day, month, year<br>If the expression fails to evaluate, the descriptor is skipped.|
+|`policies[].policy.remoteRateLimit.conditional[].failureMode`|enum|Behavior when the remote rate limit service is unavailable or returns an error.<br>Defaults to failClosed, denying requests with a 500 status on service failure.<br>Possible values: `failClosed`, `failOpen`.|
 |`policies[].policy.remoteRateLimit.service`|object||
 |`policies[].policy.remoteRateLimit.service.name`|object||
 |`policies[].policy.remoteRateLimit.service.name.namespace`|string||
@@ -6702,6 +7198,116 @@
 |`policies[].policy.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
 |`policies[].policy.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`policies[].policy.extProc`|object|Extend agentgateway with an external processor|
+|`policies[].policy.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`policies[].policy.extProc.conditional[].service`|object||
+|`policies[].policy.extProc.conditional[].service.name`|object||
+|`policies[].policy.extProc.conditional[].service.name.namespace`|string||
+|`policies[].policy.extProc.conditional[].service.name.hostname`|string||
+|`policies[].policy.extProc.conditional[].service.port`|integer||
+|`policies[].policy.extProc.conditional[].host`|string|Hostname or IP address|
+|`policies[].policy.extProc.conditional[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`policies[].policy.extProc.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`policies[].policy.extProc.conditional[].policies`|object|Policies to connect to the backend|
+|`policies[].policy.extProc.conditional[].policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`policies[].policy.extProc.conditional[].policies.requestHeaderModifier.add`|object||
+|`policies[].policy.extProc.conditional[].policies.requestHeaderModifier.set`|object||
+|`policies[].policy.extProc.conditional[].policies.requestHeaderModifier.remove`|[]string||
+|`policies[].policy.extProc.conditional[].policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`policies[].policy.extProc.conditional[].policies.transformations.request`|object||
+|`policies[].policy.extProc.conditional[].policies.transformations.request.add`|object||
+|`policies[].policy.extProc.conditional[].policies.transformations.request.set`|object||
+|`policies[].policy.extProc.conditional[].policies.transformations.request.remove`|[]string||
+|`policies[].policy.extProc.conditional[].policies.transformations.request.body`|string||
+|`policies[].policy.extProc.conditional[].policies.transformations.request.metadata`|object||
+|`policies[].policy.extProc.conditional[].policies.transformations.response`|object||
+|`policies[].policy.extProc.conditional[].policies.transformations.response.add`|object||
+|`policies[].policy.extProc.conditional[].policies.transformations.response.set`|object||
+|`policies[].policy.extProc.conditional[].policies.transformations.response.remove`|[]string||
+|`policies[].policy.extProc.conditional[].policies.transformations.response.body`|string||
+|`policies[].policy.extProc.conditional[].policies.transformations.response.metadata`|object||
+|`policies[].policy.extProc.conditional[].policies.backendTLS`|object|Send TLS to the backend.|
+|`policies[].policy.extProc.conditional[].policies.backendTLS.cert`|string||
+|`policies[].policy.extProc.conditional[].policies.backendTLS.key`|string||
+|`policies[].policy.extProc.conditional[].policies.backendTLS.root`|string||
+|`policies[].policy.extProc.conditional[].policies.backendTLS.hostname`|string||
+|`policies[].policy.extProc.conditional[].policies.backendTLS.insecure`|boolean||
+|`policies[].policy.extProc.conditional[].policies.backendTLS.insecureHost`|boolean||
+|`policies[].policy.extProc.conditional[].policies.backendTLS.alpn`|[]string||
+|`policies[].policy.extProc.conditional[].policies.backendTLS.subjectAltNames`|[]string||
+|`policies[].policy.extProc.conditional[].policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`policies[].policy.extProc.conditional[].policies.backendAuth`|object|Authenticate to the backend.|
+|`policies[].policy.extProc.conditional[].policies.backendAuth.passthrough`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.passthrough.location`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.passthrough.location.header`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.passthrough.location.header.name`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.passthrough.location.header.prefix`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.passthrough.location.cookie`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.passthrough.location.cookie.name`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.key`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.key.value`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.key.value.file`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.key.location`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.key.location.header`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.key.location.header.name`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.key.location.header.prefix`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.key.location.queryParameter`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.key.location.queryParameter.name`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.key.location.cookie`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.key.location.cookie.name`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.gcp`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`policies[].policy.extProc.conditional[].policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`policies[].policy.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`policies[].policy.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`policies[].policy.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`policies[].policy.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.aws`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.aws.accessKeyId`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.aws.secretAccessKey`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.aws.region`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.aws.sessionToken`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.developerImplicit`|object||
+|`policies[].policy.extProc.conditional[].policies.backendAuth.azure.implicit`|object||
+|`policies[].policy.extProc.conditional[].policies.http`|object|Specify HTTP settings for the backend|
+|`policies[].policy.extProc.conditional[].policies.http.version`|string||
+|`policies[].policy.extProc.conditional[].policies.http.requestTimeout`|string||
+|`policies[].policy.extProc.conditional[].policies.tcp`|object|Specify TCP settings for the backend|
+|`policies[].policy.extProc.conditional[].policies.tcp.keepalives`|object||
+|`policies[].policy.extProc.conditional[].policies.tcp.keepalives.enabled`|boolean||
+|`policies[].policy.extProc.conditional[].policies.tcp.keepalives.time`|string||
+|`policies[].policy.extProc.conditional[].policies.tcp.keepalives.interval`|string||
+|`policies[].policy.extProc.conditional[].policies.tcp.keepalives.retries`|integer||
+|`policies[].policy.extProc.conditional[].policies.tcp.connectTimeout`|object||
+|`policies[].policy.extProc.conditional[].policies.tcp.connectTimeout.secs`|integer||
+|`policies[].policy.extProc.conditional[].policies.tcp.connectTimeout.nanos`|integer||
+|`policies[].policy.extProc.conditional[].policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`policies[].policy.extProc.conditional[].policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`policies[].policy.extProc.conditional[].policies.backendTunnel.proxy.service`|object||
+|`policies[].policy.extProc.conditional[].policies.backendTunnel.proxy.service.name`|object||
+|`policies[].policy.extProc.conditional[].policies.backendTunnel.proxy.service.name.namespace`|string||
+|`policies[].policy.extProc.conditional[].policies.backendTunnel.proxy.service.name.hostname`|string||
+|`policies[].policy.extProc.conditional[].policies.backendTunnel.proxy.service.port`|integer||
+|`policies[].policy.extProc.conditional[].policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`policies[].policy.extProc.conditional[].policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`policies[].policy.extProc.conditional[].failureMode`|enum|Behavior when the ext_proc service is unavailable or returns an error<br>Possible values: `failClosed`, `failOpen`.|
+|`policies[].policy.extProc.conditional[].metadataContext`|object|Additional metadata to send to the external processing service.<br>Maps to the `metadata_context.filter_metadata` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`policies[].policy.extProc.conditional[].requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`policies[].policy.extProc.conditional[].responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`policies[].policy.extProc.service`|object||
 |`policies[].policy.extProc.service.name`|object||
 |`policies[].policy.extProc.service.name.namespace`|string||
@@ -6811,6 +7417,20 @@
 |`policies[].policy.extProc.requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`policies[].policy.extProc.responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`policies[].policy.transformations`|object|Modify requests and responses|
+|`policies[].policy.transformations.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`policies[].policy.transformations.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`policies[].policy.transformations.conditional[].request`|object||
+|`policies[].policy.transformations.conditional[].request.add`|object||
+|`policies[].policy.transformations.conditional[].request.set`|object||
+|`policies[].policy.transformations.conditional[].request.remove`|[]string||
+|`policies[].policy.transformations.conditional[].request.body`|string||
+|`policies[].policy.transformations.conditional[].request.metadata`|object||
+|`policies[].policy.transformations.conditional[].response`|object||
+|`policies[].policy.transformations.conditional[].response.add`|object||
+|`policies[].policy.transformations.conditional[].response.set`|object||
+|`policies[].policy.transformations.conditional[].response.remove`|[]string||
+|`policies[].policy.transformations.conditional[].response.body`|string||
+|`policies[].policy.transformations.conditional[].response.metadata`|object||
 |`policies[].policy.transformations.request`|object||
 |`policies[].policy.transformations.request.add`|object||
 |`policies[].policy.transformations.request.set`|object||
@@ -9851,6 +10471,10 @@
 |`routeGroups[].routes[].policies.requestMirror.backend.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routeGroups[].routes[].policies.requestMirror.percentage`|number||
 |`routeGroups[].routes[].policies.directResponse`|object|Directly respond to the request with a static response.|
+|`routeGroups[].routes[].policies.directResponse.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`routeGroups[].routes[].policies.directResponse.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`routeGroups[].routes[].policies.directResponse.conditional[].body`|array||
+|`routeGroups[].routes[].policies.directResponse.conditional[].status`|integer||
 |`routeGroups[].routes[].policies.directResponse.body`|array||
 |`routeGroups[].routes[].policies.directResponse.status`|integer||
 |`routeGroups[].routes[].policies.cors`|object|Handle CORS preflight requests and append configured CORS headers to applicable requests.|
@@ -10742,12 +11366,132 @@
 |`routeGroups[].routes[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
 |`routeGroups[].routes[].policies.backendAuth.azure.developerImplicit`|object||
 |`routeGroups[].routes[].policies.backendAuth.azure.implicit`|object||
-|`routeGroups[].routes[].policies.localRateLimit`|[]object|Rate limit incoming requests. State is kept local.|
+|`routeGroups[].routes[].policies.localRateLimit`|object|Rate limit incoming requests. State is kept local.|
+|`routeGroups[].routes[].policies.localRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`routeGroups[].routes[].policies.localRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`routeGroups[].routes[].policies.localRateLimit.conditional[].maxTokens`|integer||
+|`routeGroups[].routes[].policies.localRateLimit.conditional[].tokensPerFill`|integer||
+|`routeGroups[].routes[].policies.localRateLimit.conditional[].fillInterval`|string||
+|`routeGroups[].routes[].policies.localRateLimit.conditional[].type`|enum|Possible values: `requests`, `tokens`.|
 |`routeGroups[].routes[].policies.localRateLimit[].maxTokens`|integer||
 |`routeGroups[].routes[].policies.localRateLimit[].tokensPerFill`|integer||
 |`routeGroups[].routes[].policies.localRateLimit[].fillInterval`|string||
 |`routeGroups[].routes[].policies.localRateLimit[].type`|enum|Possible values: `requests`, `tokens`.|
 |`routeGroups[].routes[].policies.remoteRateLimit`|object|Rate limit incoming requests. State is managed by a remote server.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].service`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].service.name`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].service.name.namespace`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].service.name.hostname`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].service.port`|integer||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].host`|string|Hostname or IP address|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].domain`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies`|object|Policies to connect to the backend|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.requestHeaderModifier.add`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.requestHeaderModifier.set`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.requestHeaderModifier.remove`|[]string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request.add`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request.set`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request.remove`|[]string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request.body`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.request.metadata`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response.add`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response.set`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response.remove`|[]string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response.body`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.transformations.response.metadata`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS`|object|Send TLS to the backend.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.cert`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.key`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.root`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.hostname`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.insecure`|boolean||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.insecureHost`|boolean||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.alpn`|[]string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.subjectAltNames`|[]string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth`|object|Authenticate to the backend.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header.name`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header.prefix`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.queryParameter`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.cookie`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.cookie.name`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.value`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.value.file`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.header`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.header.name`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.header.prefix`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.queryParameter`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.queryParameter.name`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.cookie`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.cookie.name`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.aws`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.aws.accessKeyId`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.aws.secretAccessKey`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.aws.region`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.aws.sessionToken`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.developerImplicit`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendAuth.azure.implicit`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.http`|object|Specify HTTP settings for the backend|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.http.version`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.http.requestTimeout`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.tcp`|object|Specify TCP settings for the backend|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.keepalives`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.keepalives.enabled`|boolean||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.keepalives.time`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.keepalives.interval`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.keepalives.retries`|integer||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.connectTimeout`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.connectTimeout.secs`|integer||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.tcp.connectTimeout.nanos`|integer||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name`|object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name.namespace`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name.hostname`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.port`|integer||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].descriptors`|[]object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].descriptors[].entries`|[]object||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].descriptors[].entries[].key`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].descriptors[].entries[].value`|string||
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].descriptors[].type`|enum|Possible values: `requests`, `tokens`.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].descriptors[].limitOverride`|string|limitOverride determines the optional expression to determine the limit of the request.<br>This tells the remote server what limit to apply to the request.<br>The expression must evaluate to a map with `unit` and `requestsPerUnit` keys. For example:<br>`{"unit":"second","requestsPerUnit":100}`.<br>Valid units: second, minute, hour, day, month, year<br>If the expression fails to evaluate, the descriptor is skipped.|
+|`routeGroups[].routes[].policies.remoteRateLimit.conditional[].failureMode`|enum|Behavior when the remote rate limit service is unavailable or returns an error.<br>Defaults to failClosed, denying requests with a 500 status on service failure.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].policies.remoteRateLimit.service`|object||
 |`routeGroups[].routes[].policies.remoteRateLimit.service.name`|object||
 |`routeGroups[].routes[].policies.remoteRateLimit.service.name.namespace`|string||
@@ -11181,6 +11925,116 @@
 |`routeGroups[].routes[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
 |`routeGroups[].routes[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`routeGroups[].routes[].policies.extProc`|object|Extend agentgateway with an external processor|
+|`routeGroups[].routes[].policies.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`routeGroups[].routes[].policies.extProc.conditional[].service`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].service.name`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].service.name.namespace`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].service.name.hostname`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].service.port`|integer||
+|`routeGroups[].routes[].policies.extProc.conditional[].host`|string|Hostname or IP address|
+|`routeGroups[].routes[].policies.extProc.conditional[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`routeGroups[].routes[].policies.extProc.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies`|object|Policies to connect to the backend|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.requestHeaderModifier.add`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.requestHeaderModifier.set`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.requestHeaderModifier.remove`|[]string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.request`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.request.add`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.request.set`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.request.remove`|[]string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.request.body`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.request.metadata`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.response`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.response.add`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.response.set`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.response.remove`|[]string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.response.body`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.transformations.response.metadata`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTLS`|object|Send TLS to the backend.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTLS.cert`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTLS.key`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTLS.root`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTLS.hostname`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTLS.insecure`|boolean||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTLS.insecureHost`|boolean||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTLS.alpn`|[]string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTLS.subjectAltNames`|[]string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth`|object|Authenticate to the backend.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.header`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.header.name`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.header.prefix`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.cookie`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.passthrough.location.cookie.name`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.key`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.key.value`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.key.value.file`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.header`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.header.name`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.header.prefix`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.queryParameter`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.queryParameter.name`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.cookie`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.key.location.cookie.name`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.aws`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.aws.accessKeyId`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.aws.secretAccessKey`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.aws.region`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.aws.sessionToken`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.developerImplicit`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendAuth.azure.implicit`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.http`|object|Specify HTTP settings for the backend|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.http.version`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.http.requestTimeout`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.tcp`|object|Specify TCP settings for the backend|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.tcp.keepalives`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.tcp.keepalives.enabled`|boolean||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.tcp.keepalives.time`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.tcp.keepalives.interval`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.tcp.keepalives.retries`|integer||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.tcp.connectTimeout`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.tcp.connectTimeout.secs`|integer||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.tcp.connectTimeout.nanos`|integer||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.service`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.name`|object||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.name.namespace`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.name.hostname`|string||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.service.port`|integer||
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`routeGroups[].routes[].policies.extProc.conditional[].policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`routeGroups[].routes[].policies.extProc.conditional[].failureMode`|enum|Behavior when the ext_proc service is unavailable or returns an error<br>Possible values: `failClosed`, `failOpen`.|
+|`routeGroups[].routes[].policies.extProc.conditional[].metadataContext`|object|Additional metadata to send to the external processing service.<br>Maps to the `metadata_context.filter_metadata` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`routeGroups[].routes[].policies.extProc.conditional[].requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`routeGroups[].routes[].policies.extProc.conditional[].responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`routeGroups[].routes[].policies.extProc.service`|object||
 |`routeGroups[].routes[].policies.extProc.service.name`|object||
 |`routeGroups[].routes[].policies.extProc.service.name.namespace`|string||
@@ -11290,6 +12144,20 @@
 |`routeGroups[].routes[].policies.extProc.requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`routeGroups[].routes[].policies.extProc.responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`routeGroups[].routes[].policies.transformations`|object|Modify requests and responses|
+|`routeGroups[].routes[].policies.transformations.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`routeGroups[].routes[].policies.transformations.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`routeGroups[].routes[].policies.transformations.conditional[].request`|object||
+|`routeGroups[].routes[].policies.transformations.conditional[].request.add`|object||
+|`routeGroups[].routes[].policies.transformations.conditional[].request.set`|object||
+|`routeGroups[].routes[].policies.transformations.conditional[].request.remove`|[]string||
+|`routeGroups[].routes[].policies.transformations.conditional[].request.body`|string||
+|`routeGroups[].routes[].policies.transformations.conditional[].request.metadata`|object||
+|`routeGroups[].routes[].policies.transformations.conditional[].response`|object||
+|`routeGroups[].routes[].policies.transformations.conditional[].response.add`|object||
+|`routeGroups[].routes[].policies.transformations.conditional[].response.set`|object||
+|`routeGroups[].routes[].policies.transformations.conditional[].response.remove`|[]string||
+|`routeGroups[].routes[].policies.transformations.conditional[].response.body`|string||
+|`routeGroups[].routes[].policies.transformations.conditional[].response.metadata`|object||
 |`routeGroups[].routes[].policies.transformations.request`|object||
 |`routeGroups[].routes[].policies.transformations.request.add`|object||
 |`routeGroups[].routes[].policies.transformations.request.set`|object||
@@ -15404,6 +16272,116 @@
 |`llm.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
 |`llm.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`llm.policies.extProc`|object|Extend agentgateway with an external processor|
+|`llm.policies.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`llm.policies.extProc.conditional[].service`|object||
+|`llm.policies.extProc.conditional[].service.name`|object||
+|`llm.policies.extProc.conditional[].service.name.namespace`|string||
+|`llm.policies.extProc.conditional[].service.name.hostname`|string||
+|`llm.policies.extProc.conditional[].service.port`|integer||
+|`llm.policies.extProc.conditional[].host`|string|Hostname or IP address|
+|`llm.policies.extProc.conditional[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`llm.policies.extProc.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`llm.policies.extProc.conditional[].policies`|object|Policies to connect to the backend|
+|`llm.policies.extProc.conditional[].policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`llm.policies.extProc.conditional[].policies.requestHeaderModifier.add`|object||
+|`llm.policies.extProc.conditional[].policies.requestHeaderModifier.set`|object||
+|`llm.policies.extProc.conditional[].policies.requestHeaderModifier.remove`|[]string||
+|`llm.policies.extProc.conditional[].policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`llm.policies.extProc.conditional[].policies.transformations.request`|object||
+|`llm.policies.extProc.conditional[].policies.transformations.request.add`|object||
+|`llm.policies.extProc.conditional[].policies.transformations.request.set`|object||
+|`llm.policies.extProc.conditional[].policies.transformations.request.remove`|[]string||
+|`llm.policies.extProc.conditional[].policies.transformations.request.body`|string||
+|`llm.policies.extProc.conditional[].policies.transformations.request.metadata`|object||
+|`llm.policies.extProc.conditional[].policies.transformations.response`|object||
+|`llm.policies.extProc.conditional[].policies.transformations.response.add`|object||
+|`llm.policies.extProc.conditional[].policies.transformations.response.set`|object||
+|`llm.policies.extProc.conditional[].policies.transformations.response.remove`|[]string||
+|`llm.policies.extProc.conditional[].policies.transformations.response.body`|string||
+|`llm.policies.extProc.conditional[].policies.transformations.response.metadata`|object||
+|`llm.policies.extProc.conditional[].policies.backendTLS`|object|Send TLS to the backend.|
+|`llm.policies.extProc.conditional[].policies.backendTLS.cert`|string||
+|`llm.policies.extProc.conditional[].policies.backendTLS.key`|string||
+|`llm.policies.extProc.conditional[].policies.backendTLS.root`|string||
+|`llm.policies.extProc.conditional[].policies.backendTLS.hostname`|string||
+|`llm.policies.extProc.conditional[].policies.backendTLS.insecure`|boolean||
+|`llm.policies.extProc.conditional[].policies.backendTLS.insecureHost`|boolean||
+|`llm.policies.extProc.conditional[].policies.backendTLS.alpn`|[]string||
+|`llm.policies.extProc.conditional[].policies.backendTLS.subjectAltNames`|[]string||
+|`llm.policies.extProc.conditional[].policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`llm.policies.extProc.conditional[].policies.backendAuth`|object|Authenticate to the backend.|
+|`llm.policies.extProc.conditional[].policies.backendAuth.passthrough`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.passthrough.location`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.passthrough.location.header`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.passthrough.location.header.name`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.passthrough.location.header.prefix`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.passthrough.location.cookie`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.passthrough.location.cookie.name`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.key`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.key.value`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.key.value.file`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.key.location`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.key.location.header`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.key.location.header.name`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.key.location.header.prefix`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.key.location.queryParameter`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.key.location.queryParameter.name`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.key.location.cookie`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.key.location.cookie.name`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.gcp`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`llm.policies.extProc.conditional[].policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`llm.policies.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`llm.policies.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`llm.policies.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`llm.policies.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.aws`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.aws.accessKeyId`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.aws.secretAccessKey`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.aws.region`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.aws.sessionToken`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.developerImplicit`|object||
+|`llm.policies.extProc.conditional[].policies.backendAuth.azure.implicit`|object||
+|`llm.policies.extProc.conditional[].policies.http`|object|Specify HTTP settings for the backend|
+|`llm.policies.extProc.conditional[].policies.http.version`|string||
+|`llm.policies.extProc.conditional[].policies.http.requestTimeout`|string||
+|`llm.policies.extProc.conditional[].policies.tcp`|object|Specify TCP settings for the backend|
+|`llm.policies.extProc.conditional[].policies.tcp.keepalives`|object||
+|`llm.policies.extProc.conditional[].policies.tcp.keepalives.enabled`|boolean||
+|`llm.policies.extProc.conditional[].policies.tcp.keepalives.time`|string||
+|`llm.policies.extProc.conditional[].policies.tcp.keepalives.interval`|string||
+|`llm.policies.extProc.conditional[].policies.tcp.keepalives.retries`|integer||
+|`llm.policies.extProc.conditional[].policies.tcp.connectTimeout`|object||
+|`llm.policies.extProc.conditional[].policies.tcp.connectTimeout.secs`|integer||
+|`llm.policies.extProc.conditional[].policies.tcp.connectTimeout.nanos`|integer||
+|`llm.policies.extProc.conditional[].policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`llm.policies.extProc.conditional[].policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`llm.policies.extProc.conditional[].policies.backendTunnel.proxy.service`|object||
+|`llm.policies.extProc.conditional[].policies.backendTunnel.proxy.service.name`|object||
+|`llm.policies.extProc.conditional[].policies.backendTunnel.proxy.service.name.namespace`|string||
+|`llm.policies.extProc.conditional[].policies.backendTunnel.proxy.service.name.hostname`|string||
+|`llm.policies.extProc.conditional[].policies.backendTunnel.proxy.service.port`|integer||
+|`llm.policies.extProc.conditional[].policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`llm.policies.extProc.conditional[].policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`llm.policies.extProc.conditional[].failureMode`|enum|Behavior when the ext_proc service is unavailable or returns an error<br>Possible values: `failClosed`, `failOpen`.|
+|`llm.policies.extProc.conditional[].metadataContext`|object|Additional metadata to send to the external processing service.<br>Maps to the `metadata_context.filter_metadata` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`llm.policies.extProc.conditional[].requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`llm.policies.extProc.conditional[].responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`llm.policies.extProc.service`|object||
 |`llm.policies.extProc.service.name`|object||
 |`llm.policies.extProc.service.name.namespace`|string||
@@ -15513,6 +16491,20 @@
 |`llm.policies.extProc.requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`llm.policies.extProc.responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`llm.policies.transformations`|object|Modify requests and responses|
+|`llm.policies.transformations.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`llm.policies.transformations.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`llm.policies.transformations.conditional[].request`|object||
+|`llm.policies.transformations.conditional[].request.add`|object||
+|`llm.policies.transformations.conditional[].request.set`|object||
+|`llm.policies.transformations.conditional[].request.remove`|[]string||
+|`llm.policies.transformations.conditional[].request.body`|string||
+|`llm.policies.transformations.conditional[].request.metadata`|object||
+|`llm.policies.transformations.conditional[].response`|object||
+|`llm.policies.transformations.conditional[].response.add`|object||
+|`llm.policies.transformations.conditional[].response.set`|object||
+|`llm.policies.transformations.conditional[].response.remove`|[]string||
+|`llm.policies.transformations.conditional[].response.body`|string||
+|`llm.policies.transformations.conditional[].response.metadata`|object||
 |`llm.policies.transformations.request`|object||
 |`llm.policies.transformations.request.add`|object||
 |`llm.policies.transformations.request.set`|object||
@@ -15720,6 +16712,10 @@
 |`mcp.policies.requestMirror.backend.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`mcp.policies.requestMirror.percentage`|number||
 |`mcp.policies.directResponse`|object|Directly respond to the request with a static response.|
+|`mcp.policies.directResponse.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`mcp.policies.directResponse.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`mcp.policies.directResponse.conditional[].body`|array||
+|`mcp.policies.directResponse.conditional[].status`|integer||
 |`mcp.policies.directResponse.body`|array||
 |`mcp.policies.directResponse.status`|integer||
 |`mcp.policies.cors`|object|Handle CORS preflight requests and append configured CORS headers to applicable requests.|
@@ -16611,12 +17607,132 @@
 |`mcp.policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
 |`mcp.policies.backendAuth.azure.developerImplicit`|object||
 |`mcp.policies.backendAuth.azure.implicit`|object||
-|`mcp.policies.localRateLimit`|[]object|Rate limit incoming requests. State is kept local.|
+|`mcp.policies.localRateLimit`|object|Rate limit incoming requests. State is kept local.|
+|`mcp.policies.localRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`mcp.policies.localRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`mcp.policies.localRateLimit.conditional[].maxTokens`|integer||
+|`mcp.policies.localRateLimit.conditional[].tokensPerFill`|integer||
+|`mcp.policies.localRateLimit.conditional[].fillInterval`|string||
+|`mcp.policies.localRateLimit.conditional[].type`|enum|Possible values: `requests`, `tokens`.|
 |`mcp.policies.localRateLimit[].maxTokens`|integer||
 |`mcp.policies.localRateLimit[].tokensPerFill`|integer||
 |`mcp.policies.localRateLimit[].fillInterval`|string||
 |`mcp.policies.localRateLimit[].type`|enum|Possible values: `requests`, `tokens`.|
 |`mcp.policies.remoteRateLimit`|object|Rate limit incoming requests. State is managed by a remote server.|
+|`mcp.policies.remoteRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`mcp.policies.remoteRateLimit.conditional[].service`|object||
+|`mcp.policies.remoteRateLimit.conditional[].service.name`|object||
+|`mcp.policies.remoteRateLimit.conditional[].service.name.namespace`|string||
+|`mcp.policies.remoteRateLimit.conditional[].service.name.hostname`|string||
+|`mcp.policies.remoteRateLimit.conditional[].service.port`|integer||
+|`mcp.policies.remoteRateLimit.conditional[].host`|string|Hostname or IP address|
+|`mcp.policies.remoteRateLimit.conditional[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`mcp.policies.remoteRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`mcp.policies.remoteRateLimit.conditional[].domain`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies`|object|Policies to connect to the backend|
+|`mcp.policies.remoteRateLimit.conditional[].policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.requestHeaderModifier.add`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.requestHeaderModifier.set`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.requestHeaderModifier.remove`|[]string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.request`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.request.add`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.request.set`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.request.remove`|[]string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.request.body`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.request.metadata`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.response`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.response.add`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.response.set`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.response.remove`|[]string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.response.body`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.transformations.response.metadata`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTLS`|object|Send TLS to the backend.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTLS.cert`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTLS.key`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTLS.root`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTLS.hostname`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTLS.insecure`|boolean||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTLS.insecureHost`|boolean||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTLS.alpn`|[]string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTLS.subjectAltNames`|[]string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth`|object|Authenticate to the backend.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header.name`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.header.prefix`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.queryParameter`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.cookie`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.passthrough.location.cookie.name`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.key`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.key.value`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.key.value.file`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.key.location`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.header`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.header.name`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.header.prefix`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.queryParameter`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.queryParameter.name`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.cookie`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.key.location.cookie.name`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.gcp`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.aws`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.aws.accessKeyId`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.aws.secretAccessKey`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.aws.region`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.aws.sessionToken`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.developerImplicit`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendAuth.azure.implicit`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.http`|object|Specify HTTP settings for the backend|
+|`mcp.policies.remoteRateLimit.conditional[].policies.http.version`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.http.requestTimeout`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.tcp`|object|Specify TCP settings for the backend|
+|`mcp.policies.remoteRateLimit.conditional[].policies.tcp.keepalives`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.tcp.keepalives.enabled`|boolean||
+|`mcp.policies.remoteRateLimit.conditional[].policies.tcp.keepalives.time`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.tcp.keepalives.interval`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.tcp.keepalives.retries`|integer||
+|`mcp.policies.remoteRateLimit.conditional[].policies.tcp.connectTimeout`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.tcp.connectTimeout.secs`|integer||
+|`mcp.policies.remoteRateLimit.conditional[].policies.tcp.connectTimeout.nanos`|integer||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name`|object||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name.namespace`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.name.hostname`|string||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.service.port`|integer||
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`mcp.policies.remoteRateLimit.conditional[].policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`mcp.policies.remoteRateLimit.conditional[].descriptors`|[]object||
+|`mcp.policies.remoteRateLimit.conditional[].descriptors[].entries`|[]object||
+|`mcp.policies.remoteRateLimit.conditional[].descriptors[].entries[].key`|string||
+|`mcp.policies.remoteRateLimit.conditional[].descriptors[].entries[].value`|string||
+|`mcp.policies.remoteRateLimit.conditional[].descriptors[].type`|enum|Possible values: `requests`, `tokens`.|
+|`mcp.policies.remoteRateLimit.conditional[].descriptors[].limitOverride`|string|limitOverride determines the optional expression to determine the limit of the request.<br>This tells the remote server what limit to apply to the request.<br>The expression must evaluate to a map with `unit` and `requestsPerUnit` keys. For example:<br>`{"unit":"second","requestsPerUnit":100}`.<br>Valid units: second, minute, hour, day, month, year<br>If the expression fails to evaluate, the descriptor is skipped.|
+|`mcp.policies.remoteRateLimit.conditional[].failureMode`|enum|Behavior when the remote rate limit service is unavailable or returns an error.<br>Defaults to failClosed, denying requests with a 500 status on service failure.<br>Possible values: `failClosed`, `failOpen`.|
 |`mcp.policies.remoteRateLimit.service`|object||
 |`mcp.policies.remoteRateLimit.service.name`|object||
 |`mcp.policies.remoteRateLimit.service.name.namespace`|string||
@@ -17050,6 +18166,116 @@
 |`mcp.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
 |`mcp.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`mcp.policies.extProc`|object|Extend agentgateway with an external processor|
+|`mcp.policies.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`mcp.policies.extProc.conditional[].service`|object||
+|`mcp.policies.extProc.conditional[].service.name`|object||
+|`mcp.policies.extProc.conditional[].service.name.namespace`|string||
+|`mcp.policies.extProc.conditional[].service.name.hostname`|string||
+|`mcp.policies.extProc.conditional[].service.port`|integer||
+|`mcp.policies.extProc.conditional[].host`|string|Hostname or IP address|
+|`mcp.policies.extProc.conditional[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`mcp.policies.extProc.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`mcp.policies.extProc.conditional[].policies`|object|Policies to connect to the backend|
+|`mcp.policies.extProc.conditional[].policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`mcp.policies.extProc.conditional[].policies.requestHeaderModifier.add`|object||
+|`mcp.policies.extProc.conditional[].policies.requestHeaderModifier.set`|object||
+|`mcp.policies.extProc.conditional[].policies.requestHeaderModifier.remove`|[]string||
+|`mcp.policies.extProc.conditional[].policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`mcp.policies.extProc.conditional[].policies.transformations.request`|object||
+|`mcp.policies.extProc.conditional[].policies.transformations.request.add`|object||
+|`mcp.policies.extProc.conditional[].policies.transformations.request.set`|object||
+|`mcp.policies.extProc.conditional[].policies.transformations.request.remove`|[]string||
+|`mcp.policies.extProc.conditional[].policies.transformations.request.body`|string||
+|`mcp.policies.extProc.conditional[].policies.transformations.request.metadata`|object||
+|`mcp.policies.extProc.conditional[].policies.transformations.response`|object||
+|`mcp.policies.extProc.conditional[].policies.transformations.response.add`|object||
+|`mcp.policies.extProc.conditional[].policies.transformations.response.set`|object||
+|`mcp.policies.extProc.conditional[].policies.transformations.response.remove`|[]string||
+|`mcp.policies.extProc.conditional[].policies.transformations.response.body`|string||
+|`mcp.policies.extProc.conditional[].policies.transformations.response.metadata`|object||
+|`mcp.policies.extProc.conditional[].policies.backendTLS`|object|Send TLS to the backend.|
+|`mcp.policies.extProc.conditional[].policies.backendTLS.cert`|string||
+|`mcp.policies.extProc.conditional[].policies.backendTLS.key`|string||
+|`mcp.policies.extProc.conditional[].policies.backendTLS.root`|string||
+|`mcp.policies.extProc.conditional[].policies.backendTLS.hostname`|string||
+|`mcp.policies.extProc.conditional[].policies.backendTLS.insecure`|boolean||
+|`mcp.policies.extProc.conditional[].policies.backendTLS.insecureHost`|boolean||
+|`mcp.policies.extProc.conditional[].policies.backendTLS.alpn`|[]string||
+|`mcp.policies.extProc.conditional[].policies.backendTLS.subjectAltNames`|[]string||
+|`mcp.policies.extProc.conditional[].policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`mcp.policies.extProc.conditional[].policies.backendAuth`|object|Authenticate to the backend.|
+|`mcp.policies.extProc.conditional[].policies.backendAuth.passthrough`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.passthrough.location`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.passthrough.location.header`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.passthrough.location.header.name`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.passthrough.location.header.prefix`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.passthrough.location.cookie`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.passthrough.location.cookie.name`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.key`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.key.value`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.key.value.file`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.key.location`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.key.location.header`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.key.location.header.name`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.key.location.header.prefix`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.key.location.queryParameter`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.key.location.queryParameter.name`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.key.location.cookie`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.key.location.cookie.name`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.gcp`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`mcp.policies.extProc.conditional[].policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`mcp.policies.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`mcp.policies.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`mcp.policies.extProc.conditional[].policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`mcp.policies.extProc.conditional[].policies.backendAuth.gcp.credential.file`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.aws`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.aws.accessKeyId`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.aws.secretAccessKey`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.aws.region`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.aws.sessionToken`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.developerImplicit`|object||
+|`mcp.policies.extProc.conditional[].policies.backendAuth.azure.implicit`|object||
+|`mcp.policies.extProc.conditional[].policies.http`|object|Specify HTTP settings for the backend|
+|`mcp.policies.extProc.conditional[].policies.http.version`|string||
+|`mcp.policies.extProc.conditional[].policies.http.requestTimeout`|string||
+|`mcp.policies.extProc.conditional[].policies.tcp`|object|Specify TCP settings for the backend|
+|`mcp.policies.extProc.conditional[].policies.tcp.keepalives`|object||
+|`mcp.policies.extProc.conditional[].policies.tcp.keepalives.enabled`|boolean||
+|`mcp.policies.extProc.conditional[].policies.tcp.keepalives.time`|string||
+|`mcp.policies.extProc.conditional[].policies.tcp.keepalives.interval`|string||
+|`mcp.policies.extProc.conditional[].policies.tcp.keepalives.retries`|integer||
+|`mcp.policies.extProc.conditional[].policies.tcp.connectTimeout`|object||
+|`mcp.policies.extProc.conditional[].policies.tcp.connectTimeout.secs`|integer||
+|`mcp.policies.extProc.conditional[].policies.tcp.connectTimeout.nanos`|integer||
+|`mcp.policies.extProc.conditional[].policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`mcp.policies.extProc.conditional[].policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`mcp.policies.extProc.conditional[].policies.backendTunnel.proxy.service`|object||
+|`mcp.policies.extProc.conditional[].policies.backendTunnel.proxy.service.name`|object||
+|`mcp.policies.extProc.conditional[].policies.backendTunnel.proxy.service.name.namespace`|string||
+|`mcp.policies.extProc.conditional[].policies.backendTunnel.proxy.service.name.hostname`|string||
+|`mcp.policies.extProc.conditional[].policies.backendTunnel.proxy.service.port`|integer||
+|`mcp.policies.extProc.conditional[].policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`mcp.policies.extProc.conditional[].policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`mcp.policies.extProc.conditional[].failureMode`|enum|Behavior when the ext_proc service is unavailable or returns an error<br>Possible values: `failClosed`, `failOpen`.|
+|`mcp.policies.extProc.conditional[].metadataContext`|object|Additional metadata to send to the external processing service.<br>Maps to the `metadata_context.filter_metadata` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`mcp.policies.extProc.conditional[].requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
+|`mcp.policies.extProc.conditional[].responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`mcp.policies.extProc.service`|object||
 |`mcp.policies.extProc.service.name`|object||
 |`mcp.policies.extProc.service.name.namespace`|string||
@@ -17159,6 +18385,20 @@
 |`mcp.policies.extProc.requestAttributes`|object|Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`mcp.policies.extProc.responseAttributes`|object|Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.|
 |`mcp.policies.transformations`|object|Modify requests and responses|
+|`mcp.policies.transformations.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
+|`mcp.policies.transformations.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
+|`mcp.policies.transformations.conditional[].request`|object||
+|`mcp.policies.transformations.conditional[].request.add`|object||
+|`mcp.policies.transformations.conditional[].request.set`|object||
+|`mcp.policies.transformations.conditional[].request.remove`|[]string||
+|`mcp.policies.transformations.conditional[].request.body`|string||
+|`mcp.policies.transformations.conditional[].request.metadata`|object||
+|`mcp.policies.transformations.conditional[].response`|object||
+|`mcp.policies.transformations.conditional[].response.add`|object||
+|`mcp.policies.transformations.conditional[].response.set`|object||
+|`mcp.policies.transformations.conditional[].response.remove`|[]string||
+|`mcp.policies.transformations.conditional[].response.body`|string||
+|`mcp.policies.transformations.conditional[].response.metadata`|object||
 |`mcp.policies.transformations.request`|object||
 |`mcp.policies.transformations.request.add`|object||
 |`mcp.policies.transformations.request.set`|object||

@@ -632,11 +632,11 @@ type Traffic struct {
 	// transformation is used to mutate and transform requests and responses
 	// before forwarding them to the destination.
 	// +optional
-	Transformation *Transformation `json:"transformation,omitempty"`
+	Transformation *TransformationOrConditional `json:"transformation,omitempty"`
 
 	// extProc specifies the external processing configuration for the policy.
 	// +optional
-	ExtProc *ExtProc `json:"extProc,omitempty"`
+	ExtProc *ExtProcOrConditional `json:"extProc,omitempty"`
 
 	// extAuth specifies the external authentication configuration for the policy.
 	// This controls what external server to send requests to for authentication.
@@ -648,7 +648,7 @@ type Traffic struct {
 	// rateLimit specifies the rate limiting configuration for the policy.
 	// This controls the rate at which requests are allowed to be processed.
 	// +optional
-	RateLimit *RateLimits `json:"rateLimit,omitempty"`
+	RateLimit *RateLimitsOrConditional `json:"rateLimit,omitempty"`
 
 	// cors specifies the CORS configuration for the policy.
 	// +optional
@@ -711,17 +711,17 @@ type Traffic struct {
 	// `directResponse` configures the policy to send a direct response to the
 	// client.
 	// +optional
-	DirectResponse *DirectResponse `json:"directResponse,omitempty"`
+	DirectResponse *DirectResponseOrConditional `json:"directResponse,omitempty"`
 }
 
 // DirectResponse defines the policy to send a direct response to the client.
 type DirectResponse struct {
 	// StatusCode defines the HTTP status code to return for this route.
 	//
-	// +required
+	// +optional // This is actually required, but making it required breaks Conditional
 	// +kubebuilder:validation:Minimum=200
 	// +kubebuilder:validation:Maximum=599
-	StatusCode int32 `json:"status"`
+	StatusCode *int32 `json:"status,omitempty"`
 	// Body defines the content to be returned in the HTTP response body.
 	// The maximum length of the body is restricted to prevent excessively large responses.
 	// If this field is omitted, no body is included in the response.
@@ -730,6 +730,44 @@ type DirectResponse struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=4096
 	Body *string `json:"body,omitempty"`
+}
+
+type DirectResponseConditional struct {
+	// `condition` must evaluate to true for this policy to execute.
+	// +optional
+	Condition shared.CELExpression `json:"condition,omitempty"`
+	// `policy` definition.
+	// +required
+	// +kubebuilder:validation:XValidation:rule="has(self.status)",message="status is required"
+	Policy DirectResponse `json:"policy"`
+}
+
+// +kubebuilder:validation:ConditionalPolicy:fields=status
+type DirectResponseOrConditional struct {
+	// +optional
+	DirectResponse `json:",inline"`
+	// `conditional`, if set, will enable conditional policy execution. You must either set this, or set the top level directResponse fields.
+	// The first matching policy will be executed.
+	// A single policy may be provided without a condition set; if so, it must be the last policy and will be the fallback
+	// in case no conditions are met.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:validation:XValidation:message="conditional entries without condition must be last",rule="self.filter(e, !has(e.condition)).size() <= 1 && (!self.exists(e, !has(e.condition)) || !has(self[size(self) - 1].condition))"
+	Conditional []DirectResponseConditional `json:"conditional,omitempty"`
+}
+
+func (d *DirectResponseOrConditional) ConditionalPolicy() (*DirectResponse, iter.Seq[ConditionalPolicyEntry[DirectResponse]]) {
+	seq := mapseq(d.Conditional, func(d DirectResponseConditional) ConditionalPolicyEntry[DirectResponse] {
+		return ConditionalPolicyEntry[DirectResponse]{
+			Condition: d.Condition,
+			Policy:    d.Policy,
+		}
+	})
+	if len(d.Conditional) > 0 {
+		return nil, seq
+	}
+	return &d.DirectResponse, seq
 }
 
 // +kubebuilder:validation:Enum=Strict;Optional;Permissive
@@ -1367,6 +1405,50 @@ type Transformation struct {
 	Response *Transform `json:"response,omitempty"`
 }
 
+type TransformationConditional struct {
+	// `condition` must evaluate to true for this policy to execute.
+	// +optional
+	Condition shared.CELExpression `json:"condition,omitempty"`
+	// `policy` definition.
+	// +required
+	Policy Transformation `json:"policy"`
+}
+
+// +kubebuilder:validation:ConditionalPolicy
+// +kubebuilder:validation:AtLeastOneFieldSet
+type TransformationOrConditional struct {
+	// `request` is used to modify the request path.
+	// +optional
+	Request *Transform `json:"request,omitempty"`
+
+	// `response` is used to modify the response path.
+	// +optional
+	Response *Transform `json:"response,omitempty"`
+
+	// `conditional`, if set, will enable conditional policy execution. You must either set this, or set the top level transformation fields.
+	// The first matching policy will be executed.
+	// A single policy may be provided without a condition set; if so, it must be the last policy and will be the fallback
+	// in case no conditions are met.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:validation:XValidation:message="conditional entries without condition must be last",rule="self.filter(e, !has(e.condition)).size() <= 1 && (!self.exists(e, !has(e.condition)) || !has(self[size(self) - 1].condition))"
+	Conditional []TransformationConditional `json:"conditional,omitempty"`
+}
+
+func (t *TransformationOrConditional) ConditionalPolicy() (*Transformation, iter.Seq[ConditionalPolicyEntry[Transformation]]) {
+	seq := mapseq(t.Conditional, func(t TransformationConditional) ConditionalPolicyEntry[Transformation] {
+		return ConditionalPolicyEntry[Transformation]{
+			Condition: t.Condition,
+			Policy:    t.Policy,
+		}
+	})
+	if len(t.Conditional) > 0 {
+		return nil, seq
+	}
+	return &Transformation{Request: t.Request, Response: t.Response}, seq
+}
+
 // +kubebuilder:validation:AtLeastOneFieldSet
 type Transform struct {
 	// `set` is a list of headers and the value they should be set to.
@@ -1434,8 +1516,46 @@ type HeaderTransformation struct {
 type ExtProc struct {
 	// `backendRef` references the External Processor server to reach.
 	// Supported types: `Service` and `Backend`.
+	// +optional // This is actually required, but making it required breaks Conditional
+	BackendRef *gwv1.BackendObjectReference `json:"backendRef,omitempty"`
+}
+
+type ExtProcConditional struct {
+	// `condition` must evaluate to true for this policy to execute.
+	// +optional
+	Condition shared.CELExpression `json:"condition,omitempty"`
+	// `policy` definition.
 	// +required
-	BackendRef gwv1.BackendObjectReference `json:"backendRef"`
+	// +kubebuilder:validation:XValidation:rule="has(self.backendRef)",message="backendRef is required"
+	Policy ExtProc `json:"policy"`
+}
+
+// +kubebuilder:validation:ConditionalPolicy:fields=backendRef
+type ExtProcOrConditional struct {
+	// +optional
+	ExtProc `json:",inline"`
+	// `conditional`, if set, will enable conditional policy execution. You must either set this, or set the top level extProc fields.
+	// The first matching policy will be executed.
+	// A single policy may be provided without a condition set; if so, it must be the last policy and will be the fallback
+	// in case no conditions are met.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:validation:XValidation:message="conditional entries without condition must be last",rule="self.filter(e, !has(e.condition)).size() <= 1 && (!self.exists(e, !has(e.condition)) || !has(self[size(self) - 1].condition))"
+	Conditional []ExtProcConditional `json:"conditional,omitempty"`
+}
+
+func (e *ExtProcOrConditional) ConditionalPolicy() (*ExtProc, iter.Seq[ConditionalPolicyEntry[ExtProc]]) {
+	seq := mapseq(e.Conditional, func(e ExtProcConditional) ConditionalPolicyEntry[ExtProc] {
+		return ConditionalPolicyEntry[ExtProc]{
+			Condition: e.Condition,
+			Policy:    e.Policy,
+		}
+	})
+	if len(e.Conditional) > 0 {
+		return nil, seq
+	}
+	return &e.ExtProc, seq
 }
 
 // +k8s:deepcopy-gen=false
@@ -1621,6 +1741,52 @@ type RateLimits struct {
 	// Global defines a global rate limiting policy using an external service.
 	// +optional
 	Global *GlobalRateLimit `json:"global,omitempty"`
+}
+
+type RateLimitsConditional struct {
+	// `condition` must evaluate to true for this policy to execute.
+	// +optional
+	Condition shared.CELExpression `json:"condition,omitempty"`
+	// `policy` definition.
+	// +required
+	Policy RateLimits `json:"policy"`
+}
+
+// +kubebuilder:validation:ConditionalPolicy
+// +kubebuilder:validation:AtLeastOneFieldSet
+type RateLimitsOrConditional struct {
+	// Local defines a local rate limiting policy.
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=16
+	// +optional
+	Local []LocalRateLimit `json:"local,omitempty"`
+
+	// Global defines a global rate limiting policy using an external service.
+	// +optional
+	Global *GlobalRateLimit `json:"global,omitempty"`
+
+	// `conditional`, if set, will enable conditional policy execution. You must either set this, or set the top level rateLimit fields.
+	// The first matching policy will be executed.
+	// A single policy may be provided without a condition set; if so, it must be the last policy and will be the fallback
+	// in case no conditions are met.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:validation:XValidation:message="conditional entries without condition must be last",rule="self.filter(e, !has(e.condition)).size() <= 1 && (!self.exists(e, !has(e.condition)) || !has(self[size(self) - 1].condition))"
+	Conditional []RateLimitsConditional `json:"conditional,omitempty"`
+}
+
+func (r *RateLimitsOrConditional) ConditionalPolicy() (*RateLimits, iter.Seq[ConditionalPolicyEntry[RateLimits]]) {
+	seq := mapseq(r.Conditional, func(r RateLimitsConditional) ConditionalPolicyEntry[RateLimits] {
+		return ConditionalPolicyEntry[RateLimits]{
+			Condition: r.Condition,
+			Policy:    r.Policy,
+		}
+	})
+	if len(r.Conditional) > 0 {
+		return nil, seq
+	}
+	return &RateLimits{Local: r.Local, Global: r.Global}, seq
 }
 
 type GlobalRateLimit struct {

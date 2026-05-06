@@ -1142,13 +1142,12 @@
           "description": "Directly respond to the request with a static response.",
           "anyOf": [
             {
-              "$ref": "#/$defs/DirectResponse"
+              "$ref": "#/$defs/LocalExplicitOrConditional"
             },
             {
               "type": "null"
             }
-          ],
-          "default": null
+          ]
         },
         "cors": {
           "description": "Handle CORS preflight requests and append configured CORS headers to applicable requests.",
@@ -1258,23 +1257,25 @@
         },
         "localRateLimit": {
           "description": "Rate limit incoming requests. State is kept local.",
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/RateLimitSpec"
-          },
-          "default": []
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalRateLimitPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "remoteRateLimit": {
           "description": "Rate limit incoming requests. State is managed by a remote server.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RemoteRateLimit"
+              "$ref": "#/$defs/LocalExplicitOrConditional2"
             },
             {
               "type": "null"
             }
-          ],
-          "default": null
+          ]
         },
         "jwtAuth": {
           "description": "Authenticate incoming JWT requests.",
@@ -1324,7 +1325,7 @@
           "description": "Authenticate incoming requests by calling an external authorization server.",
           "anyOf": [
             {
-              "$ref": "#/$defs/LocalExplicitOrConditional"
+              "$ref": "#/$defs/LocalExplicitOrConditional3"
             },
             {
               "type": "null"
@@ -1335,25 +1336,23 @@
           "description": "Extend agentgateway with an external processor",
           "anyOf": [
             {
-              "$ref": "#/$defs/ExtProc"
+              "$ref": "#/$defs/LocalExplicitOrConditional4"
             },
             {
               "type": "null"
             }
-          ],
-          "default": null
+          ]
         },
         "transformations": {
           "description": "Modify requests and responses",
           "anyOf": [
             {
-              "$ref": "#/$defs/LocalTransformationConfig"
+              "$ref": "#/$defs/LocalExplicitOrConditional5"
             },
             {
               "type": "null"
             }
-          ],
-          "default": null
+          ]
         },
         "csrf": {
           "description": "Handle CSRF protection by validating request origins against configured allowed origins.",
@@ -1661,6 +1660,77 @@
         "hostname"
       ]
     },
+    "LocalExplicitOrConditional": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LocalConditionalPolicies"
+        },
+        {
+          "$ref": "#/$defs/DirectResponse"
+        }
+      ]
+    },
+    "LocalConditionalPolicies": {
+      "type": "object",
+      "properties": {
+        "conditional": {
+          "description": "conditional policy entries. An entry without a condition must be the final fallback.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LocalConditionalPolicy"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "conditional"
+      ]
+    },
+    "LocalConditionalPolicy": {
+      "type": "object",
+      "properties": {
+        "condition": {
+          "description": "condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "body": {
+          "$ref": "#/$defs/Bytes"
+        },
+        "status": {
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 1,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "body",
+        "status"
+      ]
+    },
+    "Expression": {
+      "type": "string"
+    },
+    "Bytes": {
+      "type": [
+        "array",
+        "string"
+      ],
+      "items": {
+        "type": "integer",
+        "format": "uint8",
+        "minimum": 0,
+        "maximum": 255
+      }
+    },
     "DirectResponse": {
       "type": "object",
       "properties": {
@@ -1679,18 +1749,6 @@
         "body",
         "status"
       ]
-    },
-    "Bytes": {
-      "type": [
-        "array",
-        "string"
-      ],
-      "items": {
-        "type": "integer",
-        "format": "uint8",
-        "minimum": 0,
-        "maximum": 255
-      }
     },
     "CorsSerde": {
       "type": "object",
@@ -3218,9 +3276,6 @@
         }
       ]
     },
-    "Expression": {
-      "type": "string"
-    },
     "PromptEnrichment": {
       "type": "object",
       "properties": {
@@ -3339,6 +3394,81 @@
         }
       ]
     },
+    "LocalRateLimitPolicy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LocalConditionalPolicies2"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RateLimitSpec"
+          }
+        }
+      ]
+    },
+    "LocalConditionalPolicies2": {
+      "type": "object",
+      "properties": {
+        "conditional": {
+          "description": "conditional policy entries. An entry without a condition must be the final fallback.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LocalConditionalPolicy2"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "conditional"
+      ]
+    },
+    "LocalConditionalPolicy2": {
+      "type": "object",
+      "properties": {
+        "condition": {
+          "description": "condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "maxTokens": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        },
+        "tokensPerFill": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        },
+        "fillInterval": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/RateLimitType",
+          "default": "requests"
+        }
+      },
+      "required": [
+        "fillInterval"
+      ]
+    },
+    "RateLimitType": {
+      "type": "string",
+      "enum": [
+        "requests",
+        "tokens"
+      ]
+    },
     "RateLimitSpec": {
       "type": "object",
       "properties": {
@@ -3367,16 +3497,47 @@
         "fillInterval"
       ]
     },
-    "RateLimitType": {
-      "type": "string",
-      "enum": [
-        "requests",
-        "tokens"
+    "LocalExplicitOrConditional2": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LocalConditionalPolicies3"
+        },
+        {
+          "$ref": "#/$defs/RemoteRateLimit"
+        }
       ]
     },
-    "RemoteRateLimit": {
+    "LocalConditionalPolicies3": {
       "type": "object",
       "properties": {
+        "conditional": {
+          "description": "conditional policy entries. An entry without a condition must be the final fallback.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LocalConditionalPolicy3"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "conditional"
+      ]
+    },
+    "LocalConditionalPolicy3": {
+      "type": "object",
+      "properties": {
+        "condition": {
+          "description": "condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "domain": {
           "type": "string"
         },
@@ -3404,7 +3565,6 @@
         "domain",
         "descriptors"
       ],
-      "unevaluatedProperties": false,
       "oneOf": [
         {
           "type": "string",
@@ -3530,6 +3690,99 @@
           "description": "Allow the request through when the rate limit service is unavailable.",
           "type": "string",
           "const": "failOpen"
+        }
+      ]
+    },
+    "RemoteRateLimit": {
+      "type": "object",
+      "properties": {
+        "domain": {
+          "type": "string"
+        },
+        "policies": {
+          "description": "Policies to connect to the backend",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SimpleLocalBackendPolicies"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "descriptors": {
+          "$ref": "#/$defs/DescriptorSet"
+        },
+        "failureMode": {
+          "description": "Behavior when the remote rate limit service is unavailable or returns an error.\nDefaults to failClosed, denying requests with a 500 status on service failure.",
+          "$ref": "#/$defs/FailureMode",
+          "default": "failClosed"
+        }
+      },
+      "required": [
+        "domain",
+        "descriptors"
+      ],
+      "unevaluatedProperties": false,
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "invalid"
+          ]
+        },
+        {
+          "description": "Service reference. Service must be defined in the top level services list.",
+          "type": "object",
+          "properties": {
+            "service": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/NamespacedHostname"
+                },
+                "port": {
+                  "type": "integer",
+                  "format": "uint16",
+                  "minimum": 0,
+                  "maximum": 65535
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "port"
+              ]
+            }
+          },
+          "required": [
+            "service"
+          ]
+        },
+        {
+          "description": "Hostname or IP address",
+          "type": "object",
+          "properties": {
+            "host": {
+              "description": "Hostname or IP address",
+              "type": "string"
+            }
+          },
+          "required": [
+            "host"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "backend": {
+              "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+              "type": "string"
+            }
+          },
+          "required": [
+            "backend"
+          ]
         }
       ]
     },
@@ -3858,24 +4111,24 @@
         }
       ]
     },
-    "LocalExplicitOrConditional": {
+    "LocalExplicitOrConditional3": {
       "anyOf": [
         {
-          "$ref": "#/$defs/LocalConditionalPolicies"
+          "$ref": "#/$defs/LocalConditionalPolicies4"
         },
         {
           "$ref": "#/$defs/ExtAuthz"
         }
       ]
     },
-    "LocalConditionalPolicies": {
+    "LocalConditionalPolicies4": {
       "type": "object",
       "properties": {
         "conditional": {
           "description": "conditional policy entries. An entry without a condition must be the final fallback.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/LocalConditionalPolicy"
+            "$ref": "#/$defs/LocalConditionalPolicy4"
           }
         }
       },
@@ -3884,7 +4137,7 @@
         "conditional"
       ]
     },
-    "LocalConditionalPolicy": {
+    "LocalConditionalPolicy4": {
       "type": "object",
       "properties": {
         "condition": {
@@ -4259,6 +4512,166 @@
         }
       ]
     },
+    "LocalExplicitOrConditional4": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LocalConditionalPolicies5"
+        },
+        {
+          "$ref": "#/$defs/ExtProc"
+        }
+      ]
+    },
+    "LocalConditionalPolicies5": {
+      "type": "object",
+      "properties": {
+        "conditional": {
+          "description": "conditional policy entries. An entry without a condition must be the final fallback.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LocalConditionalPolicy5"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "conditional"
+      ]
+    },
+    "LocalConditionalPolicy5": {
+      "type": "object",
+      "properties": {
+        "condition": {
+          "description": "condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "policies": {
+          "description": "Policies to connect to the backend",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SimpleLocalBackendPolicies"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "failureMode": {
+          "description": "Behavior when the ext_proc service is unavailable or returns an error",
+          "$ref": "#/$defs/FailureMode3",
+          "default": "failClosed"
+        },
+        "metadataContext": {
+          "description": "Additional metadata to send to the external processing service.\nMaps to the `metadata_context.filter_metadata` field in ProcessingRequest, and allows dynamic CEL expressions.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/$defs/Expression"
+            }
+          }
+        },
+        "requestAttributes": {
+          "description": "Maps to the request `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/Expression"
+          }
+        },
+        "responseAttributes": {
+          "description": "Maps to the response `attributes` field in ProcessingRequest, and allows dynamic CEL expressions.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/Expression"
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "invalid"
+          ]
+        },
+        {
+          "description": "Service reference. Service must be defined in the top level services list.",
+          "type": "object",
+          "properties": {
+            "service": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/NamespacedHostname"
+                },
+                "port": {
+                  "type": "integer",
+                  "format": "uint16",
+                  "minimum": 0,
+                  "maximum": 65535
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "port"
+              ]
+            }
+          },
+          "required": [
+            "service"
+          ]
+        },
+        {
+          "description": "Hostname or IP address",
+          "type": "object",
+          "properties": {
+            "host": {
+              "description": "Hostname or IP address",
+              "type": "string"
+            }
+          },
+          "required": [
+            "host"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "backend": {
+              "description": "Explicit backend reference. Backend must be defined in the top level backends list",
+              "type": "string"
+            }
+          },
+          "required": [
+            "backend"
+          ]
+        }
+      ]
+    },
+    "FailureMode3": {
+      "type": "string",
+      "enum": [
+        "failClosed",
+        "failOpen"
+      ]
+    },
     "ExtProc": {
       "type": "object",
       "properties": {
@@ -4375,12 +4788,68 @@
         }
       ]
     },
-    "FailureMode3": {
-      "type": "string",
-      "enum": [
-        "failClosed",
-        "failOpen"
+    "LocalExplicitOrConditional5": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LocalConditionalPolicies6"
+        },
+        {
+          "$ref": "#/$defs/LocalTransformationConfig"
+        }
       ]
+    },
+    "LocalConditionalPolicies6": {
+      "type": "object",
+      "properties": {
+        "conditional": {
+          "description": "conditional policy entries. An entry without a condition must be the final fallback.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LocalConditionalPolicy6"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "conditional"
+      ]
+    },
+    "LocalConditionalPolicy6": {
+      "type": "object",
+      "properties": {
+        "condition": {
+          "description": "condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "request": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalTransform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "response": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalTransform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     },
     "Csrf": {
       "type": "object",
@@ -5767,7 +6236,7 @@
           "description": "Authenticate incoming requests by calling an external authorization server.",
           "anyOf": [
             {
-              "$ref": "#/$defs/LocalExplicitOrConditional"
+              "$ref": "#/$defs/LocalExplicitOrConditional3"
             },
             {
               "type": "null"
@@ -5778,25 +6247,23 @@
           "description": "Extend agentgateway with an external processor",
           "anyOf": [
             {
-              "$ref": "#/$defs/ExtProc"
+              "$ref": "#/$defs/LocalExplicitOrConditional4"
             },
             {
               "type": "null"
             }
-          ],
-          "default": null
+          ]
         },
         "transformations": {
           "description": "Modify requests and responses",
           "anyOf": [
             {
-              "$ref": "#/$defs/LocalTransformationConfig"
+              "$ref": "#/$defs/LocalExplicitOrConditional5"
             },
             {
               "type": "null"
             }
-          ],
-          "default": null
+          ]
         },
         "basicAuth": {
           "description": "Authenticate incoming requests using Basic Authentication with htpasswd.",
@@ -7033,7 +7500,7 @@
           "description": "Authenticate incoming requests by calling an external authorization server.",
           "anyOf": [
             {
-              "$ref": "#/$defs/LocalExplicitOrConditional"
+              "$ref": "#/$defs/LocalExplicitOrConditional3"
             },
             {
               "type": "null"
@@ -7044,25 +7511,23 @@
           "description": "Extend agentgateway with an external processor",
           "anyOf": [
             {
-              "$ref": "#/$defs/ExtProc"
+              "$ref": "#/$defs/LocalExplicitOrConditional4"
             },
             {
               "type": "null"
             }
-          ],
-          "default": null
+          ]
         },
         "transformations": {
           "description": "Modify requests and responses",
           "anyOf": [
             {
-              "$ref": "#/$defs/LocalTransformationConfig"
+              "$ref": "#/$defs/LocalExplicitOrConditional5"
             },
             {
               "type": "null"
             }
-          ],
-          "default": null
+          ]
         },
         "basicAuth": {
           "description": "Authenticate incoming requests using Basic Authentication with htpasswd.",

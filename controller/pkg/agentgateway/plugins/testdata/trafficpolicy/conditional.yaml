@@ -9,6 +9,30 @@ spec:
       kind: Gateway
       name: dummy
   traffic:
+    transformation:
+      conditional:
+        - condition: "request.path == '/transform'"
+          policy:
+            request:
+              set:
+                - name: x-conditional-transform
+                  value: "'enabled'"
+        - policy:
+            response:
+              add:
+                - name: x-conditional-transform
+                  value: "'fallback'"
+    extProc:
+      conditional:
+        - condition: "request.path == '/process'"
+          policy:
+            backendRef:
+              name: extproc
+              port: 4444
+        - policy:
+            backendRef:
+              name: extproc
+              port: 4444
     extAuth:
       conditional:
         - condition: "random() > .5"
@@ -28,6 +52,37 @@ spec:
               name: extauthz
               port: 1024
             grpc: {}
+    rateLimit:
+      conditional:
+        - condition: "request.path == '/local-limit'"
+          policy:
+            local:
+              - requests: 10
+                unit: Seconds
+        - condition: "request.path == '/global-limit'"
+          policy:
+            global:
+              backendRef:
+                name: ratelimit
+                port: 8081
+              domain: api-gateway
+              descriptors:
+                - entries:
+                    - name: user-agent
+                      expression: 'request.headers["user-agent"]'
+        - policy:
+            local:
+              - requests: 1
+                unit: Minutes
+    directResponse:
+      conditional:
+        - condition: "request.path == '/direct'"
+          policy:
+            status: 403
+            body: denied
+        - condition: "request.path == '/gone'"
+          policy:
+            status: 410
 ---
 apiVersion: v1
 kind: Service
@@ -38,8 +93,51 @@ spec:
   ports:
     - port: 1024
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: extproc
+  namespace: default
+spec:
+  ports:
+    - port: 4444
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ratelimit
+  namespace: default
+spec:
+  ports:
+    - port: 8081
+---
 # Output
 output:
+- gateway:
+    Name: dummy
+    Namespace: default
+  resource:
+    policy:
+      conditional:
+        policies:
+        - condition: request.path == '/direct'
+          traffic:
+            directResponse:
+              body: ZGVuaWVk
+              status: 403
+        - condition: request.path == '/gone'
+          traffic:
+            directResponse:
+              status: 410
+      key: traffic/default/ext-auth-conditional:direct-response:default/dummy
+      name:
+        kind: AgentgatewayPolicy
+        name: ext-auth-conditional
+        namespace: default
+      target:
+        gateway:
+          name: dummy
+          namespace: default
 - gateway:
     Name: dummy
     Namespace: default
@@ -74,6 +172,122 @@ output:
                   hostname: extauthz.default.svc.cluster.local
                   namespace: default
       key: traffic/default/ext-auth-conditional:extauth:default/dummy
+      name:
+        kind: AgentgatewayPolicy
+        name: ext-auth-conditional
+        namespace: default
+      target:
+        gateway:
+          name: dummy
+          namespace: default
+- gateway:
+    Name: dummy
+    Namespace: default
+  resource:
+    policy:
+      conditional:
+        policies:
+        - condition: request.path == '/process'
+          traffic:
+            extProc:
+              target:
+                port: 4444
+                service:
+                  hostname: extproc.default.svc.cluster.local
+                  namespace: default
+        - traffic:
+            extProc:
+              target:
+                port: 4444
+                service:
+                  hostname: extproc.default.svc.cluster.local
+                  namespace: default
+      key: traffic/default/ext-auth-conditional:extproc:default/dummy
+      name:
+        kind: AgentgatewayPolicy
+        name: ext-auth-conditional
+        namespace: default
+      target:
+        gateway:
+          name: dummy
+          namespace: default
+- gateway:
+    Name: dummy
+    Namespace: default
+  resource:
+    policy:
+      conditional:
+        policies:
+        - condition: request.path == '/global-limit'
+          traffic:
+            remoteRateLimit:
+              descriptors:
+              - entries:
+                - key: user-agent
+                  value: request.headers["user-agent"]
+              domain: api-gateway
+              target:
+                port: 8081
+                service:
+                  hostname: ratelimit.default.svc.cluster.local
+                  namespace: default
+      key: traffic/default/ext-auth-conditional:rl-global:default/dummy
+      name:
+        kind: AgentgatewayPolicy
+        name: ext-auth-conditional
+        namespace: default
+      target:
+        gateway:
+          name: dummy
+          namespace: default
+- gateway:
+    Name: dummy
+    Namespace: default
+  resource:
+    policy:
+      conditional:
+        policies:
+        - condition: request.path == '/local-limit'
+          traffic:
+            localRateLimit:
+              fillInterval: 1s
+              maxTokens: "10"
+              tokensPerFill: "10"
+        - traffic:
+            localRateLimit:
+              fillInterval: 60s
+              maxTokens: "1"
+              tokensPerFill: "1"
+      key: traffic/default/ext-auth-conditional:rl-local:default/dummy
+      name:
+        kind: AgentgatewayPolicy
+        name: ext-auth-conditional
+        namespace: default
+      target:
+        gateway:
+          name: dummy
+          namespace: default
+- gateway:
+    Name: dummy
+    Namespace: default
+  resource:
+    policy:
+      conditional:
+        policies:
+        - condition: request.path == '/transform'
+          traffic:
+            transformation:
+              request:
+                set:
+                - expression: '''enabled'''
+                  name: x-conditional-transform
+        - traffic:
+            transformation:
+              response:
+                add:
+                - expression: '''fallback'''
+                  name: x-conditional-transform
+      key: traffic/default/ext-auth-conditional:transformation:default/dummy
       name:
         kind: AgentgatewayPolicy
         name: ext-auth-conditional

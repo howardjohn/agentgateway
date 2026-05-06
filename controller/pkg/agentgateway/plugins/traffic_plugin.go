@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"strconv"
 	"strings"
 	"time"
@@ -428,7 +429,15 @@ func translateTrafficPolicyToAgw(
 
 	// Convert ExtProc policy if present
 	if traffic.ExtProc != nil {
-		appendPolicy("extProc")(processExtProcPolicy(ctx, traffic.ExtProc, traffic.Phase, basePolicyName, policyName))
+		appendPolicy("extProc")(processConditional(
+			traffic.ExtProc,
+			processExtProcTraffic,
+			extprocPolicySuffix,
+			ctx,
+			traffic.Phase,
+			basePolicyName,
+			policyName,
+		))
 	}
 
 	// Convert Authorization policy if present
@@ -438,12 +447,20 @@ func translateTrafficPolicyToAgw(
 
 	// Process RateLimit policies if present
 	if traffic.RateLimit != nil {
-		appendPolicies("rateLimit")(processRateLimitPolicy(ctx, traffic.RateLimit, basePolicyName, policyName))
+		appendPolicies("rateLimit")(processRateLimitPolicy(ctx, traffic.RateLimit, traffic.Phase, basePolicyName, policyName))
 	}
 
 	// Process transformation policies if present
 	if traffic.Transformation != nil {
-		appendPolicy("transformation")(processTransformationPolicy(traffic.Transformation, traffic.Phase, basePolicyName, policyName))
+		appendPolicy("transformation")(processConditional(
+			traffic.Transformation,
+			processTransformationTraffic,
+			transformationPolicySuffix,
+			ctx,
+			traffic.Phase,
+			basePolicyName,
+			policyName,
+		))
 	}
 
 	// Process CSRF policies if present
@@ -472,7 +489,15 @@ func translateTrafficPolicyToAgw(
 	}
 
 	if traffic.DirectResponse != nil {
-		appendPolicy("directResponse")(processDirectResponse(traffic.DirectResponse, basePolicyName, policyName), nil)
+		appendPolicy("directResponse")(processConditional(
+			traffic.DirectResponse,
+			processDirectResponseTraffic,
+			directResponseSuffix,
+			ctx,
+			traffic.Phase,
+			basePolicyName,
+			policyName,
+		))
 	}
 
 	if traffic.JWTAuthentication != nil {
@@ -536,11 +561,14 @@ func processRetriesPolicy(retry *agentgateway.Retry, basePolicyName string, poli
 	return retryPolicy, errors.Join(errs...)
 }
 
-func processDirectResponse(directResponse *agentgateway.DirectResponse, basePolicyName string, policy types.NamespacedName) *api.Policy {
+func processDirectResponseTraffic(_ PolicyCtx, directResponse *agentgateway.DirectResponse, _ types.NamespacedName) (*api.Policy_Traffic, error) {
+	if directResponse.StatusCode == nil {
+		return nil, fmt.Errorf("failed to build directResponse: status is required")
+	}
 	tp := &api.TrafficPolicySpec{
 		Kind: &api.TrafficPolicySpec_DirectResponse{
 			DirectResponse: &api.DirectResponse{
-				Status: uint32(directResponse.StatusCode), // nolint:gosec // G115: kubebuilder validation ensures safe for uint32
+				Status: uint32(*directResponse.StatusCode), // nolint:gosec // G115: kubebuilder validation ensures safe for uint32
 			},
 		},
 	}
@@ -550,12 +578,15 @@ func processDirectResponse(directResponse *agentgateway.DirectResponse, basePoli
 		tp.GetDirectResponse().Body = []byte(*directResponse.Body)
 	}
 
+	return &api.Policy_Traffic{Traffic: tp}, nil
+}
+
+func processDirectResponse(directResponse *agentgateway.DirectResponse, basePolicyName string, policy types.NamespacedName) *api.Policy {
+	tp, _ := processDirectResponseTraffic(PolicyCtx{}, directResponse, policy)
 	directRespPolicy := &api.Policy{
 		Key:  basePolicyName + directResponseSuffix,
 		Name: TypedResourceFromName(wellknown.AgentgatewayPolicyGVK.Kind, policy),
-		Kind: &api.Policy_Traffic{
-			Traffic: tp,
-		},
+		Kind: tp,
 	}
 
 	logger.Debug("generated DirectResponse policy",
@@ -924,9 +955,25 @@ func processConditional[T any](
 
 		return extauthPolicy, err
 	}
+	var entries []agentgateway.ConditionalPolicyEntry[T]
+	for cond := range conditional {
+		entries = append(entries, cond)
+	}
+	return processConditionalEntries(entries, f, suffix, ctx, policyPhase, basePolicyName, policy)
+}
+
+func processConditionalEntries[T any](
+	entries []agentgateway.ConditionalPolicyEntry[T],
+	f func(ctx PolicyCtx, pol *T, polName types.NamespacedName) (*api.Policy_Traffic, error),
+	suffix string,
+	ctx PolicyCtx,
+	policyPhase *agentgateway.PolicyPhase,
+	basePolicyName string,
+	policy types.NamespacedName,
+) (*api.Policy, error) {
 	var errs []error
 	conditionals := &api.ConditionalPolicies{}
-	for cond := range conditional {
+	for _, cond := range entries {
 		base, err := f(ctx, &cond.Policy, policy)
 		if err != nil {
 			errs = append(errs, err)
@@ -1039,17 +1086,21 @@ func processExtAuthPolicy(
 }
 
 // processExtProcPolicy processes ExtProc configuration and creates corresponding agentgateway policies
-func processExtProcPolicy(
+func processExtProcTraffic(
 	ctx PolicyCtx,
 	extProc *agentgateway.ExtProc,
-	policyPhase *agentgateway.PolicyPhase,
-	basePolicyName string,
 	policy types.NamespacedName,
-) (*api.Policy, error) {
+) (*api.Policy_Traffic, error) {
 	var backendErr error
-	be, err := buildBackendRef(ctx, extProc.BackendRef, policy.Namespace)
-	if err != nil {
-		backendErr = fmt.Errorf("failed to build extProc: %v", err)
+	var be *api.BackendReference
+	if extProc.BackendRef == nil {
+		backendErr = fmt.Errorf("failed to build extProc: backendRef is required")
+	} else {
+		var err error
+		be, err = buildBackendRef(ctx, *extProc.BackendRef, policy.Namespace)
+		if err != nil {
+			backendErr = fmt.Errorf("failed to build extProc: %v", err)
+		}
 	}
 
 	spec := &api.TrafficPolicySpec_ExtProc{
@@ -1058,24 +1109,35 @@ func processExtProcPolicy(
 		FailureMode: api.TrafficPolicySpec_ExtProc_FAIL_CLOSED,
 	}
 
+	return &api.Policy_Traffic{
+		Traffic: &api.TrafficPolicySpec{
+			Kind: &api.TrafficPolicySpec_ExtProc_{
+				ExtProc: spec,
+			},
+		},
+	}, backendErr
+}
+
+func processExtProcPolicy(
+	ctx PolicyCtx,
+	extProc *agentgateway.ExtProc,
+	policyPhase *agentgateway.PolicyPhase,
+	basePolicyName string,
+	policy types.NamespacedName,
+) (*api.Policy, error) {
+	tp, err := processExtProcTraffic(ctx, extProc, policy)
+	tp.Traffic.Phase = phase(policyPhase)
 	extprocPolicy := &api.Policy{
 		Key:  basePolicyName + extprocPolicySuffix,
 		Name: TypedResourceFromName(wellknown.AgentgatewayPolicyGVK.Kind, policy),
-		Kind: &api.Policy_Traffic{
-			Traffic: &api.TrafficPolicySpec{
-				Phase: phase(policyPhase),
-				Kind: &api.TrafficPolicySpec_ExtProc_{
-					ExtProc: spec,
-				},
-			},
-		},
+		Kind: tp,
 	}
 
 	logger.Info("generated ExtProc policy",
 		"policy", basePolicyName,
 		"agentgateway_policy", extprocPolicy.Name)
 
-	return extprocPolicy, backendErr
+	return extprocPolicy, err
 }
 
 func phase(policyPhase *agentgateway.PolicyPhase) api.TrafficPolicySpec_PolicyPhase {
@@ -1191,13 +1253,66 @@ func getTrafficPolicyName(trafficPolicyNs, trafficPolicyName string) string {
 }
 
 // processRateLimitPolicy processes RateLimit configuration and creates corresponding agentgateway policies
-func processRateLimitPolicy(ctx PolicyCtx, rl *agentgateway.RateLimits, basePolicyName string, policy types.NamespacedName) ([]*api.Policy, error) {
+func processRateLimitPolicy(
+	ctx PolicyCtx,
+	rl *agentgateway.RateLimitsOrConditional,
+	policyPhase *agentgateway.PolicyPhase,
+	basePolicyName string,
+	policy types.NamespacedName,
+) ([]*api.Policy, error) {
+	concrete, conditional := rl.ConditionalPolicy()
+	if concrete != nil {
+		return processConcreteRateLimitPolicy(ctx, concrete, policyPhase, basePolicyName, policy)
+	}
+
+	var localEntries []agentgateway.ConditionalPolicyEntry[[]agentgateway.LocalRateLimit]
+	var globalEntries []agentgateway.ConditionalPolicyEntry[agentgateway.GlobalRateLimit]
+	for cond := range conditional {
+		if cond.Policy.Local != nil {
+			localEntries = append(localEntries, agentgateway.ConditionalPolicyEntry[[]agentgateway.LocalRateLimit]{
+				Condition: cond.Condition,
+				Policy:    cond.Policy.Local,
+			})
+		}
+		if cond.Policy.Global != nil {
+			globalEntries = append(globalEntries, agentgateway.ConditionalPolicyEntry[agentgateway.GlobalRateLimit]{
+				Condition: cond.Condition,
+				Policy:    *cond.Policy.Global,
+			})
+		}
+	}
+
+	var agwPolicies []*api.Policy
+	var errs []error
+	if len(localEntries) > 0 {
+		pol, err := processConditionalEntries(localEntries, processLocalRateLimitTraffic, localRateLimitPolicySuffix, ctx, policyPhase, basePolicyName, policy)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if pol != nil {
+			agwPolicies = append(agwPolicies, pol)
+		}
+	}
+	if len(globalEntries) > 0 {
+		pol, err := processConditionalEntries(globalEntries, processGlobalRateLimitTraffic, globalRateLimitPolicySuffix, ctx, policyPhase, basePolicyName, policy)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if pol != nil {
+			agwPolicies = append(agwPolicies, pol)
+		}
+	}
+
+	return agwPolicies, errors.Join(errs...)
+}
+
+func processConcreteRateLimitPolicy(ctx PolicyCtx, rl *agentgateway.RateLimits, policyPhase *agentgateway.PolicyPhase, basePolicyName string, policy types.NamespacedName) ([]*api.Policy, error) {
 	var agwPolicies []*api.Policy
 	var errs []error
 
 	// Process local rate limiting if present
 	if rl.Local != nil {
-		localPolicy := processLocalRateLimitPolicy(rl.Local, basePolicyName, policy)
+		localPolicy := processLocalRateLimitPolicy(rl.Local, policyPhase, basePolicyName, policy)
 		if localPolicy != nil {
 			agwPolicies = append(agwPolicies, localPolicy)
 		}
@@ -1205,7 +1320,7 @@ func processRateLimitPolicy(ctx PolicyCtx, rl *agentgateway.RateLimits, basePoli
 
 	// Process global rate limiting if present
 	if rl.Global != nil {
-		globalPolicy, err := processGlobalRateLimitPolicy(ctx, *rl.Global, basePolicyName, policy)
+		globalPolicy, err := processGlobalRateLimitPolicy(ctx, *rl.Global, policyPhase, basePolicyName, policy)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -1218,9 +1333,9 @@ func processRateLimitPolicy(ctx PolicyCtx, rl *agentgateway.RateLimits, basePoli
 }
 
 // processLocalRateLimitPolicy processes local rate limiting configuration
-func processLocalRateLimitPolicy(limits []agentgateway.LocalRateLimit, basePolicyName string, policy types.NamespacedName) *api.Policy {
+func processLocalRateLimitTraffic(_ PolicyCtx, limits *[]agentgateway.LocalRateLimit, _ types.NamespacedName) (*api.Policy_Traffic, error) {
 	// TODO: support multiple
-	limit := limits[0]
+	limit := (*limits)[0]
 
 	rule := &api.TrafficPolicySpec_LocalRateLimit{
 		Type: api.TrafficPolicySpec_LocalRateLimit_REQUEST,
@@ -1244,33 +1359,29 @@ func processLocalRateLimitPolicy(limits []agentgateway.LocalRateLimit, basePolic
 		rule.FillInterval = durationpb.New(time.Hour)
 	}
 
-	localRateLimitPolicy := &api.Policy{
-		Key:  basePolicyName + localRateLimitPolicySuffix,
-		Name: TypedResourceFromName(wellknown.AgentgatewayPolicyGVK.Kind, policy),
-		Kind: &api.Policy_Traffic{
-			Traffic: &api.TrafficPolicySpec{
-				Kind: &api.TrafficPolicySpec_LocalRateLimit_{
-					LocalRateLimit: rule,
-				},
-			},
+	return &api.Policy_Traffic{Traffic: &api.TrafficPolicySpec{
+		Kind: &api.TrafficPolicySpec_LocalRateLimit_{
+			LocalRateLimit: rule,
 		},
-	}
-
-	return localRateLimitPolicy
+	}}, nil
 }
 
-func processGlobalRateLimitPolicy(
-	ctx PolicyCtx,
-	grl agentgateway.GlobalRateLimit,
-	basePolicyName string,
-	policy types.NamespacedName,
-) (*api.Policy, error) {
+func processLocalRateLimitPolicy(limits []agentgateway.LocalRateLimit, policyPhase *agentgateway.PolicyPhase, basePolicyName string, policy types.NamespacedName) *api.Policy {
+	tp, _ := processLocalRateLimitTraffic(PolicyCtx{}, &limits, policy)
+	tp.Traffic.Phase = phase(policyPhase)
+	return &api.Policy{
+		Key:  basePolicyName + localRateLimitPolicySuffix,
+		Name: TypedResourceFromName(wellknown.AgentgatewayPolicyGVK.Kind, policy),
+		Kind: tp,
+	}
+}
+
+func processGlobalRateLimitTraffic(ctx PolicyCtx, grl *agentgateway.GlobalRateLimit, policy types.NamespacedName) (*api.Policy_Traffic, error) {
 	var errs []error
 	be, err := buildBackendRef(ctx, grl.BackendRef, policy.Namespace)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to build global rate limit: %v", err))
 	}
-	// Translate descriptors
 	descriptors := make([]*api.TrafficPolicySpec_RemoteRateLimit_Descriptor, 0, len(grl.Descriptors))
 	for _, d := range grl.Descriptors {
 		agw, err := processRateLimitDescriptor(d)
@@ -1282,25 +1393,36 @@ func processGlobalRateLimitPolicy(
 		}
 	}
 
+	return &api.Policy_Traffic{Traffic: &api.TrafficPolicySpec{
+		Kind: &api.TrafficPolicySpec_RemoteRateLimit_{
+			RemoteRateLimit: &api.TrafficPolicySpec_RemoteRateLimit{
+				Domain:      grl.Domain,
+				Target:      be,
+				Descriptors: descriptors,
+				FailureMode: remoteRateLimitFailureMode(grl.FailureMode),
+			},
+		},
+	}}, errors.Join(errs...)
+}
+
+func processGlobalRateLimitPolicy(
+	ctx PolicyCtx,
+	grl agentgateway.GlobalRateLimit,
+	policyPhase *agentgateway.PolicyPhase,
+	basePolicyName string,
+	policy types.NamespacedName,
+) (*api.Policy, error) {
+	tp, err := processGlobalRateLimitTraffic(ctx, &grl, policy)
+	tp.Traffic.Phase = phase(policyPhase)
+
 	// Build the RemoteRateLimit policy that agentgateway expects
 	p := &api.Policy{
 		Key:  basePolicyName + globalRateLimitPolicySuffix,
 		Name: TypedResourceFromName(wellknown.AgentgatewayPolicyGVK.Kind, policy),
-		Kind: &api.Policy_Traffic{
-			Traffic: &api.TrafficPolicySpec{
-				Kind: &api.TrafficPolicySpec_RemoteRateLimit_{
-					RemoteRateLimit: &api.TrafficPolicySpec_RemoteRateLimit{
-						Domain:      grl.Domain,
-						Target:      be,
-						Descriptors: descriptors,
-						FailureMode: remoteRateLimitFailureMode(grl.FailureMode),
-					},
-				},
-			},
-		},
+		Kind: tp,
 	}
 
-	return p, errors.Join(errs...)
+	return p, err
 }
 
 func processRateLimitDescriptor(descriptor agentgateway.RateLimitDescriptor) (*api.TrafficPolicySpec_RemoteRateLimit_Descriptor, error) {
@@ -1389,12 +1511,11 @@ func processCSRFPolicy(csrf *agentgateway.CSRF, basePolicyName string, policy ty
 }
 
 // processTransformationPolicy processes transformation configuration and creates corresponding Agw policies
-func processTransformationPolicy(
+func processTransformationTraffic(
+	_ PolicyCtx,
 	transformation *agentgateway.Transformation,
-	policyPhase *agentgateway.PolicyPhase,
-	basePolicyName string,
 	policy types.NamespacedName,
-) (*api.Policy, error) {
+) (*api.Policy_Traffic, error) {
 	var errs []error
 	convertedReq, err := convertTransformSpec(transformation.Request)
 	if err != nil {
@@ -1406,28 +1527,41 @@ func processTransformationPolicy(
 	}
 
 	if convertedResp != nil || convertedReq != nil {
-		transformationPolicy := &api.Policy{
-			Key:  basePolicyName + transformationPolicySuffix,
-			Name: TypedResourceFromName(wellknown.AgentgatewayPolicyGVK.Kind, policy),
-			Kind: &api.Policy_Traffic{
-				Traffic: &api.TrafficPolicySpec{
-					Phase: phase(policyPhase),
-					Kind: &api.TrafficPolicySpec_Transformation{
-						Transformation: &api.TrafficPolicySpec_TransformationPolicy{
-							Request:  convertedReq,
-							Response: convertedResp,
-						},
+		return &api.Policy_Traffic{
+			Traffic: &api.TrafficPolicySpec{
+				Kind: &api.TrafficPolicySpec_Transformation{
+					Transformation: &api.TrafficPolicySpec_TransformationPolicy{
+						Request:  convertedReq,
+						Response: convertedResp,
 					},
 				},
 			},
-		}
-
-		logger.Debug("generated transformation policy",
-			"policy", basePolicyName,
-			"agentgateway_policy", transformationPolicy.Name)
-		return transformationPolicy, errors.Join(errs...)
+		}, errors.Join(errs...)
 	}
 	return nil, errors.Join(errs...)
+}
+
+func processTransformationPolicy(
+	transformation *agentgateway.Transformation,
+	policyPhase *agentgateway.PolicyPhase,
+	basePolicyName string,
+	policy types.NamespacedName,
+) (*api.Policy, error) {
+	tp, err := processTransformationTraffic(PolicyCtx{}, transformation, policy)
+	if tp == nil {
+		return nil, err
+	}
+	tp.Traffic.Phase = phase(policyPhase)
+	transformationPolicy := &api.Policy{
+		Key:  basePolicyName + transformationPolicySuffix,
+		Name: TypedResourceFromName(wellknown.AgentgatewayPolicyGVK.Kind, policy),
+		Kind: tp,
+	}
+
+	logger.Debug("generated transformation policy",
+		"policy", basePolicyName,
+		"agentgateway_policy", transformationPolicy.Name)
+	return transformationPolicy, err
 }
 
 // convertTransformSpec converts transformation specs to agentgateway format
@@ -1641,6 +1775,29 @@ func BackendReferencesFromPolicy(ctx krt.HandlerContext, policy *agentgateway.Ag
 	return attachments
 }
 
+// PolicyOrConditionalSeq iterates over all concrete policy objects whether conditional or explicit.
+func PolicyOrConditionalSeq[T any, P interface {
+	agentgateway.ConditionalPolicy[T]
+	comparable
+}](p P) iter.Seq[T] {
+	var zero P
+	if p == zero {
+		return func(yield func(T) bool) {}
+	}
+	explicit, cond := p.ConditionalPolicy()
+	if explicit != nil {
+		return func(yield func(T) bool) {
+			yield(*explicit)
+		}
+	}
+
+	return func(yield func(T) bool) {
+		for e := range cond {
+			yield(e.Policy)
+		}
+	}
+}
+
 func referencedBackendsFromPolicy(policy *agentgateway.AgentgatewayPolicy) []utils.TypedNamespacedName {
 	var backends []utils.TypedNamespacedName
 	app := func(ref gwv1.BackendObjectReference) {
@@ -1652,21 +1809,20 @@ func referencedBackendsFromPolicy(policy *agentgateway.AgentgatewayPolicy) []uti
 
 	s := policy.Spec
 	if s.Traffic != nil {
-		if s.Traffic.ExtAuth != nil {
-			for _, conditional := range s.Traffic.ExtAuth.Conditional {
-				if conditional.Policy.BackendRef != nil {
-					app(*conditional.Policy.BackendRef)
-				}
-			}
-			if s.Traffic.ExtAuth.BackendRef != nil {
-				app(*s.Traffic.ExtAuth.BackendRef)
+		for p := range PolicyOrConditionalSeq(s.Traffic.ExtAuth) {
+			if p.BackendRef != nil {
+				app(*p.BackendRef)
 			}
 		}
-		if s.Traffic.ExtProc != nil {
-			app(s.Traffic.ExtProc.BackendRef)
+		for p := range PolicyOrConditionalSeq(s.Traffic.ExtProc) {
+			if p.BackendRef != nil {
+				app(*p.BackendRef)
+			}
 		}
-		if s.Traffic.RateLimit != nil && s.Traffic.RateLimit.Global != nil {
-			app(s.Traffic.RateLimit.Global.BackendRef)
+		for p := range PolicyOrConditionalSeq(s.Traffic.RateLimit) {
+			if p.Global != nil {
+				app(p.Global.BackendRef)
+			}
 		}
 		if s.Traffic.JWTAuthentication != nil {
 			for _, p := range s.Traffic.JWTAuthentication.Providers {
