@@ -264,3 +264,7 @@ require (
 )
 
 replace istio.io/istio => github.com/howardjohn/istio v0.0.0-20260505201417-26c9084d11a4
+
+replace sigs.k8s.io/gateway-api/conformance => sigs.k8s.io/gateway-api/conformance v0.0.0-20260505085023-32e498c263a4
+
+replace sigs.k8s.io/gateway-api => sigs.k8s.io/gateway-api v1.3.1-0.20260505085023-32e498c263a4
