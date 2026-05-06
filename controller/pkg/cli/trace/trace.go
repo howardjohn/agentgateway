@@ -587,7 +587,7 @@ func summarizeEvent(event traceEvent) string {
 	case "requestSnapshot":
 		return summarizeSnapshotStage(event.Stage)
 	case "responseSnapshot":
-		return fmt.Sprintf("%s/%s", event.Stage, event.Phase)
+		return summarizeSnapshotStage(event.Stage)
 	case "routeSelection":
 		return summarizeRouteSelection(event.SelectedRoute, len(event.EvaluatedRoutes))
 	case "policySelection":
@@ -606,7 +606,10 @@ func summarizeEvent(event traceEvent) string {
 			stringValue(event.Protocol),
 		))
 	case "backendCallResult":
-		parts := []string{event.Target}
+		parts := []string{}
+		if event.Target != "" {
+			parts = append(parts, event.Target)
+		}
 		if event.Status != nil {
 			parts = append(parts, fmt.Sprintf("status=%d", *event.Status))
 		}

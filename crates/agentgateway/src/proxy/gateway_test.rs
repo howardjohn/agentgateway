@@ -455,11 +455,8 @@ async fn debug_trace_only_captures_one_request_on_keepalive_connection() {
 	read_body_raw(res.into_body()).await;
 
 	let mut events = Vec::new();
-	loop {
-		match tokio::time::timeout(Duration::from_millis(50), trace_rx.recv()).await {
-			Ok(Some(msg)) => events.push(serde_json::to_value(msg).unwrap()),
-			Ok(None) | Err(_) => break,
-		}
+	while let Ok(Some(msg)) = tokio::time::timeout(Duration::from_millis(50), trace_rx.recv()).await {
+		events.push(serde_json::to_value(msg).unwrap())
 	}
 
 	let request_started = events
@@ -883,7 +880,7 @@ async fn cors_preflight_bypasses_basic_auth() {
 async fn mcp_authentication_runs_in_route_policy_path() {
 	let (_mock, mut bind, io) = basic_setup().await;
 	bind
-		.attach_route_policy(json!({
+      .attach_route_policy(json!({
 			"mcpAuthentication": {
 				"issuer": "https://example.com",
 				"audiences": ["test-aud"],
@@ -893,7 +890,7 @@ async fn mcp_authentication_runs_in_route_policy_path() {
 				}
 			}
 		}))
-		.await;
+      .await;
 
 	let res = send_request(
 		io,
