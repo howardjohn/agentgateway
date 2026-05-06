@@ -1199,6 +1199,35 @@ async fn direct_response() {
 }
 
 #[tokio::test]
+async fn conditional_direct_response() {
+	let (_mock, mut bind, io) = basic_setup().await;
+	bind
+		.attach_route(json!({
+			"policies": {
+				"directResponse": {
+					"conditional": [
+						{
+							"condition": "request.path == '/a'",
+							"body": "hello a",
+							"status": 200,
+						},
+						{
+							"body": "hello fallback",
+							"status": 202,
+						},
+					]
+				},
+			},
+		}))
+		.await;
+
+	let res = send_request(io.clone(), Method::GET, "http://lo/a").await;
+	assert_eq!(res.status(), 200);
+	let res = send_request(io.clone(), Method::GET, "http://lo/b").await;
+	assert_eq!(res.status(), 202);
+}
+
+#[tokio::test]
 async fn response_policy_short_circuit() {
 	let (_mock, mut bind, io) = basic_setup().await;
 	bind
