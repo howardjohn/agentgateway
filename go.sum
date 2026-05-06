@@ -809,8 +809,6 @@ sigs.k8s.io/gateway-api v1.3.1-0.20260505085023-32e498c263a4 h1:tFalG3KFExDTeyGq
 sigs.k8s.io/gateway-api v1.3.1-0.20260505085023-32e498c263a4/go.mod h1:MkHZKIp7DSV86ByiLq7cCkBnUVJTisJkHTt4T5YlLiM=
 sigs.k8s.io/gateway-api-inference-extension v1.5.0 h1:w9Awt60cmI1vM7Y6N81h8wDCBP0WkmxpdI7GKY0v070=
 sigs.k8s.io/gateway-api-inference-extension v1.5.0/go.mod h1:ZeIlzI43XH2qWKipFq/Qa12yB2s/D+Xp1XJVlpMxklA=
-sigs.k8s.io/gateway-api-inference-extension/conformance v1.5.0-rc.1 h1:FcY/z0YNzgu/rA6HWarT8ltJvVXy+opw5kv+D339ehY=
-sigs.k8s.io/gateway-api-inference-extension/conformance v1.5.0-rc.1/go.mod h1:lIF+vgTSBKDl4DIK45T556OBBNdfZTG9x88Wf90Q8ao=
 sigs.k8s.io/gateway-api-inference-extension/conformance v1.5.0 h1:MnVR8OCQZBNqBSZ+b1CciiCoX+9J+TeDetyIwQB476k=
 sigs.k8s.io/gateway-api-inference-extension/conformance v1.5.0/go.mod h1:/8QGtv1lT1rYJR2oo2P2fopZluL4uP/whN/9sqVTGLU=
 sigs.k8s.io/gateway-api/conformance v0.0.0-20260505085023-32e498c263a4 h1:Wl1ZBdnSvtKeoOYqijHAKygu05KVyQqBLs2+gp+oFWY=
