@@ -581,21 +581,6 @@ func processDirectResponseTraffic(_ PolicyCtx, directResponse *agentgateway.Dire
 	return &api.Policy_Traffic{Traffic: tp}, nil
 }
 
-func processDirectResponse(directResponse *agentgateway.DirectResponse, basePolicyName string, policy types.NamespacedName) *api.Policy {
-	tp, _ := processDirectResponseTraffic(PolicyCtx{}, directResponse, policy)
-	directRespPolicy := &api.Policy{
-		Key:  basePolicyName + directResponseSuffix,
-		Name: TypedResourceFromName(wellknown.AgentgatewayPolicyGVK.Kind, policy),
-		Kind: tp,
-	}
-
-	logger.Debug("generated DirectResponse policy",
-		"policy", basePolicyName,
-		"agentgateway_policy", directRespPolicy.Name)
-
-	return directRespPolicy
-}
-
 func processJWTAuthenticationPolicy(ctx PolicyCtx, jwt *agentgateway.JWTAuthentication, policyPhase *agentgateway.PolicyPhase, basePolicyName string, policy types.NamespacedName) (*api.Policy, error) {
 	p := &api.TrafficPolicySpec_JWT{}
 	p.AuthorizationLocation = translateAuthorizationLocation(jwt.Location)
@@ -1118,28 +1103,6 @@ func processExtProcTraffic(
 	}, backendErr
 }
 
-func processExtProcPolicy(
-	ctx PolicyCtx,
-	extProc *agentgateway.ExtProc,
-	policyPhase *agentgateway.PolicyPhase,
-	basePolicyName string,
-	policy types.NamespacedName,
-) (*api.Policy, error) {
-	tp, err := processExtProcTraffic(ctx, extProc, policy)
-	tp.Traffic.Phase = phase(policyPhase)
-	extprocPolicy := &api.Policy{
-		Key:  basePolicyName + extprocPolicySuffix,
-		Name: TypedResourceFromName(wellknown.AgentgatewayPolicyGVK.Kind, policy),
-		Kind: tp,
-	}
-
-	logger.Info("generated ExtProc policy",
-		"policy", basePolicyName,
-		"agentgateway_policy", extprocPolicy.Name)
-
-	return extprocPolicy, err
-}
-
 func phase(policyPhase *agentgateway.PolicyPhase) api.TrafficPolicySpec_PolicyPhase {
 	var phase api.TrafficPolicySpec_PolicyPhase
 	if policyPhase != nil {
@@ -1514,7 +1477,7 @@ func processCSRFPolicy(csrf *agentgateway.CSRF, basePolicyName string, policy ty
 func processTransformationTraffic(
 	_ PolicyCtx,
 	transformation *agentgateway.Transformation,
-	policy types.NamespacedName,
+	_ types.NamespacedName,
 ) (*api.Policy_Traffic, error) {
 	var errs []error
 	convertedReq, err := convertTransformSpec(transformation.Request)
@@ -1539,29 +1502,6 @@ func processTransformationTraffic(
 		}, errors.Join(errs...)
 	}
 	return nil, errors.Join(errs...)
-}
-
-func processTransformationPolicy(
-	transformation *agentgateway.Transformation,
-	policyPhase *agentgateway.PolicyPhase,
-	basePolicyName string,
-	policy types.NamespacedName,
-) (*api.Policy, error) {
-	tp, err := processTransformationTraffic(PolicyCtx{}, transformation, policy)
-	if tp == nil {
-		return nil, err
-	}
-	tp.Traffic.Phase = phase(policyPhase)
-	transformationPolicy := &api.Policy{
-		Key:  basePolicyName + transformationPolicySuffix,
-		Name: TypedResourceFromName(wellknown.AgentgatewayPolicyGVK.Kind, policy),
-		Kind: tp,
-	}
-
-	logger.Debug("generated transformation policy",
-		"policy", basePolicyName,
-		"agentgateway_policy", transformationPolicy.Name)
-	return transformationPolicy, err
 }
 
 // convertTransformSpec converts transformation specs to agentgateway format
