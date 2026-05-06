@@ -7,6 +7,7 @@ use crate::http::{
 	HeaderOrPseudo, HeaderOrPseudoValue, PolicyResponse, Request, RequestOrResponse, Response,
 };
 use crate::proxy::ProxyResponse;
+use crate::proxy::httpproxy::PolicyClient;
 use crate::telemetry::log::RequestLog;
 use crate::{cel, *};
 
@@ -316,6 +317,7 @@ impl crate::store::RequestPolicyTrait for Transformation {
 impl store::BackendPolicyTrait for Transformation {
 	async fn apply(
 		&self,
+		_client: &PolicyClient,
 		_log: &mut Option<&mut RequestLog>,
 		req: &mut Request,
 	) -> Result<PolicyResponse, ProxyResponse> {

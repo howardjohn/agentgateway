@@ -811,6 +811,7 @@ impl LocalBackend {
 				response_header_modifier: None,
 				request_redirect: None,
 				health: None,
+				ext_authz: None,
 			})
 			.map(LocalBackendPolicies::translate)
 			.transpose()?
@@ -1381,6 +1382,10 @@ pub struct LocalBackendPolicies {
 	#[serde(default)]
 	pub health: Option<health::LocalHealthPolicy>,
 
+	/// Authenticate incoming requests by calling an external authorization server after this backend is selected.
+	#[serde(default)]
+	pub ext_authz: Option<crate::http::ext_authz::ExtAuthz>,
+
 	/// Authorization policies for MCP access.
 	#[serde(default)]
 	pub mcp_authorization: Option<McpAuthorization>,
@@ -1445,6 +1450,7 @@ impl LocalBackendPolicies {
 			response_header_modifier,
 			request_redirect,
 			health,
+			ext_authz,
 		} = self;
 		let mut pols = vec![];
 		if let Some(p) = tcp {
@@ -1482,6 +1488,9 @@ impl LocalBackendPolicies {
 		}
 		if let Some(p) = backend_auth {
 			pols.push(BackendTrafficPolicy::BackendAuth(p))
+		}
+		if let Some(p) = ext_authz {
+			pols.push(BackendTrafficPolicy::ExtAuthz(Arc::new(p)))
 		}
 		if let Some(mut p) = ai {
 			p.compile_model_alias_patterns();

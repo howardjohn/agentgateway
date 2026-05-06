@@ -1420,6 +1420,9 @@ fn backend_policy_from_proto(
 		Some(bps::Kind::Ai(ai)) => {
 			BackendTrafficPolicy::AI(Arc::new(convert_backend_ai_policy(ai, diagnostics)?))
 		},
+		Some(bps::Kind::ExtAuthz(ea)) => {
+			BackendTrafficPolicy::ExtAuthz(Arc::new(external_auth_from_proto(ea, diagnostics)?))
+		},
 		Some(bps::Kind::Transformation(tp)) => {
 			BackendTrafficPolicy::Transformation(Arc::new(transformation_from_proto(tp, diagnostics)?))
 		},
@@ -1586,117 +1589,9 @@ fn traffic_policy_from_proto(
 					.map_err(|e| ProtoError::Generic(format!("invalid rate limit: {e}")))?,
 			]))
 		},
-		Some(tps::Kind::ExtAuthz(ea)) => {
-			use proto::agent::traffic_policy_spec::external_auth;
-			let target = resolve_simple_reference(ea.target.as_ref());
-			let failure_mode = match external_auth::FailureMode::try_from(ea.failure_mode) {
-				Ok(external_auth::FailureMode::Allow) => http::ext_authz::FailureMode::Allow,
-				Ok(external_auth::FailureMode::Deny) => http::ext_authz::FailureMode::Deny,
-				Ok(external_auth::FailureMode::DenyWithStatus) => {
-					let status = ea.status_on_error.unwrap_or(403) as u16;
-					http::ext_authz::FailureMode::DenyWithStatus(status)
-				},
-				_ => http::ext_authz::FailureMode::Deny, // Default fallback
-			};
-			let include_request_body =
-				ea.include_request_body
-					.as_ref()
-					.map(|body_opts| http::ext_authz::BodyOptions {
-						max_request_bytes: body_opts.max_request_bytes,
-						allow_partial_message: body_opts.allow_partial_message,
-						pack_as_bytes: body_opts.pack_as_bytes,
-					});
-			let protocol = match ea
-				.protocol
-				.as_ref()
-				.ok_or(ProtoError::MissingRequiredField)?
-			{
-				external_auth::Protocol::Grpc(g) => {
-					let metadata: HashMap<_, _> = g
-						.metadata
-						.iter()
-						.map(|(k, v)| {
-							let ve = permissive_cel_expression_arc(
-								diagnostics,
-								format!("traffic.extAuthz.grpc.metadata.{k}"),
-								v,
-							);
-							Ok::<_, ProtoError>((k.to_owned(), ve))
-						})
-						.collect::<Result<_, _>>()?;
-					http::ext_authz::Protocol::Grpc {
-						context: Some(g.context.clone()),
-						metadata: if metadata.is_empty() {
-							None
-						} else {
-							Some(metadata)
-						},
-					}
-				},
-				external_auth::Protocol::Http(h) => http::ext_authz::Protocol::Http {
-					path: h.path.as_ref().map(|expr| {
-						permissive_cel_expression_arc(diagnostics, "traffic.extAuthz.http.path", expr)
-					}),
-					redirect: h.redirect.as_ref().map(|expr| {
-						permissive_cel_expression_arc(diagnostics, "traffic.extAuthz.http.redirect", expr)
-					}),
-					include_response_headers: h
-						.include_response_headers
-						.iter()
-						.map(|k| HeaderName::try_from(k.as_str()))
-						.collect::<Result<_, _>>()?,
-					add_request_headers: h
-						.add_request_headers
-						.iter()
-						.map(|(k, v)| {
-							let tk = HeaderOrPseudo::try_from(k.as_str())?;
-							let tv = permissive_cel_expression_arc(
-								diagnostics,
-								format!("traffic.extAuthz.http.addRequestHeaders.{k}"),
-								v.as_str(),
-							);
-							Ok::<_, anyhow::Error>((tk, tv))
-						})
-						.collect::<Result<_, _>>()
-						.map_err(|e| ProtoError::Generic(e.to_string()))?,
-					metadata: h
-						.metadata
-						.iter()
-						.map(|(k, v)| {
-							let ve = permissive_cel_expression(
-								diagnostics,
-								format!("traffic.extAuthz.http.metadata.{k}"),
-								v,
-							);
-							Ok::<_, ProtoError>((k.to_owned(), Arc::new(ve)))
-						})
-						.collect::<Result<_, _>>()?,
-				},
-			};
-			TrafficPolicy::ExtAuthz(RequestPolicy::single(http::ext_authz::ExtAuthz {
-				protocol,
-				target: Arc::new(target),
-				// Not supported inline from xDS
-				policies: Vec::new(),
-				failure_mode,
-				include_request_headers: ea
-					.include_request_headers
-					.iter()
-					.filter_map(
-						|s| match crate::http::HeaderOrPseudo::try_from(s.as_str()) {
-							Ok(h) => Some(h),
-							Err(_) => {
-								diagnostics.add_warning(format!(
-									"invalid header in extauth include_request_headers; skipping: {s}"
-								));
-								None
-							},
-						},
-					)
-					.collect(),
-				include_request_body,
-			}))
-		},
+		Some(tps::Kind::ExtAuthz(ea)) => TrafficPolicy::ExtAuthz(RequestPolicy::single(
+			external_auth_from_proto(ea, diagnostics)?,
+		)),
 		Some(tps::Kind::Authorization(rbac)) => {
 			TrafficPolicy::Authorization(authorization_from_proto(rbac, diagnostics))
 		},
@@ -2083,6 +1978,122 @@ fn traffic_policy_from_proto(
 			})
 		},
 		None => return Err(ProtoError::MissingRequiredField),
+	})
+}
+
+fn external_auth_from_proto(
+	ea: &proto::agent::traffic_policy_spec::ExternalAuth,
+	diagnostics: &mut Diagnostics,
+) -> Result<http::ext_authz::ExtAuthz, ProtoError> {
+	use proto::agent::traffic_policy_spec::external_auth;
+
+	let target = resolve_simple_reference(ea.target.as_ref());
+	let failure_mode = match external_auth::FailureMode::try_from(ea.failure_mode) {
+		Ok(external_auth::FailureMode::Allow) => http::ext_authz::FailureMode::Allow,
+		Ok(external_auth::FailureMode::Deny) => http::ext_authz::FailureMode::Deny,
+		Ok(external_auth::FailureMode::DenyWithStatus) => {
+			let status = ea.status_on_error.unwrap_or(403) as u16;
+			http::ext_authz::FailureMode::DenyWithStatus(status)
+		},
+		_ => http::ext_authz::FailureMode::Deny,
+	};
+	let include_request_body =
+		ea.include_request_body
+			.as_ref()
+			.map(|body_opts| http::ext_authz::BodyOptions {
+				max_request_bytes: body_opts.max_request_bytes,
+				allow_partial_message: body_opts.allow_partial_message,
+				pack_as_bytes: body_opts.pack_as_bytes,
+			});
+	let protocol = match ea
+		.protocol
+		.as_ref()
+		.ok_or(ProtoError::MissingRequiredField)?
+	{
+		external_auth::Protocol::Grpc(g) => {
+			let metadata: HashMap<_, _> = g
+				.metadata
+				.iter()
+				.map(|(k, v)| {
+					let ve = permissive_cel_expression_arc(
+						diagnostics,
+						format!("traffic.extAuthz.grpc.metadata.{k}"),
+						v,
+					);
+					Ok::<_, ProtoError>((k.to_owned(), ve))
+				})
+				.collect::<Result<_, _>>()?;
+			http::ext_authz::Protocol::Grpc {
+				context: Some(g.context.clone()),
+				metadata: if metadata.is_empty() {
+					None
+				} else {
+					Some(metadata)
+				},
+			}
+		},
+		external_auth::Protocol::Http(h) => http::ext_authz::Protocol::Http {
+			path: h
+				.path
+				.as_ref()
+				.map(|expr| permissive_cel_expression_arc(diagnostics, "traffic.extAuthz.http.path", expr)),
+			redirect: h.redirect.as_ref().map(|expr| {
+				permissive_cel_expression_arc(diagnostics, "traffic.extAuthz.http.redirect", expr)
+			}),
+			include_response_headers: h
+				.include_response_headers
+				.iter()
+				.map(|k| HeaderName::try_from(k.as_str()))
+				.collect::<Result<_, _>>()?,
+			add_request_headers: h
+				.add_request_headers
+				.iter()
+				.map(|(k, v)| {
+					let tk = HeaderOrPseudo::try_from(k.as_str())?;
+					let tv = permissive_cel_expression_arc(
+						diagnostics,
+						format!("traffic.extAuthz.http.addRequestHeaders.{k}"),
+						v.as_str(),
+					);
+					Ok::<_, anyhow::Error>((tk, tv))
+				})
+				.collect::<Result<_, _>>()
+				.map_err(|e| ProtoError::Generic(e.to_string()))?,
+			metadata: h
+				.metadata
+				.iter()
+				.map(|(k, v)| {
+					let ve = permissive_cel_expression(
+						diagnostics,
+						format!("traffic.extAuthz.http.metadata.{k}"),
+						v,
+					);
+					Ok::<_, ProtoError>((k.to_owned(), Arc::new(ve)))
+				})
+				.collect::<Result<_, _>>()?,
+		},
+	};
+	Ok(http::ext_authz::ExtAuthz {
+		protocol,
+		target: Arc::new(target),
+		policies: Vec::new(),
+		failure_mode,
+		include_request_headers: ea
+			.include_request_headers
+			.iter()
+			.filter_map(
+				|s| match crate::http::HeaderOrPseudo::try_from(s.as_str()) {
+					Ok(h) => Some(h),
+					Err(_) => {
+						diagnostics.add_warning(format!(
+							"invalid header in extauth include_request_headers; skipping: {s}"
+						));
+						None
+					},
+				},
+			)
+			.collect(),
+		include_request_body,
 	})
 }
 

@@ -68,6 +68,7 @@ pub trait ResponsePolicyTrait: Send + Sync + 'static {
 pub trait BackendPolicyTrait: Send + Sync + 'static {
 	async fn apply(
 		&self,
+		client: &PolicyClient,
 		log: &mut Option<&mut RequestLog>,
 		req: &mut crate::http::Request,
 	) -> Result<crate::http::PolicyResponse, crate::proxy::ProxyResponse>;
@@ -371,6 +372,7 @@ impl<T: BackendPolicyTrait> BackendPolicy<T> {
 	pub async fn apply(
 		&self,
 		name: &'static str,
+		client: &PolicyClient,
 		log: &mut Option<&mut RequestLog>,
 		req: &mut crate::http::Request,
 		response_headers: &mut HeaderMap,
@@ -379,7 +381,7 @@ impl<T: BackendPolicyTrait> BackendPolicy<T> {
 			return Ok(ResponsePolicy(None));
 		};
 
-		let res = pol.apply(log, req).await?.apply(response_headers);
+		let res = pol.apply(client, log, req).await?.apply(response_headers);
 		dtrace::snapshot!(Request, name, &req);
 		res.map(|_| ResponsePolicy(Some(pol.clone())))
 	}

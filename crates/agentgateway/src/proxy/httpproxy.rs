@@ -228,6 +228,7 @@ async fn apply_request_policies(
 
 async fn apply_backend_policies(
 	backend_info: auth::BackendInfo,
+	client: PolicyClient,
 	backend_call: &BackendCall,
 	req: &mut Request,
 	log: &mut Option<&mut RequestLog>,
@@ -252,6 +253,7 @@ async fn apply_backend_policies(
 		mcp_authentication: _,
 		// Applied elsewhere
 		inference_routing: _,
+		ext_authz,
 		request_header_modifier,
 		response_header_modifier,
 		request_redirect,
@@ -273,12 +275,17 @@ async fn apply_backend_policies(
 		.unwrap_or(&dh)
 		.apply(req, backend_call.http_version_override);
 
+	// Ext auth has no response-side
+	let _ = ext_authz
+		.apply("backend ext authz", &client, log, req, rp.headers())
+		.await?;
+
 	if let Some(auth) = backend_auth {
 		auth::apply_backend_auth(&backend_info, auth, req).await?;
 		dtrace::snapshot!(Request, "backend auth", &req);
 	}
 	rp.backend_transformation = transformation
-		.apply("backend transformation", log, req, rp.headers())
+		.apply("backend transformation", &client, log, req, rp.headers())
 		.await?;
 	if let Some(rhm) = request_header_modifier {
 		rhm.apply_request(req).map_err(ProxyError::from)?;
@@ -1574,6 +1581,9 @@ async fn make_backend_call(
 	};
 	apply_backend_policies(
 		backend_info.clone(),
+		PolicyClient {
+			inputs: inputs.clone(),
+		},
 		&backend_call,
 		&mut req,
 		&mut log,

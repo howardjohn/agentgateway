@@ -6,8 +6,8 @@ use secrecy::SecretString;
 
 use crate::serdes::FileInlineOrRemote;
 use crate::types::agent::{
-	HeaderValueMatch, ListenerTarget, PolicyPhase, PolicyTarget, PolicyType, ResourceName,
-	TrafficPolicy,
+	BackendTrafficPolicy, HeaderValueMatch, ListenerTarget, PolicyPhase, PolicyTarget, PolicyType,
+	ResourceName, TrafficPolicy,
 };
 use crate::types::local::NormalizedLocalConfig;
 use crate::*;
@@ -322,6 +322,31 @@ binds:
 	normalize_test_yaml(input)
 		.await
 		.expect("http extAuthz includeResponseHeaders should accept header names");
+}
+
+#[tokio::test]
+async fn test_local_backend_ext_authz_policy() {
+	let input = r#"
+binds:
+- port: 3000
+  listeners:
+  - routes:
+    - backends:
+      - host: 127.0.0.1:8000
+        policies:
+          extAuthz:
+            host: 127.0.0.1:9000
+      - host: 127.0.0.1:8001
+"#;
+
+	let normalized = normalize_test_yaml(input).await.unwrap();
+	let route = &normalized.listener_routes[0].1[0];
+	assert!(route.inline_policies.is_empty());
+	assert!(matches!(
+		route.backends[0].inline_policies.as_slice(),
+		[BackendTrafficPolicy::ExtAuthz(_)]
+	));
+	assert!(route.backends[1].inline_policies.is_empty());
 }
 
 #[tokio::test]

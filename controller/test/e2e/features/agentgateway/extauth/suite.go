@@ -45,6 +45,11 @@ func NewTestingSuite(ctx context.Context, testInst *e2e.TestInstallation) suite.
 				insecureRouteManifest,
 			},
 		},
+		"TestBackendTargetedExtAuthPolicy": {
+			Manifests: []string{
+				backendTargetedRouteManifest,
+			},
+		},
 		"TestConditionalExtAuthPolicy": {
 			Manifests: []string{
 				conditionalRouteManifest,
@@ -178,6 +183,60 @@ func (s *testingSuite) TestRouteTargetedExtAuthPolicy() {
 			}
 
 			// Test the request
+			common.BaseGateway.Send(
+				s.T(),
+				&testmatchers.HttpResponse{
+					StatusCode: tc.expectedStatus,
+					Body:       gomega.ContainSubstring(tc.expectedUpstreamBodyContents),
+				},
+				opts...)
+		})
+	}
+}
+
+// TestBackendTargetedExtAuthPolicy tests that extAuth can apply only to a selected backend.
+func (s *testingSuite) TestBackendTargetedExtAuthPolicy() {
+	testCases := []struct {
+		name                         string
+		headers                      map[string]string
+		path                         string
+		expectedStatus               int
+		expectedUpstreamBodyContents string
+	}{
+		{
+			name:           "request allowed on backend without ext auth",
+			headers:        map[string]string{},
+			path:           "/open",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "request denied on backend with ext auth without allow header",
+			headers:        map[string]string{},
+			path:           "/secure",
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name: "request allowed on backend with ext auth with allow header",
+			headers: map[string]string{
+				"x-ext-authz": "allow",
+			},
+			path:                         "/secure",
+			expectedStatus:               http.StatusOK,
+			expectedUpstreamBodyContents: "X-Ext-Authz-Check-Result",
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			opts := []curl.Option{
+				curl.WithHostHeader("backendextauth.com"),
+				curl.WithPath(tc.path),
+			}
+
+			for k, v := range tc.headers {
+				opts = append(opts, curl.WithHeader(k, v))
+			}
+
 			common.BaseGateway.Send(
 				s.T(),
 				&testmatchers.HttpResponse{

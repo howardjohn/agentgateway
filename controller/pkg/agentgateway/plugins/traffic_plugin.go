@@ -966,6 +966,21 @@ func processExtAuthPolicy(
 	extAuth *agentgateway.ExtAuth,
 	policy types.NamespacedName,
 ) (*api.Policy_Traffic, error) {
+	spec, err := buildExtAuthSpec(ctx, extAuth, policy)
+	return &api.Policy_Traffic{
+		Traffic: &api.TrafficPolicySpec{
+			Kind: &api.TrafficPolicySpec_ExtAuthz{
+				ExtAuthz: spec,
+			},
+		},
+	}, err
+}
+
+func buildExtAuthSpec(
+	ctx PolicyCtx,
+	extAuth *agentgateway.ExtAuth,
+	policy types.NamespacedName,
+) (*api.TrafficPolicySpec_ExternalAuth, error) {
 	var errs []error
 	var be *api.BackendReference
 	if extAuth.BackendRef == nil {
@@ -1029,13 +1044,7 @@ func processExtAuthPolicy(
 		}
 	}
 
-	return &api.Policy_Traffic{
-		Traffic: &api.TrafficPolicySpec{
-			Kind: &api.TrafficPolicySpec_ExtAuthz{
-				ExtAuthz: spec,
-			},
-		},
-	}, errors.Join(errs...)
+	return spec, errors.Join(errs...)
 }
 
 // processExtProcPolicy processes ExtProc configuration and creates corresponding agentgateway policies
@@ -1697,6 +1706,9 @@ func BackendReferencesFromBackendPolicy(s *agentgateway.BackendFull, app func(re
 		}
 	}
 	appTunnel(&s.BackendSimple)
+	if s.ExtAuth != nil && s.ExtAuth.BackendRef != nil {
+		app(*s.ExtAuth.BackendRef)
+	}
 	if s.MCP != nil && s.MCP.Authentication != nil {
 		app(s.MCP.Authentication.JWKS.BackendRef)
 	}

@@ -23,6 +23,7 @@ use crate::http::{
 use crate::proxy::dtrace::{Severity, pol_event, pol_result_timed};
 use crate::proxy::httpproxy::PolicyClient;
 use crate::proxy::{ProxyError, ProxyResponse, dtrace};
+use crate::telemetry::log::RequestLog;
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::agent::{BackendTrafficPolicy, SimpleBackendReference};
 use crate::*;
@@ -762,6 +763,24 @@ impl ExtAuthz {
 		let res = exec.eval(v)?;
 		let js = res.json().map_err(|_| cel::Error::JsonConvert)?;
 		Ok(js)
+	}
+}
+
+impl crate::store::BackendPolicyTrait for ExtAuthz {
+	async fn apply(
+		&self,
+		client: &PolicyClient,
+		_log: &mut Option<&mut RequestLog>,
+		req: &mut Request,
+	) -> Result<PolicyResponse, ProxyResponse> {
+		self
+			.check(client.clone(), req)
+			.await
+			.map_err(ProxyResponse::from)
+	}
+
+	fn expressions(&self) -> impl Iterator<Item = &Expression> {
+		<Self as store::RequestPolicyTrait>::expressions(self)
 	}
 }
 

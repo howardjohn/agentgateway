@@ -5371,6 +5371,18 @@
             }
           ]
         },
+        "extAuthz": {
+          "description": "Authenticate incoming requests by calling an external authorization server after this backend is selected.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExtAuthz"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "mcpAuthorization": {
           "description": "Authorization policies for MCP access.",
           "anyOf": [

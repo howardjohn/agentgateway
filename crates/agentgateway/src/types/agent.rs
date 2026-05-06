@@ -2327,6 +2327,7 @@ pub enum BackendTrafficPolicy {
 	InferenceRouting(ext_proc::InferenceRouting),
 	#[serde(rename = "ai")]
 	AI(Arc<llm::Policy>),
+	ExtAuthz(Arc<ext_authz::ExtAuthz>),
 	SessionPersistence(http::sessionpersistence::Policy),
 	Transformation(Arc<crate::http::transformation_cel::Transformation>),
 	Health(health::Policy),

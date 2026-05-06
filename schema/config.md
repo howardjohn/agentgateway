@@ -1885,6 +1885,128 @@
 |`binds[].listeners[].routes[].backends[].ai.policies.health.eviction.restoreHealth`|number||
 |`binds[].listeners[].routes[].backends[].ai.policies.health.eviction.consecutiveFailures`|integer||
 |`binds[].listeners[].routes[].backends[].ai.policies.health.eviction.healthThreshold`|number||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz`|object|Authenticate incoming requests by calling an external authorization server after this backend is selected.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.service`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.service.name`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.service.name.namespace`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.service.name.hostname`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.service.port`|integer||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.host`|string|Hostname or IP address|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies`|object|Policies to connect to the backend|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.requestHeaderModifier.add`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.requestHeaderModifier.set`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.requestHeaderModifier.remove`|[]string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request.add`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request.set`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request.remove`|[]string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request.body`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request.metadata`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response.add`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response.set`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response.remove`|[]string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response.body`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response.metadata`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS`|object|Send TLS to the backend.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.cert`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.key`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.root`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.hostname`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.insecure`|boolean||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.insecureHost`|boolean||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.alpn`|[]string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.subjectAltNames`|[]string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth`|object|Authenticate to the backend.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.header`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.header.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.header.prefix`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.cookie`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.cookie.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.value`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.value.file`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.header`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.header.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.header.prefix`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.queryParameter`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.queryParameter.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.cookie`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.cookie.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.aws`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.aws.accessKeyId`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.aws.secretAccessKey`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.aws.region`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.aws.sessionToken`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.developerImplicit`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.implicit`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.http`|object|Specify HTTP settings for the backend|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.http.version`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.http.requestTimeout`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.tcp`|object|Specify TCP settings for the backend|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.tcp.keepalives`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.tcp.keepalives.enabled`|boolean||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.tcp.keepalives.time`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.tcp.keepalives.interval`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.tcp.keepalives.retries`|integer||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.tcp.connectTimeout`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.tcp.connectTimeout.secs`|integer||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.tcp.connectTimeout.nanos`|integer||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.name`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.name.namespace`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.name.hostname`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.port`|integer||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.protocol`|object|The ext_authz protocol to use. Unless you need to integrate with an HTTP-only server, gRPC is recommended.<br>Exactly one of grpc or http may be set.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.protocol.grpc`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.protocol.grpc.context`|object|Additional context to send to the authorization service.<br>This maps to the `context_extensions` field of the request, and only allows static values.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.protocol.grpc.metadata`|object|Additional metadata to send to the authorization service.<br>This maps to the `metadata_context.filter_metadata` field of the request, and allows dynamic CEL expressions.<br>If unset, by default the `envoy.filters.http.jwt_authn` key is set if the JWT policy is used as well, for compatibility.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.protocol.http`|object||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.protocol.http.path`|string||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.protocol.http.redirect`|string|When using the HTTP protocol, and the server returns unauthorized, redirect to the URL resolved by<br>the provided expression rather than directly returning the error.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.protocol.http.includeResponseHeaders`|[]string|Specific headers from the authorization response will be copied into the request to the backend.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.protocol.http.addRequestHeaders`|object|Specific headers to add in the authorization request (empty = all headers), based on the expression|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.protocol.http.metadata`|object|Metadata to include under the `extauthz` variable, based on the authorization response.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.failureMode`|object|Behavior when the authorization service is unavailable or returns an error|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.failureMode.denyWithStatus`|integer||
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.includeRequestHeaders`|[]string|Specific headers to include in the authorization request.<br>If unset, the gRPC protocol sends all request headers. The HTTP protocol sends only 'Authorization'.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.includeRequestBody`|object|Options for including the request body in the authorization request|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum size of request body to buffer (default: 8192)|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`binds[].listeners[].routes[].backends[].ai.policies.mcpAuthorization`|object|Authorization policies for MCP access.|
 |`binds[].listeners[].routes[].backends[].ai.policies.mcpAuthorization.rules`|[]string||
 |`binds[].listeners[].routes[].backends[].ai.policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -2836,6 +2958,128 @@
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.health.eviction.restoreHealth`|number||
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.health.eviction.consecutiveFailures`|integer||
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.health.eviction.healthThreshold`|number||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz`|object|Authenticate incoming requests by calling an external authorization server after this backend is selected.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.service`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.service.name`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.service.name.namespace`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.service.name.hostname`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.service.port`|integer||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.host`|string|Hostname or IP address|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies`|object|Policies to connect to the backend|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier.add`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier.set`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier.remove`|[]string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.add`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.set`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.remove`|[]string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.body`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.metadata`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.add`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.set`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.remove`|[]string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.body`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.metadata`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS`|object|Send TLS to the backend.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.cert`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.key`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.root`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.hostname`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.insecure`|boolean||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.insecureHost`|boolean||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.alpn`|[]string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.subjectAltNames`|[]string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth`|object|Authenticate to the backend.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.header`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.header.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.header.prefix`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.value`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.value.file`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.header`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.header.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.header.prefix`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.queryParameter`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.queryParameter.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.cookie`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.cookie.name`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.accessKeyId`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.secretAccessKey`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.region`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.sessionToken`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.developerImplicit`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.implicit`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.http`|object|Specify HTTP settings for the backend|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.http.version`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.http.requestTimeout`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp`|object|Specify TCP settings for the backend|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.enabled`|boolean||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.time`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.interval`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.retries`|integer||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.connectTimeout`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.connectTimeout.secs`|integer||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.connectTimeout.nanos`|integer||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.name`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.name.namespace`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.name.hostname`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.port`|integer||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol`|object|The ext_authz protocol to use. Unless you need to integrate with an HTTP-only server, gRPC is recommended.<br>Exactly one of grpc or http may be set.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.grpc`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.grpc.context`|object|Additional context to send to the authorization service.<br>This maps to the `context_extensions` field of the request, and only allows static values.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.grpc.metadata`|object|Additional metadata to send to the authorization service.<br>This maps to the `metadata_context.filter_metadata` field of the request, and allows dynamic CEL expressions.<br>If unset, by default the `envoy.filters.http.jwt_authn` key is set if the JWT policy is used as well, for compatibility.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http`|object||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.path`|string||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.redirect`|string|When using the HTTP protocol, and the server returns unauthorized, redirect to the URL resolved by<br>the provided expression rather than directly returning the error.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.includeResponseHeaders`|[]string|Specific headers from the authorization response will be copied into the request to the backend.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.addRequestHeaders`|object|Specific headers to add in the authorization request (empty = all headers), based on the expression|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.metadata`|object|Metadata to include under the `extauthz` variable, based on the authorization response.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.failureMode`|object|Behavior when the authorization service is unavailable or returns an error|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.failureMode.denyWithStatus`|integer||
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestHeaders`|[]string|Specific headers to include in the authorization request.<br>If unset, the gRPC protocol sends all request headers. The HTTP protocol sends only 'Authorization'.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody`|object|Options for including the request body in the authorization request|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum size of request body to buffer (default: 8192)|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.mcpAuthorization`|object|Authorization policies for MCP access.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.mcpAuthorization.rules`|[]string||
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -3762,6 +4006,128 @@
 |`binds[].listeners[].routes[].backends[].policies.health.eviction.restoreHealth`|number||
 |`binds[].listeners[].routes[].backends[].policies.health.eviction.consecutiveFailures`|integer||
 |`binds[].listeners[].routes[].backends[].policies.health.eviction.healthThreshold`|number||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz`|object|Authenticate incoming requests by calling an external authorization server after this backend is selected.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.service`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.service.name`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.service.name.namespace`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.service.name.hostname`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.service.port`|integer||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.host`|string|Hostname or IP address|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies`|object|Policies to connect to the backend|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.requestHeaderModifier.add`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.requestHeaderModifier.set`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.requestHeaderModifier.remove`|[]string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.request`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.request.add`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.request.set`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.request.remove`|[]string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.request.body`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.request.metadata`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.response`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.response.add`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.response.set`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.response.remove`|[]string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.response.body`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.transformations.response.metadata`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTLS`|object|Send TLS to the backend.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTLS.cert`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTLS.key`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTLS.root`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTLS.hostname`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTLS.insecure`|boolean||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTLS.insecureHost`|boolean||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTLS.alpn`|[]string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTLS.subjectAltNames`|[]string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth`|object|Authenticate to the backend.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.header`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.header.name`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.header.prefix`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie.name`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.key`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.value`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.value.file`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.header`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.header.name`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.header.prefix`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.queryParameter`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.queryParameter.name`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.cookie`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.cookie.name`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.aws`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.aws.accessKeyId`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.aws.secretAccessKey`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.aws.region`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.aws.sessionToken`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.developerImplicit`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.implicit`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.http`|object|Specify HTTP settings for the backend|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.http.version`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.http.requestTimeout`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.tcp`|object|Specify TCP settings for the backend|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.tcp.keepalives`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.tcp.keepalives.enabled`|boolean||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.tcp.keepalives.time`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.tcp.keepalives.interval`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.tcp.keepalives.retries`|integer||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.tcp.connectTimeout`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.tcp.connectTimeout.secs`|integer||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.tcp.connectTimeout.nanos`|integer||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.service`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.service.name`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.service.name.namespace`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.service.name.hostname`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.service.port`|integer||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.protocol`|object|The ext_authz protocol to use. Unless you need to integrate with an HTTP-only server, gRPC is recommended.<br>Exactly one of grpc or http may be set.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.protocol.grpc`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.protocol.grpc.context`|object|Additional context to send to the authorization service.<br>This maps to the `context_extensions` field of the request, and only allows static values.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.protocol.grpc.metadata`|object|Additional metadata to send to the authorization service.<br>This maps to the `metadata_context.filter_metadata` field of the request, and allows dynamic CEL expressions.<br>If unset, by default the `envoy.filters.http.jwt_authn` key is set if the JWT policy is used as well, for compatibility.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.protocol.http`|object||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.protocol.http.path`|string||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.protocol.http.redirect`|string|When using the HTTP protocol, and the server returns unauthorized, redirect to the URL resolved by<br>the provided expression rather than directly returning the error.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.protocol.http.includeResponseHeaders`|[]string|Specific headers from the authorization response will be copied into the request to the backend.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.protocol.http.addRequestHeaders`|object|Specific headers to add in the authorization request (empty = all headers), based on the expression|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.protocol.http.metadata`|object|Metadata to include under the `extauthz` variable, based on the authorization response.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.failureMode`|object|Behavior when the authorization service is unavailable or returns an error|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.failureMode.denyWithStatus`|integer||
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.includeRequestHeaders`|[]string|Specific headers to include in the authorization request.<br>If unset, the gRPC protocol sends all request headers. The HTTP protocol sends only 'Authorization'.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.includeRequestBody`|object|Options for including the request body in the authorization request|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum size of request body to buffer (default: 8192)|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`binds[].listeners[].routes[].backends[].policies.mcpAuthorization`|object|Authorization policies for MCP access.|
 |`binds[].listeners[].routes[].backends[].policies.mcpAuthorization.rules`|[]string||
 |`binds[].listeners[].routes[].backends[].policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -7112,6 +7478,128 @@
 |`backends[].ai.policies.health.eviction.restoreHealth`|number||
 |`backends[].ai.policies.health.eviction.consecutiveFailures`|integer||
 |`backends[].ai.policies.health.eviction.healthThreshold`|number||
+|`backends[].ai.policies.extAuthz`|object|Authenticate incoming requests by calling an external authorization server after this backend is selected.|
+|`backends[].ai.policies.extAuthz.service`|object||
+|`backends[].ai.policies.extAuthz.service.name`|object||
+|`backends[].ai.policies.extAuthz.service.name.namespace`|string||
+|`backends[].ai.policies.extAuthz.service.name.hostname`|string||
+|`backends[].ai.policies.extAuthz.service.port`|integer||
+|`backends[].ai.policies.extAuthz.host`|string|Hostname or IP address|
+|`backends[].ai.policies.extAuthz.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`backends[].ai.policies.extAuthz.policies`|object|Policies to connect to the backend|
+|`backends[].ai.policies.extAuthz.policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`backends[].ai.policies.extAuthz.policies.requestHeaderModifier.add`|object||
+|`backends[].ai.policies.extAuthz.policies.requestHeaderModifier.set`|object||
+|`backends[].ai.policies.extAuthz.policies.requestHeaderModifier.remove`|[]string||
+|`backends[].ai.policies.extAuthz.policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`backends[].ai.policies.extAuthz.policies.transformations.request`|object||
+|`backends[].ai.policies.extAuthz.policies.transformations.request.add`|object||
+|`backends[].ai.policies.extAuthz.policies.transformations.request.set`|object||
+|`backends[].ai.policies.extAuthz.policies.transformations.request.remove`|[]string||
+|`backends[].ai.policies.extAuthz.policies.transformations.request.body`|string||
+|`backends[].ai.policies.extAuthz.policies.transformations.request.metadata`|object||
+|`backends[].ai.policies.extAuthz.policies.transformations.response`|object||
+|`backends[].ai.policies.extAuthz.policies.transformations.response.add`|object||
+|`backends[].ai.policies.extAuthz.policies.transformations.response.set`|object||
+|`backends[].ai.policies.extAuthz.policies.transformations.response.remove`|[]string||
+|`backends[].ai.policies.extAuthz.policies.transformations.response.body`|string||
+|`backends[].ai.policies.extAuthz.policies.transformations.response.metadata`|object||
+|`backends[].ai.policies.extAuthz.policies.backendTLS`|object|Send TLS to the backend.|
+|`backends[].ai.policies.extAuthz.policies.backendTLS.cert`|string||
+|`backends[].ai.policies.extAuthz.policies.backendTLS.key`|string||
+|`backends[].ai.policies.extAuthz.policies.backendTLS.root`|string||
+|`backends[].ai.policies.extAuthz.policies.backendTLS.hostname`|string||
+|`backends[].ai.policies.extAuthz.policies.backendTLS.insecure`|boolean||
+|`backends[].ai.policies.extAuthz.policies.backendTLS.insecureHost`|boolean||
+|`backends[].ai.policies.extAuthz.policies.backendTLS.alpn`|[]string||
+|`backends[].ai.policies.extAuthz.policies.backendTLS.subjectAltNames`|[]string||
+|`backends[].ai.policies.extAuthz.policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`backends[].ai.policies.extAuthz.policies.backendAuth`|object|Authenticate to the backend.|
+|`backends[].ai.policies.extAuthz.policies.backendAuth.passthrough`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.header`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.header.name`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.header.prefix`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.cookie`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.cookie.name`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.key`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.key.value`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.key.value.file`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.key.location`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.key.location.header`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.key.location.header.name`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.key.location.header.prefix`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.key.location.queryParameter`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.key.location.queryParameter.name`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.key.location.cookie`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.key.location.cookie.name`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.gcp`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`backends[].ai.policies.extAuthz.policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.aws`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.aws.accessKeyId`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.aws.secretAccessKey`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.aws.region`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.aws.sessionToken`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.developerImplicit`|object||
+|`backends[].ai.policies.extAuthz.policies.backendAuth.azure.implicit`|object||
+|`backends[].ai.policies.extAuthz.policies.http`|object|Specify HTTP settings for the backend|
+|`backends[].ai.policies.extAuthz.policies.http.version`|string||
+|`backends[].ai.policies.extAuthz.policies.http.requestTimeout`|string||
+|`backends[].ai.policies.extAuthz.policies.tcp`|object|Specify TCP settings for the backend|
+|`backends[].ai.policies.extAuthz.policies.tcp.keepalives`|object||
+|`backends[].ai.policies.extAuthz.policies.tcp.keepalives.enabled`|boolean||
+|`backends[].ai.policies.extAuthz.policies.tcp.keepalives.time`|string||
+|`backends[].ai.policies.extAuthz.policies.tcp.keepalives.interval`|string||
+|`backends[].ai.policies.extAuthz.policies.tcp.keepalives.retries`|integer||
+|`backends[].ai.policies.extAuthz.policies.tcp.connectTimeout`|object||
+|`backends[].ai.policies.extAuthz.policies.tcp.connectTimeout.secs`|integer||
+|`backends[].ai.policies.extAuthz.policies.tcp.connectTimeout.nanos`|integer||
+|`backends[].ai.policies.extAuthz.policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`backends[].ai.policies.extAuthz.policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service`|object||
+|`backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.name`|object||
+|`backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.name.namespace`|string||
+|`backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.name.hostname`|string||
+|`backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.port`|integer||
+|`backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`backends[].ai.policies.extAuthz.protocol`|object|The ext_authz protocol to use. Unless you need to integrate with an HTTP-only server, gRPC is recommended.<br>Exactly one of grpc or http may be set.|
+|`backends[].ai.policies.extAuthz.protocol.grpc`|object||
+|`backends[].ai.policies.extAuthz.protocol.grpc.context`|object|Additional context to send to the authorization service.<br>This maps to the `context_extensions` field of the request, and only allows static values.|
+|`backends[].ai.policies.extAuthz.protocol.grpc.metadata`|object|Additional metadata to send to the authorization service.<br>This maps to the `metadata_context.filter_metadata` field of the request, and allows dynamic CEL expressions.<br>If unset, by default the `envoy.filters.http.jwt_authn` key is set if the JWT policy is used as well, for compatibility.|
+|`backends[].ai.policies.extAuthz.protocol.http`|object||
+|`backends[].ai.policies.extAuthz.protocol.http.path`|string||
+|`backends[].ai.policies.extAuthz.protocol.http.redirect`|string|When using the HTTP protocol, and the server returns unauthorized, redirect to the URL resolved by<br>the provided expression rather than directly returning the error.|
+|`backends[].ai.policies.extAuthz.protocol.http.includeResponseHeaders`|[]string|Specific headers from the authorization response will be copied into the request to the backend.|
+|`backends[].ai.policies.extAuthz.protocol.http.addRequestHeaders`|object|Specific headers to add in the authorization request (empty = all headers), based on the expression|
+|`backends[].ai.policies.extAuthz.protocol.http.metadata`|object|Metadata to include under the `extauthz` variable, based on the authorization response.|
+|`backends[].ai.policies.extAuthz.failureMode`|object|Behavior when the authorization service is unavailable or returns an error|
+|`backends[].ai.policies.extAuthz.failureMode.denyWithStatus`|integer||
+|`backends[].ai.policies.extAuthz.includeRequestHeaders`|[]string|Specific headers to include in the authorization request.<br>If unset, the gRPC protocol sends all request headers. The HTTP protocol sends only 'Authorization'.|
+|`backends[].ai.policies.extAuthz.includeRequestBody`|object|Options for including the request body in the authorization request|
+|`backends[].ai.policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum size of request body to buffer (default: 8192)|
+|`backends[].ai.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
+|`backends[].ai.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`backends[].ai.policies.mcpAuthorization`|object|Authorization policies for MCP access.|
 |`backends[].ai.policies.mcpAuthorization.rules`|[]string||
 |`backends[].ai.policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -8063,6 +8551,128 @@
 |`backends[].ai.groups[].providers[].policies.health.eviction.restoreHealth`|number||
 |`backends[].ai.groups[].providers[].policies.health.eviction.consecutiveFailures`|integer||
 |`backends[].ai.groups[].providers[].policies.health.eviction.healthThreshold`|number||
+|`backends[].ai.groups[].providers[].policies.extAuthz`|object|Authenticate incoming requests by calling an external authorization server after this backend is selected.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.service`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.service.name`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.service.name.namespace`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.service.name.hostname`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.service.port`|integer||
+|`backends[].ai.groups[].providers[].policies.extAuthz.host`|string|Hostname or IP address|
+|`backends[].ai.groups[].providers[].policies.extAuthz.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies`|object|Policies to connect to the backend|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier.add`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier.set`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier.remove`|[]string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.add`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.set`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.remove`|[]string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.body`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.metadata`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.add`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.set`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.remove`|[]string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.body`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.metadata`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS`|object|Send TLS to the backend.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.cert`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.key`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.root`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.hostname`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.insecure`|boolean||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.insecureHost`|boolean||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.alpn`|[]string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.subjectAltNames`|[]string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth`|object|Authenticate to the backend.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.header`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.header.name`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.header.prefix`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie.name`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.value`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.value.file`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.header`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.header.name`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.header.prefix`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.queryParameter`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.queryParameter.name`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.cookie`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.cookie.name`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.accessKeyId`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.secretAccessKey`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.region`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.sessionToken`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.developerImplicit`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.implicit`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.http`|object|Specify HTTP settings for the backend|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.http.version`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.http.requestTimeout`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp`|object|Specify TCP settings for the backend|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.enabled`|boolean||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.time`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.interval`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.retries`|integer||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.connectTimeout`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.connectTimeout.secs`|integer||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.connectTimeout.nanos`|integer||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.name`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.name.namespace`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.name.hostname`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.port`|integer||
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`backends[].ai.groups[].providers[].policies.extAuthz.protocol`|object|The ext_authz protocol to use. Unless you need to integrate with an HTTP-only server, gRPC is recommended.<br>Exactly one of grpc or http may be set.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.protocol.grpc`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.protocol.grpc.context`|object|Additional context to send to the authorization service.<br>This maps to the `context_extensions` field of the request, and only allows static values.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.protocol.grpc.metadata`|object|Additional metadata to send to the authorization service.<br>This maps to the `metadata_context.filter_metadata` field of the request, and allows dynamic CEL expressions.<br>If unset, by default the `envoy.filters.http.jwt_authn` key is set if the JWT policy is used as well, for compatibility.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.protocol.http`|object||
+|`backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.path`|string||
+|`backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.redirect`|string|When using the HTTP protocol, and the server returns unauthorized, redirect to the URL resolved by<br>the provided expression rather than directly returning the error.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.includeResponseHeaders`|[]string|Specific headers from the authorization response will be copied into the request to the backend.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.addRequestHeaders`|object|Specific headers to add in the authorization request (empty = all headers), based on the expression|
+|`backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.metadata`|object|Metadata to include under the `extauthz` variable, based on the authorization response.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.failureMode`|object|Behavior when the authorization service is unavailable or returns an error|
+|`backends[].ai.groups[].providers[].policies.extAuthz.failureMode.denyWithStatus`|integer||
+|`backends[].ai.groups[].providers[].policies.extAuthz.includeRequestHeaders`|[]string|Specific headers to include in the authorization request.<br>If unset, the gRPC protocol sends all request headers. The HTTP protocol sends only 'Authorization'.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody`|object|Options for including the request body in the authorization request|
+|`backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum size of request body to buffer (default: 8192)|
+|`backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
+|`backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`backends[].ai.groups[].providers[].policies.mcpAuthorization`|object|Authorization policies for MCP access.|
 |`backends[].ai.groups[].providers[].policies.mcpAuthorization.rules`|[]string||
 |`backends[].ai.groups[].providers[].policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -8988,6 +9598,128 @@
 |`backends[].policies.health.eviction.restoreHealth`|number||
 |`backends[].policies.health.eviction.consecutiveFailures`|integer||
 |`backends[].policies.health.eviction.healthThreshold`|number||
+|`backends[].policies.extAuthz`|object|Authenticate incoming requests by calling an external authorization server after this backend is selected.|
+|`backends[].policies.extAuthz.service`|object||
+|`backends[].policies.extAuthz.service.name`|object||
+|`backends[].policies.extAuthz.service.name.namespace`|string||
+|`backends[].policies.extAuthz.service.name.hostname`|string||
+|`backends[].policies.extAuthz.service.port`|integer||
+|`backends[].policies.extAuthz.host`|string|Hostname or IP address|
+|`backends[].policies.extAuthz.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`backends[].policies.extAuthz.policies`|object|Policies to connect to the backend|
+|`backends[].policies.extAuthz.policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`backends[].policies.extAuthz.policies.requestHeaderModifier.add`|object||
+|`backends[].policies.extAuthz.policies.requestHeaderModifier.set`|object||
+|`backends[].policies.extAuthz.policies.requestHeaderModifier.remove`|[]string||
+|`backends[].policies.extAuthz.policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`backends[].policies.extAuthz.policies.transformations.request`|object||
+|`backends[].policies.extAuthz.policies.transformations.request.add`|object||
+|`backends[].policies.extAuthz.policies.transformations.request.set`|object||
+|`backends[].policies.extAuthz.policies.transformations.request.remove`|[]string||
+|`backends[].policies.extAuthz.policies.transformations.request.body`|string||
+|`backends[].policies.extAuthz.policies.transformations.request.metadata`|object||
+|`backends[].policies.extAuthz.policies.transformations.response`|object||
+|`backends[].policies.extAuthz.policies.transformations.response.add`|object||
+|`backends[].policies.extAuthz.policies.transformations.response.set`|object||
+|`backends[].policies.extAuthz.policies.transformations.response.remove`|[]string||
+|`backends[].policies.extAuthz.policies.transformations.response.body`|string||
+|`backends[].policies.extAuthz.policies.transformations.response.metadata`|object||
+|`backends[].policies.extAuthz.policies.backendTLS`|object|Send TLS to the backend.|
+|`backends[].policies.extAuthz.policies.backendTLS.cert`|string||
+|`backends[].policies.extAuthz.policies.backendTLS.key`|string||
+|`backends[].policies.extAuthz.policies.backendTLS.root`|string||
+|`backends[].policies.extAuthz.policies.backendTLS.hostname`|string||
+|`backends[].policies.extAuthz.policies.backendTLS.insecure`|boolean||
+|`backends[].policies.extAuthz.policies.backendTLS.insecureHost`|boolean||
+|`backends[].policies.extAuthz.policies.backendTLS.alpn`|[]string||
+|`backends[].policies.extAuthz.policies.backendTLS.subjectAltNames`|[]string||
+|`backends[].policies.extAuthz.policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`backends[].policies.extAuthz.policies.backendAuth`|object|Authenticate to the backend.|
+|`backends[].policies.extAuthz.policies.backendAuth.passthrough`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.passthrough.location`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.passthrough.location.header`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.passthrough.location.header.name`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.passthrough.location.header.prefix`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie.name`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.key`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.key.value`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.key.value.file`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.key.location`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.key.location.header`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.key.location.header.name`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.key.location.header.prefix`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.key.location.queryParameter`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.key.location.queryParameter.name`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.key.location.cookie`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.key.location.cookie.name`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.gcp`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`backends[].policies.extAuthz.policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`backends[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`backends[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`backends[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`backends[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.aws`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.aws.accessKeyId`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.aws.secretAccessKey`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.aws.region`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.aws.sessionToken`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.azure.developerImplicit`|object||
+|`backends[].policies.extAuthz.policies.backendAuth.azure.implicit`|object||
+|`backends[].policies.extAuthz.policies.http`|object|Specify HTTP settings for the backend|
+|`backends[].policies.extAuthz.policies.http.version`|string||
+|`backends[].policies.extAuthz.policies.http.requestTimeout`|string||
+|`backends[].policies.extAuthz.policies.tcp`|object|Specify TCP settings for the backend|
+|`backends[].policies.extAuthz.policies.tcp.keepalives`|object||
+|`backends[].policies.extAuthz.policies.tcp.keepalives.enabled`|boolean||
+|`backends[].policies.extAuthz.policies.tcp.keepalives.time`|string||
+|`backends[].policies.extAuthz.policies.tcp.keepalives.interval`|string||
+|`backends[].policies.extAuthz.policies.tcp.keepalives.retries`|integer||
+|`backends[].policies.extAuthz.policies.tcp.connectTimeout`|object||
+|`backends[].policies.extAuthz.policies.tcp.connectTimeout.secs`|integer||
+|`backends[].policies.extAuthz.policies.tcp.connectTimeout.nanos`|integer||
+|`backends[].policies.extAuthz.policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`backends[].policies.extAuthz.policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`backends[].policies.extAuthz.policies.backendTunnel.proxy.service`|object||
+|`backends[].policies.extAuthz.policies.backendTunnel.proxy.service.name`|object||
+|`backends[].policies.extAuthz.policies.backendTunnel.proxy.service.name.namespace`|string||
+|`backends[].policies.extAuthz.policies.backendTunnel.proxy.service.name.hostname`|string||
+|`backends[].policies.extAuthz.policies.backendTunnel.proxy.service.port`|integer||
+|`backends[].policies.extAuthz.policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`backends[].policies.extAuthz.policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`backends[].policies.extAuthz.protocol`|object|The ext_authz protocol to use. Unless you need to integrate with an HTTP-only server, gRPC is recommended.<br>Exactly one of grpc or http may be set.|
+|`backends[].policies.extAuthz.protocol.grpc`|object||
+|`backends[].policies.extAuthz.protocol.grpc.context`|object|Additional context to send to the authorization service.<br>This maps to the `context_extensions` field of the request, and only allows static values.|
+|`backends[].policies.extAuthz.protocol.grpc.metadata`|object|Additional metadata to send to the authorization service.<br>This maps to the `metadata_context.filter_metadata` field of the request, and allows dynamic CEL expressions.<br>If unset, by default the `envoy.filters.http.jwt_authn` key is set if the JWT policy is used as well, for compatibility.|
+|`backends[].policies.extAuthz.protocol.http`|object||
+|`backends[].policies.extAuthz.protocol.http.path`|string||
+|`backends[].policies.extAuthz.protocol.http.redirect`|string|When using the HTTP protocol, and the server returns unauthorized, redirect to the URL resolved by<br>the provided expression rather than directly returning the error.|
+|`backends[].policies.extAuthz.protocol.http.includeResponseHeaders`|[]string|Specific headers from the authorization response will be copied into the request to the backend.|
+|`backends[].policies.extAuthz.protocol.http.addRequestHeaders`|object|Specific headers to add in the authorization request (empty = all headers), based on the expression|
+|`backends[].policies.extAuthz.protocol.http.metadata`|object|Metadata to include under the `extauthz` variable, based on the authorization response.|
+|`backends[].policies.extAuthz.failureMode`|object|Behavior when the authorization service is unavailable or returns an error|
+|`backends[].policies.extAuthz.failureMode.denyWithStatus`|integer||
+|`backends[].policies.extAuthz.includeRequestHeaders`|[]string|Specific headers to include in the authorization request.<br>If unset, the gRPC protocol sends all request headers. The HTTP protocol sends only 'Authorization'.|
+|`backends[].policies.extAuthz.includeRequestBody`|object|Options for including the request body in the authorization request|
+|`backends[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum size of request body to buffer (default: 8192)|
+|`backends[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
+|`backends[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`backends[].policies.mcpAuthorization`|object|Authorization policies for MCP access.|
 |`backends[].policies.mcpAuthorization.rules`|[]string||
 |`backends[].policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -11596,6 +12328,128 @@
 |`routeGroups[].routes[].backends[].ai.policies.health.eviction.restoreHealth`|number||
 |`routeGroups[].routes[].backends[].ai.policies.health.eviction.consecutiveFailures`|integer||
 |`routeGroups[].routes[].backends[].ai.policies.health.eviction.healthThreshold`|number||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz`|object|Authenticate incoming requests by calling an external authorization server after this backend is selected.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.service`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.service.name`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.service.name.namespace`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.service.name.hostname`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.service.port`|integer||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.host`|string|Hostname or IP address|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies`|object|Policies to connect to the backend|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.requestHeaderModifier.add`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.requestHeaderModifier.set`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.requestHeaderModifier.remove`|[]string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request.add`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request.set`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request.remove`|[]string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request.body`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.request.metadata`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response.add`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response.set`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response.remove`|[]string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response.body`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.transformations.response.metadata`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS`|object|Send TLS to the backend.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.cert`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.key`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.root`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.hostname`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.insecure`|boolean||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.insecureHost`|boolean||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.alpn`|[]string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.subjectAltNames`|[]string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth`|object|Authenticate to the backend.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.header`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.header.name`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.header.prefix`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.cookie`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.passthrough.location.cookie.name`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.value`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.value.file`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.header`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.header.name`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.header.prefix`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.queryParameter`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.queryParameter.name`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.cookie`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.key.location.cookie.name`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.aws`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.aws.accessKeyId`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.aws.secretAccessKey`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.aws.region`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.aws.sessionToken`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.developerImplicit`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendAuth.azure.implicit`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.http`|object|Specify HTTP settings for the backend|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.http.version`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.http.requestTimeout`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.tcp`|object|Specify TCP settings for the backend|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.tcp.keepalives`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.tcp.keepalives.enabled`|boolean||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.tcp.keepalives.time`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.tcp.keepalives.interval`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.tcp.keepalives.retries`|integer||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.tcp.connectTimeout`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.tcp.connectTimeout.secs`|integer||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.tcp.connectTimeout.nanos`|integer||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.name`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.name.namespace`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.name.hostname`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.service.port`|integer||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.protocol`|object|The ext_authz protocol to use. Unless you need to integrate with an HTTP-only server, gRPC is recommended.<br>Exactly one of grpc or http may be set.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.protocol.grpc`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.protocol.grpc.context`|object|Additional context to send to the authorization service.<br>This maps to the `context_extensions` field of the request, and only allows static values.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.protocol.grpc.metadata`|object|Additional metadata to send to the authorization service.<br>This maps to the `metadata_context.filter_metadata` field of the request, and allows dynamic CEL expressions.<br>If unset, by default the `envoy.filters.http.jwt_authn` key is set if the JWT policy is used as well, for compatibility.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.protocol.http`|object||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.protocol.http.path`|string||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.protocol.http.redirect`|string|When using the HTTP protocol, and the server returns unauthorized, redirect to the URL resolved by<br>the provided expression rather than directly returning the error.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.protocol.http.includeResponseHeaders`|[]string|Specific headers from the authorization response will be copied into the request to the backend.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.protocol.http.addRequestHeaders`|object|Specific headers to add in the authorization request (empty = all headers), based on the expression|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.protocol.http.metadata`|object|Metadata to include under the `extauthz` variable, based on the authorization response.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.failureMode`|object|Behavior when the authorization service is unavailable or returns an error|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.failureMode.denyWithStatus`|integer||
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.includeRequestHeaders`|[]string|Specific headers to include in the authorization request.<br>If unset, the gRPC protocol sends all request headers. The HTTP protocol sends only 'Authorization'.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.includeRequestBody`|object|Options for including the request body in the authorization request|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum size of request body to buffer (default: 8192)|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`routeGroups[].routes[].backends[].ai.policies.mcpAuthorization`|object|Authorization policies for MCP access.|
 |`routeGroups[].routes[].backends[].ai.policies.mcpAuthorization.rules`|[]string||
 |`routeGroups[].routes[].backends[].ai.policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -12547,6 +13401,128 @@
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.health.eviction.restoreHealth`|number||
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.health.eviction.consecutiveFailures`|integer||
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.health.eviction.healthThreshold`|number||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz`|object|Authenticate incoming requests by calling an external authorization server after this backend is selected.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.service`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.service.name`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.service.name.namespace`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.service.name.hostname`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.service.port`|integer||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.host`|string|Hostname or IP address|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies`|object|Policies to connect to the backend|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier.add`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier.set`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.requestHeaderModifier.remove`|[]string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.add`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.set`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.remove`|[]string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.body`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.request.metadata`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.add`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.set`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.remove`|[]string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.body`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.transformations.response.metadata`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS`|object|Send TLS to the backend.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.cert`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.key`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.root`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.hostname`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.insecure`|boolean||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.insecureHost`|boolean||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.alpn`|[]string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.subjectAltNames`|[]string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth`|object|Authenticate to the backend.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.header`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.header.name`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.header.prefix`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie.name`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.value`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.value.file`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.header`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.header.name`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.header.prefix`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.queryParameter`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.queryParameter.name`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.cookie`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.key.location.cookie.name`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.accessKeyId`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.secretAccessKey`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.region`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.aws.sessionToken`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.developerImplicit`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendAuth.azure.implicit`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.http`|object|Specify HTTP settings for the backend|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.http.version`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.http.requestTimeout`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp`|object|Specify TCP settings for the backend|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.enabled`|boolean||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.time`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.interval`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.keepalives.retries`|integer||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.connectTimeout`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.connectTimeout.secs`|integer||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.tcp.connectTimeout.nanos`|integer||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.name`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.name.namespace`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.name.hostname`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.service.port`|integer||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol`|object|The ext_authz protocol to use. Unless you need to integrate with an HTTP-only server, gRPC is recommended.<br>Exactly one of grpc or http may be set.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.grpc`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.grpc.context`|object|Additional context to send to the authorization service.<br>This maps to the `context_extensions` field of the request, and only allows static values.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.grpc.metadata`|object|Additional metadata to send to the authorization service.<br>This maps to the `metadata_context.filter_metadata` field of the request, and allows dynamic CEL expressions.<br>If unset, by default the `envoy.filters.http.jwt_authn` key is set if the JWT policy is used as well, for compatibility.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http`|object||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.path`|string||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.redirect`|string|When using the HTTP protocol, and the server returns unauthorized, redirect to the URL resolved by<br>the provided expression rather than directly returning the error.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.includeResponseHeaders`|[]string|Specific headers from the authorization response will be copied into the request to the backend.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.addRequestHeaders`|object|Specific headers to add in the authorization request (empty = all headers), based on the expression|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.protocol.http.metadata`|object|Metadata to include under the `extauthz` variable, based on the authorization response.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.failureMode`|object|Behavior when the authorization service is unavailable or returns an error|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.failureMode.denyWithStatus`|integer||
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestHeaders`|[]string|Specific headers to include in the authorization request.<br>If unset, the gRPC protocol sends all request headers. The HTTP protocol sends only 'Authorization'.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody`|object|Options for including the request body in the authorization request|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum size of request body to buffer (default: 8192)|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.mcpAuthorization`|object|Authorization policies for MCP access.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.mcpAuthorization.rules`|[]string||
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -13473,6 +14449,128 @@
 |`routeGroups[].routes[].backends[].policies.health.eviction.restoreHealth`|number||
 |`routeGroups[].routes[].backends[].policies.health.eviction.consecutiveFailures`|integer||
 |`routeGroups[].routes[].backends[].policies.health.eviction.healthThreshold`|number||
+|`routeGroups[].routes[].backends[].policies.extAuthz`|object|Authenticate incoming requests by calling an external authorization server after this backend is selected.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.service`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.service.name`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.service.name.namespace`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.service.name.hostname`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.service.port`|integer||
+|`routeGroups[].routes[].backends[].policies.extAuthz.host`|string|Hostname or IP address|
+|`routeGroups[].routes[].backends[].policies.extAuthz.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies`|object|Policies to connect to the backend|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.requestHeaderModifier.add`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.requestHeaderModifier.set`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.requestHeaderModifier.remove`|[]string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.request`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.request.add`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.request.set`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.request.remove`|[]string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.request.body`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.request.metadata`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.response`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.response.add`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.response.set`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.response.remove`|[]string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.response.body`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.transformations.response.metadata`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTLS`|object|Send TLS to the backend.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTLS.cert`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTLS.key`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTLS.root`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTLS.hostname`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTLS.insecure`|boolean||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTLS.insecureHost`|boolean||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTLS.alpn`|[]string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTLS.subjectAltNames`|[]string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth`|object|Authenticate to the backend.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.header`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.header.name`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.header.prefix`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.passthrough.location.cookie.name`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.key`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.value`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.value.file`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.header`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.header.name`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.header.prefix`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.queryParameter`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.queryParameter.name`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.cookie`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.key.location.cookie.name`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.gcp.credential.file`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.aws`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.aws.accessKeyId`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.aws.secretAccessKey`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.aws.region`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.aws.sessionToken`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.developerImplicit`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendAuth.azure.implicit`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.http`|object|Specify HTTP settings for the backend|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.http.version`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.http.requestTimeout`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.tcp`|object|Specify TCP settings for the backend|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.tcp.keepalives`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.tcp.keepalives.enabled`|boolean||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.tcp.keepalives.time`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.tcp.keepalives.interval`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.tcp.keepalives.retries`|integer||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.tcp.connectTimeout`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.tcp.connectTimeout.secs`|integer||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.tcp.connectTimeout.nanos`|integer||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.service`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.service.name`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.service.name.namespace`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.service.name.hostname`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.service.port`|integer||
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`routeGroups[].routes[].backends[].policies.extAuthz.policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`routeGroups[].routes[].backends[].policies.extAuthz.protocol`|object|The ext_authz protocol to use. Unless you need to integrate with an HTTP-only server, gRPC is recommended.<br>Exactly one of grpc or http may be set.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.protocol.grpc`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.protocol.grpc.context`|object|Additional context to send to the authorization service.<br>This maps to the `context_extensions` field of the request, and only allows static values.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.protocol.grpc.metadata`|object|Additional metadata to send to the authorization service.<br>This maps to the `metadata_context.filter_metadata` field of the request, and allows dynamic CEL expressions.<br>If unset, by default the `envoy.filters.http.jwt_authn` key is set if the JWT policy is used as well, for compatibility.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.protocol.http`|object||
+|`routeGroups[].routes[].backends[].policies.extAuthz.protocol.http.path`|string||
+|`routeGroups[].routes[].backends[].policies.extAuthz.protocol.http.redirect`|string|When using the HTTP protocol, and the server returns unauthorized, redirect to the URL resolved by<br>the provided expression rather than directly returning the error.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.protocol.http.includeResponseHeaders`|[]string|Specific headers from the authorization response will be copied into the request to the backend.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.protocol.http.addRequestHeaders`|object|Specific headers to add in the authorization request (empty = all headers), based on the expression|
+|`routeGroups[].routes[].backends[].policies.extAuthz.protocol.http.metadata`|object|Metadata to include under the `extauthz` variable, based on the authorization response.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.failureMode`|object|Behavior when the authorization service is unavailable or returns an error|
+|`routeGroups[].routes[].backends[].policies.extAuthz.failureMode.denyWithStatus`|integer||
+|`routeGroups[].routes[].backends[].policies.extAuthz.includeRequestHeaders`|[]string|Specific headers to include in the authorization request.<br>If unset, the gRPC protocol sends all request headers. The HTTP protocol sends only 'Authorization'.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.includeRequestBody`|object|Options for including the request body in the authorization request|
+|`routeGroups[].routes[].backends[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum size of request body to buffer (default: 8192)|
+|`routeGroups[].routes[].backends[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|If true, send partial body when max_request_bytes is reached|
+|`routeGroups[].routes[].backends[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|If true, pack body as raw bytes in gRPC|
 |`routeGroups[].routes[].backends[].policies.mcpAuthorization`|object|Authorization policies for MCP access.|
 |`routeGroups[].routes[].backends[].policies.mcpAuthorization.rules`|[]string||
 |`routeGroups[].routes[].backends[].policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|

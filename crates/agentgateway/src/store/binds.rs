@@ -199,6 +199,7 @@ pub struct BackendPolicies {
 	pub llm_provider: Option<Arc<llm::NamedAIProvider>>,
 	pub llm: Option<Arc<llm::Policy>>,
 	pub inference_routing: Option<InferenceRouting>,
+	pub ext_authz: BackendPolicy<ext_authz::ExtAuthz>,
 
 	pub mcp_authorization: Option<McpAuthorizationSet>,
 	pub mcp_authentication: Option<McpAuthentication>,
@@ -236,6 +237,7 @@ impl BackendPolicies {
 			mcp_authorization: other.mcp_authorization.or(self.mcp_authorization),
 			mcp_authentication: other.mcp_authentication.or(self.mcp_authentication),
 			inference_routing: other.inference_routing.or(self.inference_routing),
+			ext_authz: other.ext_authz.or(self.ext_authz),
 			http: other.http.or(self.http),
 			tcp: other.tcp.or(self.tcp),
 			tunnel: other.tunnel.or(self.tunnel),
@@ -267,6 +269,7 @@ impl BackendPolicies {
 	}
 
 	pub fn register_cel_expressions(&self, ctx: &mut ContextBuilder) {
+		self.ext_authz.register_expressions(ctx);
 		self.transformation.register_expressions(ctx);
 	}
 }
@@ -951,6 +954,9 @@ impl Store {
 				},
 				BackendTrafficPolicy::InferenceRouting(p) => {
 					pol.inference_routing.get_or_insert_with(|| p.clone());
+				},
+				BackendTrafficPolicy::ExtAuthz(p) => {
+					pol.ext_authz.set_if_unset(p);
 				},
 				BackendTrafficPolicy::AI(p) => {
 					pol.llm.get_or_insert_with(|| p.clone());

@@ -255,6 +255,11 @@ type BackendFull struct {
 	// health defines settings for passive and active health checking.
 	// +optional
 	Health *Health `json:"health,omitempty"`
+
+	// extAuth specifies the external authentication configuration for requests
+	// sent to this backend.
+	// +optional
+	ExtAuth *ExtAuth `json:"extAuth,omitempty"`
 }
 
 // +kubebuilder:validation:MinLength=1

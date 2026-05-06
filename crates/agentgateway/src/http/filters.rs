@@ -8,6 +8,7 @@ use crate::http::{
 };
 use crate::proxy::ProxyResponse;
 use crate::proxy::dtrace::{Severity, pol_result};
+use crate::proxy::httpproxy::PolicyClient;
 use crate::store::{BackendPolicyTrait, RequestPolicyTrait};
 use crate::telemetry::log::RequestLog;
 use crate::types::agent::{HostRedirect, PathMatch, PathRedirect, SimpleBackendReference};
@@ -93,6 +94,7 @@ impl store::ResponsePolicyTrait for HeaderModifier {
 impl BackendPolicyTrait for HeaderModifier {
 	async fn apply(
 		&self,
+		_client: &PolicyClient,
 		_log: &mut Option<&mut RequestLog>,
 		req: &mut Request,
 	) -> Result<PolicyResponse, ProxyResponse> {

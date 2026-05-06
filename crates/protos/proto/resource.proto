@@ -1292,6 +1292,7 @@ message BackendPolicySpec {
     TrafficPolicySpec.TransformationPolicy transformation = 14;
     Health health = 15;
     BackendTunnel backend_tunnel = 16;
+    TrafficPolicySpec.ExternalAuth ext_authz = 17;
   }
 }
 
