@@ -70,6 +70,7 @@ impl<'a> Value<'a> {
 					.json()
 					.map_err(|_| ConvertToJsonError::Value(self))?
 			},
+			Value::Type(_) => return Err(ConvertToJsonError::Value(self)),
 		})
 	}
 }
