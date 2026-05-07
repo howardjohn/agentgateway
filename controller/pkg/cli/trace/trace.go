@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -16,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/goccy/go-json"
@@ -796,6 +798,7 @@ func snapshotYAML(raw json.RawMessage) string {
 		}
 		value = topLevelMap
 	}
+	normalizeTraceRequestStateBodies(value)
 
 	rendered, err := yaml.Marshal(value)
 	if err != nil {
@@ -886,12 +889,57 @@ func eventYAML(raw string) string {
 	if err := json.Unmarshal([]byte(raw), &value); err != nil {
 		return raw
 	}
+	normalizeTraceEventRequestStateBodies(value)
 
 	rendered, err := yaml.Marshal(value)
 	if err != nil {
 		return raw
 	}
 	return strings.TrimSpace(string(rendered))
+}
+
+func normalizeTraceEventRequestStateBodies(value any) {
+	event, ok := value.(map[string]any)
+	if !ok {
+		return
+	}
+	message, ok := event["message"].(map[string]any)
+	if !ok {
+		return
+	}
+	normalizeTraceRequestStateBodies(message["requestState"])
+}
+
+func normalizeTraceRequestStateBodies(value any) {
+	requestState, ok := value.(map[string]any)
+	if !ok {
+		return
+	}
+	normalizeTraceBody(requestState, "request")
+	normalizeTraceBody(requestState, "response")
+}
+
+func normalizeTraceBody(requestState map[string]any, field string) {
+	bodyOwner, ok := requestState[field].(map[string]any)
+	if !ok {
+		return
+	}
+	body, ok := bodyOwner["body"].(string)
+	if !ok {
+		return
+	}
+	decoded, err := base64.StdEncoding.DecodeString(body)
+	if err != nil || !utf8.Valid(decoded) {
+		return
+	}
+	decodedString := string(decoded)
+
+	var jsonBody any
+	if json.Unmarshal(decoded, &jsonBody) == nil {
+		bodyOwner["body"] = jsonBody
+		return
+	}
+	bodyOwner["body"] = decodedString
 }
 
 // nolint: unparam
