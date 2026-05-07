@@ -272,6 +272,7 @@ type LongString = string
 // +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
 type SNI = string
 
+// +k8s:enum
 type InsecureTLSMode string
 
 const (
@@ -319,7 +320,6 @@ type BackendTLS struct {
 	//   prefer setting `verifySubjectAltNames` to customize the valid hostnames
 	//   if possible.
 	//
-	// +kubebuilder:validation:Enum=All;Hostname
 	// +optional
 	InsecureSkipVerify *InsecureTLSMode `json:"insecureSkipVerify,omitempty"`
 
@@ -390,7 +390,7 @@ type Frontend struct {
 	Metrics *MetricLabels `json:"metrics,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=V1;V2;All
+// +k8s:enum
 type ProxyProtocolVersion string
 
 const (
@@ -399,7 +399,7 @@ const (
 	ProxyProtocolVersionAll ProxyProtocolVersion = "All"
 )
 
-// +kubebuilder:validation:Enum=Strict;Optional
+// +k8s:enum
 type ProxyProtocolMode string
 
 const (
@@ -520,7 +520,7 @@ type FrontendTLS struct {
 	// TODO: mirror the tuneables on BackendTLS
 }
 
-// +kubebuilder:validation:Enum="1.2";"1.3"
+// +k8s:enum
 type TLSVersion string
 
 const (
@@ -529,7 +529,7 @@ const (
 	TLSVersion1_3 TLSVersion = "1.3"
 )
 
-// +kubebuilder:validation:Enum=TLS13_AES_256_GCM_SHA384;TLS13_AES_128_GCM_SHA256;TLS13_CHACHA20_POLY1305_SHA256;TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256;TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384;TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+// +k8s:enum
 type CipherSuite string
 
 const (
@@ -579,7 +579,7 @@ type Keepalive struct {
 	Interval *metav1.Duration `json:"interval,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=PreRouting;PostRouting
+// +k8s:enum
 type PolicyPhase string
 
 const (
@@ -708,7 +708,7 @@ type DirectResponse struct {
 	Body *string `json:"body,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=Strict;Optional;Permissive
+// +k8s:enum
 type JWTAuthenticationMode string
 
 const (
@@ -808,7 +808,6 @@ type JWTMCPConfig struct {
 	ResourceMetadata map[string]apiextensionsv1.JSON `json:"resourceMetadata,omitempty"`
 
 	// `provider` specifies the identity provider to use for MCP authentication flows.
-	// +kubebuilder:validation:Enum=Auth0;Keycloak
 	// +optional
 	Provider *McpIDP `json:"provider,omitempty"`
 }
@@ -848,7 +847,7 @@ type RemoteJWKS struct {
 	BackendRef gwv1.BackendObjectReference `json:"backendRef"`
 }
 
-// +kubebuilder:validation:Enum=Strict;Optional
+// +k8s:enum
 type BasicAuthenticationMode string
 
 const (
@@ -917,7 +916,7 @@ type BasicAuthentication struct {
 	Location *AuthorizationLocation `json:"location,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=Strict;Optional
+// +k8s:enum
 type APIKeyAuthenticationMode string
 
 const (
@@ -1009,6 +1008,7 @@ type SecretSelector struct {
 	MatchLabels map[string]string `json:"matchLabels"`
 }
 
+// +k8s:enum
 type HostnameRewriteMode string
 
 const (
@@ -1063,7 +1063,7 @@ type BackendAuth struct {
 	Location *AuthorizationLocation `json:"location,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=AccessToken;IdToken
+// +k8s:enum
 type GcpAuthType string
 
 const (
@@ -1178,7 +1178,7 @@ type BackendAI struct {
 
 // RouteType specifies how the AI gateway should process incoming requests
 // based on the URL path and the API format expected.
-// +kubebuilder:validation:Enum=Completions;Messages;Models;Passthrough;Detect;Responses;AnthropicTokenCount;Embeddings;Realtime
+// +k8s:enum
 type RouteType string
 
 const (
@@ -1240,7 +1240,6 @@ type MCPAuthentication struct {
 	ResourceMetadata map[string]apiextensionsv1.JSON `json:"resourceMetadata"`
 
 	// `provider` specifies the identity provider to use for authentication.
-	// +kubebuilder:validation:Enum=Auth0;Keycloak
 	// +optional
 	McpIDP *McpIDP `json:"provider,omitempty"`
 
@@ -1269,6 +1268,7 @@ type MCPAuthentication struct {
 	Mode JWTAuthenticationMode `json:"mode,omitempty"`
 }
 
+// +k8s:enum
 type McpIDP string
 
 const (
@@ -1295,7 +1295,6 @@ type BackendHTTP struct {
 	// * If the incoming traffic was HTTPS, `HTTP1` will be used. This is
 	//   because most clients will transparently upgrade HTTPS traffic to
 	//   `HTTP2`, even if the backend doesn't support it.
-	// +kubebuilder:validation:Enum=HTTP1;HTTP2
 	// +optional
 	Version *HTTPVersion `json:"version,omitempty"`
 
@@ -1306,6 +1305,7 @@ type BackendHTTP struct {
 	RequestTimeout *metav1.Duration `json:"requestTimeout,omitempty"`
 }
 
+// +k8s:enum
 type HTTPVersion string
 
 const (
@@ -1560,6 +1560,7 @@ type GlobalRateLimit struct {
 	Descriptors []RateLimitDescriptor `json:"descriptors"`
 }
 
+// +k8s:enum
 type RateLimitUnit string
 
 const (
@@ -1576,7 +1577,6 @@ type RateLimitDescriptor struct {
 	Entries []RateLimitDescriptorEntry `json:"entries"`
 	// `unit` defines what to use as the cost function. If unspecified,
 	// `Requests` is used.
-	// +kubebuilder:validation:Enum=Requests;Tokens
 	// +optional
 	Unit *RateLimitUnit `json:"unit,omitempty"`
 }
@@ -1596,6 +1596,7 @@ type RateLimitDescriptorEntry struct {
 	Expression shared.CELExpression `json:"expression"`
 }
 
+// +k8s:enum
 type LocalRateLimitUnit string
 
 const (
@@ -1627,7 +1628,6 @@ type LocalRateLimit struct {
 
 	// `unit` specifies the unit of time that requests are limited on.
 	//
-	// +kubebuilder:validation:Enum=Seconds;Minutes;Hours
 	// +required
 	Unit LocalRateLimitUnit `json:"unit"`
 
@@ -1665,7 +1665,6 @@ type HostnameRewrite struct {
 	// This setting defaults to `Auto` when connecting to hostname-based
 	// `Backend` types, and `None` otherwise, for `Service` or IP-based
 	// backends.
-	// +kubebuilder:validation:Enum=Auto;None
 	// +required
 	Mode HostnameRewriteMode `json:"mode"`
 }
@@ -1714,7 +1713,6 @@ type OtlpAccessLog struct {
 
 	// `protocol` specifies the OTLP protocol variant to use.
 	// +kubebuilder:default=GRPC
-	// +kubebuilder:validation:Enum=HTTP;GRPC
 	// +optional
 	Protocol OTLPProtocol `json:"protocol,omitempty"`
 
@@ -1775,6 +1773,7 @@ type MetricAttributes struct {
 	Add []AttributeAdd `json:"add,omitempty"`
 }
 
+// +k8s:enum
 type OTLPProtocol string
 
 const (
@@ -1791,7 +1790,6 @@ type Tracing struct {
 	BackendRef gwv1.BackendObjectReference `json:"backendRef"`
 	// `protocol` specifies the OTLP protocol variant to use.
 	// +kubebuilder:default=GRPC
-	// +kubebuilder:validation:Enum=HTTP;GRPC
 	// +optional
 	Protocol OTLPProtocol `json:"protocol,omitempty"`
 

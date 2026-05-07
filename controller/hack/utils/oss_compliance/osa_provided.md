@@ -19,7 +19,7 @@ Name|Version|License
 [kelseyhightower/envconfig](https://github.com/kelseyhightower/envconfig)|v1.4.0|MIT License
 [modelcontextprotocol/go-sdk](https://github.com/modelcontextprotocol/go-sdk)|v1.5.0|Apache License 2.0
 [ginkgo/v2](https://github.com/onsi/ginkgo)|v2.28.2|MIT License
-[onsi/gomega](https://github.com/onsi/gomega)|v1.39.1|MIT License
+[onsi/gomega](https://github.com/onsi/gomega)|v1.40.0|MIT License
 [openai-go/v3](https://github.com/openai/openai-go)|v3.29.0|Apache License 2.0
 [pmezard/go-difflib](https://github.com/pmezard/go-difflib)|v1.0.1-0.20181226105442-5d4384ee4fb2|BSD 3-clause "New" or "Revised" License
 [prometheus/client_golang](https://github.com/prometheus/client_golang)|v1.23.2|Apache License 2.0
@@ -42,15 +42,15 @@ Name|Version|License
 [helm/v3](https://helm.sh/helm/v3)|v3.20.2|Apache License 2.0
 [istio.io/api](https://istio.io/api)|v1.30.0-alpha.1.0.20260428144439-b9ac6420f999|Apache License 2.0
 [istio.io/client-go](https://istio.io/client-go)|v1.30.0-alpha.1.0.20260428144638-a00fb908e025|Apache License 2.0
-[istio.io/istio](https://istio.io/istio)|v0.0.0-20260428175111-2e4387a00e7f|Apache License 2.0
-[k8s.io/api](https://k8s.io/api)|v0.35.3|Apache License 2.0
-[k8s.io/apiextensions-apiserver](https://k8s.io/apiextensions-apiserver)|v0.35.3|Apache License 2.0
-[k8s.io/apimachinery](https://k8s.io/apimachinery)|v0.35.3|Apache License 2.0
-[k8s.io/client-go](https://k8s.io/client-go)|v0.35.3|Apache License 2.0
+[istio.io/istio](https://istio.io/istio)|v0.0.0-20260501165212-470fbd1bdb90|Apache License 2.0
+[k8s.io/api](https://k8s.io/api)|v0.36.0|Apache License 2.0
+[k8s.io/apiextensions-apiserver](https://k8s.io/apiextensions-apiserver)|v0.36.0|Apache License 2.0
+[k8s.io/apimachinery](https://k8s.io/apimachinery)|v0.36.0|Apache License 2.0
+[k8s.io/client-go](https://k8s.io/client-go)|v0.36.0|Apache License 2.0
 [klog/v2](https://k8s.io/klog/v2)|v2.140.0|Apache License 2.0
 [k8s.io/utils](https://k8s.io/utils)|v0.0.0-20260319190234-28399d86e0b5|Apache License 2.0
-[sigs.k8s.io/controller-runtime](https://sigs.k8s.io/controller-runtime)|v0.23.3|Apache License 2.0
-[sigs.k8s.io/controller-tools](https://sigs.k8s.io/controller-tools)|v0.20.1|Apache License 2.0
+[sigs.k8s.io/controller-runtime](https://sigs.k8s.io/controller-runtime)|v0.24.0|Apache License 2.0
+[sigs.k8s.io/controller-tools](https://sigs.k8s.io/controller-tools)|v0.21.0|Apache License 2.0
 [sigs.k8s.io/gateway-api](https://sigs.k8s.io/gateway-api)|v1.5.1|Apache License 2.0
 [sigs.k8s.io/gateway-api-inference-extension](https://sigs.k8s.io/gateway-api-inference-extension)|v1.5.0|Apache License 2.0
 [gateway-api-inference-extension/conformance](https://sigs.k8s.io/gateway-api-inference-extension/conformance)|v1.5.0|Apache License 2.0

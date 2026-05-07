@@ -284,7 +284,7 @@ type AzureOpenAIConfig struct {
 }
 
 // AzureResourceType specifies the type of Azure endpoint.
-// +kubebuilder:validation:Enum=OpenAI;Foundry
+// +k8s:enum
 type AzureResourceType string
 
 const (
@@ -423,7 +423,7 @@ const (
 	FailOpen FailureMode = "FailOpen"
 )
 
-// +kubebuilder:validation:Enum=FailOpen;FailClosed
+// +k8s:enum
 type FailureMode string
 
 // McpTargetSelector defines the MCPBackend target to use for this backend.
@@ -454,7 +454,7 @@ const (
 	Stateless SessionRouting = "Stateless"
 )
 
-// +kubebuilder:validation:Enum=Stateful;Stateless
+// +k8s:enum
 type SessionRouting string
 
 // +kubebuilder:validation:AtLeastOneFieldSet
@@ -513,7 +513,7 @@ type McpTarget struct {
 }
 
 // MCPProtocol defines the protocol to use for the `MCPBackend` target.
-// +kubebuilder:validation:Enum=StreamableHTTP;SSE
+// +k8s:enum
 type MCPProtocol string
 
 const (
