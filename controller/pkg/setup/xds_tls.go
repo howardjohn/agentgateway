@@ -284,7 +284,10 @@ func generateCA(commonName string) ([]byte, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	serial, _ := rand.Int(rand.Reader, big.NewInt(1<<62))
+	serial, err := rand.Int(rand.Reader, big.NewInt(1<<62))
+	if err != nil {
+		return nil, nil, err
+	}
 	tpl := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
@@ -351,7 +354,6 @@ func generateLeafFromCA(caPEM, caKeyPEM []byte, hosts []string) ([]byte, []byte,
 		}
 		tpl.DNSNames = append(tpl.DNSNames, host)
 	}
-	tpl.DNSNames = append(tpl.DNSNames, "localhost")
 	der, err := x509.CreateCertificate(rand.Reader, tpl, caCert, &leafKey.PublicKey, caKey)
 	if err != nil {
 		return nil, nil, err

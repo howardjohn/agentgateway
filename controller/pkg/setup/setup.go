@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -298,16 +299,25 @@ func (s *setup) Start(ctx context.Context) error {
 }
 
 func (s *setup) xdsTLSHosts() []string {
+	var hosts []string
 	if s.GlobalSettings.XdsServiceHost != "" {
-		return []string{s.GlobalSettings.XdsServiceHost}
+		hosts = []string{s.GlobalSettings.XdsServiceHost}
+	} else {
+		namespace := namespaces.GetPodNamespace()
+		serviceName := s.GlobalSettings.XdsServiceName
+		hosts = []string{
+			serviceName + "." + namespace,
+			serviceName + "." + namespace + ".svc",
+			kubeutils.ServiceFQDN(metav1.ObjectMeta{Name: serviceName, Namespace: namespace}),
+		}
 	}
-	namespace := namespaces.GetPodNamespace()
-	serviceName := s.GlobalSettings.XdsServiceName
-	return []string{
-		serviceName + "." + namespace,
-		serviceName + "." + namespace + ".svc",
-		kubeutils.ServiceFQDN(metav1.ObjectMeta{Name: serviceName, Namespace: namespace}),
+	for _, host := range s.GlobalSettings.AdditionalXdsTLSHosts {
+		host = strings.TrimSpace(host)
+		if host != "" {
+			hosts = append(hosts, host)
+		}
 	}
+	return hosts
 }
 
 func newXDSListener(ip string, port uint32) (net.Listener, error) {

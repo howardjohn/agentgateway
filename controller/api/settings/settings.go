@@ -149,6 +149,9 @@ type Settings struct {
 	// It overrides xdsServiceName if set.
 	XdsServiceHost string `split_words:"true"`
 
+	// AdditionalXdsTLSHosts are extra DNS names or IP addresses to include in the generated xDS serving certificate.
+	AdditionalXdsTLSHosts []string `split_words:"true"`
+
 	// XdsServiceName is the name of the Kubernetes Service that serves xDS config.
 	// It is assumed to be in the agentgateway install namespace.
 	// Ignored if XdsServiceHost is set.
