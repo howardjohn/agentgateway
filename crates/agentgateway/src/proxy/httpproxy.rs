@@ -462,7 +462,11 @@ where
 		req: &mut Request,
 	) -> Result<T, SnapshottedProxyResponse> {
 		self.map_err(|e| {
-			log.request_snapshot = log.cel.cel_context.maybe_snapshot_request(req, true);
+			log.request_snapshot = log
+				.cel
+				.cel_context
+				.maybe_snapshot_request(req, true)
+				.map(Arc::new);
 			SnapshottedProxyResponse(e.into())
 		})
 	}
@@ -473,7 +477,11 @@ where
 	) -> Result<T, SnapshottedProxyResponse> {
 		self.map_err(|e| {
 			if let Some(req) = req.as_mut() {
-				log.request_snapshot = log.cel.cel_context.maybe_snapshot_request(req, true);
+				log.request_snapshot = log
+					.cel
+					.cel_context
+					.maybe_snapshot_request(req, true)
+					.map(Arc::new);
 			}
 			SnapshottedProxyResponse(e.into())
 		})
@@ -1394,7 +1402,11 @@ impl<'a> MustSnapshot<'a> {
 		if let Some(mut req) = self.0.take() {
 			if let Some(l) = log.take() {
 				// Do not clear extensions
-				l.request_snapshot = l.cel.cel_context.maybe_snapshot_request(&mut req, clear);
+				l.request_snapshot = l
+					.cel
+					.cel_context
+					.maybe_snapshot_request(&mut req, clear)
+					.map(Arc::new);
 			};
 			Ok(req)
 		} else {
@@ -1876,6 +1888,7 @@ async fn make_backend_call(
 				policy_client.clone(),
 				llm_request,
 				llm_response_policies,
+				log.as_ref().expect("must be set").request_snapshot.clone(),
 				llm_response_log.expect("must be set"),
 				include_completion_in_log,
 				resp,
@@ -2476,13 +2489,13 @@ impl ResponsePolicies {
 		// ext_proc is only intended to run on responses from upstream
 		if is_upstream_response {
 			if let Some(x) = self.ext_proc.as_mut() {
-				x.mutate_response(resp, l.request_snapshot.as_ref())
+				x.mutate_response(resp, l.request_snapshot.as_deref())
 					.await?
 					.apply(&mut self.response_headers)?;
 				dtrace::snapshot!(Response, "ext proc", l, &resp);
 			};
 			if let Some(x) = self.gateway_ext_proc.as_mut() {
-				x.mutate_response(resp, l.request_snapshot.as_ref())
+				x.mutate_response(resp, l.request_snapshot.as_deref())
 					.await?
 					.apply(&mut self.response_headers)?;
 				dtrace::snapshot!(Response, "gateway ext proc", l, &resp);

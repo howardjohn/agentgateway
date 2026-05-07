@@ -1717,6 +1717,9 @@ fn traffic_policy_from_proto(
 									expr,
 								)
 							}),
+							cost: d.cost.as_ref().map(|expr| {
+								permissive_cel_expression_arc(diagnostics, "traffic.remoteRateLimit.cost", expr)
+							}),
 						})
 					},
 				)

@@ -1841,6 +1841,17 @@ type RateLimitDescriptor struct {
 	// +kubebuilder:validation:Enum=Requests;Tokens
 	// +optional
 	Unit *RateLimitUnit `json:"unit,omitempty"`
+	// `cost` is a Common Expression Language (`CEL`) expression that determines
+	// the cost of the request for this descriptor. If unset, `Requests` costs
+	// default to 1, and `Tokens` costs default to the total token count.
+	//
+	// `Tokens` cost are evaluated after the request has completed. For non-streaming requests, `request`, `llm`, and
+	// `response` fields are all available; for streaming requests, `response` is not available (however, all LLM
+	// attributes are in `llm`). For `Requests`, cost is computed during the request phase.
+	//
+	// See https://agentgateway.dev/docs/standalone/latest/reference/cel/ for more info.
+	// +optional
+	Cost *shared.CELExpression `json:"cost,omitempty"`
 }
 
 // A descriptor entry defines a single entry in a rate limit descriptor.

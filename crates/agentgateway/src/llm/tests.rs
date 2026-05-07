@@ -9,6 +9,60 @@ use serde_json::{Value, json};
 use super::*;
 use crate::http::x_headers::TRACEPARENT;
 
+fn llm_request_with_tokens(input_tokens: Option<u64>) -> LLMRequest {
+	LLMRequest {
+		input_tokens,
+		input_format: InputFormat::Completions,
+		request_model: "test-model".into(),
+		provider: "test-provider".into(),
+		streaming: true,
+		params: Default::default(),
+		prompt: None,
+	}
+}
+
+#[test]
+fn streaming_amend_on_drop_updates_local_rate_limit() {
+	let rate_limit =
+		crate::http::localratelimit::RateLimit::try_from(crate::http::localratelimit::RateLimitSpec {
+			max_tokens: 10,
+			tokens_per_fill: 10,
+			fill_interval: std::time::Duration::from_secs(60),
+			limit_type: crate::http::localratelimit::RateLimitType::Tokens,
+		})
+		.unwrap();
+	let log = AsyncLog::default();
+	log.store(Some(LLMInfo {
+		request: llm_request_with_tokens(Some(2)),
+		response: LLMResponse {
+			input_tokens: Some(2),
+			output_tokens: Some(4),
+			..Default::default()
+		},
+	}));
+
+	let mut amend = AmendOnDrop::new(
+		log,
+		LLMResponsePolicies {
+			local_rate_limit: vec![rate_limit.clone()],
+			..Default::default()
+		},
+		None,
+	);
+	amend.report_rate_limit();
+
+	assert!(
+		rate_limit
+			.check_llm_request(&llm_request_with_tokens(Some(7)))
+			.is_err()
+	);
+	assert!(
+		rate_limit
+			.check_llm_request(&llm_request_with_tokens(Some(6)))
+			.is_ok()
+	);
+}
+
 fn test_root() -> &'static Path {
 	Path::new("src/llm/tests")
 }
@@ -568,7 +622,7 @@ mod response {
 	async fn test_streaming_response_for_provider(provider: &str, test: &str) {
 		let (p, r) = build_provider_request(provider);
 		let test_fn = async |i: Response, log: AsyncLog<llm::LLMInfo>| {
-			p.process_streaming(r, LLMResponsePolicies::default(), log, false, i)
+			p.process_streaming(r, LLMResponsePolicies::default(), None, log, false, i)
 				.await
 		};
 		test_streaming(provider, test, test_fn).await
@@ -1130,6 +1184,7 @@ async fn process_response_routes_streaming_error_to_buffered_path() {
 			client,
 			req,
 			LLMResponsePolicies::default(),
+			None,
 			AsyncLog::default(),
 			false,
 			resp,
@@ -1193,6 +1248,7 @@ async fn process_streaming_bedrock_completions_normalizes_sse_headers_and_done()
 				prompt: None,
 			},
 			LLMResponsePolicies::default(),
+			None,
 			AsyncLog::default(),
 			false,
 			resp,

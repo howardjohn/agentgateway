@@ -82,8 +82,14 @@ pub struct DescriptorEntry {
 	#[serde(default)]
 	#[serde(rename = "type")]
 	pub limit_type: RateLimitType,
+	/// cost determines the optional expression to determine the cost of the request.
+	/// If unset, type `requests` defaults to `1`, and type `tokens` defaults to `total_tokens`.
+	/// If the expression fails to evaluate, the descriptor is skipped.
+	/// Costs are evaluated upon request completion.
+	pub cost: Option<Arc<cel::Expression>>,
 	/// limitOverride determines the optional expression to determine the limit of the request.
 	/// This tells the remote server what limit to apply to the request.
+	/// Note: this does not specify the *cost* of the request, which is done by the `cost` field.
 	/// The expression must evaluate to a map with `unit` and `requestsPerUnit` keys. For example:
 	/// `{"unit":"second","requestsPerUnit":100}`.
 	/// Valid units: second, minute, hour, day, month, year
@@ -124,21 +130,32 @@ pub struct LLMResponseAmend {
 	base: RemoteRateLimit,
 	client: PolicyClient,
 	request: proto::RateLimitRequest,
+	descriptor_costs: Vec<Option<Arc<Expression>>>,
 }
 
 impl LLMResponseAmend {
-	pub fn amend_tokens(mut self, tokens: i64) {
-		// We cannot currently do negative amendments, so if its negative just skip
-		// The input is not the cost, but the delta, so if we get -5 we should have a cost of 5
-		let Ok(tokens) = (tokens).try_into() else {
-			return;
-		};
-		self
-			.request
-			.descriptors
-			.iter_mut()
-			.for_each(|d| d.hits_addend = Some(tokens));
-		// Ignore the response
+	pub fn amend_tokens(mut self, default_tokens: i64, exec: &Executor) {
+		let mut index = 0;
+		self.request.descriptors.retain_mut(|d| {
+			let cost = self.descriptor_costs[index].as_ref();
+			d.hits_addend = if let Some(cost) = cost {
+				// if there is a cost expression, run it.
+				let Some(cost) = exec.eval(cost).ok().and_then(|v| v.as_unsigned().ok()) else {
+					// Failed to evaluate: skip descriptor
+					return false;
+				};
+				Some(cost as u64)
+			} else {
+				// We cannot currently do negative amendments, so if its negative just skip
+				// The input is not the cost, but the delta, so if we get -5 we should have a cost of 5
+				let Ok(tokens) = (default_tokens).try_into() else {
+					return false;
+				};
+				Some(tokens)
+			};
+			index += 1;
+			true
+		});
 		tokio::task::spawn(async move {
 			let _ = self.base.check_internal(self.client, self.request).await;
 		});
@@ -157,8 +174,8 @@ impl RemoteRateLimit {
 		&self,
 		req: &http::Request,
 		limit_type: RateLimitType,
-		cost: Option<u64>,
-	) -> Option<RateLimitRequest> {
+		default_cost: Option<u64>,
+	) -> Option<(RateLimitRequest, Vec<Option<Arc<cel::Expression>>>)> {
 		let mut descriptors = Vec::with_capacity(self.descriptors.0.len());
 		let exec = Executor::new_request(req);
 		let candidate_count = self
@@ -169,9 +186,10 @@ impl RemoteRateLimit {
 			.count();
 		trace!(
 			"ratelimit build_request start: domain={}, type={:?}, cost={:?}, candidates={}",
-			self.domain, limit_type, cost, candidate_count
+			self.domain, limit_type, default_cost, candidate_count
 		);
 
+		let mut descriptor_costs = vec![];
 		for desc_entry in self
 			.descriptors
 			.0
@@ -198,6 +216,22 @@ impl RemoteRateLimit {
 					limit_type,
 					kv_pairs.join(", ")
 				);
+				let hits_addend = if desc_entry.cost.is_some() && limit_type == RateLimitType::Tokens {
+					// Skip sending anything on the target request side; the cost computation is specified to be on the response (amend) side
+					Some(0)
+				} else {
+					match eval_cost(&exec, desc_entry.cost.as_deref(), default_cost) {
+						Ok(hits_addend) => hits_addend,
+						Err(e) => {
+							trace!(
+								"ratelimit cost evaluation failed for domain={}, type={:?}, expr={:?}, error={}",
+								self.domain, limit_type, desc_entry.cost, e
+							);
+							continue;
+						},
+					}
+				};
+
 				let limit = match Self::eval_limit_override(&exec, desc_entry.limit_override.as_deref()) {
 					Ok(limit) => limit,
 					Err(e) => {
@@ -211,8 +245,9 @@ impl RemoteRateLimit {
 				descriptors.push(RateLimitDescriptor {
 					entries: rl_entries,
 					limit,
-					hits_addend: cost,
+					hits_addend,
 				});
+				descriptor_costs.push(desc_entry.cost.clone());
 			} else {
 				trace!(
 					"ratelimit descriptor evaluation failed for domain={}, type={:?}, skipping descriptor: {}",
@@ -242,18 +277,21 @@ impl RemoteRateLimit {
 			descriptors.len()
 		);
 
-		Some(proto::RateLimitRequest {
-			domain: self.domain.clone(),
-			descriptors,
-			// Ignored; we always set the per-descriptor one which allows distinguishing empty vs 0
-			hits_addend: 0,
-		})
+		Some((
+			proto::RateLimitRequest {
+				domain: self.domain.clone(),
+				descriptors,
+				// Ignored; we always set the per-descriptor one which allows distinguishing empty vs 0
+				hits_addend: 0,
+			},
+			descriptor_costs,
+		))
 	}
 	pub async fn check_llm(
 		&self,
 		client: PolicyClient,
 		req: &mut Request,
-		cost: u64,
+		default_cost: u64,
 	) -> Result<(PolicyResponse, Option<LLMResponseAmend>), ProxyError> {
 		if !self
 			.descriptors
@@ -268,7 +306,13 @@ impl RemoteRateLimit {
 			);
 			return Ok((PolicyResponse::default(), None));
 		}
-		let Some(request) = self.build_request(req, RateLimitType::Tokens, Some(cost)) else {
+		// We usually don't have any information at this point.
+		// If they have an explicit `cost` expression, it is specified to be on output; send only a '0' cost here.
+		// If they have tokenization enabled, we have an explicit cost to send, so we can send it.
+		// Else send '0'.
+		let Some((request, descriptor_costs)) =
+			self.build_request(req, RateLimitType::Tokens, Some(default_cost))
+		else {
 			return Ok((PolicyResponse::default(), None));
 		};
 		let cr = self.check_internal(client.clone(), request.clone()).await;
@@ -276,6 +320,7 @@ impl RemoteRateLimit {
 			base: self.clone(),
 			client,
 			request,
+			descriptor_costs,
 		};
 
 		match cr {
@@ -309,7 +354,7 @@ impl RemoteRateLimit {
 			);
 			return Ok(PolicyResponse::default());
 		}
-		let Some(request) = self.build_request(req, RateLimitType::Requests, None) else {
+		let Some((request, _)) = self.build_request(req, RateLimitType::Requests, None) else {
 			return Ok(PolicyResponse::default());
 		};
 		match self.check_internal(client, request).await {
@@ -462,6 +507,7 @@ impl RemoteRateLimit {
 			v.entries
 				.iter()
 				.map(|entry| &entry.1)
+				.chain(v.cost.iter().map(|expr| expr.as_ref()))
 				.chain(v.limit_override.iter().map(|expr| expr.as_ref()))
 		})
 	}
@@ -485,5 +531,16 @@ impl crate::store::RequestPolicyTrait for RemoteRateLimit {
 fn process_headers(hm: &mut HeaderMap, headers: Vec<proto::HeaderValue>) {
 	for h in headers {
 		let _ = envoy_proto_common::apply_header_value(hm, &h);
+	}
+}
+
+fn eval_cost(
+	exec: &cel::Executor<'_>,
+	cost: Option<&Expression>,
+	default_cost: Option<u64>,
+) -> anyhow::Result<Option<u64>> {
+	match cost {
+		Some(expr) => Ok(Some(exec.eval(expr)?.as_unsigned()?.try_into()?)),
+		None => Ok(default_cost),
 	}
 }

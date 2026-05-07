@@ -329,7 +329,7 @@ impl Policy {
 		// Slow path: bytes --> json (transform) --> typed
 		let v: serde_json::Value =
 			serde_json::from_slice(bytes.as_ref()).map_err(AIError::RequestParsing)?;
-		let exec = cel::Executor::new_llm(log.as_ref().and_then(|x| x.request_snapshot.as_ref()), &v);
+		let exec = cel::Executor::new_llm(log.as_ref().and_then(|x| x.request_snapshot.as_deref()), &v);
 		let to_set: Vec<_> = self
 			.transformations
 			.iter()

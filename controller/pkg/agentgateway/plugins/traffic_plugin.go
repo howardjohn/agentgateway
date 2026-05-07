@@ -1415,10 +1415,18 @@ func processRateLimitDescriptor(descriptor agentgateway.RateLimitDescriptor) (*a
 	if descriptor.Unit != nil && *descriptor.Unit == agentgateway.RateLimitUnitTokens {
 		rlType = api.TrafficPolicySpec_RemoteRateLimit_TOKENS
 	}
+	var cost *string
+	if descriptor.Cost != nil {
+		if !isCEL(*descriptor.Cost) {
+			errs = append(errs, fmt.Errorf("rate limit descriptor cost is not a valid CEL expression: %s", *descriptor.Cost))
+		}
+		cost = ptr.Of(string(*descriptor.Cost))
+	}
 
 	return &api.TrafficPolicySpec_RemoteRateLimit_Descriptor{
 		Entries: entries,
 		Type:    rlType,
+		Cost:    cost,
 	}, errors.Join(errs...)
 }
 

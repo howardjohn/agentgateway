@@ -21,7 +21,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use tokio_rustls::TlsConnector;
 use url::{Position, Url};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -32,7 +32,7 @@ use crate::http::{Body, Response};
 use crate::llm::{AIProvider, openai};
 use crate::proxy::request_builder::RequestBuilder;
 use crate::test_helpers::proxymock::*;
-use crate::test_helpers::{extauthmock, oteltracemock};
+use crate::test_helpers::{extauthmock, oteltracemock, ratelimitmock};
 use crate::types::agent::{
 	Backend, BackendTrafficPolicy, BackendWithPolicies, Bind, BindProtocol, Listener,
 	ListenerProtocol, ListenerSet, PathMatch, ResourceName, Route, RouteMatch, Target,
@@ -1071,6 +1071,124 @@ async fn llm_openai_tokenize() {
 		io,
 		include_bytes!("../llm/tests/requests/completions/basic.json"),
 		want,
+	)
+	.await;
+}
+
+#[derive(Clone)]
+struct RecordingRateLimit {
+	requests: mpsc::UnboundedSender<crate::http::remoteratelimit::proto::RateLimitRequest>,
+}
+
+#[async_trait::async_trait]
+impl ratelimitmock::Handler for RecordingRateLimit {
+	async fn should_rate_limit(
+		&mut self,
+		request: &crate::http::remoteratelimit::proto::RateLimitRequest,
+	) -> Result<crate::http::remoteratelimit::proto::RateLimitResponse, tonic::Status> {
+		self
+			.requests
+			.send(request.clone())
+			.expect("rate limit request receiver should be open");
+		ratelimitmock::ok_response()
+	}
+}
+
+async fn recv_rate_limit_request(
+	requests: &mut mpsc::UnboundedReceiver<crate::http::remoteratelimit::proto::RateLimitRequest>,
+) -> crate::http::remoteratelimit::proto::RateLimitRequest {
+	tokio::time::timeout(Duration::from_secs(1), requests.recv())
+		.await
+		.expect("timed out waiting for rate limit request")
+		.expect("rate limit request sender should be open")
+}
+
+fn completions_request_body(streaming: bool) -> Vec<u8> {
+	let mut body: Value = serde_json::from_slice(include_bytes!(
+		"../llm/tests/requests/completions/basic.json"
+	))
+	.expect("request fixture should be valid JSON");
+	if streaming {
+		body["stream"] = json!(true);
+	}
+	serde_json::to_vec(&body).expect("request fixture should serialize")
+}
+
+async fn assert_llm_remote_rate_limit_cost(
+	response_body: &[u8],
+	request_body: &[u8],
+	expected_cost: u64,
+) {
+	let (rate_limit_tx, mut rate_limit_rx) = mpsc::unbounded_channel();
+	let rate_limit = ratelimitmock::RateLimitMock::new({
+		let rate_limit_tx = rate_limit_tx.clone();
+		move || RecordingRateLimit {
+			requests: rate_limit_tx.clone(),
+		}
+	})
+	.spawn()
+	.await;
+
+	let mock = body_mock(response_body).await;
+	let (_mock, mut bind, io) = setup_llm_mock(
+		mock,
+		AIProvider::OpenAI(openai::Provider { model: None }),
+		false,
+		"{}",
+	);
+	bind
+		.attach_route_policy(json!({
+			"remoteRateLimit": {
+				"domain": "llm",
+				"host": rate_limit.address.to_string(),
+				"descriptors": [{
+					"entries": [{
+						"key": "model",
+						"value": "\"model\"",
+					}],
+					"type": "tokens",
+					"cost": "llm.outputTokens * uint(1000) + llm.inputTokens",
+				}],
+			},
+		}))
+		.await;
+
+	let res = send_request_body(io, Method::POST, "http://lo", request_body).await;
+	assert_eq!(res.status(), 200);
+	let _ = res.into_body().collect().await.unwrap();
+
+	let initial_request = recv_rate_limit_request(&mut rate_limit_rx).await;
+	let amend_request = recv_rate_limit_request(&mut rate_limit_rx).await;
+	assert_eq!(initial_request.domain, "llm");
+	assert_eq!(amend_request.domain, "llm");
+
+	let initial = initial_request.descriptors.first().unwrap();
+	assert_eq!(initial.entries[0].key, "model");
+	assert_eq!(initial.entries[0].value, "model");
+	assert_eq!(initial.hits_addend, Some(0));
+
+	let amend = amend_request.descriptors.first().unwrap();
+	assert_eq!(amend.entries[0].key, "model");
+	assert_eq!(amend.entries[0].value, "model");
+	assert_eq!(amend.hits_addend, Some(expected_cost));
+}
+
+#[tokio::test]
+async fn llm_remote_rate_limit_cost_amends_response_tokens() {
+	assert_llm_remote_rate_limit_cost(
+		include_bytes!("../llm/tests/response/completions/basic.json"),
+		&completions_request_body(false),
+		23017,
+	)
+	.await;
+}
+
+#[tokio::test]
+async fn llm_streaming_remote_rate_limit_cost_amends_response_tokens() {
+	assert_llm_remote_rate_limit_cost(
+		include_bytes!("../llm/tests/response/completions/stream.json"),
+		&completions_request_body(true),
+		286018,
 	)
 	.await;
 }

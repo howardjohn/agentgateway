@@ -39,6 +39,7 @@ mod types;
 
 pub use types::SimpleChatCompletionMessage;
 
+use crate::cel::{Executor, LLMContext, RequestSnapshot};
 use crate::store;
 
 #[cfg(test)]
@@ -943,6 +944,7 @@ impl AIProvider {
 		client: PolicyClient,
 		req: LLMRequest,
 		rate_limit: LLMResponsePolicies,
+		req_snapshot: Option<Arc<RequestSnapshot>>,
 		log: AsyncLog<llm::LLMInfo>,
 		include_completion_in_log: bool,
 		resp: Response,
@@ -952,7 +954,14 @@ impl AIProvider {
 		// fall through to the buffered path where process_error translates them.
 		if req.streaming && resp.status().is_success() {
 			return self
-				.process_streaming(req, rate_limit, log, include_completion_in_log, resp)
+				.process_streaming(
+					req,
+					rate_limit,
+					req_snapshot,
+					log,
+					include_completion_in_log,
+					resp,
+				)
 				.await;
 		}
 
@@ -1074,9 +1083,12 @@ impl AIProvider {
 			.insert(crate::cel::LLMContext::from(llm_info.clone()));
 		let resp = Response::from_parts(parts, body);
 
-		// In the initial request, we subtracted the approximate request tokens.
-		// Now we should have the real request tokens and the response tokens
-		amend_tokens(rate_limit, &llm_info);
+		if !rate_limit.local_rate_limit.is_empty() || rate_limit.remote_rate_limit.is_some() {
+			let exec = cel::Executor::new_response(req_snapshot.as_deref(), &resp);
+			// In the initial request, we subtracted the approximate request tokens.
+			// Now we should have the real request tokens and the response tokens
+			amend_tokens(rate_limit, &llm_info, exec);
+		}
 		log.store(Some(llm_info));
 		Ok(resp)
 	}
@@ -1229,6 +1241,7 @@ impl AIProvider {
 		&self,
 		req: LLMRequest,
 		rate_limit: LLMResponsePolicies,
+		req_snapshot: Option<Arc<RequestSnapshot>>,
 		log: AsyncLog<llm::LLMInfo>,
 		include_completion_in_log: bool,
 		resp: Response,
@@ -1266,6 +1279,7 @@ impl AIProvider {
 			normalize_sse_response_headers(resp)
 		};
 
+		let logger = AmendOnDrop::new(log, rate_limit, req_snapshot);
 		Ok(match (self, input_format) {
 			// Completions with OpenAI: just passthrough
 			(
@@ -1274,29 +1288,15 @@ impl AIProvider {
 				| AIProvider::Gemini(_)
 				| AIProvider::Azure(_),
 				InputFormat::Completions,
-			) => conversion::completions::passthrough_stream(
-				AmendOnDrop::new(log, rate_limit),
-				include_completion_in_log,
-				resp,
-			),
+			) => conversion::completions::passthrough_stream(logger, include_completion_in_log, resp),
 			// Vertex completions: passthrough for OpenAI-compatible models, translate for Anthropic models
-			(AIProvider::Vertex(_), InputFormat::Completions) if is_vertex_anthropic => resp.map(|b| {
-				conversion::messages::from_completions::translate_stream(
-					b,
-					buffer,
-					AmendOnDrop::new(log, rate_limit),
-				)
-			}),
+			(AIProvider::Vertex(_), InputFormat::Completions) if is_vertex_anthropic => {
+				resp.map(|b| conversion::messages::from_completions::translate_stream(b, buffer, logger))
+			},
 			(AIProvider::Vertex(_), InputFormat::Completions) => {
-				conversion::completions::passthrough_stream(
-					AmendOnDrop::new(log, rate_limit),
-					include_completion_in_log,
-					resp,
-				)
+				conversion::completions::passthrough_stream(logger, include_completion_in_log, resp)
 			},
-			(_, InputFormat::Detect) => {
-				types::detect::passthrough_stream(AmendOnDrop::new(log, rate_limit), resp)
-			},
+			(_, InputFormat::Detect) => types::detect::passthrough_stream(logger, resp),
 			// Responses with OpenAI: just passthrough
 			(
 				AIProvider::OpenAI(_)
@@ -1304,31 +1304,21 @@ impl AIProvider {
 				| AIProvider::Azure(_)
 				| AIProvider::Vertex(_),
 				InputFormat::Responses,
-			) => resp.map(|b| {
-				conversion::responses::passthrough_stream(b, buffer, AmendOnDrop::new(log, rate_limit))
-			}),
-			(AIProvider::Gemini(_), InputFormat::Responses) => resp.map(|b| {
-				conversion::openai_compat::to_responses::translate_stream(
-					b,
-					buffer,
-					AmendOnDrop::new(log, rate_limit),
-				)
-			}),
+			) => resp.map(|b| conversion::responses::passthrough_stream(b, buffer, logger)),
+			(AIProvider::Gemini(_), InputFormat::Responses) => {
+				resp.map(|b| conversion::openai_compat::to_responses::translate_stream(b, buffer, logger))
+			},
 			// Vertex messages: passthrough only for Anthropic models, otherwise translate from completions
-			(AIProvider::Vertex(_), InputFormat::Messages) if is_vertex_anthropic => resp.map(|b| {
-				conversion::messages::passthrough_stream(b, buffer, AmendOnDrop::new(log, rate_limit))
-			}),
-			(AIProvider::Vertex(_), InputFormat::Messages) => resp.map(|b| {
-				conversion::completions::from_messages::translate_stream(
-					b,
-					buffer,
-					AmendOnDrop::new(log, rate_limit),
-				)
-			}),
+			(AIProvider::Vertex(_), InputFormat::Messages) if is_vertex_anthropic => {
+				resp.map(|b| conversion::messages::passthrough_stream(b, buffer, logger))
+			},
+			(AIProvider::Vertex(_), InputFormat::Messages) => {
+				resp.map(|b| conversion::completions::from_messages::translate_stream(b, buffer, logger))
+			},
 			// Anthropic messages: passthrough
-			(AIProvider::Anthropic(_), InputFormat::Messages) => resp.map(|b| {
-				conversion::messages::passthrough_stream(b, buffer, AmendOnDrop::new(log, rate_limit))
-			}),
+			(AIProvider::Anthropic(_), InputFormat::Messages) => {
+				resp.map(|b| conversion::messages::passthrough_stream(b, buffer, logger))
+			},
 			// OpenAI/Gemini/Azure messages: translate from chat completions
 			(
 				AIProvider::OpenAI(_)
@@ -1336,55 +1326,27 @@ impl AIProvider {
 				| AIProvider::Gemini(_)
 				| AIProvider::Azure(_),
 				InputFormat::Messages,
-			) => resp.map(|b| {
-				conversion::completions::from_messages::translate_stream(
-					b,
-					buffer,
-					AmendOnDrop::new(log, rate_limit),
-				)
-			}),
+			) => resp.map(|b| conversion::completions::from_messages::translate_stream(b, buffer, logger)),
 			// Supported paths with conversion...
-			(AIProvider::Anthropic(_), InputFormat::Completions) => resp.map(|b| {
-				conversion::messages::from_completions::translate_stream(
-					b,
-					buffer,
-					AmendOnDrop::new(log, rate_limit),
-				)
-			}),
+			(AIProvider::Anthropic(_), InputFormat::Completions) => {
+				resp.map(|b| conversion::messages::from_completions::translate_stream(b, buffer, logger))
+			},
 			(AIProvider::Bedrock(_), InputFormat::Completions) => {
 				let msg = conversion::bedrock::message_id(&resp);
 				resp.map(move |b| {
-					conversion::bedrock::from_completions::translate_stream(
-						b,
-						buffer,
-						AmendOnDrop::new(log, rate_limit),
-						&model,
-						&msg,
-					)
+					conversion::bedrock::from_completions::translate_stream(b, buffer, logger, &model, &msg)
 				})
 			},
 			(AIProvider::Bedrock(_), InputFormat::Messages) => {
 				let msg = conversion::bedrock::message_id(&resp);
 				resp.map(move |b| {
-					conversion::bedrock::from_messages::translate_stream(
-						b,
-						buffer,
-						AmendOnDrop::new(log, rate_limit),
-						&model,
-						&msg,
-					)
+					conversion::bedrock::from_messages::translate_stream(b, buffer, logger, &model, &msg)
 				})
 			},
 			(AIProvider::Bedrock(_), InputFormat::Responses) => {
 				let msg = conversion::bedrock::message_id(&resp);
 				resp.map(move |b| {
-					conversion::bedrock::from_responses::translate_stream(
-						b,
-						buffer,
-						AmendOnDrop::new(log, rate_limit),
-						&model,
-						&msg,
-					)
+					conversion::bedrock::from_responses::translate_stream(b, buffer, logger, &model, &msg)
 				})
 			},
 			(_, InputFormat::Realtime) => {
@@ -1626,7 +1588,7 @@ fn response_prompt_guard_headers(
 	headers
 }
 
-fn amend_tokens(rate_limit: store::LLMResponsePolicies, llm_resp: &LLMInfo) {
+fn amend_tokens(rate_limit: store::LLMResponsePolicies, llm_resp: &LLMInfo, exec: Executor) {
 	let input_mismatch = match (
 		llm_resp.request.input_tokens,
 		llm_resp.response.input_tokens,
@@ -1645,20 +1607,26 @@ fn amend_tokens(rate_limit: store::LLMResponsePolicies, llm_resp: &LLMInfo) {
 		lrl.amend_tokens(tokens_to_remove)
 	}
 	if let Some(rrl) = rate_limit.remote_rate_limit {
-		rrl.amend_tokens(tokens_to_remove)
+		rrl.amend_tokens(tokens_to_remove, &exec)
 	}
 }
 
 pub struct AmendOnDrop {
 	log: AsyncLog<llm::LLMInfo>,
 	pol: Option<LLMResponsePolicies>,
+	req: Option<Arc<RequestSnapshot>>,
 }
 
 impl AmendOnDrop {
-	pub fn new(log: AsyncLog<llm::LLMInfo>, pol: LLMResponsePolicies) -> Self {
+	pub fn new(
+		log: AsyncLog<llm::LLMInfo>,
+		pol: LLMResponsePolicies,
+		req: Option<Arc<RequestSnapshot>>,
+	) -> Self {
 		Self {
 			log,
 			pol: Some(pol),
+			req,
 		}
 	}
 	pub fn non_atomic_mutate(&self, f: impl FnOnce(&mut llm::LLMInfo)) {
@@ -1666,7 +1634,13 @@ impl AmendOnDrop {
 	}
 	pub fn report_rate_limit(&mut self) {
 		if let Some(pol) = self.pol.take() {
-			self.log.non_atomic_mutate(|r| amend_tokens(pol, r));
+			if !pol.local_rate_limit.is_empty() || pol.remote_rate_limit.is_some() {
+				self.log.non_atomic_mutate(|r| {
+					let ctx = LLMContext::from(r.clone());
+					let exec = cel::Executor::new_llm_rate_limit_streaming(self.req.as_deref(), &ctx);
+					amend_tokens(pol, r, exec)
+				});
+			}
 		}
 	}
 }

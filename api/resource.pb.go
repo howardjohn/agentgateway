@@ -9482,6 +9482,7 @@ type TrafficPolicySpec_RemoteRateLimit_Descriptor struct {
 	Entries       []*TrafficPolicySpec_RemoteRateLimit_Entry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
 	Type          TrafficPolicySpec_RemoteRateLimit_Type     `protobuf:"varint,2,opt,name=type,proto3,enum=agentgateway.dev.resource.TrafficPolicySpec_RemoteRateLimit_Type" json:"type,omitempty"`
 	LimitOverride *string                                    `protobuf:"bytes,3,opt,name=limit_override,json=limitOverride,proto3,oneof" json:"limit_override,omitempty"` // CEL expr returning {unit, requestsPerUnit}
+	Cost          *string                                    `protobuf:"bytes,4,opt,name=cost,proto3,oneof" json:"cost,omitempty"`                                        // CEL expr
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9533,6 +9534,13 @@ func (x *TrafficPolicySpec_RemoteRateLimit_Descriptor) GetType() TrafficPolicySp
 func (x *TrafficPolicySpec_RemoteRateLimit_Descriptor) GetLimitOverride() string {
 	if x != nil && x.LimitOverride != nil {
 		return *x.LimitOverride
+	}
+	return ""
+}
+
+func (x *TrafficPolicySpec_RemoteRateLimit_Descriptor) GetCost() string {
+	if x != nil && x.Cost != nil {
+		return *x.Cost
 	}
 	return ""
 }
@@ -13084,7 +13092,7 @@ const file_resource_proto_rawDesc = "" +
 	"\x03add\x18\x01 \x03(\v2;.agentgateway.dev.resource.FrontendPolicySpec.Metrics.FieldR\x03addB\x06\n" +
 	"\x04kind\"?\n" +
 	"\x14JWTValidationOptions\x12'\n" +
-	"\x0frequired_claims\x18\x01 \x03(\tR\x0erequiredClaims\"\xc1A\n" +
+	"\x0frequired_claims\x18\x01 \x03(\tR\x0erequiredClaims\"\xe3A\n" +
 	"\x11TrafficPolicySpec\x12N\n" +
 	"\x05phase\x18\x01 \x01(\x0e28.agentgateway.dev.resource.TrafficPolicySpec.PolicyPhaseR\x05phase\x12>\n" +
 	"\atimeout\x18\x02 \x01(\v2\".agentgateway.dev.resource.TimeoutH\x00R\atimeout\x128\n" +
@@ -13110,18 +13118,20 @@ const file_resource_proto_rawDesc = "" +
 	"basic_auth\x18\x13 \x01(\v2@.agentgateway.dev.resource.TrafficPolicySpec.BasicAuthenticationH\x00R\tbasicAuth\x12W\n" +
 	"\fapi_key_auth\x18\x14 \x01(\v23.agentgateway.dev.resource.TrafficPolicySpec.APIKeyH\x00R\n" +
 	"apiKeyAuth\x12]\n" +
-	"\fhost_rewrite\x18\x15 \x01(\v28.agentgateway.dev.resource.TrafficPolicySpec.HostRewriteH\x00R\vhostRewrite\x1a\xcb\x05\n" +
+	"\fhost_rewrite\x18\x15 \x01(\v28.agentgateway.dev.resource.TrafficPolicySpec.HostRewriteH\x00R\vhostRewrite\x1a\xed\x05\n" +
 	"\x0fRemoteRateLimit\x12\x16\n" +
 	"\x06domain\x18\x01 \x01(\tR\x06domain\x12i\n" +
 	"\vdescriptors\x18\x02 \x03(\v2G.agentgateway.dev.resource.TrafficPolicySpec.RemoteRateLimit.DescriptorR\vdescriptors\x12C\n" +
 	"\x06target\x18\x03 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\x06target\x12k\n" +
-	"\ffailure_mode\x18\x04 \x01(\x0e2H.agentgateway.dev.resource.TrafficPolicySpec.RemoteRateLimit.FailureModeR\vfailureMode\x1a\x80\x02\n" +
+	"\ffailure_mode\x18\x04 \x01(\x0e2H.agentgateway.dev.resource.TrafficPolicySpec.RemoteRateLimit.FailureModeR\vfailureMode\x1a\xa2\x02\n" +
 	"\n" +
 	"Descriptor\x12\\\n" +
 	"\aentries\x18\x01 \x03(\v2B.agentgateway.dev.resource.TrafficPolicySpec.RemoteRateLimit.EntryR\aentries\x12U\n" +
 	"\x04type\x18\x02 \x01(\x0e2A.agentgateway.dev.resource.TrafficPolicySpec.RemoteRateLimit.TypeR\x04type\x12*\n" +
-	"\x0elimit_override\x18\x03 \x01(\tH\x00R\rlimitOverride\x88\x01\x01B\x11\n" +
-	"\x0f_limit_override\x1a/\n" +
+	"\x0elimit_override\x18\x03 \x01(\tH\x00R\rlimitOverride\x88\x01\x01\x12\x17\n" +
+	"\x04cost\x18\x04 \x01(\tH\x01R\x04cost\x88\x01\x01B\x11\n" +
+	"\x0f_limit_overrideB\a\n" +
+	"\x05_cost\x1a/\n" +
 	"\x05Entry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\" \n" +

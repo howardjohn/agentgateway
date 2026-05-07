@@ -87,7 +87,8 @@ macro_rules! snapshot {
 		$crate::proxy::dtrace::trace(|trace| {
 			trace.response_snapshot(
 				$kind,
-				crate::cel::Executor::new_response($log.request_snapshot.as_ref(), $resp).debug_snapshot(),
+				crate::cel::Executor::new_response($log.request_snapshot.as_deref(), $resp)
+					.debug_snapshot(),
 			)
 		});
 	}};

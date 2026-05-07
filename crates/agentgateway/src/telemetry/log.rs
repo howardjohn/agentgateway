@@ -713,7 +713,7 @@ pub struct RequestLog {
 	pub inference_pool: Option<SocketAddr>,
 
 	pub request_handle: Option<ActiveHandle>,
-	pub request_snapshot: Option<cel::RequestSnapshot>,
+	pub request_snapshot: Option<Arc<cel::RequestSnapshot>>,
 	pub response_snapshot: Option<cel::ResponseSnapshot>,
 	/// Source context for TCP connections (where we don't have an HTTP request)
 	pub source_context: Option<cel::SourceContext>,
@@ -776,7 +776,7 @@ impl Drop for DropOnLog {
 		let mcp_cel = mcp.as_ref().filter(|m| !m.is_empty());
 		let cel_end_time = cel::RequestTime(end_time.as_datetime());
 		let cel_exec = log.cel.build(CelLoggingBuildInputs {
-			req: log.request_snapshot.as_ref(),
+			req: log.request_snapshot.as_deref(),
 			resp: log.response_snapshot.as_ref(),
 			llm_response: llm_response.as_ref(),
 			mcp: mcp_cel,

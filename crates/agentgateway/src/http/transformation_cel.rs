@@ -332,7 +332,7 @@ impl store::ResponsePolicyTrait for Transformation {
 		log: &mut RequestLog,
 		resp: &mut Response,
 	) -> Result<PolicyResponse, ProxyResponse> {
-		self.apply_response(resp, log.request_snapshot.as_ref());
+		self.apply_response(resp, log.request_snapshot.as_deref());
 		Ok(crate::http::PolicyResponse::default())
 	}
 }

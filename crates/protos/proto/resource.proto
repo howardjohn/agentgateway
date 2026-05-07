@@ -738,6 +738,7 @@ message TrafficPolicySpec {
       repeated Entry entries = 1;
       Type type = 2;
       optional string limit_override = 3; // CEL expr returning {unit, requestsPerUnit}
+      optional string cost = 4; // CEL expr
     }
     message Entry {
       string key = 1;
