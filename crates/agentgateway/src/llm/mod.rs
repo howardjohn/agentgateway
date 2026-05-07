@@ -1606,15 +1606,13 @@ pub enum AIError {
 	JoinError(#[from] tokio::task::JoinError),
 }
 
-const TRACEPARENT_HEADER: &str = "traceparent";
-
 fn response_prompt_guard_headers(
 	response_headers: &HeaderMap,
 	request_traceparent: Option<&HeaderValue>,
 ) -> HeaderMap {
 	let mut headers = response_headers.clone();
 	if let Some(traceparent) = request_traceparent {
-		headers.insert(TRACEPARENT_HEADER, traceparent.clone());
+		headers.insert(http::x_headers::TRACEPARENT, traceparent.clone());
 	}
 	headers
 }

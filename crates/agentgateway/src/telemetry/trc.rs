@@ -538,6 +538,7 @@ mod traceparent {
 	use rand::RngExt;
 
 	use crate::http::Request;
+	use crate::http::x_headers::TRACEPARENT;
 
 	/// Represents a traceparent, as defined by https://www.w3.org/TR/trace-context/
 	#[derive(Clone, Eq, PartialEq)]
@@ -547,8 +548,6 @@ mod traceparent {
 		pub span_id: u64,
 		pub flags: u8,
 	}
-
-	pub const TRACEPARENT_HEADER: &str = "traceparent";
 
 	impl Default for TraceParent {
 		fn default() -> Self {
@@ -568,12 +567,12 @@ mod traceparent {
 		}
 		pub fn insert_header(&self, req: &mut Request) {
 			let hv = hyper::header::HeaderValue::from_bytes(format!("{self:?}").as_bytes()).unwrap();
-			req.headers_mut().insert(TRACEPARENT_HEADER, hv);
+			req.headers_mut().insert(TRACEPARENT, hv);
 		}
 		pub fn from_request(req: &Request) -> Option<Self> {
 			req
 				.headers()
-				.get(TRACEPARENT_HEADER)
+				.get(TRACEPARENT)
 				.and_then(|b| b.to_str().ok())
 				.and_then(|b| TraceParent::try_from(b).ok())
 		}
