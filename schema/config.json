@@ -7574,6 +7574,26 @@
             }
           ],
           "default": null
+        },
+        "localRateLimit": {
+          "description": "Rate limit incoming requests. State is kept local.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RateLimitSpec"
+          },
+          "default": []
+        },
+        "remoteRateLimit": {
+          "description": "Rate limit incoming requests. State is managed by a remote server.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RemoteRateLimit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "additionalProperties": false

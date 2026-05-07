@@ -17643,6 +17643,124 @@
 |`llm.policies.apiKey.location.cookie.name`|string||
 |`llm.policies.authorization`|object|Authorization policies for HTTP access.|
 |`llm.policies.authorization.rules`|[]string||
+|`llm.policies.localRateLimit`|[]object|Rate limit incoming requests. State is kept local.|
+|`llm.policies.localRateLimit[].maxTokens`|integer||
+|`llm.policies.localRateLimit[].tokensPerFill`|integer||
+|`llm.policies.localRateLimit[].fillInterval`|string||
+|`llm.policies.localRateLimit[].type`|enum|Possible values: `requests`, `tokens`.|
+|`llm.policies.remoteRateLimit`|object|Rate limit incoming requests. State is managed by a remote server.|
+|`llm.policies.remoteRateLimit.service`|object||
+|`llm.policies.remoteRateLimit.service.name`|object||
+|`llm.policies.remoteRateLimit.service.name.namespace`|string||
+|`llm.policies.remoteRateLimit.service.name.hostname`|string||
+|`llm.policies.remoteRateLimit.service.port`|integer||
+|`llm.policies.remoteRateLimit.host`|string|Hostname or IP address|
+|`llm.policies.remoteRateLimit.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`llm.policies.remoteRateLimit.domain`|string||
+|`llm.policies.remoteRateLimit.policies`|object|Policies to connect to the backend|
+|`llm.policies.remoteRateLimit.policies.requestHeaderModifier`|object|Headers to be modified in the request.|
+|`llm.policies.remoteRateLimit.policies.requestHeaderModifier.add`|object||
+|`llm.policies.remoteRateLimit.policies.requestHeaderModifier.set`|object||
+|`llm.policies.remoteRateLimit.policies.requestHeaderModifier.remove`|[]string||
+|`llm.policies.remoteRateLimit.policies.transformations`|object|Modify requests and responses sent to and from the backend.|
+|`llm.policies.remoteRateLimit.policies.transformations.request`|object||
+|`llm.policies.remoteRateLimit.policies.transformations.request.add`|object||
+|`llm.policies.remoteRateLimit.policies.transformations.request.set`|object||
+|`llm.policies.remoteRateLimit.policies.transformations.request.remove`|[]string||
+|`llm.policies.remoteRateLimit.policies.transformations.request.body`|string||
+|`llm.policies.remoteRateLimit.policies.transformations.request.metadata`|object||
+|`llm.policies.remoteRateLimit.policies.transformations.response`|object||
+|`llm.policies.remoteRateLimit.policies.transformations.response.add`|object||
+|`llm.policies.remoteRateLimit.policies.transformations.response.set`|object||
+|`llm.policies.remoteRateLimit.policies.transformations.response.remove`|[]string||
+|`llm.policies.remoteRateLimit.policies.transformations.response.body`|string||
+|`llm.policies.remoteRateLimit.policies.transformations.response.metadata`|object||
+|`llm.policies.remoteRateLimit.policies.backendTLS`|object|Send TLS to the backend.|
+|`llm.policies.remoteRateLimit.policies.backendTLS.cert`|string||
+|`llm.policies.remoteRateLimit.policies.backendTLS.key`|string||
+|`llm.policies.remoteRateLimit.policies.backendTLS.root`|string||
+|`llm.policies.remoteRateLimit.policies.backendTLS.hostname`|string||
+|`llm.policies.remoteRateLimit.policies.backendTLS.insecure`|boolean||
+|`llm.policies.remoteRateLimit.policies.backendTLS.insecureHost`|boolean||
+|`llm.policies.remoteRateLimit.policies.backendTLS.alpn`|[]string||
+|`llm.policies.remoteRateLimit.policies.backendTLS.subjectAltNames`|[]string||
+|`llm.policies.remoteRateLimit.policies.backendTLS.keyExchangeGroups`|[]enum|Key exchange groups allowed for negotiating TLS.<br>Possible values: `X25519`, `P-256`, `P-384`, `X25519_MLKEM768`.|
+|`llm.policies.remoteRateLimit.policies.backendAuth`|object|Authenticate to the backend.|
+|`llm.policies.remoteRateLimit.policies.backendAuth.passthrough`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.passthrough.location`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.passthrough.location.header`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.passthrough.location.header.name`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.passthrough.location.header.prefix`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.passthrough.location.queryParameter`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.passthrough.location.queryParameter.name`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.passthrough.location.cookie`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.passthrough.location.cookie.name`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.key`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.key.value`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.key.value.file`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.key.location`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.key.location.header`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.key.location.header.name`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.key.location.header.prefix`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.key.location.queryParameter`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.key.location.queryParameter.name`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.key.location.cookie`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.key.location.cookie.name`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.gcp`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.gcp.type`|enum|Possible values: `idToken`.|
+|`llm.policies.remoteRateLimit.policies.backendAuth.gcp.audience`|string|Audience for the token. If not set, the destination host will be used.|
+|`llm.policies.remoteRateLimit.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`llm.policies.remoteRateLimit.policies.backendAuth.gcp.credential.file`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.gcp.type`|enum|Possible values: `accessToken`, `null`.|
+|`llm.policies.remoteRateLimit.policies.backendAuth.gcp.credential`|object|ADC-compatible Google credential JSON. If not set, ambient credentials are used.|
+|`llm.policies.remoteRateLimit.policies.backendAuth.gcp.credential.file`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.aws`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.aws.accessKeyId`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.aws.secretAccessKey`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.aws.region`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.aws.sessionToken`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure`|object|Exactly one of explicitConfig, developerImplicit, or implicit may be set.|
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.explicitConfig`|object|Exactly one of clientSecret, managedIdentity, or workloadIdentity may be set.|
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.explicitConfig.clientSecret`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.explicitConfig.clientSecret.tenant_id`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.explicitConfig.clientSecret.client_id`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.explicitConfig.clientSecret.client_secret`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.explicitConfig.managedIdentity`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.clientId`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.objectId`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.explicitConfig.managedIdentity.userAssignedIdentity.resourceId`|string||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.explicitConfig.workloadIdentity`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.developerImplicit`|object||
+|`llm.policies.remoteRateLimit.policies.backendAuth.azure.implicit`|object||
+|`llm.policies.remoteRateLimit.policies.http`|object|Specify HTTP settings for the backend|
+|`llm.policies.remoteRateLimit.policies.http.version`|string||
+|`llm.policies.remoteRateLimit.policies.http.requestTimeout`|string||
+|`llm.policies.remoteRateLimit.policies.tcp`|object|Specify TCP settings for the backend|
+|`llm.policies.remoteRateLimit.policies.tcp.keepalives`|object||
+|`llm.policies.remoteRateLimit.policies.tcp.keepalives.enabled`|boolean||
+|`llm.policies.remoteRateLimit.policies.tcp.keepalives.time`|string||
+|`llm.policies.remoteRateLimit.policies.tcp.keepalives.interval`|string||
+|`llm.policies.remoteRateLimit.policies.tcp.keepalives.retries`|integer||
+|`llm.policies.remoteRateLimit.policies.tcp.connectTimeout`|object||
+|`llm.policies.remoteRateLimit.policies.tcp.connectTimeout.secs`|integer||
+|`llm.policies.remoteRateLimit.policies.tcp.connectTimeout.nanos`|integer||
+|`llm.policies.remoteRateLimit.policies.backendTunnel`|object|Specify a tunnel to use when connecting to the backend|
+|`llm.policies.remoteRateLimit.policies.backendTunnel.proxy`|object|Reference to the proxy address<br>Exactly one of service, host, or backend may be set.|
+|`llm.policies.remoteRateLimit.policies.backendTunnel.proxy.service`|object||
+|`llm.policies.remoteRateLimit.policies.backendTunnel.proxy.service.name`|object||
+|`llm.policies.remoteRateLimit.policies.backendTunnel.proxy.service.name.namespace`|string||
+|`llm.policies.remoteRateLimit.policies.backendTunnel.proxy.service.name.hostname`|string||
+|`llm.policies.remoteRateLimit.policies.backendTunnel.proxy.service.port`|integer||
+|`llm.policies.remoteRateLimit.policies.backendTunnel.proxy.host`|string|Hostname or IP address|
+|`llm.policies.remoteRateLimit.policies.backendTunnel.proxy.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`llm.policies.remoteRateLimit.descriptors`|[]object||
+|`llm.policies.remoteRateLimit.descriptors[].entries`|[]object||
+|`llm.policies.remoteRateLimit.descriptors[].entries[].key`|string||
+|`llm.policies.remoteRateLimit.descriptors[].entries[].value`|string||
+|`llm.policies.remoteRateLimit.descriptors[].type`|enum|Possible values: `requests`, `tokens`.|
+|`llm.policies.remoteRateLimit.descriptors[].limitOverride`|string|limitOverride determines the optional expression to determine the limit of the request.<br>This tells the remote server what limit to apply to the request.<br>The expression must evaluate to a map with `unit` and `requestsPerUnit` keys. For example:<br>`{"unit":"second","requestsPerUnit":100}`.<br>Valid units: second, minute, hour, day, month, year<br>If the expression fails to evaluate, the descriptor is skipped.|
+|`llm.policies.remoteRateLimit.failureMode`|enum|Behavior when the remote rate limit service is unavailable or returns an error.<br>Defaults to failClosed, denying requests with a 500 status on service failure.<br>Possible values: `failClosed`, `failOpen`.|
 |`mcp`|object||
 |`mcp.port`|integer||
 |`mcp.targets`|[]object||
