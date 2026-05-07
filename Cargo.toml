@@ -87,8 +87,10 @@ futures = "0.3"
 futures-channel = "0.3"
 futures-core = "0.3"
 futures-util = "0.3"
-google-cloud-auth = { version = "1.8", default-features = false, features = [
+google-cloud-auth = { git = "https://github.com/googleapis/google-cloud-rust/", rev = "58058110bf9a01074bf8e1fecf0f1d2b7ca831f4", default-features = false, features = [
     "idtoken",
+    # Support the full ADC set; this one is opt in
+    "gdch",
     # They use AWS-LC which is what we want so its fine. If they changed we would need to switch
     # To installing a global default which is annoying so prefer to do it this way.
     "default-rustls-provider",

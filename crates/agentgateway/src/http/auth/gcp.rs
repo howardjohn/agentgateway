@@ -82,18 +82,27 @@ where
 
 #[derive(Clone)]
 pub struct GcpCredential {
-	access_token: AccessTokenCredentials,
+	access_token: Option<AccessTokenCredentials>,
 	raw: SecretString,
+	credential_type: GcpCredentialType,
 	id_tokens: Arc<Mutex<HashMap<String, Arc<credentials::idtoken::IDTokenCredentials>>>>,
+	gdch_tokens: Arc<Mutex<HashMap<String, Arc<credentials::AccessTokenCredentials>>>>,
 }
 
 impl GcpCredential {
 	pub(crate) fn new(raw: SecretString) -> anyhow::Result<Self> {
-		let access_token = build_access_token_credentials(&raw)?;
+		let json = parse_credential_json(&raw)?;
+		let credential_type = GcpCredentialType::from_json(&json)?;
+		let access_token = match credential_type {
+			GcpCredentialType::GdchServiceAccount => None,
+			GcpCredentialType::Other => Some(build_access_token_credentials(json)?),
+		};
 		Ok(Self {
 			access_token,
 			raw,
+			credential_type,
 			id_tokens: Default::default(),
+			gdch_tokens: Default::default(),
 		})
 	}
 }
@@ -132,10 +141,22 @@ fn extract_credential_type(json: &Value) -> anyhow::Result<&str> {
 		.ok_or_else(|| anyhow!("GCP credential JSON `type` field is not a string"))
 }
 
-fn build_access_token_credentials(
-	credential: &SecretString,
-) -> anyhow::Result<AccessTokenCredentials> {
-	let json = parse_credential_json(credential)?;
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum GcpCredentialType {
+	GdchServiceAccount,
+	Other,
+}
+
+impl GcpCredentialType {
+	fn from_json(json: &Value) -> anyhow::Result<Self> {
+		match extract_credential_type(json)? {
+			"gdch_service_account" => Ok(Self::GdchServiceAccount),
+			_ => Ok(Self::Other),
+		}
+	}
+}
+
+fn build_access_token_credentials(json: Value) -> anyhow::Result<AccessTokenCredentials> {
 	match extract_credential_type(&json)? {
 		"authorized_user" => {
 			Ok(credentials::user_account::Builder::new(json).build_access_token_credentials()?)
@@ -149,32 +170,44 @@ fn build_access_token_credentials(
 		"external_account" => {
 			Ok(credentials::external_account::Builder::new(json).build_access_token_credentials()?)
 		},
+		"gdch_service_account" => Err(anyhow!(
+			"GCP gdch_service_account credentials require idToken auth with an audience"
+		)),
 		cred_type => Err(anyhow!("unsupported GCP credential type: {cred_type}")),
 	}
 }
 
 async fn explicit_access_token(credential: &GcpCredential) -> anyhow::Result<String> {
-	let token = credential.access_token.access_token().await?;
+	let access_token = credential.access_token.as_ref().ok_or_else(|| {
+		anyhow!("GCP gdch_service_account credentials require idToken auth with an audience")
+	})?;
+	let token = access_token.access_token().await?;
 	Ok(token.token)
 }
 
-struct IdTokenBuilder {
-	user_account: Option<credentials::idtoken::IDTokenCredentials>,
+enum IdTokenBuilder {
+	UserAccount(credentials::idtoken::IDTokenCredentials),
+	GdchServiceAccount(Value),
+	Other,
 }
 
-static ID_TOKEN_BUILDER: Lazy<anyhow::Result<IdTokenBuilder>> = Lazy::new(|| {
-	if let Some(adc) = adc::adc_is_authorized_user()? {
-		Ok(IdTokenBuilder {
-			user_account: Some(credentials::idtoken::user_account::Builder::new(adc).build()?),
-		})
-	} else {
-		Ok(IdTokenBuilder { user_account: None })
-	}
-});
+static ID_TOKEN_BUILDER: Lazy<anyhow::Result<IdTokenBuilder>> =
+	Lazy::new(|| match adc::adc_credential_type()? {
+		adc::AdcCredentialType::AuthorizedUser(adc) => Ok(IdTokenBuilder::UserAccount(
+			credentials::idtoken::user_account::Builder::new(adc).build()?,
+		)),
+		adc::AdcCredentialType::GdchServiceAccount(adc) => Ok(IdTokenBuilder::GdchServiceAccount(adc)),
+		adc::AdcCredentialType::Other => Ok(IdTokenBuilder::Other),
+	});
 
 #[allow(clippy::type_complexity)]
 static ID_TOKEN_CACHE: Lazy<
 	Arc<Mutex<HashMap<String, Arc<credentials::idtoken::IDTokenCredentials>>>>,
+> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+
+#[allow(clippy::type_complexity)]
+static GDCH_TOKEN_CACHE: Lazy<
+	Arc<Mutex<HashMap<String, Arc<credentials::AccessTokenCredentials>>>>,
 > = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 fn build_id_token_credentials(
@@ -200,6 +233,10 @@ fn build_id_token_credentials(
 }
 
 async fn explicit_id_token(aud: &str, credential: &GcpCredential) -> anyhow::Result<String> {
+	if credential.credential_type == GcpCredentialType::GdchServiceAccount {
+		return explicit_gdch_token(aud, credential).await;
+	}
+
 	let id_token_creds = {
 		let mut cache_guard = credential.id_tokens.lock().unwrap();
 		if let Some(creds) = cache_guard.get(aud) {
@@ -213,11 +250,55 @@ async fn explicit_id_token(aud: &str, credential: &GcpCredential) -> anyhow::Res
 	Ok(id_token_creds.id_token().await?)
 }
 
+async fn explicit_gdch_token(aud: &str, credential: &GcpCredential) -> anyhow::Result<String> {
+	let access_token_creds = {
+		let mut cache_guard = credential.gdch_tokens.lock().unwrap();
+		if let Some(creds) = cache_guard.get(aud) {
+			creds.clone()
+		} else {
+			let creds = Arc::new(build_gdch_access_token_credentials(aud, &credential.raw)?);
+			cache_guard.insert(aud.to_string(), creds.clone());
+			creds
+		}
+	};
+
+	let token = access_token_creds.access_token().await?;
+	Ok(token.token)
+}
+
+fn build_gdch_access_token_credentials(
+	aud: &str,
+	credential: &SecretString,
+) -> anyhow::Result<credentials::AccessTokenCredentials> {
+	let json = parse_credential_json(credential)?;
+	credentials::gdch::Builder::new(aud, json)
+		.build_access_token_credentials()
+		.map_err(anyhow::Error::from)
+}
+
 async fn fetch_id_token(aud: &str) -> anyhow::Result<String> {
 	match ID_TOKEN_BUILDER.as_ref() {
-		Ok(creds) => match &creds.user_account {
-			Some(c) => Ok(c.id_token().await?),
-			None => {
+		Ok(creds) => match creds {
+			IdTokenBuilder::UserAccount(c) => Ok(c.id_token().await?),
+			IdTokenBuilder::GdchServiceAccount(adc) => {
+				let cache = GDCH_TOKEN_CACHE.clone();
+				let access_token_creds = {
+					let mut cache_guard = cache.lock().unwrap();
+					if !cache_guard.contains_key(aud) {
+						let access_token_creds =
+							credentials::gdch::Builder::new(aud, adc.clone()).build_access_token_credentials()?;
+						let v = Arc::new(access_token_creds);
+						cache_guard.insert(aud.to_string(), v.clone());
+						v
+					} else {
+						cache_guard.get(aud).unwrap().clone()
+					}
+				};
+
+				let token = access_token_creds.access_token().await?;
+				Ok(token.token)
+			},
+			IdTokenBuilder::Other => {
 				// Check cache first, get or create the IDTokenCredentials for this audience
 				let cache = ID_TOKEN_CACHE.clone();
 				let id_token_creds = {
@@ -307,16 +388,22 @@ mod adc {
 			.ok_or_else(|| anyhow!("`type` field is not a string."))
 	}
 
-	pub fn adc_is_authorized_user() -> anyhow::Result<Option<Value>> {
+	pub enum AdcCredentialType {
+		AuthorizedUser(Value),
+		GdchServiceAccount(Value),
+		Other,
+	}
+
+	pub fn adc_credential_type() -> anyhow::Result<AdcCredentialType> {
 		let adc = load_adc()?;
 		match adc {
-			None => Ok(None),
+			None => Ok(AdcCredentialType::Other),
 			Some(d) => {
 				let cred = extract_credential_type(&d)?;
-				if cred == "authorized_user" {
-					Ok(Some(d))
-				} else {
-					Ok(None)
+				match cred {
+					"authorized_user" => Ok(AdcCredentialType::AuthorizedUser(d)),
+					"gdch_service_account" => Ok(AdcCredentialType::GdchServiceAccount(d)),
+					_ => Ok(AdcCredentialType::Other),
 				}
 			},
 		}
