@@ -1067,8 +1067,7 @@ func buildExtAuthSpec(
 	}
 	if b := extAuth.ForwardBody; b != nil {
 		spec.IncludeRequestBody = &api.TrafficPolicySpec_ExternalAuth_BodyOptions{
-			// nolint:gosec // G115: kubebuilder validation ensures safe for uint32
-			MaxRequestBytes: uint32(b.MaxSize),
+			MaxRequestBytes: requiredQuantityUint32(b.MaxSize),
 			// Currently the default, see https://github.com/kubernetes-sigs/gateway-api/issues/4198
 			AllowPartialMessage: true,
 			// TODO: should we allow config?

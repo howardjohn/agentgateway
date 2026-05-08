@@ -23,7 +23,7 @@ spec:
   frontend:
     http:
       http2FrameSize: 16384
-      maxBufferSize: 2048
+      maxBufferSize: 2Ki
 ---
 # Output
 output:

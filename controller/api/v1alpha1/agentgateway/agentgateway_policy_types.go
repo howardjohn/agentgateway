@@ -5,6 +5,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -279,6 +280,36 @@ type LongString = string
 // +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
 type SNI = string
 
+// ByteSize is a byte quantity that must fit in a uint32 dataplane field.
+// +kubebuilder:validation:XIntOrString
+// +kubebuilder:validation:MaxLength=32
+// +kubebuilder:validation:XValidation:rule="!quantity(string(self)).isLessThan(quantity('1'))",message="value must be at least 1 byte"
+// +kubebuilder:validation:XValidation:rule="!quantity(string(self)).isGreaterThan(quantity('4294967295'))",message="value must fit within uint32"
+type ByteSize resource.Quantity
+
+func (b ByteSize) Value() int64 {
+	q := resource.Quantity(b)
+	return q.Value()
+}
+
+func (b ByteSize) MarshalJSON() ([]byte, error) {
+	q := resource.Quantity(b)
+	return q.MarshalJSON()
+}
+
+func (b *ByteSize) UnmarshalJSON(data []byte) error {
+	var q resource.Quantity
+	if err := q.UnmarshalJSON(data); err != nil {
+		return err
+	}
+	*b = ByteSize(q)
+	return nil
+}
+
+func (b ByteSize) DeepCopy() ByteSize {
+	return ByteSize(resource.Quantity(b).DeepCopy())
+}
+
 type InsecureTLSMode string
 
 const (
@@ -443,9 +474,8 @@ type FrontendHTTP struct {
 	// into memory.
 	// Bodies will only be buffered for policies which require buffering.
 	// If unset, this defaults to `2mb`.
-	// +kubebuilder:validation:Minimum=1
 	// +optional
-	MaxBufferSize *int32 `json:"maxBufferSize,omitempty"`
+	MaxBufferSize *ByteSize `json:"maxBufferSize,omitempty"`
 
 	// `http1MaxHeaders` defines the maximum number of headers that are allowed
 	// in `HTTP/1.1` requests.
@@ -464,20 +494,18 @@ type FrontendHTTP struct {
 
 	// `http2WindowSize` indicates the initial window size for stream-level flow
 	// control for received data.
-	// +kubebuilder:validation:Minimum=1
 	// +optional
-	HTTP2WindowSize *int32 `json:"http2WindowSize,omitempty"`
+	HTTP2WindowSize *ByteSize `json:"http2WindowSize,omitempty"`
 	// `http2ConnectionWindowSize` indicates the initial window size for
 	// connection-level flow control for received data.
-	// +kubebuilder:validation:Minimum=1
 	// +optional
-	HTTP2ConnectionWindowSize *int32 `json:"http2ConnectionWindowSize,omitempty"`
+	HTTP2ConnectionWindowSize *ByteSize `json:"http2ConnectionWindowSize,omitempty"`
 	// `http2FrameSize` sets the maximum frame size to use.
 	// If unset, this defaults to `16kb`.
-	// +kubebuilder:validation:Minimum=16384
-	// +kubebuilder:validation:Maximum=1677215
+	// +kubebuilder:validation:XValidation:rule="!quantity(string(self)).isLessThan(quantity('16384'))",message="http2FrameSize must be at least 16384 bytes"
+	// +kubebuilder:validation:XValidation:rule="!quantity(string(self)).isGreaterThan(quantity('1677215'))",message="http2FrameSize must be at most 1677215 bytes"
 	// +optional
-	HTTP2FrameSize *int32 `json:"http2FrameSize,omitempty"`
+	HTTP2FrameSize *ByteSize `json:"http2FrameSize,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="matches(self, '^([0-9]{1,5}(h|m|s|ms)){1,4}$')",message="invalid duration value"
 	// +kubebuilder:validation:XValidation:rule="duration(self) >= duration('1s')",message="http2KeepaliveInterval must be at least 1 second"
 	// +optional
@@ -1730,9 +1758,8 @@ type ExtAuthBody struct {
 	// and sent to the authorization server. If the body size is larger than
 	// `maxSize`, then the request will be rejected with a response.
 	//
-	// +kubebuilder:validation:Minimum=1
 	// +required
-	MaxSize int32 `json:"maxSize"`
+	MaxSize ByteSize `json:"maxSize"`
 }
 
 // +kubebuilder:validation:AtLeastOneFieldSet

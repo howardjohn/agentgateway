@@ -3842,13 +3842,21 @@ spec:
                           If enabled, the request body will be buffered.
                         properties:
                           maxSize:
+                            anyOf:
+                            - type: integer
+                            - type: string
                             description: |-
                               `maxSize` specifies, in bytes, the largest body that will be buffered
                               and sent to the authorization server. If the body size is larger than
                               `maxSize`, then the request will be rejected with a response.
-                            format: int32
-                            minimum: 1
-                            type: integer
+                            maxLength: 32
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                            x-kubernetes-validations:
+                            - message: value must be at least 1 byte
+                              rule: '!quantity(string(self)).isLessThan(quantity(''1''))'
+                            - message: value must fit within uint32
+                              rule: '!quantity(string(self)).isGreaterThan(quantity(''4294967295''))'
                         required:
                         - maxSize
                         type: object
@@ -4976,20 +4984,39 @@ spec:
                         minimum: 1
                         type: integer
                       http2ConnectionWindowSize:
+                        anyOf:
+                        - type: integer
+                        - type: string
                         description: |-
                           `http2ConnectionWindowSize` indicates the initial window size for
                           connection-level flow control for received data.
-                        format: int32
-                        minimum: 1
-                        type: integer
+                        maxLength: 32
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                        x-kubernetes-validations:
+                        - message: value must be at least 1 byte
+                          rule: '!quantity(string(self)).isLessThan(quantity(''1''))'
+                        - message: value must fit within uint32
+                          rule: '!quantity(string(self)).isGreaterThan(quantity(''4294967295''))'
                       http2FrameSize:
+                        anyOf:
+                        - type: integer
+                        - type: string
                         description: |-
                           `http2FrameSize` sets the maximum frame size to use.
                           If unset, this defaults to `16kb`.
-                        format: int32
-                        maximum: 1677215
-                        minimum: 16384
-                        type: integer
+                        maxLength: 32
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                        x-kubernetes-validations:
+                        - message: http2FrameSize must be at least 16384 bytes
+                          rule: '!quantity(string(self)).isLessThan(quantity(''16384''))'
+                        - message: http2FrameSize must be at most 1677215 bytes
+                          rule: '!quantity(string(self)).isGreaterThan(quantity(''1677215''))'
+                        - message: value must be at least 1 byte
+                          rule: '!quantity(string(self)).isLessThan(quantity(''1''))'
+                        - message: value must fit within uint32
+                          rule: '!quantity(string(self)).isGreaterThan(quantity(''4294967295''))'
                       http2KeepaliveInterval:
                         type: string
                         x-kubernetes-validations:
@@ -5005,21 +5032,37 @@ spec:
                         - message: http2KeepaliveTimeout must be at least 1 second
                           rule: duration(self) >= duration('1s')
                       http2WindowSize:
+                        anyOf:
+                        - type: integer
+                        - type: string
                         description: |-
                           `http2WindowSize` indicates the initial window size for stream-level flow
                           control for received data.
-                        format: int32
-                        minimum: 1
-                        type: integer
+                        maxLength: 32
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                        x-kubernetes-validations:
+                        - message: value must be at least 1 byte
+                          rule: '!quantity(string(self)).isLessThan(quantity(''1''))'
+                        - message: value must fit within uint32
+                          rule: '!quantity(string(self)).isGreaterThan(quantity(''4294967295''))'
                       maxBufferSize:
+                        anyOf:
+                        - type: integer
+                        - type: string
                         description: |-
                           `maxBufferSize` defines the maximum HTTP body size that will be buffered
                           into memory.
                           Bodies will only be buffered for policies which require buffering.
                           If unset, this defaults to `2mb`.
-                        format: int32
-                        minimum: 1
-                        type: integer
+                        maxLength: 32
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                        x-kubernetes-validations:
+                        - message: value must be at least 1 byte
+                          rule: '!quantity(string(self)).isLessThan(quantity(''1''))'
+                        - message: value must fit within uint32
+                          rule: '!quantity(string(self)).isGreaterThan(quantity(''4294967295''))'
                       maxConnectionDuration:
                         description: |-
                           `maxConnectionDuration` specifies the maximum time a connection is allowed to remain open.
@@ -6493,13 +6536,21 @@ spec:
                                     If enabled, the request body will be buffered.
                                   properties:
                                     maxSize:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
                                       description: |-
                                         `maxSize` specifies, in bytes, the largest body that will be buffered
                                         and sent to the authorization server. If the body size is larger than
                                         `maxSize`, then the request will be rejected with a response.
-                                      format: int32
-                                      minimum: 1
-                                      type: integer
+                                      maxLength: 32
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                      x-kubernetes-validations:
+                                      - message: value must be at least 1 byte
+                                        rule: '!quantity(string(self)).isLessThan(quantity(''1''))'
+                                      - message: value must fit within uint32
+                                        rule: '!quantity(string(self)).isGreaterThan(quantity(''4294967295''))'
                                   required:
                                   - maxSize
                                   type: object
@@ -6642,13 +6693,21 @@ spec:
                           If enabled, the request body will be buffered.
                         properties:
                           maxSize:
+                            anyOf:
+                            - type: integer
+                            - type: string
                             description: |-
                               `maxSize` specifies, in bytes, the largest body that will be buffered
                               and sent to the authorization server. If the body size is larger than
                               `maxSize`, then the request will be rejected with a response.
-                            format: int32
-                            minimum: 1
-                            type: integer
+                            maxLength: 32
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                            x-kubernetes-validations:
+                            - message: value must be at least 1 byte
+                              rule: '!quantity(string(self)).isLessThan(quantity(''1''))'
+                            - message: value must fit within uint32
+                              rule: '!quantity(string(self)).isGreaterThan(quantity(''4294967295''))'
                         required:
                         - maxSize
                         type: object
