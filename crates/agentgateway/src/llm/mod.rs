@@ -939,6 +939,7 @@ impl AIProvider {
 		Ok(RequestResult::Success(req, llm_info))
 	}
 
+	#[allow(clippy::too_many_arguments)]
 	pub async fn process_response(
 		&self,
 		client: PolicyClient,
@@ -1633,14 +1634,14 @@ impl AmendOnDrop {
 		self.log.non_atomic_mutate(f);
 	}
 	pub fn report_rate_limit(&mut self) {
-		if let Some(pol) = self.pol.take() {
-			if !pol.local_rate_limit.is_empty() || pol.remote_rate_limit.is_some() {
-				self.log.non_atomic_mutate(|r| {
-					let ctx = LLMContext::from(r.clone());
-					let exec = cel::Executor::new_llm_rate_limit_streaming(self.req.as_deref(), &ctx);
-					amend_tokens(pol, r, exec)
-				});
-			}
+		if let Some(pol) = self.pol.take()
+			&& (!pol.local_rate_limit.is_empty() || pol.remote_rate_limit.is_some())
+		{
+			self.log.non_atomic_mutate(|r| {
+				let ctx = LLMContext::from(r.clone());
+				let exec = cel::Executor::new_llm_rate_limit_streaming(self.req.as_deref(), &ctx);
+				amend_tokens(pol, r, exec)
+			});
 		}
 	}
 }

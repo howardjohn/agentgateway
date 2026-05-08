@@ -1420,7 +1420,7 @@ func processRateLimitDescriptor(descriptor agentgateway.RateLimitDescriptor) (*a
 		if !isCEL(*descriptor.Cost) {
 			errs = append(errs, fmt.Errorf("rate limit descriptor cost is not a valid CEL expression: %s", *descriptor.Cost))
 		}
-		cost = ptr.Of(string(*descriptor.Cost))
+		cost = new(string(*descriptor.Cost))
 	}
 
 	return &api.TrafficPolicySpec_RemoteRateLimit_Descriptor{
