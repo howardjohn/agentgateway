@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, ready};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use agent_core::metrics::CustomField;
 use agent_core::strng::{RichStrng, Strng};
@@ -416,6 +416,7 @@ impl CelLogging {
 				inputs.llm_response,
 				inputs.mcp,
 				Some(inputs.end_time),
+				inputs.proxy,
 			)
 		};
 		CelLoggingExecutor {
@@ -433,6 +434,7 @@ pub struct CelLoggingBuildInputs<'a> {
 	pub llm_response: Option<&'a LLMContext>,
 	pub mcp: Option<&'a MCPInfo>,
 	pub end_time: &'a cel::RequestTime,
+	pub proxy: Option<&'a cel::ProxyContext>,
 	pub source_context: Option<&'a cel::SourceContext>,
 }
 
@@ -586,6 +588,12 @@ impl From<RequestLog> for DropOnLog {
 	}
 }
 
+fn proxy_duration(duration: Option<Duration>) -> Option<cel::CelDuration> {
+	duration
+		.and_then(|duration| chrono::Duration::from_std(duration).ok())
+		.map(Into::into)
+}
+
 impl RequestLog {
 	pub fn new(
 		cel: CelLogging,
@@ -597,6 +605,11 @@ impl RequestLog {
 			cel,
 			metrics,
 			start,
+			request_processing_start: Instant::now(),
+			request_processing_duration: None,
+			upstream_duration: None,
+			response_processing_start: None,
+			response_processing_duration: None,
 			tcp_info,
 			tls_info: None,
 			tracer: None,
@@ -658,6 +671,11 @@ pub struct RequestLog {
 	pub cel: CelLogging,
 	pub metrics: Arc<Metrics>,
 	pub start: Timestamp,
+	pub request_processing_start: Instant,
+	pub request_processing_duration: Option<Duration>,
+	pub upstream_duration: Option<Duration>,
+	pub response_processing_start: Option<Instant>,
+	pub response_processing_duration: Option<Duration>,
 	pub tcp_info: TCPConnectionInfo,
 
 	// Set only for TLS traffic
@@ -775,12 +793,18 @@ impl Drop for DropOnLog {
 		let mcp = log.mcp_status.take();
 		let mcp_cel = mcp.as_ref().filter(|m| !m.is_empty());
 		let cel_end_time = cel::RequestTime(end_time.as_datetime());
+		let proxy_timing = cel::ProxyContext {
+			request_processing_duration: proxy_duration(log.request_processing_duration),
+			upstream_duration: proxy_duration(log.upstream_duration),
+			response_processing_duration: proxy_duration(log.response_processing_duration),
+		};
 		let cel_exec = log.cel.build(CelLoggingBuildInputs {
 			req: log.request_snapshot.as_deref(),
 			resp: log.response_snapshot.as_ref(),
 			llm_response: llm_response.as_ref(),
 			mcp: mcp_cel,
 			end_time: &cel_end_time,
+			proxy: Some(&proxy_timing),
 			source_context: log.source_context.as_ref(),
 		});
 		if let Some(rh) = log.request_handle.take() {
@@ -837,6 +861,23 @@ impl Drop for DropOnLog {
 				.retries
 				.get_or_create(&http_labels)
 				.inc_by(retry_count as u64);
+		}
+		if !is_tcp {
+			let labels = http_labels.into();
+			if let Some(duration) = log.request_processing_duration {
+				log
+					.metrics
+					.request_processing_duration
+					.get_or_create(&labels)
+					.observe(duration.as_secs_f64());
+			}
+			if let Some(duration) = log.response_processing_duration {
+				log
+					.metrics
+					.response_processing_duration
+					.get_or_create(&labels)
+					.observe(duration.as_secs_f64());
+			}
 		}
 
 		Self::add_llm_metrics(
@@ -1251,7 +1292,10 @@ impl PolicyGrpcLogExporter {
 		let channel = GrpcReferenceChannel {
 			target,
 			policies: Arc::new(policies),
-			client: crate::proxy::httpproxy::PolicyClient { inputs },
+			client: crate::proxy::httpproxy::PolicyClient {
+				inputs,
+				outbound: None,
+			},
 		};
 		let tonic_client =
 			opentelemetry_proto::tonic::collector::logs::v1::logs_service_client::LogsServiceClient::new(

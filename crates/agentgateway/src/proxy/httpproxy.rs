@@ -40,6 +40,7 @@ use crate::store::{
 };
 use crate::telemetry::log;
 use crate::telemetry::log::{AsyncLog, DropOnLog, LogBody, RequestLog, TraceSampler};
+use crate::telemetry::metrics::{OutboundCallKind, OutboundCallLabels, OutboundCallSubtype};
 use crate::telemetry::trc::TraceParent;
 use crate::transport::stream::{Extension, TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::{backend, frontend};
@@ -569,6 +570,12 @@ impl HTTPProxy {
 		if let Some(log) = log.as_mut() {
 			dtrace::snapshot!(Response, "final response", log, &resp);
 		}
+
+		log.with(|l| {
+			if let Some(start) = l.response_processing_start {
+				l.response_processing_duration = Some(start.elapsed());
+			}
+		});
 
 		// Pass the log into the body so it finishes once the stream is entirely complete.
 		// We will also record trailer info there.
@@ -1134,6 +1141,7 @@ impl HTTPProxy {
 	fn policy_client(&self) -> PolicyClient {
 		PolicyClient {
 			inputs: self.inputs.clone(),
+			outbound: None,
 		}
 	}
 }
@@ -1441,6 +1449,7 @@ async fn make_backend_call(
 ) -> Result<Response, ProxyResponse> {
 	let policy_client = PolicyClient {
 		inputs: inputs.clone(),
+		outbound: None,
 	};
 	let hbone_source = req
 		.extensions()
@@ -1637,6 +1646,7 @@ async fn make_backend_call(
 		backend_info.clone(),
 		PolicyClient {
 			inputs: inputs.clone(),
+			outbound: None,
 		},
 		&backend_call,
 		&mut req,
@@ -1846,7 +1856,6 @@ async fn make_backend_call(
 		target: backend_call.target,
 		transport,
 	};
-	let backend_call_start = dtrace::timed_start();
 	dtrace::trace(|trace| trace.backend_call_started(&call.target));
 	let upstream = inputs.upstream.clone();
 	let llm_response_log = log.as_ref().map(|l| l.llm_response.clone());
@@ -1856,16 +1865,41 @@ async fn make_backend_call(
 		.unwrap_or_default();
 	let a2a_type = response_policies.a2a_type.clone();
 
+	let outbound_subtype = if backend_call.backend_policies.llm_provider.is_some() {
+		OutboundCallSubtype::Llm
+	} else {
+		OutboundCallSubtype::Http
+	};
+	let outbound_start = std::time::Instant::now();
+	log.add(|l| {
+		if l.request_processing_duration.is_none() {
+			l.request_processing_duration = Some(l.request_processing_start.elapsed());
+		}
+	});
 	let resp = upstream.call(call).await;
+	let outbound_end = Instant::now();
+	log.add(|l| {
+		l.metrics
+			.upstream_call_duration
+			.get_or_create(&OutboundCallLabels {
+				kind: OutboundCallKind::Primary,
+				subtype: outbound_subtype,
+			})
+			.observe((outbound_end - outbound_start).as_secs_f64());
+		l.upstream_duration = Some(outbound_end - outbound_start);
+		if resp.is_ok() {
+			l.response_processing_start = Some(outbound_end);
+		}
+	});
 	dtrace::trace(|trace| match &resp {
 		Ok(resp) => trace.backend_call_completed(
-			backend_call_start,
+			Some(outbound_start),
 			Instant::now(),
 			Some(resp.status().as_u16()),
 			None,
 		),
 		Err(err) => trace.backend_call_completed(
-			backend_call_start,
+			Some(outbound_start),
 			Instant::now(),
 			None,
 			Some(err.to_string()),
@@ -2289,7 +2323,10 @@ async fn send_mirror(
 ) -> Result<(), ProxyError> {
 	req.headers_mut().remove(http::header::CONTENT_LENGTH);
 	let backend = super::resolve_simple_backend(&mirror.backend, inputs.as_ref())?;
-	let _ = upstream.call(req, backend).await?;
+	let _ = upstream
+		.with_outbound(OutboundCallKind::Mirror, OutboundCallSubtype::Http)
+		.call(req, backend)
+		.await?;
 	Ok(())
 }
 
@@ -2518,9 +2555,32 @@ pub struct TunnelClient {
 #[derive(Debug, Clone)]
 pub struct PolicyClient {
 	pub inputs: Arc<ProxyInputs>,
+	pub outbound: Option<OutboundCallLabels>,
 }
 
 impl PolicyClient {
+	pub fn with_outbound(
+		&self,
+		kind: OutboundCallKind,
+		subtype: OutboundCallSubtype,
+	) -> PolicyClient {
+		PolicyClient {
+			inputs: self.inputs.clone(),
+			outbound: Some(OutboundCallLabels { kind, subtype }),
+		}
+	}
+
+	fn observe_outbound(&self, start: std::time::Instant) {
+		if let Some(labels) = &self.outbound {
+			self
+				.inputs
+				.metrics
+				.upstream_call_duration
+				.get_or_create(labels)
+				.observe(start.elapsed().as_secs_f64());
+		}
+	}
+
 	pub async fn call_reference(
 		&self,
 		req: Request,
@@ -2537,6 +2597,7 @@ impl PolicyClient {
 		backend_ref: &SimpleBackendReference,
 		policies: &[BackendTrafficPolicy],
 	) -> Result<Response, ProxyError> {
+		let start = std::time::Instant::now();
 		let backend = resolve_simple_backend(backend_ref, self.inputs.as_ref())?;
 		trace!("resolved {:?} to {:?}", backend_ref, &backend);
 
@@ -2555,9 +2616,11 @@ impl PolicyClient {
 
 		let backend = BackendWithPolicies::from(backend);
 		let pols = get_backend_policies(&self.inputs, &backend, policies, None);
-		self
+		let res = self
 			.internal_call_with_policies(req, backend.backend, pols)
-			.await
+			.await;
+		self.observe_outbound(start);
+		res
 	}
 
 	pub async fn call(
@@ -2565,11 +2628,14 @@ impl PolicyClient {
 		req: Request,
 		backend: SimpleBackendWithPolicies,
 	) -> Result<Response, ProxyError> {
+		let start = std::time::Instant::now();
 		let backend = BackendWithPolicies::from(backend);
 		let pols = get_backend_policies(&self.inputs, &backend, &[], None);
-		self
+		let res = self
 			.internal_call_with_policies(req, backend.backend, pols)
-			.await
+			.await;
+		self.observe_outbound(start);
+		res
 	}
 
 	pub async fn call_with_explicit_policies(
@@ -2578,10 +2644,13 @@ impl PolicyClient {
 		backend: &SimpleBackend,
 		policies: BackendPolicies,
 	) -> Result<Response, ProxyError> {
+		let start = std::time::Instant::now();
 		let backend = Backend::from(backend.clone());
-		self
+		let res = self
 			.internal_call_with_policies(req, backend, policies)
-			.await
+			.await;
+		self.observe_outbound(start);
+		res
 	}
 
 	pub async fn call_with_explicit_policies_list(
@@ -2590,13 +2659,16 @@ impl PolicyClient {
 		backend: SimpleBackend,
 		policies: Vec<BackendTrafficPolicy>,
 	) -> Result<Response, ProxyError> {
+		let start = std::time::Instant::now();
 		let backend = Backend::from(backend);
 		let pols = self
 			.inputs
 			.stores
 			.read_binds()
 			.inline_backend_policies(&policies);
-		self.internal_call_with_policies(req, backend, pols).await
+		let res = self.internal_call_with_policies(req, backend, pols).await;
+		self.observe_outbound(start);
+		res
 	}
 
 	fn internal_call_with_policies<'a>(
@@ -2624,9 +2696,13 @@ impl PolicyClient {
 	}
 
 	pub async fn simple_call(&self, req: Request) -> Result<Response, ProxyError> {
-		Box::pin(self.inputs.upstream.simple_call(req)).await
+		let start = std::time::Instant::now();
+		let res = Box::pin(self.inputs.upstream.simple_call(req)).await;
+		self.observe_outbound(start);
+		res
 	}
 }
+
 trait OptLogger {
 	fn add<F>(&mut self, f: F)
 	where
