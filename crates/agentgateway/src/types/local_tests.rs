@@ -6,8 +6,8 @@ use secrecy::SecretString;
 
 use crate::serdes::FileInlineOrRemote;
 use crate::types::agent::{
-	BackendTrafficPolicy, HeaderValueMatch, ListenerTarget, PolicyPhase, PolicyTarget, PolicyType,
-	ResourceName, TrafficPolicy,
+	Backend, BackendTrafficPolicy, HeaderValueMatch, ListenerTarget, PolicyPhase, PolicyTarget,
+	PolicyType, ResourceName, RouteBackendTarget, TrafficPolicy,
 };
 use crate::types::local::NormalizedLocalConfig;
 use crate::*;
@@ -122,6 +122,44 @@ async fn normalize_test_config(yaml_str: &str) -> anyhow::Result<NormalizedLocal
 		yaml_str,
 	)
 	.await
+}
+
+#[tokio::test]
+async fn test_local_dynamic_backend_reference_uses_generated_backend() {
+	let normalized = normalize_test_yaml(
+		r#"
+binds:
+- port: 1080
+  listeners:
+  - routes:
+    - backends:
+      - dynamic: {}
+"#,
+	)
+	.await
+	.expect("dynamic backend should normalize");
+
+	let route = &normalized.listener_routes[0].1[0];
+	let RouteBackendTarget::Backend(backend_key) = &route.backends[0].target else {
+		panic!("expected route backend target");
+	};
+	assert_eq!(
+		backend_key,
+		"/ns/name/bind/1080/listener0/default/route0/backend0"
+	);
+
+	let backend = normalized
+		.backends
+		.iter()
+		.find_map(|backend| match &backend.backend {
+			Backend::Dynamic(name, ()) => Some(name),
+			_ => None,
+		})
+		.expect("normalized dynamic backend");
+	assert_eq!(
+		backend.to_string(),
+		"/ns/name/bind/1080/listener0/default/route0/backend0"
+	);
 }
 
 async fn test_config_parsing(test_name: &str) {

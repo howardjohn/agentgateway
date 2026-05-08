@@ -2666,7 +2666,6 @@ pub async fn convert_route(
 					},
 					LocalBackend::Backend(n) => BackendReference::Backend(n.clone()),
 					LocalBackend::Invalid => BackendReference::Invalid,
-					LocalBackend::Dynamic {} => BackendReference::Backend("dynamic".into()),
 					_ => BackendReference::Backend(strng::format!("/{}", backend_key)),
 				};
 				bref.into()
