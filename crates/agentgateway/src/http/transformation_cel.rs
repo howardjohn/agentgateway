@@ -216,6 +216,23 @@ impl Transformation {
 		resp: &mut crate::http::Response,
 		request: Option<&RequestSnapshot>,
 	) {
+		if let Some(request_metadata) = request.and_then(|req| req.metadata.as_ref()) {
+			// Transformation metadata is currently stored in request/response extensions.
+			// Seed request metadata into the response extension so response-phase CEL,
+			// response snapshots, and log CEL all see one accumulated metadata map.
+			// Keep existing response keys so response metadata wins on conflicts.
+			let ext = resp.extensions_mut();
+			if let Some(response_metadata) = ext.get_mut::<TransformationMetadata>() {
+				for (key, value) in &request_metadata.0 {
+					response_metadata
+						.0
+						.entry(key.clone())
+						.or_insert_with(|| value.clone());
+				}
+			} else {
+				ext.insert(request_metadata.clone());
+			}
+		}
 		Self::apply(resp.into(), self.response.as_ref(), request)
 	}
 

@@ -362,9 +362,15 @@ impl<'a> Executor<'a> {
 		if let Some(llm) = resp.extensions().get::<LLMContext>() {
 			self.llm = ExtensionOrDirect::Direct(Some(llm));
 		}
+		if let Some(metadata) = resp.extensions().get::<TransformationMetadata>() {
+			self.metadata = ExtensionOrDirect::Direct(Some(metadata));
+		}
 	}
 	fn set_response_snapshot(&mut self, resp: &'a ResponseSnapshot) {
 		self.response = Some(resp.into());
+		if let Some(metadata) = resp.metadata.as_ref() {
+			self.metadata = ExtensionOrDirect::Direct(Some(metadata));
+		}
 	}
 	pub fn new_empty() -> Self {
 		Default::default()
@@ -582,6 +588,7 @@ pub fn snapshot_response(resp: &mut crate::http::Response) -> ResponseSnapshot {
 		headers: resp.headers().clone(),
 		body: resp.extensions_mut().remove::<BufferedBody>(),
 		recorded_body: resp.extensions_mut().remove::<RecordedBodyHandle>(),
+		metadata: resp.extensions_mut().remove::<TransformationMetadata>(),
 	}
 }
 
@@ -670,6 +677,7 @@ pub struct ResponseSnapshot {
 	pub headers: http::HeaderMap,
 	pub body: Option<BufferedBody>,
 	pub recorded_body: Option<RecordedBodyHandle>,
+	pub metadata: Option<TransformationMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize, cel::DynamicType)]

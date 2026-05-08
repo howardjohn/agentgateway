@@ -254,3 +254,89 @@ fn test_transformation_metadata() {
 	);
 	assert_eq!(md.0.get("isGet").unwrap(), &serde_json::Value::Bool(true));
 }
+
+#[test]
+fn test_response_transformation_metadata_available_to_headers() {
+	let mut req = ::http::Request::builder()
+		.method("GET")
+		.uri("https://www.rust-lang.org/example")
+		.body(crate::http::Body::empty())
+		.unwrap();
+	let mut resp = ::http::Response::builder()
+		.status(200)
+		.body(crate::http::Body::empty())
+		.unwrap();
+	let c = super::LocalTransformationConfig {
+		request: Some(super::LocalTransform {
+			metadata: vec![
+				("requestVal".into(), r#""from-request""#.into()),
+				("shared".into(), r#""request""#.into()),
+			],
+			..Default::default()
+		}),
+		response: Some(super::LocalTransform {
+			metadata: vec![
+				("staticVal".into(), r#""hello-world""#.into()),
+				("copied".into(), "metadata.requestVal".into()),
+				("shared".into(), r#""response""#.into()),
+			],
+			set: vec![
+				("x-static".into(), "metadata.staticVal".into()),
+				("x-copied".into(), "metadata.copied".into()),
+				("x-shared".into(), "metadata.shared".into()),
+				("x-inline-static".into(), r#""hello-world""#.into()),
+			],
+			..Default::default()
+		}),
+	};
+	let xfm = Transformation::try_from_local_config(c, true).unwrap();
+	xfm.apply_request(&mut req);
+	let snap = cel::snapshot_request(&mut req, true);
+
+	xfm.apply_response(&mut resp, Some(&snap));
+
+	assert_eq!(resp.headers().get("x-static").unwrap(), "hello-world");
+	assert_eq!(resp.headers().get("x-copied").unwrap(), "from-request");
+	assert_eq!(resp.headers().get("x-shared").unwrap(), "response");
+	assert_eq!(
+		resp.headers().get("x-inline-static").unwrap(),
+		"hello-world"
+	);
+
+	let md = resp
+		.extensions()
+		.get::<TransformationMetadata>()
+		.expect("metadata extension should be present");
+	assert_eq!(
+		md.0.get("requestVal").unwrap(),
+		&serde_json::Value::String("from-request".to_string())
+	);
+	assert_eq!(
+		md.0.get("staticVal").unwrap(),
+		&serde_json::Value::String("hello-world".to_string())
+	);
+	assert_eq!(
+		md.0.get("copied").unwrap(),
+		&serde_json::Value::String("from-request".to_string())
+	);
+	assert_eq!(
+		md.0.get("shared").unwrap(),
+		&serde_json::Value::String("response".to_string())
+	);
+
+	let log_expr = cel::Expression::new_strict(
+		r#"metadata.requestVal + "," + metadata.staticVal + "," + metadata.shared"#,
+	)
+	.unwrap();
+	let mut log_context = cel::ContextBuilder::new();
+	log_context.register_log_expression(&log_expr);
+	let resp_snapshot = log_context
+		.maybe_snapshot_response(&mut resp)
+		.expect("metadata log expressions should snapshot response metadata");
+	let log_exec = cel::Executor::new_logger(Some(&snap), Some(&resp_snapshot), None, None, None);
+	let log_value = log_exec.eval(&log_expr).unwrap();
+	assert_eq!(
+		log_value,
+		cel::Value::String("from-request,hello-world,response".into())
+	);
+}
