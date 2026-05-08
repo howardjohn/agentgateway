@@ -83,9 +83,10 @@ pub struct DescriptorEntry {
 	#[serde(rename = "type")]
 	pub limit_type: RateLimitType,
 	/// cost determines the optional expression to determine the cost of the request.
-	/// If unset, type `requests` defaults to `1`, and type `tokens` defaults to `total_tokens`.
+	/// If unset, type `requests` defaults to `1`, and type `tokens` defaults to `llm.totalTokens`.
 	/// If the expression fails to evaluate, the descriptor is skipped.
-	/// Costs are evaluated upon request completion.
+	/// Costs for type `requests` are evaluated during request processing. Costs for type `tokens`
+	/// are evaluated upon request completion.
 	pub cost: Option<Arc<cel::Expression>>,
 	/// limitOverride determines the optional expression to determine the limit of the request.
 	/// This tells the remote server what limit to apply to the request.
@@ -135,30 +136,46 @@ pub struct LLMResponseAmend {
 
 impl LLMResponseAmend {
 	pub fn amend_tokens(mut self, default_tokens: i64, exec: &Executor) {
-		let mut index = 0;
-		self.request.descriptors.retain_mut(|d| {
-			let cost = self.descriptor_costs[index].as_ref();
-			d.hits_addend = if let Some(cost) = cost {
-				// if there is a cost expression, run it.
-				let Some(cost) = exec.eval(cost).ok().and_then(|v| v.as_unsigned().ok()) else {
-					// Failed to evaluate: skip descriptor
-					return false;
-				};
-				Some(cost as u64)
-			} else {
-				// We cannot currently do negative amendments, so if its negative just skip
-				// The input is not the cost, but the delta, so if we get -5 we should have a cost of 5
-				let Ok(tokens) = (default_tokens).try_into() else {
-					return false;
-				};
-				Some(tokens)
-			};
-			index += 1;
-			true
-		});
+		Self::apply_token_amend(
+			&mut self.request,
+			&self.descriptor_costs,
+			default_tokens,
+			exec,
+		);
 		tokio::task::spawn(async move {
 			let _ = self.base.check_internal(self.client, self.request).await;
 		});
+	}
+
+	fn apply_token_amend(
+		request: &mut proto::RateLimitRequest,
+		descriptor_costs: &[Option<Arc<Expression>>],
+		default_tokens: i64,
+		exec: &Executor,
+	) {
+		let descriptors = std::mem::take(&mut request.descriptors);
+		request.descriptors = descriptors
+			.into_iter()
+			.zip(descriptor_costs.iter())
+			.filter_map(|(mut d, cost)| {
+				d.hits_addend = if let Some(cost) = cost.as_ref() {
+					// if there is a cost expression, run it.
+					let Some(cost) = exec.eval(cost).ok().and_then(|v| v.as_unsigned().ok()) else {
+						// Failed to evaluate: skip descriptor
+						return None;
+					};
+					Some(cost as u64)
+				} else {
+					// We cannot currently do negative amendments, so if its negative just skip
+					// The input is not the cost, but the delta, so if we get -5 we should have a cost of 5
+					let Ok(tokens) = (default_tokens).try_into() else {
+						return None;
+					};
+					Some(tokens)
+				};
+				Some(d)
+			})
+			.collect();
 	}
 }
 

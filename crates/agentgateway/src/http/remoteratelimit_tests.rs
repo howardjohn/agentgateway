@@ -223,6 +223,45 @@ fn build_request_cost_propagated_to_hits_addend() {
 }
 
 #[test]
+fn amend_tokens_keeps_descriptor_costs_aligned_when_dropping_descriptor() {
+	let descriptor = |value: &str| proto::RateLimitDescriptor {
+		entries: vec![proto::rate_limit_descriptor::Entry {
+			key: "user".to_string(),
+			value: value.to_string(),
+		}],
+		limit: None,
+		hits_addend: Some(0),
+	};
+	let mut request = proto::RateLimitRequest {
+		domain: "test-domain".to_string(),
+		descriptors: vec![
+			descriptor("first"),
+			descriptor("second"),
+			descriptor("third"),
+		],
+		hits_addend: 0,
+	};
+	let descriptor_costs = vec![
+		Some(Arc::new(
+			cel::Expression::new_strict("missingField").expect("valid CEL expression"),
+		)),
+		Some(Arc::new(
+			cel::Expression::new_strict("uint(7)").expect("valid CEL expression"),
+		)),
+		None,
+	];
+	let exec = cel::Executor::new_empty();
+
+	LLMResponseAmend::apply_token_amend(&mut request, &descriptor_costs, 11, &exec);
+
+	assert_eq!(request.descriptors.len(), 2);
+	assert_eq!(request.descriptors[0].entries[0].value, "second");
+	assert_eq!(request.descriptors[0].hits_addend, Some(7));
+	assert_eq!(request.descriptors[1].entries[0].value, "third");
+	assert_eq!(request.descriptors[1].hits_addend, Some(11));
+}
+
+#[test]
 fn build_request_limit_override_evaluates() {
 	let mut entry = make_descriptor_entry(vec![("user", r#""test-user""#)], RateLimitType::Requests);
 	entry.limit_override = Some(Arc::new(

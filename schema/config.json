@@ -3647,7 +3647,7 @@
           "default": "requests"
         },
         "cost": {
-          "description": "cost determines the optional expression to determine the cost of the request.\nIf unset, type `requests` defaults to `1`, and type `tokens` defaults to `total_tokens`.\nIf the expression fails to evaluate, the descriptor is skipped.\nCosts are evaluated upon request completion.",
+          "description": "cost determines the optional expression to determine the cost of the request.\nIf unset, type `requests` defaults to `1`, and type `tokens` defaults to `llm.totalTokens`.\nIf the expression fails to evaluate, the descriptor is skipped.\nCosts for type `requests` are evaluated during request processing. Costs for type `tokens`\nare evaluated upon request completion.",
           "anyOf": [
             {
               "$ref": "#/$defs/Expression"
