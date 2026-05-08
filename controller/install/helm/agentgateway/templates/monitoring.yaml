@@ -49,7 +49,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "agentgateway.labels" . | nindent 4 }}
-    {{ .Values.monitoring.grafanaDashboard.label.key }}: {{ .Values.monitoring.grafanaDashboard.label.value | quote }}
+    {{- with .Values.monitoring.grafanaDashboard.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 data:
   agentgateway.json: |
 {{ .Files.Get "files/agentgateway-dashboard.json" | indent 4 }}

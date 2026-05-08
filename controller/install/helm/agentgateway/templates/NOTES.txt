@@ -23,7 +23,6 @@ Monitoring is enabled. Two ServiceMonitor resources have been created
 to let Prometheus scrape the controller and proxy metrics endpoints.
 {{- end }}
 {{- if .Values.monitoring.grafanaDashboard.enabled }}
-A Grafana dashboard ConfigMap labelled '{{ .Values.monitoring.grafanaDashboard.label.key }}: {{ .Values.monitoring.grafanaDashboard.label.value }}'
-has also been created for automatic Grafana sidecar discovery.
+A Grafana dashboard ConfigMap has also been created for automatic Grafana sidecar discovery.
 {{- end }}
 {{- end }}

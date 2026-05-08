@@ -242,7 +242,6 @@ monitoring:
   grafanaDashboard:
     # -- Create the Grafana dashboard ConfigMap.
     enabled: true
-    # -- Label key/value that the Grafana sidecar uses to discover dashboards.
-    label:
-      key: grafana_dashboard
-      value: "1"
+    # -- Labels that the Grafana sidecar uses to discover dashboards.
+    labels:
+      grafana_dashboard: "1"
