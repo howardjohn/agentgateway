@@ -227,6 +227,8 @@ monitoring:
   enabled: false
 
   serviceMonitor:
+    # -- Create ServiceMonitor resources.
+    enabled: true
     # -- Scrape interval for both ServiceMonitors.
     interval: 15s
     # -- Additional labels to add to both ServiceMonitor resources (e.g. release: prometheus).
@@ -244,4 +246,3 @@ monitoring:
     label:
       key: grafana_dashboard
       value: "1"
-

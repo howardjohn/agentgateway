@@ -305,16 +305,23 @@ func TestHelmChartTemplate(t *testing.T) {
   proxy:
     selectorName: my-proxy
   grafanaDashboard:
-    enabled: true
-    label:
-      key: grafana_dashboard
-      value: "1"
+    enabled: false
 `,
 		},
 		{
 			name: "monitoring-enabled-no-dashboard",
 			valuesYAML: `monitoring:
   enabled: true
+  grafanaDashboard:
+    enabled: false
+`,
+		},
+		{
+			name: "monitoring-enabled-no-service-monitor",
+			valuesYAML: `monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: false
   grafanaDashboard:
     enabled: false
 `,
