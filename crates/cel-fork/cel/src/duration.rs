@@ -7,9 +7,6 @@ use nom::combinator::{map, opt};
 use nom::multi::many1;
 use nom::number::complete::double;
 
-// Constants representing time units in nanoseconds
-const SECOND: u64 = 1_000_000_000;
-
 /// Parses a duration string into a [`Duration`]. Duration strings support the
 /// following grammar:
 ///
@@ -92,20 +89,18 @@ fn to_duration(num: f64, unit: Unit) -> Duration {
 /// JSON representation: total seconds plus optional fractional seconds and an
 /// `s` suffix.
 pub fn format_duration(d: &Duration) -> Option<String> {
-	let nanos = d.num_nanoseconds()?;
-	let sign = if nanos < 0 { "-" } else { "" };
+	let seconds = d.num_seconds();
+	let nanos = d.subsec_nanos();
+	let sign = if seconds < 0 || nanos < 0 { "-" } else { "" };
+	let seconds = seconds.unsigned_abs();
 	let nanos = nanos.unsigned_abs();
-	let seconds = nanos / SECOND;
-	let nanos = nanos % SECOND;
 
 	if nanos == 0 {
 		return Some(format!("{sign}{seconds}s"));
 	}
 
-	let mut fraction = format!("{nanos:09}");
-	while fraction.ends_with('0') {
-		fraction.pop();
-	}
+	let fraction = format!("{nanos:09}");
+	let fraction = fraction.trim_end_matches('0');
 	Some(format!("{sign}{seconds}.{fraction}s"))
 }
 
@@ -122,13 +117,22 @@ mod tests {
 
 	#[test]
 	fn test_format_duration() {
+		assert_eq!(format_duration(&Duration::zero()), Some("0s".to_string()));
 		assert_eq!(
 			format_duration(&(Duration::seconds(61) + Duration::milliseconds(500))),
 			Some("61.5s".to_string())
 		);
 		assert_eq!(
+			format_duration(&Duration::milliseconds(100)),
+			Some("0.1s".to_string())
+		);
+		assert_eq!(
 			format_duration(&(Duration::minutes(1) + Duration::milliseconds(1))),
 			Some("60.001s".to_string())
+		);
+		assert_eq!(
+			format_duration(&Duration::nanoseconds(1)),
+			Some("0.000000001s".to_string())
 		);
 		assert_eq!(
 			format_duration(&Duration::nanoseconds(-1)),
@@ -137,6 +141,18 @@ mod tests {
 		assert_eq!(
 			format_duration(&(Duration::seconds(-1) - Duration::milliseconds(500))),
 			Some("-1.5s".to_string())
+		);
+		assert_eq!(
+			format_duration(&Duration::nanoseconds(i64::MAX)),
+			Some("9223372036.854775807s".to_string())
+		);
+		assert_eq!(
+			format_duration(&Duration::nanoseconds(i64::MIN)),
+			Some("-9223372036.854775808s".to_string())
+		);
+		assert_eq!(
+			format_duration(&Duration::milliseconds(i64::MAX)),
+			Some("9223372036854775.807s".to_string())
 		);
 	}
 

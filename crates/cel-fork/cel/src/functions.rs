@@ -256,7 +256,8 @@ pub fn contains<'a>(
 // supported:
 // * `string` - Returns a copy of the target string.
 // * `timestamp` - Returns the timestamp in RFC3339 format.
-// * `duration` - Returns the duration in a string formatted like "259380.5s".
+// * `duration` - Returns the duration in `<seconds>[.<fraction>]s` format,
+//   with up to 9 fractional digits and trailing zeros trimmed.
 // * `int` - Returns the integer value of the target.
 // * `uint` - Returns the unsigned integer value of the target.
 // * `float` - Returns the float value of the target.
