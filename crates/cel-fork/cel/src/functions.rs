@@ -261,6 +261,7 @@ pub fn contains<'a>(
 // * `uint` - Returns the unsigned integer value of the target.
 // * `float` - Returns the float value of the target.
 // * `bytes` - Converts bytes to string using from_utf8_lossy.
+// * `type` - Returns the type name.
 pub fn string<'a>(ftx: &mut FunctionContext<'a, '_>) -> ResolveResult<'a> {
 	let this = ftx.this_or_arg_value()?;
 	Ok(match this {

@@ -367,11 +367,17 @@ mod tests {
 		assert_eq!(test_script("type", None), Ok(Value::Type(types::TYPE_TYPE)));
 
 		assert_eq!(test_script("type(1) == int", None), Ok(true.into()));
+		assert_eq!(test_script("type(1.0) == float", None), Ok(true.into()));
 		assert_eq!(test_script("type(1) == string", None), Ok(false.into()));
 		assert_eq!(
 			test_script("type(type(1)) == type(string)", None),
 			Ok(true.into())
 		);
+
+		let program = Program::compile("type(1) == int").unwrap();
+		let references = program.references();
+		assert!(references.has_function("type"));
+		assert!(!references.has_variable("int"));
 	}
 
 	#[test]

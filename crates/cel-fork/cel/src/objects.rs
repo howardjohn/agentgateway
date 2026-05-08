@@ -1117,7 +1117,7 @@ pub fn standard_type(name: &str) -> Option<Type<'static>> {
 	match name {
 		"bool" => Some(types::BOOL_TYPE),
 		"bytes" => Some(types::BYTES_TYPE),
-		"double" => Some(types::DOUBLE_TYPE),
+		"double" | "float" => Some(types::DOUBLE_TYPE),
 		"duration" | "google.protobuf.Duration" => Some(types::DURATION_TYPE),
 		"dyn" => Some(types::DYN_TYPE),
 		"int" => Some(types::INT_TYPE),
