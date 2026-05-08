@@ -551,6 +551,7 @@ message FrontendPolicySpec {
     google.protobuf.Duration http2_keepalive_interval = 7;
     google.protobuf.Duration http2_keepalive_timeout = 8;
     google.protobuf.Duration max_connection_duration = 9;
+    optional uint32 http2_max_header_size = 10;
   }
   message TLS {
     // TLS handshake timeout

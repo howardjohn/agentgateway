@@ -504,6 +504,9 @@ func translateFrontendHTTP(policy *agentgateway.AgentgatewayPolicy, name string)
 	if v := http.HTTP2FrameSize; v != nil {
 		spec.Http2FrameSize = quantityUint32(v)
 	}
+	if v := http.HTTP2MaxHeaderSize; v != nil {
+		spec.Http2MaxHeaderSize = quantityUint32(v)
+	}
 	if v := http.HTTP2KeepaliveInterval; v != nil {
 		spec.Http2KeepaliveInterval = durationpb.New(v.Duration)
 	}

@@ -5031,6 +5031,22 @@ spec:
                           rule: matches(self, '^([0-9]{1,5}(h|m|s|ms)){1,4}$')
                         - message: http2KeepaliveTimeout must be at least 1 second
                           rule: duration(self) >= duration('1s')
+                      http2MaxHeaderSize:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: |-
+                          `http2MaxHeaderSize` sets the maximum aggregate size of decoded HTTP/2
+                          request headers.
+                          If unset, this defaults to `16Ki`.
+                        maxLength: 32
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                        x-kubernetes-validations:
+                        - message: value must be at least 1 byte
+                          rule: '!quantity(string(self)).isLessThan(quantity(''1''))'
+                        - message: value must fit within uint32
+                          rule: '!quantity(string(self)).isGreaterThan(quantity(''4294967295''))'
                       http2WindowSize:
                         anyOf:
                         - type: integer
@@ -5078,9 +5094,9 @@ spec:
                     x-kubernetes-validations:
                     - message: at least one of the fields in [http1IdleTimeout http1MaxHeaders
                         http2ConnectionWindowSize http2FrameSize http2KeepaliveInterval
-                        http2KeepaliveTimeout http2WindowSize maxBufferSize maxConnectionDuration]
-                        must be set
-                      rule: '[has(self.http1IdleTimeout),has(self.http1MaxHeaders),has(self.http2ConnectionWindowSize),has(self.http2FrameSize),has(self.http2KeepaliveInterval),has(self.http2KeepaliveTimeout),has(self.http2WindowSize),has(self.maxBufferSize),has(self.maxConnectionDuration)].filter(x,x==true).size()
+                        http2KeepaliveTimeout http2MaxHeaderSize http2WindowSize maxBufferSize
+                        maxConnectionDuration] must be set
+                      rule: '[has(self.http1IdleTimeout),has(self.http1MaxHeaders),has(self.http2ConnectionWindowSize),has(self.http2FrameSize),has(self.http2KeepaliveInterval),has(self.http2KeepaliveTimeout),has(self.http2MaxHeaderSize),has(self.http2WindowSize),has(self.maxBufferSize),has(self.maxConnectionDuration)].filter(x,x==true).size()
                         >= 1'
                   metrics:
                     description: |-

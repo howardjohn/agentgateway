@@ -506,6 +506,11 @@ type FrontendHTTP struct {
 	// +kubebuilder:validation:XValidation:rule="!quantity(string(self)).isGreaterThan(quantity('1677215'))",message="http2FrameSize must be at most 1677215 bytes"
 	// +optional
 	HTTP2FrameSize *ByteSize `json:"http2FrameSize,omitempty"`
+	// `http2MaxHeaderSize` sets the maximum aggregate size of decoded HTTP/2
+	// request headers.
+	// If unset, this defaults to `16Ki`.
+	// +optional
+	HTTP2MaxHeaderSize *ByteSize `json:"http2MaxHeaderSize,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="matches(self, '^([0-9]{1,5}(h|m|s|ms)){1,4}$')",message="invalid duration value"
 	// +kubebuilder:validation:XValidation:rule="duration(self) >= duration('1s')",message="http2KeepaliveInterval must be at least 1 second"
 	// +optional

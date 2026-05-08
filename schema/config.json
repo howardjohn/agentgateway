@@ -6461,6 +6461,15 @@
           "minimum": 0,
           "default": null
         },
+        "http2MaxHeaderSize": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0,
+          "default": null
+        },
         "http2KeepaliveInterval": {
           "type": [
             "string",

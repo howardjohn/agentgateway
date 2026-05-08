@@ -1845,6 +1845,11 @@ func (in *FrontendHTTP) DeepCopyInto(out *FrontendHTTP) {
 		x := (*in).DeepCopy()
 		*out = &x
 	}
+	if in.HTTP2MaxHeaderSize != nil {
+		in, out := &in.HTTP2MaxHeaderSize, &out.HTTP2MaxHeaderSize
+		x := (*in).DeepCopy()
+		*out = &x
+	}
 	if in.HTTP2KeepaliveInterval != nil {
 		in, out := &in.HTTP2KeepaliveInterval, &out.HTTP2KeepaliveInterval
 		*out = new(v1.Duration)

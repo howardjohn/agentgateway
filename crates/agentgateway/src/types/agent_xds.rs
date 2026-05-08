@@ -2188,6 +2188,7 @@ fn frontend_policy_from_proto(
 			http2_window_size: h.http2_window_size,
 			http2_connection_window_size: h.http2_connection_window_size,
 			http2_frame_size: h.http2_frame_size,
+			http2_max_header_size: h.http2_max_header_size,
 			http2_keepalive_interval: h.http2_keepalive_interval.map(convert_duration),
 			http2_keepalive_timeout: h.http2_keepalive_timeout.map(convert_duration),
 			max_connection_duration: h.max_connection_duration.map(convert_duration),

@@ -1372,6 +1372,7 @@ pub fn auto_server(c: Option<&frontend::HTTP>) -> auto::Builder<::hyper_util::rt
 		http2_window_size,
 		http2_connection_window_size,
 		http2_frame_size,
+		http2_max_header_size,
 		http2_keepalive_interval,
 		http2_keepalive_timeout,
 		max_connection_duration: _,
@@ -1399,6 +1400,9 @@ pub fn auto_server(c: Option<&frontend::HTTP>) -> auto::Builder<::hyper_util::rt
 	}
 	if let Some(m) = http2_frame_size {
 		b.http2().max_frame_size(*m);
+	}
+	if let Some(m) = http2_max_header_size {
+		b.http2().max_header_list_size(*m);
 	}
 
 	b
