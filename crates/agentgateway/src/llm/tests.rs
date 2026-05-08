@@ -1181,6 +1181,7 @@ async fn process_response_routes_streaming_error_to_buffered_path() {
 
 	let client = PolicyClient {
 		inputs: setup_proxy_test("{}").unwrap().pi,
+		outbound: None,
 	};
 
 	let result = bedrock
