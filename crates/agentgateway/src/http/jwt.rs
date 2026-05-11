@@ -315,7 +315,14 @@ impl Provider {
 							vec![Algorithm::ES256, Algorithm::ES384]
 						},
 						AlgorithmParameters::RSA(_) => {
-							vec![Algorithm::RS256, Algorithm::RS384, Algorithm::RS512]
+							vec![
+								Algorithm::RS256,
+								Algorithm::RS384,
+								Algorithm::RS512,
+								Algorithm::PS256,
+								Algorithm::PS384,
+								Algorithm::PS512,
+							]
 						},
 						_ => unreachable!(),
 					}
