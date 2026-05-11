@@ -303,7 +303,9 @@ func TestHelmChartTemplate(t *testing.T) {
     extraLabels:
       release: prometheus
   proxy:
-    selectorName: my-proxy
+    namespaceSelector:
+      matchNames:
+      - default
   grafanaDashboard:
     enabled: false
 `,
@@ -327,11 +329,12 @@ func TestHelmChartTemplate(t *testing.T) {
 `,
 		},
 		{
-			name: "monitoring-custom-proxy-selector",
+			name: "monitoring-custom-proxy-namespace-selector",
 			valuesYAML: `monitoring:
   enabled: true
   proxy:
-    selectorName: agentgateway-data-plane
+    namespaceSelector:
+      any: true
   grafanaDashboard:
     enabled: false
 `,

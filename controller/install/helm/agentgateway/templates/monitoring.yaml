@@ -13,7 +13,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ .Values.monitoring.proxy.selectorName }}
+      gateway.networking.k8s.io/gateway-class-name: agentgateway
+  {{- with .Values.monitoring.proxy.namespaceSelector }}
+  namespaceSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   endpoints:
   - port: metrics
     path: /metrics
@@ -32,7 +36,10 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "agentgateway.name" . }}
+      {{- include "agentgateway.selectorLabels" . | nindent 6 }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
   endpoints:
   - port: metrics
     path: /metrics

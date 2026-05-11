@@ -372,7 +372,9 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: agentgateway-data-plane
+      gateway.networking.k8s.io/gateway-class-name: agentgateway
+  namespaceSelector:
+    any: true
   endpoints:
   - port: metrics
     path: /metrics
@@ -394,7 +396,12 @@ metadata:
 spec:
   selector:
     matchLabels:
+      agentgateway: agentgateway
       app.kubernetes.io/name: agentgateway
+      app.kubernetes.io/instance: test-release
+  namespaceSelector:
+    matchNames:
+    - default
   endpoints:
   - port: metrics
     path: /metrics

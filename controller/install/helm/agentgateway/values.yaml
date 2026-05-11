@@ -235,9 +235,9 @@ monitoring:
     extraLabels: {}
 
   proxy:
-    # -- Selector label value used to find the proxy Service.
-    # The proxy is external to this chart; override if it carries a different app.kubernetes.io/name.
-    selectorName: agentgateway-proxy
+    # -- Namespace selector used by the proxy ServiceMonitor.
+    # The proxy ServiceMonitor always selects Services with gateway.networking.k8s.io/gateway-class-name=agentgateway.
+    namespaceSelector: {}
 
   grafanaDashboard:
     # -- Create the Grafana dashboard ConfigMap.
