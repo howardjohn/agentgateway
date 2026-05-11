@@ -587,7 +587,7 @@ func processDirectResponseTraffic(_ PolicyCtx, directResponse *agentgateway.Dire
 
 func processJWTAuthenticationPolicy(ctx PolicyCtx, jwt *agentgateway.JWTAuthentication, policyPhase *agentgateway.PolicyPhase, basePolicyName string, policy types.NamespacedName) (*api.Policy, error) {
 	p := &api.TrafficPolicySpec_JWT{}
-	p.AuthorizationLocation = translateAuthorizationLocation(jwt.Location)
+	p.AuthorizationLocation = translateAuthorizationExtractionLocation(jwt.Location)
 
 	switch jwt.Mode {
 	case agentgateway.JWTAuthenticationModeOptional:
@@ -599,6 +599,9 @@ func processJWTAuthenticationPolicy(ctx PolicyCtx, jwt *agentgateway.JWTAuthenti
 	}
 
 	errs := make([]error, 0)
+	if err := validateExtractionAuthorizationLocation(jwt.Location, "jwtAuthentication location"); err != nil {
+		errs = append(errs, err)
+	}
 	for idx, pp := range jwt.Providers {
 		jp := &api.TrafficPolicySpec_JWTProvider{
 			Issuer:    pp.Issuer,
@@ -664,7 +667,7 @@ func processBasicAuthenticationPolicy(
 ) (*api.Policy, error) {
 	p := &api.TrafficPolicySpec_BasicAuthentication{}
 	p.Realm = ba.Realm
-	p.AuthorizationLocation = translateAuthorizationLocation(ba.Location)
+	p.AuthorizationLocation = translateAuthorizationExtractionLocation(ba.Location)
 
 	switch ba.Mode {
 	case agentgateway.BasicAuthenticationModeOptional:
@@ -673,16 +676,19 @@ func processBasicAuthenticationPolicy(
 		p.Mode = api.TrafficPolicySpec_BasicAuthentication_STRICT
 	}
 
-	var err error
+	var errs []error
+	if err := validateExtractionAuthorizationLocation(ba.Location, "basicAuthentication location"); err != nil {
+		errs = append(errs, err)
+	}
 
 	if s := ba.SecretRef; s != nil {
 		scrt := ptr.Flatten(krt.FetchOne(ctx.Krt, ctx.Collections.Secrets, krt.FilterKey(policy.Namespace+"/"+s.Name)))
 		if scrt == nil {
-			err = fmt.Errorf("basic authentication secret %v not found", s.Name)
+			errs = append(errs, fmt.Errorf("basic authentication secret %v not found", s.Name))
 		} else {
 			d, ok := scrt.Data[".htaccess"]
 			if !ok {
-				err = fmt.Errorf("basic authentication secret %v found, but doesn't contain '.htaccess' key", s.Name)
+				errs = append(errs, fmt.Errorf("basic authentication secret %v found, but doesn't contain '.htaccess' key", s.Name))
 			}
 			p.HtpasswdContent = string(d)
 		}
@@ -705,7 +711,7 @@ func processBasicAuthenticationPolicy(
 		"policy", basePolicyName,
 		"agentgateway_policy", basicAuthPolicy.Name)
 
-	return basicAuthPolicy, err
+	return basicAuthPolicy, errors.Join(errs...)
 }
 
 type APIKeyEntry struct {
@@ -721,7 +727,7 @@ func processAPIKeyAuthenticationPolicy(
 	policy types.NamespacedName,
 ) (*api.Policy, error) {
 	p := &api.TrafficPolicySpec_APIKey{}
-	p.AuthorizationLocation = translateAuthorizationLocation(ak.Location)
+	p.AuthorizationLocation = translateAuthorizationExtractionLocation(ak.Location)
 
 	switch ak.Mode {
 	case agentgateway.APIKeyAuthenticationModeOptional:
@@ -732,6 +738,9 @@ func processAPIKeyAuthenticationPolicy(
 
 	var secrets []*corev1.Secret
 	var errs []error
+	if err := validateExtractionAuthorizationLocation(ak.Location, "apiKeyAuthentication location"); err != nil {
+		errs = append(errs, err)
+	}
 	if s := ak.SecretRef; s != nil {
 		scrt := ptr.Flatten(krt.FetchOne(ctx.Krt, ctx.Collections.Secrets, krt.FilterKey(policy.Namespace+"/"+s.Name)))
 		if scrt == nil {

@@ -833,6 +833,15 @@ type AuthorizationLocation struct {
 	Cookie *AuthorizationCookieLocation `json:"cookie,omitempty"`
 }
 
+// +kubebuilder:validation:ExactlyOneOf=header;queryParameter;cookie;expression
+type AuthorizationExtractionLocation struct {
+	AuthorizationLocation `json:",inline"`
+
+	// expression extracts the credential from the request using a CEL expression.
+	// +optional
+	Expression *shared.CELExpression `json:"expression,omitempty"`
+}
+
 type AuthorizationHeaderLocation struct {
 	// +required
 	Name gwv1.HTTPHeaderName `json:"name"`
@@ -872,7 +881,7 @@ type JWTAuthentication struct {
 	// `location` controls where JWT credentials are read from.
 	// If omitted, credentials are read from the `Authorization` header with the `Bearer ` prefix.
 	// +optional
-	Location *AuthorizationLocation `json:"location,omitempty"`
+	Location *AuthorizationExtractionLocation `json:"location,omitempty"`
 
 	// `mcp` optionally enables MCP OAuth metadata endpoint handling
 	// and MCP-specific authentication behavior on top of standard JWT validation.
@@ -1014,7 +1023,7 @@ type BasicAuthentication struct {
 	// `location` controls where Basic credentials are read from.
 	// If omitted, credentials are read from the `Authorization` header with the `Basic ` prefix.
 	// +optional
-	Location *AuthorizationLocation `json:"location,omitempty"`
+	Location *AuthorizationExtractionLocation `json:"location,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=Strict;Optional
@@ -1100,7 +1109,7 @@ type APIKeyAuthentication struct {
 	// `location` controls where API keys are read from.
 	// If omitted, credentials are read from the `Authorization` header with the `Bearer ` prefix.
 	// +optional
-	Location *AuthorizationLocation `json:"location,omitempty"`
+	Location *AuthorizationExtractionLocation `json:"location,omitempty"`
 }
 
 type SecretSelector struct {

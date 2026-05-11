@@ -5687,6 +5687,12 @@ spec:
                             required:
                             - name
                             type: object
+                          expression:
+                            description: expression extracts the credential from the
+                              request using a CEL expression.
+                            maxLength: 16384
+                            minLength: 1
+                            type: string
                           header:
                             properties:
                               name:
@@ -5725,6 +5731,10 @@ spec:
                             type: object
                         type: object
                         x-kubernetes-validations:
+                        - message: exactly one of the fields in [header queryParameter
+                            cookie expression] must be set
+                          rule: '[has(self.header),has(self.queryParameter),has(self.cookie),has(self.expression)].filter(x,x==true).size()
+                            == 1'
                         - message: exactly one of the fields in [header queryParameter
                             cookie] must be set
                           rule: '[has(self.header),has(self.queryParameter),has(self.cookie)].filter(x,x==true).size()
@@ -5865,6 +5875,12 @@ spec:
                             required:
                             - name
                             type: object
+                          expression:
+                            description: expression extracts the credential from the
+                              request using a CEL expression.
+                            maxLength: 16384
+                            minLength: 1
+                            type: string
                           header:
                             properties:
                               name:
@@ -5903,6 +5919,10 @@ spec:
                             type: object
                         type: object
                         x-kubernetes-validations:
+                        - message: exactly one of the fields in [header queryParameter
+                            cookie expression] must be set
+                          rule: '[has(self.header),has(self.queryParameter),has(self.cookie),has(self.expression)].filter(x,x==true).size()
+                            == 1'
                         - message: exactly one of the fields in [header queryParameter
                             cookie] must be set
                           rule: '[has(self.header),has(self.queryParameter),has(self.cookie)].filter(x,x==true).size()
@@ -7368,6 +7388,12 @@ spec:
                             required:
                             - name
                             type: object
+                          expression:
+                            description: expression extracts the credential from the
+                              request using a CEL expression.
+                            maxLength: 16384
+                            minLength: 1
+                            type: string
                           header:
                             properties:
                               name:
@@ -7406,6 +7432,10 @@ spec:
                             type: object
                         type: object
                         x-kubernetes-validations:
+                        - message: exactly one of the fields in [header queryParameter
+                            cookie expression] must be set
+                          rule: '[has(self.header),has(self.queryParameter),has(self.cookie),has(self.expression)].filter(x,x==true).size()
+                            == 1'
                         - message: exactly one of the fields in [header queryParameter
                             cookie] must be set
                           rule: '[has(self.header),has(self.queryParameter),has(self.cookie)].filter(x,x==true).size()
