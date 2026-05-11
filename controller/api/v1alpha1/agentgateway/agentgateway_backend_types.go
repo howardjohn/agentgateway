@@ -125,7 +125,25 @@ type StaticBackend struct {
 	// +kubebuilder:validation:MinLength=1
 	// +optional
 	UnixPath *string `json:"unixPath,omitempty"`
+	// appProtocol specifies the application protocol used to connect to this backend.
+	// When unset, protocol handling is automatically determined.
+	// +kubebuilder:validation:Enum=h2c;http/1.1;a2a;tcp
+	// +optional
+	AppProtocol *StaticBackendAppProtocol `json:"appProtocol,omitempty"`
 }
+
+type StaticBackendAppProtocol string
+
+const (
+	// StaticBackendAppProtocolH2C represents HTTP/2 over cleartext.
+	StaticBackendAppProtocolH2C StaticBackendAppProtocol = "h2c"
+	// StaticBackendAppProtocolHTTP11 represents HTTP/1.1.
+	StaticBackendAppProtocolHTTP11 StaticBackendAppProtocol = "http/1.1"
+	// StaticBackendAppProtocolA2A represents Agent2Agent traffic.
+	StaticBackendAppProtocolA2A StaticBackendAppProtocol = "a2a"
+	// StaticBackendAppProtocolTCP represents opaque TCP traffic.
+	StaticBackendAppProtocolTCP StaticBackendAppProtocol = "tcp"
+)
 
 // AIBackend specifies the AI backend configuration
 // +kubebuilder:validation:ExactlyOneOf=provider;groups

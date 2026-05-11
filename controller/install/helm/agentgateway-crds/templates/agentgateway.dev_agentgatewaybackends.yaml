@@ -10637,6 +10637,16 @@ spec:
               static:
                 description: static represents a static hostname.
                 properties:
+                  appProtocol:
+                    description: |-
+                      appProtocol specifies the application protocol used to connect to this backend.
+                      When unset, protocol handling is automatically determined.
+                    enum:
+                    - h2c
+                    - http/1.1
+                    - a2a
+                    - tcp
+                    type: string
                   host:
                     description: host to connect to (for TCP backends).
                     maxLength: 256

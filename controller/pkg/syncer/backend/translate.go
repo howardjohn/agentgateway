@@ -128,6 +128,7 @@ func BuildAgwBackend(
 			sb.Host = string(b.Host)
 			sb.Port = b.Port
 		}
+		pols = append(staticAppProtocolPolicies(b.AppProtocol), pols...)
 		return []*api.Backend{{
 			Key:  backend.Namespace + "/" + backend.Name,
 			Name: plugins.ResourceName(backend),
@@ -528,6 +529,40 @@ func translateAwsBackends(
 		},
 		InlinePolicies: inlinePolicies,
 	}}, nil
+}
+
+func staticAppProtocolPolicies(appProtocol *agentgateway.StaticBackendAppProtocol) []*api.BackendPolicySpec {
+	if appProtocol == nil {
+		return nil
+	}
+	switch *appProtocol {
+	case agentgateway.StaticBackendAppProtocolH2C:
+		return []*api.BackendPolicySpec{{
+			Kind: &api.BackendPolicySpec_BackendHttp{
+				BackendHttp: &api.BackendPolicySpec_BackendHTTP{
+					Version: api.BackendPolicySpec_BackendHTTP_HTTP2,
+				},
+			},
+		}}
+	case agentgateway.StaticBackendAppProtocolHTTP11:
+		return []*api.BackendPolicySpec{{
+			Kind: &api.BackendPolicySpec_BackendHttp{
+				BackendHttp: &api.BackendPolicySpec_BackendHTTP{
+					Version: api.BackendPolicySpec_BackendHTTP_HTTP1,
+				},
+			},
+		}}
+	case agentgateway.StaticBackendAppProtocolA2A:
+		return []*api.BackendPolicySpec{{
+			Kind: &api.BackendPolicySpec_A2A_{
+				A2A: &api.BackendPolicySpec_A2A{},
+			},
+		}}
+	case agentgateway.StaticBackendAppProtocolTCP:
+		return nil
+	default:
+		return nil
+	}
 }
 
 func toMCPProtocol(appProtocol string) api.MCPTarget_Protocol {

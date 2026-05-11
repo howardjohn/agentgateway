@@ -717,6 +717,84 @@ func TestBuildStaticIr(t *testing.T) {
 					backend.GetStatic().UnixPath == "/shared/agent/agent.sock"
 			},
 		},
+		{
+			name: "Static h2c appProtocol",
+			backend: &agentgateway.AgentgatewayBackend{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "h2c-backend",
+					Namespace: "test-ns",
+				},
+				Spec: agentgateway.AgentgatewayBackendSpec{
+					Static: &agentgateway.StaticBackend{
+						Host: "api.example.com", Port: 8080,
+						AppProtocol: ptr.Of(agentgateway.StaticBackendAppProtocolH2C),
+					},
+				},
+			},
+			validate: func(backend *api.Backend) bool {
+				return backend.GetStatic().Host == "api.example.com" &&
+					len(backend.InlinePolicies) == 1 &&
+					backend.InlinePolicies[0].GetBackendHttp().GetVersion() == api.BackendPolicySpec_BackendHTTP_HTTP2
+			},
+		},
+		{
+			name: "Static http/1.1 appProtocol",
+			backend: &agentgateway.AgentgatewayBackend{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "http1-backend",
+					Namespace: "test-ns",
+				},
+				Spec: agentgateway.AgentgatewayBackendSpec{
+					Static: &agentgateway.StaticBackend{
+						Host: "api.example.com", Port: 8080,
+						AppProtocol: ptr.Of(agentgateway.StaticBackendAppProtocolHTTP11),
+					},
+				},
+			},
+			validate: func(backend *api.Backend) bool {
+				return len(backend.InlinePolicies) == 1 &&
+					backend.InlinePolicies[0].GetBackendHttp().GetVersion() == api.BackendPolicySpec_BackendHTTP_HTTP1
+			},
+		},
+		{
+			name: "Static a2a appProtocol",
+			backend: &agentgateway.AgentgatewayBackend{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "a2a-backend",
+					Namespace: "test-ns",
+				},
+				Spec: agentgateway.AgentgatewayBackendSpec{
+					Static: &agentgateway.StaticBackend{
+						Host: "api.example.com", Port: 8080,
+						AppProtocol: ptr.Of(agentgateway.StaticBackendAppProtocolA2A),
+					},
+				},
+			},
+			validate: func(backend *api.Backend) bool {
+				return len(backend.InlinePolicies) == 1 &&
+					backend.InlinePolicies[0].GetA2A() != nil
+			},
+		},
+		{
+			name: "Static tcp appProtocol leaves backend opaque",
+			backend: &agentgateway.AgentgatewayBackend{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "tcp-backend",
+					Namespace: "test-ns",
+				},
+				Spec: agentgateway.AgentgatewayBackendSpec{
+					Static: &agentgateway.StaticBackend{
+						Host: "api.example.com", Port: 8080,
+						AppProtocol: ptr.Of(agentgateway.StaticBackendAppProtocolTCP),
+					},
+				},
+			},
+			validate: func(backend *api.Backend) bool {
+				return backend.GetStatic().Host == "api.example.com" &&
+					backend.GetStatic().Port == 8080 &&
+					len(backend.InlinePolicies) == 0
+			},
+		},
 	}
 
 	for _, tt := range tests {

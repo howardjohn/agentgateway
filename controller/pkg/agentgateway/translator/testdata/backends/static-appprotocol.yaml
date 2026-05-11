@@ -1,0 +1,155 @@
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: static-h2c
+  namespace: default
+spec:
+  static:
+    host: h2c.example.com
+    port: 8080
+    appProtocol: h2c
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: static-http1
+  namespace: default
+spec:
+  static:
+    host: http1.example.com
+    port: 8080
+    appProtocol: http/1.1
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: static-a2a
+  namespace: default
+spec:
+  static:
+    host: a2a.example.com
+    port: 9090
+    appProtocol: a2a
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: static-tcp
+  namespace: default
+spec:
+  static:
+    host: tcp.example.com
+    port: 9000
+    appProtocol: tcp
+---
+# Output
+output:
+- gateway:
+    Name: basic
+    Namespace: default
+  resource:
+    backend:
+      inlinePolicies:
+      - a2a: {}
+      key: default/static-a2a
+      name:
+        name: static-a2a
+        namespace: default
+      static:
+        host: a2a.example.com
+        port: 9090
+- gateway:
+    Name: basic
+    Namespace: default
+  resource:
+    backend:
+      inlinePolicies:
+      - backendHttp:
+          version: HTTP2
+      key: default/static-h2c
+      name:
+        name: static-h2c
+        namespace: default
+      static:
+        host: h2c.example.com
+        port: 8080
+- gateway:
+    Name: basic
+    Namespace: default
+  resource:
+    backend:
+      inlinePolicies:
+      - backendHttp:
+          version: HTTP1
+      key: default/static-http1
+      name:
+        name: static-http1
+        namespace: default
+      static:
+        host: http1.example.com
+        port: 8080
+- gateway:
+    Name: basic
+    Namespace: default
+  resource:
+    backend:
+      key: default/static-tcp
+      name:
+        name: static-tcp
+        namespace: default
+      static:
+        host: tcp.example.com
+        port: 9000
+status:
+- apiVersion: agentgateway.dev/v1alpha1
+  kind: AgentgatewayBackend
+  metadata:
+    name: static-a2a
+    namespace: default
+  spec: null
+  status:
+    conditions:
+    - lastTransitionTime: fake
+      message: Backend successfully accepted
+      reason: Accepted
+      status: "True"
+      type: Accepted
+- apiVersion: agentgateway.dev/v1alpha1
+  kind: AgentgatewayBackend
+  metadata:
+    name: static-h2c
+    namespace: default
+  spec: null
+  status:
+    conditions:
+    - lastTransitionTime: fake
+      message: Backend successfully accepted
+      reason: Accepted
+      status: "True"
+      type: Accepted
+- apiVersion: agentgateway.dev/v1alpha1
+  kind: AgentgatewayBackend
+  metadata:
+    name: static-http1
+    namespace: default
+  spec: null
+  status:
+    conditions:
+    - lastTransitionTime: fake
+      message: Backend successfully accepted
+      reason: Accepted
+      status: "True"
+      type: Accepted
+- apiVersion: agentgateway.dev/v1alpha1
+  kind: AgentgatewayBackend
+  metadata:
+    name: static-tcp
+    namespace: default
+  spec: null
+  status:
+    conditions:
+    - lastTransitionTime: fake
+      message: Backend successfully accepted
+      reason: Accepted
+      status: "True"
+      type: Accepted
