@@ -76,13 +76,17 @@ func init() {
 
 // ConvertStatusCollection converts the specific TrafficPolicy status collection
 // to the generic controllers.Object status collection expected by the interface
-func ConvertStatusCollection[T controllers.Object, S any](col krt.Collection[krt.ObjectWithStatus[T, S]]) krt.StatusCollection[controllers.Object, any] {
+func ConvertStatusCollection[T controllers.Object, S any](
+	col krt.Collection[krt.ObjectWithStatus[T, S]],
+	toOptions func(string) []krt.CollectionOption,
+	originalName string,
+) krt.StatusCollection[controllers.Object, any] {
 	return krt.MapCollection(col, func(item krt.ObjectWithStatus[T, S]) krt.ObjectWithStatus[controllers.Object, any] {
 		return krt.ObjectWithStatus[controllers.Object, any]{
 			Obj:    controllers.Object(item.Obj),
 			Status: item.Status,
 		}
-	})
+	}, toOptions(originalName+"/mapped")...)
 }
 
 // NewAgentPlugin creates a new AgentgatewayPolicy plugin
@@ -96,13 +100,13 @@ func NewAgentPlugin(agw *AgwCollections, resolver remotehttp.Resolver, jwksLooku
 						[]AgwPolicy,
 					) {
 						return TranslateAgentgatewayPolicy(krtctx, policyCR, agw, input.References, resolver, jwksLookup)
-					}, agw.KrtOpts.ToOptions("AgentgatewayPolicy")...)
-					return ConvertStatusCollection(policyStatusCol), policyCol
+					}, agw.KrtOpts.ToOptions("policies/Agentgateway")...)
+					return ConvertStatusCollection(policyStatusCol, agw.KrtOpts.ToOptions, "policies/Agentgateway"), policyCol
 				},
 				BuildReferences: func(input PolicyPluginInput) krt.Collection[*PolicyAttachment] {
 					return krt.NewManyCollection(agw.AgentgatewayPolicies, func(ctx krt.HandlerContext, policy *agentgateway.AgentgatewayPolicy) []*PolicyAttachment {
 						return BackendReferencesFromPolicy(ctx, policy, input.References)
-					}, agw.KrtOpts.ToOptions("AgentgatewayPolicyAttachments")...)
+					}, agw.KrtOpts.ToOptions("references/AgentgatewayPolicyAttachments")...)
 				},
 			},
 		},

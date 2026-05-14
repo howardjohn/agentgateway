@@ -89,7 +89,7 @@ func ReferenceGrantsCollection(referenceGrants krt.Collection[*gwv1b1.ReferenceG
 			}
 		}
 		return results
-	}, krtopts.ToOptions("ReferenceGrants")...)
+	}, krtopts.ToOptions("translator/ReferenceGrants")...)
 }
 
 // BuildReferenceGrants creates a ReferenceGrants object from a collection of ReferenceGrant objects.

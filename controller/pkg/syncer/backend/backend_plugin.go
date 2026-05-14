@@ -37,7 +37,7 @@ func NewBackendPlugin(agw *plugins.AgwCollections, resolver remotehttp.Resolver,
 				BuildReferences: func() krt.Collection[*plugins.PolicyAttachment] {
 					return krt.NewManyCollection(agw.Backends, func(ctx krt.HandlerContext, backend *agentgateway.AgentgatewayBackend) []*plugins.PolicyAttachment {
 						return BuildAgwBackendReferences(backend)
-					}, agw.KrtOpts.ToOptions("BackendPolicyAttachments")...)
+					}, agw.KrtOpts.ToOptions("references/AgentgatewayBackendPolicyAttachments")...)
 				},
 				Build: func(input plugins.PolicyPluginInput) (krt.StatusCollection[controllers.Object, any], krt.Collection[agwir.AgwResource]) {
 					status, col := krt.NewStatusManyCollection(agw.Backends, func(ctx krt.HandlerContext, backend *agentgateway.AgentgatewayBackend) (
@@ -52,8 +52,8 @@ func NewBackendPlugin(agw *plugins.AgwCollections, resolver remotehttp.Resolver,
 							JWKSLookup:  jwksLookup,
 						}
 						return TranslateAgwBackend(pc, backend, input.References)
-					}, agw.KrtOpts.ToOptions("Backends")...)
-					return plugins.ConvertStatusCollection(status), col
+					}, agw.KrtOpts.ToOptions("backends/Agentgateway")...)
+					return plugins.ConvertStatusCollection(status, agw.KrtOpts.ToOptions, "backends/Agentgateway"), col
 				},
 			},
 		},

@@ -223,7 +223,7 @@ func GatewayCollection(
 	krt.Collection[*GatewayListener],
 ) {
 	processGatewayCollectionOptions(&cfg, opts...)
-	statusCol, gw := krt.NewStatusManyCollection(cfg.Gateways, cfg.transformationFunc(cfg), cfg.KrtOpts.ToOptions("KubernetesGateway")...)
+	statusCol, gw := krt.NewStatusManyCollection(cfg.Gateways, cfg.transformationFunc(cfg), cfg.KrtOpts.ToOptions("translator/GatewayListeners")...)
 	return statusCol, gw
 }
 

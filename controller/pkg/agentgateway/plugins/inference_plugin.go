@@ -34,8 +34,8 @@ func NewInferencePlugin(agw *AgwCollections) AgwPlugin {
 				Build: func(input PolicyPluginInput) (krt.StatusCollection[controllers.Object, any], krt.Collection[AgwPolicy]) {
 					status, policyCol := krt.NewStatusManyCollection(agw.InferencePools, func(krtctx krt.HandlerContext, infPool *inf.InferencePool) (*inf.InferencePoolStatus, []AgwPolicy) {
 						return translatePoliciesForInferencePool(krtctx, agw.ControllerName, input.References, agw.Services, infPool)
-					}, agw.KrtOpts.ToOptions("agentgateway/InferencePools")...)
-					return ConvertStatusCollection(status), policyCol
+					}, agw.KrtOpts.ToOptions("policies/InferencePool")...)
+					return ConvertStatusCollection(status, agw.KrtOpts.ToOptions, "policies/InferencePool"), policyCol
 				},
 			},
 		},
