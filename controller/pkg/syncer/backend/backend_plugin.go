@@ -137,6 +137,24 @@ func BuildAgwBackend(
 			InlinePolicies: pols,
 		}}, errors.Join(errs...)
 	}
+	if b := backend.Spec.A2A; b != nil {
+		sb := &api.StaticBackend{}
+		sb.Host = string(b.Host)
+		sb.Port = b.Port
+		a2aPolicy := &api.BackendPolicySpec{
+			Kind: &api.BackendPolicySpec_A2A_{
+				A2A: &api.BackendPolicySpec_A2A{},
+			},
+		}
+		return []*api.Backend{{
+			Key:  backend.Namespace + "/" + backend.Name,
+			Name: plugins.ResourceName(backend),
+			Kind: &api.Backend_Static{
+				Static: sb,
+			},
+			InlinePolicies: append([]*api.BackendPolicySpec{a2aPolicy}, pols...),
+		}}, errors.Join(errs...)
+	}
 	if b := backend.Spec.DynamicForwardProxy; b != nil {
 		return []*api.Backend{{
 			Key:  backend.Namespace + "/" + backend.Name,
