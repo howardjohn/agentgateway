@@ -525,6 +525,7 @@ impl HTTPProxy {
 		// Setup ResponsePolicies outside of proxy_internal, so we have can unconditionally run them even on errors
 		// or direct responses
 		let mut response_policies = ResponsePolicies::default();
+		let is_grpc_request = http::is_grpc_request(&req);
 		let ret = self
 			.proxy_internal(req, log.as_mut().unwrap(), &mut response_policies)
 			.await
@@ -544,7 +545,7 @@ impl HTTPProxy {
 			Err(e) => e.as_reason(),
 		};
 		let mut resp = ret.unwrap_or_else(|err| match err {
-			ProxyResponse::Error(e) => e.into_response(),
+			ProxyResponse::Error(e) => e.into_response_with_grpc(is_grpc_request),
 			ProxyResponse::DirectResponse(dr) => *dr,
 		});
 
@@ -562,7 +563,7 @@ impl HTTPProxy {
 		{
 			Ok(_) => resp,
 			Err(e) => match e {
-				ProxyResponse::Error(e) => e.into_response(),
+				ProxyResponse::Error(e) => e.into_response_with_grpc(is_grpc_request),
 				ProxyResponse::DirectResponse(dr) => *dr,
 			},
 		};
@@ -581,11 +582,11 @@ impl HTTPProxy {
 
 		if resp.status() == StatusCode::SWITCHING_PROTOCOLS {
 			let Some(req_upgrade) = resp.extensions_mut().remove::<RequestUpgrade>() else {
-				return ProxyError::UpgradeFailed(None, None).into_response();
+				return ProxyError::UpgradeFailed(None, None).into_response_with_grpc(is_grpc_request);
 			};
 			handle_upgrade(req_upgrade, resp, log)
 				.await
-				.unwrap_or_else(|e| e.into_response())
+				.unwrap_or_else(|e| e.into_response_with_grpc(is_grpc_request))
 		} else {
 			resp.map(move |b| http::Body::new(LogBody::new(b, log)))
 		}
