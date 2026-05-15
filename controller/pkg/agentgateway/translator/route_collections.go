@@ -756,10 +756,14 @@ func routeKeySuffix(parent RouteParentReference) string {
 	if parent.ServiceKey != nil {
 		return ".svc." + parent.ServiceKey.Namespace + "." + parent.ServiceKey.Name
 	}
-	if sec := string(parent.ParentSection); sec != "" {
-		return "." + sec
+	section := string(parent.ParentSection)
+	if section == "" {
+		return ""
 	}
-	return ""
+	if parent.ParentKey.Kind != wellknown.GatewayGVK.Kind {
+		return "." + parent.ParentKey.Namespace + "." + parent.ParentKey.Name + "." + section
+	}
+	return "." + section
 }
 
 // reasonResolvedRefs picks a ResolvedRefs reason from a conversion failure condition.
