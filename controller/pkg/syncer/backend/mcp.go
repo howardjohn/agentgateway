@@ -98,9 +98,12 @@ func TranslateMCPSelectorTargets(
 				appProtocol != mcpProtocolLegacy && appProtocol != mcpProtocolSSELegacy {
 				continue
 			}
-			targetName := service.Name + fmt.Sprintf("-%d", port.Port)
-			if port.Name != "" {
-				targetName = service.Name + "-" + port.Name
+			targetName := service.Annotations[apiannotations.MCPServiceTargetName]
+			if targetName == "" {
+				targetName = service.Name + fmt.Sprintf("-%d", port.Port)
+				if port.Name != "" {
+					targetName = service.Name + "-" + port.Name
+				}
 			}
 
 			path := service.Annotations[apiannotations.MCPServiceHTTPPath]
