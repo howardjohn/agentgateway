@@ -3,7 +3,6 @@ package plugins
 import (
 	"errors"
 	"fmt"
-	"math"
 
 	"google.golang.org/protobuf/types/known/durationpb"
 	"istio.io/istio/pkg/ptr"
@@ -372,19 +371,7 @@ func castUint32[T ~int32](ka *T) *uint32 {
 }
 
 func quantityUint32(ka *agentgateway.ByteSize) *uint32 {
-	return new(requiredQuantityUint32(*ka))
-}
-
-func requiredQuantityUint32(ka agentgateway.ByteSize) uint32 {
-	// TODO: just cast as uint32 once k8s 1.33 is no longer supported and we can place validation via quantity without blowing up cel
-	v := ka.Value()
-	if v < 0 {
-		return 0
-	}
-	if v > math.MaxUint32 {
-		return math.MaxUint32
-	}
-	return uint32(v)
+	return new((*ka).ClampedValue())
 }
 
 func translateFrontendTLS(policy *agentgateway.AgentgatewayPolicy, name string) *api.Policy {

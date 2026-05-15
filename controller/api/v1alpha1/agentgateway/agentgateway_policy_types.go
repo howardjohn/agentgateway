@@ -2,6 +2,7 @@ package agentgateway
 
 import (
 	"iter"
+	"math"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -287,9 +288,17 @@ type SNI = string
 // +kubebuilder:validation:XValidation:rule="(self >= 1 && self <= 4294967295) || self.size() > 0",message="value must be at least 1 byte and fit within uint32"
 type ByteSize resource.Quantity
 
-func (b ByteSize) Value() int64 {
+// ClampedValue returns the quantity as a uint32, clamping values to 0..MaxUint32
+func (b ByteSize) ClampedValue() uint32 {
 	q := resource.Quantity(b)
-	return q.Value()
+	v := q.Value()
+	if v < 0 {
+		return 0
+	}
+	if v > math.MaxUint32 {
+		return math.MaxUint32
+	}
+	return uint32(v)
 }
 
 func (b ByteSize) MarshalJSON() ([]byte, error) {

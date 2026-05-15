@@ -1071,7 +1071,7 @@ func buildExtAuthSpec(
 	}
 	if b := extAuth.ForwardBody; b != nil {
 		spec.IncludeRequestBody = &api.TrafficPolicySpec_ExternalAuth_BodyOptions{
-			MaxRequestBytes: requiredQuantityUint32(b.MaxSize),
+			MaxRequestBytes: b.MaxSize.ClampedValue(),
 			// Currently the default, see https://github.com/kubernetes-sigs/gateway-api/issues/4198
 			AllowPartialMessage: true,
 			// TODO: should we allow config?
