@@ -4,9 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
+	"istio.io/istio/pkg/test/util/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 )
@@ -72,6 +74,37 @@ func TestCRDs(t *testing.T) {
 						}
 					}
 				})
+			}
+		})
+	}
+}
+
+func TestCRDCosts(t *testing.T) {
+	v := NewAgentgatewayValidator(t)
+
+	d, writeReports := os.LookupEnv("CRD_REPORT_DIRECTORY")
+	if writeReports {
+		assert.NoError(t, os.MkdirAll(d, 0o777))
+	}
+
+	gvks := make([]string, 0, len(v.schemas))
+	for gvk := range v.schemas {
+		gvks = append(gvks, gvk.String())
+	}
+	sort.Strings(gvks)
+	for _, gvkString := range gvks {
+		t.Run(gvkString, func(t *testing.T) {
+			for gvk := range v.schemas {
+				if gvk.String() != gvkString {
+					continue
+				}
+				cr, err := v.ValidateCosts(gvk)
+				assert.NoError(t, err)
+				if writeReports {
+					report := cr.MarkdownReport(gvk.String())
+					assert.NoError(t, os.WriteFile(filepath.Join(d, strings.ReplaceAll(gvkString, "/", "_")+".md"), []byte(report), 0o777))
+				}
+				return
 			}
 		})
 	}
