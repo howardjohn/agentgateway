@@ -1626,6 +1626,9 @@ struct LocalFrontendPolicies {
 	/// version matching and whether PROXY headers are required or optional.
 	#[serde(default, rename = "proxyProtocol", alias = "proxy")]
 	pub proxy_protocol: Option<frontend::Proxy>,
+	/// Enable or disable downstream HTTP CONNECT handling.
+	#[serde(default)]
+	pub connect: Option<frontend::Connect>,
 	/// Settings for request access logs.
 	#[serde(default, alias = "logging")]
 	pub access_log: Option<frontend::LoggingPolicy>,
@@ -2744,6 +2747,7 @@ async fn split_frontend_policies(
 		tcp,
 		network_authorization,
 		proxy_protocol,
+		connect,
 		access_log,
 		tracing,
 	} = pol;
@@ -2764,6 +2768,9 @@ async fn split_frontend_policies(
 	}
 	if let Some(p) = proxy_protocol {
 		add(FrontendPolicy::Proxy(p), "proxy");
+	}
+	if let Some(p) = connect {
+		add(FrontendPolicy::Connect(p), "connect");
 	}
 	if let Some(mut p) = access_log {
 		p.init_access_log_policy();

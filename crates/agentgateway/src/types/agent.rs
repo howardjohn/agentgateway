@@ -2278,6 +2278,7 @@ pub enum FrontendPolicy {
 	TCP(frontend::TCP),
 	NetworkAuthorization(frontend::NetworkAuthorization),
 	Proxy(frontend::Proxy),
+	Connect(frontend::Connect),
 	AccessLog(frontend::LoggingPolicy),
 	Tracing(Arc<TracingPolicy>),
 	Metrics(frontend::MetricsFieldsPolicy),

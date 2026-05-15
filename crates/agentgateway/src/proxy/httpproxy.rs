@@ -661,6 +661,14 @@ impl HTTPProxy {
 				self
 					.handle_frontend_policies(&frontend_policies, log, &mut req)
 					.await;
+				if req.method() == ::http::Method::CONNECT
+					&& !matches!(
+						frontend_policies.connect.as_ref().map(|p| p.mode),
+						Some(frontend::ConnectMode::Terminate)
+					) {
+					return Err(ProxyResponse::Error(ProxyError::MethodNotAllowed))
+						.snapshot_on_err(log, &mut req);
+				}
 				l
 			},
 			Err(e) => {
@@ -985,7 +993,7 @@ impl HTTPProxy {
 
 		// CONNECT establishes a raw byte tunnel after any configured backend transport
 		// has been established. Backend TLS applies to the gateway-to-backend leg.
-		let transport = build_transport(
+		let transport = build_backend_transport(
 			&self.inputs,
 			&backend_call,
 			req
@@ -993,9 +1001,6 @@ impl HTTPProxy {
 				.get::<WaypointService>()
 				.is_some()
 				.then_some(HboneSourceRole::Waypoint),
-			backend_call.backend_policies.backend_tls.clone(),
-			backend_call.backend_policies.tunnel.as_ref(),
-			None,
 		)
 		.await?;
 		let upstream = self
@@ -1523,6 +1528,27 @@ pub async fn build_transport(
 	})
 }
 
+async fn build_backend_transport(
+	inputs: &ProxyInputs,
+	backend_call: &BackendCall,
+	hbone_source: Option<HboneSourceRole>,
+) -> Result<Transport, ProxyError> {
+	build_transport(
+		inputs,
+		backend_call,
+		hbone_source,
+		backend_call.backend_policies.backend_tls.clone(),
+		backend_call.backend_policies.tunnel.as_ref(),
+		backend_call
+			.backend_policies
+			.http
+			.as_ref()
+			.and_then(|h| h.version)
+			.or(backend_call.http_version_override),
+	)
+	.await
+}
+
 fn get_backend_policies(
 	inputs: &ProxyInputs,
 	// Backend, and policies specifically inlined on this backend object
@@ -1997,20 +2023,7 @@ async fn make_backend_call(
 		&mut req,
 	)
 	.await?;
-	let transport = build_transport(
-		&inputs,
-		&backend_call,
-		hbone_source,
-		backend_call.backend_policies.backend_tls.clone(),
-		backend_call.backend_policies.tunnel.as_ref(),
-		backend_call
-			.backend_policies
-			.http
-			.as_ref()
-			.and_then(|h| h.version)
-			.or(backend_call.http_version_override),
-	)
-	.await?;
+	let transport = build_backend_transport(&inputs, &backend_call, hbone_source).await?;
 	dtrace::snapshot!(Request, "final request", &req);
 	let call = client::Call {
 		req,

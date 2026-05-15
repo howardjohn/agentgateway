@@ -2271,6 +2271,16 @@ fn frontend_policy_from_proto(
 				};
 			FrontendPolicy::Proxy(frontend::Proxy { version, mode })
 		},
+		Some(fps::Kind::Connect(c)) => {
+			let mode =
+				match crate::types::proto::agent::frontend_policy_spec::connect::Mode::try_from(c.mode) {
+					Ok(crate::types::proto::agent::frontend_policy_spec::connect::Mode::Disabled) => {
+						frontend::ConnectMode::Disabled
+					},
+					_ => frontend::ConnectMode::Terminate,
+				};
+			FrontendPolicy::Connect(frontend::Connect { mode })
+		},
 		Some(fps::Kind::Logging(p)) => {
 			let (add, rm) = p
 				.fields

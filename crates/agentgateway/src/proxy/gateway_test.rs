@@ -34,11 +34,11 @@ use crate::proxy::request_builder::RequestBuilder;
 use crate::test_helpers::proxymock::*;
 use crate::test_helpers::{extauthmock, oteltracemock, ratelimitmock};
 use crate::types::agent::{
-	Backend, BackendTarget, BackendTrafficPolicy, BackendWithPolicies, Bind, BindProtocol, Listener,
-	ListenerProtocol, ListenerSet, PathMatch, PolicyTarget, ResourceName, Route, RouteMatch,
-	SimpleBackendReference, Target, TargetedPolicy,
+	Backend, BackendTarget, BackendTrafficPolicy, BackendWithPolicies, Bind, BindProtocol,
+	FrontendPolicy, Listener, ListenerProtocol, ListenerSet, ListenerTarget, PathMatch, PolicyTarget,
+	ResourceName, Route, RouteMatch, SimpleBackendReference, Target, TargetedPolicy,
 };
-use crate::types::backend;
+use crate::types::{backend, frontend};
 use crate::{read_body, *};
 
 const TEST_PRIVATE_KEY_PEM: &str = "-----BEGIN PRIVATE KEY-----
@@ -2116,7 +2116,7 @@ async fn incoming_connect_dynamic_forward_proxy() {
 		stream.write_all(b"pong").await.unwrap();
 	});
 
-	let t = setup_dfp_bind();
+	let t = setup_dfp_bind().with_connect_enabled();
 	let mut io = t.serve(BIND_KEY);
 	let req = format!("CONNECT {target_addr} HTTP/1.1\r\nHost: {target_addr}\r\n\r\n");
 	io.write_all(req.as_bytes()).await.unwrap();
@@ -2145,6 +2145,33 @@ async fn incoming_connect_dynamic_forward_proxy() {
 }
 
 #[tokio::test]
+async fn incoming_connect_requires_frontend_connect_policy() {
+	let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+	let target_addr = listener.local_addr().unwrap();
+
+	let t = setup_dfp_bind();
+	let mut io = t.serve(BIND_KEY);
+	let req = format!("CONNECT {target_addr} HTTP/1.1\r\nHost: {target_addr}\r\n\r\n");
+	io.write_all(req.as_bytes()).await.unwrap();
+
+	let mut response = Vec::new();
+	loop {
+		let mut chunk = [0; 1024];
+		let n = io.read(&mut chunk).await.unwrap();
+		assert!(n > 0, "CONNECT response unexpectedly closed");
+		response.extend_from_slice(&chunk[..n]);
+		if response.windows(4).any(|w| w == b"\r\n\r\n") {
+			break;
+		}
+	}
+	assert!(
+		String::from_utf8_lossy(&response).starts_with("HTTP/1.1 405 Method Not Allowed\r\n"),
+		"unexpected CONNECT response: {}",
+		String::from_utf8_lossy(&response),
+	);
+}
+
+#[tokio::test]
 async fn incoming_connect_applies_backend_tls() {
 	let (mock, certs) = tls_mock().await;
 	let backend_tls = http::backendtls::ResolvedBackendTLS {
@@ -2158,6 +2185,7 @@ async fn incoming_connect_applies_backend_tls() {
 
 	let t = setup_proxy_test("{}")
 		.unwrap()
+		.with_connect_enabled()
 		.with_raw_backend(BackendWithPolicies {
 			backend: Backend::Opaque(
 				ResourceName::new(strng::format!("{}", mock.address()), "".into()),
@@ -2209,7 +2237,7 @@ async fn incoming_connect_applies_backend_tls() {
 
 #[tokio::test]
 async fn incoming_connect_requires_authority_port() {
-	let t = setup_dfp_bind();
+	let t = setup_dfp_bind().with_connect_enabled();
 	let mut io = t.serve(BIND_KEY);
 	io.write_all(b"CONNECT example.com HTTP/1.1\r\nHost: example.com\r\n\r\n")
 		.await
@@ -2271,7 +2299,7 @@ async fn incoming_connect_uses_backend_tunnel_proxy() {
 		let _ = tokio::io::copy_bidirectional(&mut downstream, &mut upstream).await;
 	});
 
-	let mut t = setup_dfp_bind();
+	let mut t = setup_dfp_bind().with_connect_enabled();
 	t.with_policy(TargetedPolicy {
 		key: strng::literal!("pol/backend-tunnel"),
 		name: None,
@@ -2342,7 +2370,7 @@ async fn incoming_connect_snapshots_request_for_cel_logging() {
 		},
 	}))
 	.unwrap();
-	let t = setup_dfp_bind_with_config(&config);
+	let t = setup_dfp_bind_with_config(&config).with_connect_enabled();
 	let mut io = t.serve(BIND_KEY);
 	let req = format!("CONNECT {target_addr} HTTP/1.1\r\nHost: {target_addr}\r\n\r\n");
 	io.write_all(req.as_bytes()).await.unwrap();
@@ -2641,6 +2669,26 @@ async fn assert_llm(io: Client<MemoryConnector, Body>, body: &[u8], want: Value)
 }
 
 // --- Dynamic Forward Proxy (DFP) tests ---
+
+impl TestBind {
+	fn with_connect_enabled(mut self) -> Self {
+		self.with_policy(TargetedPolicy {
+			key: strng::literal!("pol/frontend-connect"),
+			name: None,
+			target: PolicyTarget::Gateway(ListenerTarget {
+				gateway_name: strng::literal!("default"),
+				gateway_namespace: strng::literal!("default"),
+				listener_name: None,
+				port: None,
+			}),
+			policy: FrontendPolicy::Connect(frontend::Connect {
+				mode: frontend::ConnectMode::Terminate,
+			})
+			.into(),
+		});
+		self
+	}
+}
 
 /// Helper to set up a DFP test: creates a Dynamic backend and a route pointing to it.
 fn setup_dfp_bind() -> TestBind {
