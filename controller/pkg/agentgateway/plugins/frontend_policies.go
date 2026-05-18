@@ -371,7 +371,7 @@ func castUint32[T ~int32](ka *T) *uint32 {
 }
 
 func quantityUint32(ka *agentgateway.ByteSize) *uint32 {
-	return new((*ka).ClampedValue())
+	return ka.ClampedValue()
 }
 
 func translateFrontendTLS(policy *agentgateway.AgentgatewayPolicy, name string) *api.Policy {

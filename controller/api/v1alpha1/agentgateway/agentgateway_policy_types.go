@@ -8,6 +8,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/agentgateway/agentgateway/controller/api/v1alpha1/shared"
@@ -282,41 +283,56 @@ type LongString = string
 type SNI = string
 
 // ByteSize is a byte quantity that must fit in a uint32 dataplane field.
+// +kubebuilder:validation:Type=string
 // +kubebuilder:validation:XIntOrString
 // +kubebuilder:validation:MaxLength=32
 // +kubebuilder:validation:MinLength=1
+// +kubebuilder:validation:Pattern=`^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)(([KMGTPE]i)|[numkMGTPE]|[eE](\+?0*([0-9]|1[0-8])|-0*[0-9]))?$`
 // +kubebuilder:validation:XValidation:rule="(self >= 1 && self <= 4294967295) || self.size() > 0",message="value must be at least 1 byte and fit within uint32"
-type ByteSize resource.Quantity
+type ByteSize struct {
+	Value *resource.Quantity `json:"-"`
+}
 
-// ClampedValue returns the quantity as a uint32, clamping values to 0..MaxUint32
-func (b ByteSize) ClampedValue() uint32 {
-	q := resource.Quantity(b)
-	v := q.Value()
+// ClampedValue returns the quantity as a uint32, clamping values to 0..MaxUint32.
+func (b *ByteSize) ClampedValue() *uint32 {
+	if b == nil || b.Value == nil {
+		return nil
+	}
+	v := b.Value.Value()
 	if v < 0 {
-		return 0
+		return ptr.To[uint32](0)
 	}
 	if v > math.MaxUint32 {
-		return math.MaxUint32
+		return ptr.To[uint32](math.MaxUint32)
 	}
-	return uint32(v)
+	return ptr.To(uint32(v))
 }
 
 func (b ByteSize) MarshalJSON() ([]byte, error) {
-	q := resource.Quantity(b)
-	return q.MarshalJSON()
+	if b.Value == nil {
+		return []byte("null"), nil
+	}
+	return b.Value.MarshalJSON()
 }
 
 func (b *ByteSize) UnmarshalJSON(data []byte) error {
 	var q resource.Quantity
 	if err := q.UnmarshalJSON(data); err != nil {
-		return err
+		// Invalid byte sizes must not block informer decoding. CEL cannot validate
+		// this safely until the quantity cost bug is fixed, so treat it as unset.
+		b.Value = nil
+		return nil
 	}
-	*b = ByteSize(q)
+	b.Value = &q
 	return nil
 }
 
 func (b ByteSize) DeepCopy() ByteSize {
-	return ByteSize(resource.Quantity(b).DeepCopy())
+	if b.Value == nil {
+		return ByteSize{}
+	}
+	q := b.Value.DeepCopy()
+	return ByteSize{Value: &q}
 }
 
 type InsecureTLSMode string
@@ -511,8 +527,6 @@ type FrontendHTTP struct {
 	HTTP2ConnectionWindowSize *ByteSize `json:"http2ConnectionWindowSize,omitempty"`
 	// `http2FrameSize` sets the maximum frame size to use.
 	// If unset, this defaults to `16kb`.
-	// +kubebuilder:validation:XValidation:rule="!quantity(string(self)).isLessThan(quantity('16384'))",message="http2FrameSize must be at least 16384 bytes"
-	// +kubebuilder:validation:XValidation:rule="!quantity(string(self)).isGreaterThan(quantity('1677215'))",message="http2FrameSize must be at most 1677215 bytes"
 	// +optional
 	HTTP2FrameSize *ByteSize `json:"http2FrameSize,omitempty"`
 	// `http2MaxHeaderSize` sets the maximum aggregate size of decoded HTTP/2
