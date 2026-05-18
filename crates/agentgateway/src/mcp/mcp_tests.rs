@@ -506,6 +506,24 @@ async fn authorization_denied_returns_unknown_resource_error() {
 	}
 }
 
+#[tokio::test]
+async fn resource_subscribe_and_unsubscribe_forward_to_single_backend() {
+	let mock = mock_streamable_http_server(true).await;
+	let (_bind, io) = setup_proxy(&mock, true, false).await;
+	let client = mcp_streamable_client(io).await;
+
+	client
+		.subscribe(rmcp::model::SubscribeRequestParams::new("memo://insights"))
+		.await
+		.unwrap();
+	client
+		.unsubscribe(rmcp::model::UnsubscribeRequestParams::new(
+			"memo://insights",
+		))
+		.await
+		.unwrap();
+}
+
 /// Test that a deny policy targeting a specific tool filters only that tool from list_tools,
 /// while leaving all other tools accessible.
 #[tokio::test]
@@ -1393,6 +1411,7 @@ mod mockserver {
 				ServerCapabilities::builder()
 					.enable_prompts()
 					.enable_resources()
+					.enable_resources_subscribe()
 					.enable_tools()
 					.build(),
 			)
@@ -1433,6 +1452,38 @@ mod mockserver {
 						memo, uri,
 					)]))
 				},
+				_ => Err(McpError::resource_not_found(
+					"resource_not_found",
+					Some(json!({
+							"uri": uri
+					})),
+				)),
+			}
+		}
+
+		async fn subscribe(
+			&self,
+			SubscribeRequestParams { uri, .. }: SubscribeRequestParams,
+			_: RequestContext<RoleServer>,
+		) -> Result<(), McpError> {
+			match uri.as_str() {
+				"str:////Users/to/some/path/" | "memo://insights" => Ok(()),
+				_ => Err(McpError::resource_not_found(
+					"resource_not_found",
+					Some(json!({
+							"uri": uri
+					})),
+				)),
+			}
+		}
+
+		async fn unsubscribe(
+			&self,
+			UnsubscribeRequestParams { uri, .. }: UnsubscribeRequestParams,
+			_: RequestContext<RoleServer>,
+		) -> Result<(), McpError> {
+			match uri.as_str() {
+				"str:////Users/to/some/path/" | "memo://insights" => Ok(()),
 				_ => Err(McpError::resource_not_found(
 					"resource_not_found",
 					Some(json!({
