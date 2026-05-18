@@ -8,7 +8,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/agentgateway/agentgateway/controller/api/v1alpha1/shared"
@@ -300,12 +299,12 @@ func (b *ByteSize) ClampedValue() *uint32 {
 	}
 	v := b.Value.Value()
 	if v < 0 {
-		return ptr.To[uint32](0)
+		return new(uint32(0))
 	}
 	if v > math.MaxUint32 {
-		return ptr.To[uint32](math.MaxUint32)
+		return new(uint32(math.MaxUint32))
 	}
-	return ptr.To(uint32(v))
+	return new(uint32(v))
 }
 
 func (b ByteSize) MarshalJSON() ([]byte, error) {
