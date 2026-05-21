@@ -431,12 +431,13 @@ impl AIProvider {
 				})?;
 				Ok(())
 			}),
-			AIProvider::Copilot(_) => http::modify_req(req, |req| {
+			AIProvider::Copilot(provider) => http::modify_req(req, |req| {
 				http::modify_uri(req, |uri| {
+					let request_model = llm_request.map(|l| l.request_model.as_str());
 					let path = format!(
 						"{}{}",
 						path_prefix.map_or("", |prefix| prefix.trim_end_matches('/')),
-						copilot::path_suffix(route_type)
+						provider.path_suffix(route_type, request_model)
 					);
 					Self::set_path_and_query(uri, &path)?;
 					Ok(())
@@ -718,6 +719,7 @@ impl AIProvider {
 			AIProvider::Anthropic(_) => false,
 			AIProvider::Bedrock(p) => !p.is_anthropic_model(req.model.as_deref()),
 			AIProvider::Vertex(p) => !p.is_anthropic_model(req.model.as_deref()),
+			AIProvider::Copilot(p) => !p.is_anthropic_model(req.model.as_deref()),
 			_ => true,
 		};
 		if use_local {
@@ -836,7 +838,10 @@ impl AIProvider {
 				// OpenAI/Gemini/Azure support messages via translation to chat completions
 			},
 			(
-				AIProvider::Anthropic(_) | AIProvider::Bedrock(_) | AIProvider::Vertex(_),
+				AIProvider::Anthropic(_)
+				| AIProvider::Bedrock(_)
+				| AIProvider::Vertex(_)
+				| AIProvider::Copilot(_),
 				InputFormat::CountTokens,
 			) => {
 				// Anthropic supports count_tokens natively (Bedrock & Vertex assumes its serving Anthropic models)
@@ -902,6 +907,7 @@ impl AIProvider {
 					let body = req.to_anthropic()?;
 					provider.prepare_anthropic_count_tokens_body(body)?
 				},
+				AIProvider::Copilot(_) => req.to_anthropic()?,
 				_ => {
 					return Err(AIError::UnsupportedConversion(strng::literal!(
 						"count_tokens not supported for this provider"
@@ -910,7 +916,18 @@ impl AIProvider {
 			}
 		} else {
 			match self {
-				AIProvider::OpenAI(_) | AIProvider::Copilot(_) | AIProvider::Azure(_) => req.to_openai()?,
+				AIProvider::OpenAI(_) | AIProvider::Azure(_) => req.to_openai()?,
+				AIProvider::Copilot(p) => {
+					if matches!(
+						original_format,
+						InputFormat::Completions | InputFormat::Messages
+					) && p.is_anthropic_model(Some(request_model))
+					{
+						req.to_anthropic()?
+					} else {
+						req.to_openai()?
+					}
+				},
 				AIProvider::Vertex(p) => {
 					if p.is_anthropic_model(Some(request_model)) {
 						let body = req.to_anthropic()?;
@@ -1140,15 +1157,22 @@ impl AIProvider {
 			)),
 			// Completions with OpenAI: just passthrough
 			(
-				AIProvider::OpenAI(_)
-				| AIProvider::Copilot(_)
-				| AIProvider::Gemini(_)
-				| AIProvider::Azure(_),
+				AIProvider::OpenAI(_) | AIProvider::Gemini(_) | AIProvider::Azure(_),
 				InputFormat::Completions,
 			) => Ok(Box::new(
 				serde_json::from_slice::<types::completions::Response>(bytes)
 					.map_err(logged_response_parsing(bytes))?,
 			)),
+			(AIProvider::Copilot(p), InputFormat::Completions) => {
+				if p.is_anthropic_model(Some(&req.request_model)) {
+					conversion::messages::from_completions::translate_response(bytes)
+				} else {
+					Ok(Box::new(
+						serde_json::from_slice::<types::completions::Response>(bytes)
+							.map_err(logged_response_parsing(bytes))?,
+					))
+				}
+			},
 			// Responses with OpenAI/Azure: just passthrough
 			(
 				AIProvider::OpenAI(_) | AIProvider::Copilot(_) | AIProvider::Azure(_),
@@ -1173,12 +1197,19 @@ impl AIProvider {
 				serde_json::from_slice::<types::messages::Response>(bytes)
 					.map_err(logged_response_parsing(bytes))?,
 			)),
+			(AIProvider::Copilot(p), InputFormat::Messages) => {
+				if p.is_anthropic_model(Some(&req.request_model)) {
+					Ok(Box::new(
+						serde_json::from_slice::<types::messages::Response>(bytes)
+							.map_err(logged_response_parsing(bytes))?,
+					))
+				} else {
+					conversion::completions::from_messages::translate_response(bytes)
+				}
+			},
 			// OpenAI/Gemini/Azure messages: translate from chat completions
 			(
-				AIProvider::OpenAI(_)
-				| AIProvider::Copilot(_)
-				| AIProvider::Gemini(_)
-				| AIProvider::Azure(_),
+				AIProvider::OpenAI(_) | AIProvider::Gemini(_) | AIProvider::Azure(_),
 				InputFormat::Messages,
 			) => conversion::completions::from_messages::translate_response(bytes),
 			// Supported paths with conversion...
@@ -1235,6 +1266,10 @@ impl AIProvider {
 			AIProvider::Vertex(p) => p.is_anthropic_model(Some(&req.request_model)),
 			_ => false,
 		};
+		let is_copilot_anthropic = match self {
+			AIProvider::Copilot(p) => p.is_anthropic_model(Some(&req.request_model)),
+			_ => false,
+		};
 		let model = req.request_model.clone();
 		let input_format = req.input_format;
 		// Store an empty response, as we stream in info we will parse into it
@@ -1268,12 +1303,15 @@ impl AIProvider {
 		Ok(match (self, input_format) {
 			// Completions with OpenAI: just passthrough
 			(
-				AIProvider::OpenAI(_)
-				| AIProvider::Copilot(_)
-				| AIProvider::Gemini(_)
-				| AIProvider::Azure(_),
+				AIProvider::OpenAI(_) | AIProvider::Gemini(_) | AIProvider::Azure(_),
 				InputFormat::Completions,
 			) => conversion::completions::passthrough_stream(logger, include_completion_in_log, resp),
+			(AIProvider::Copilot(_), InputFormat::Completions) if is_copilot_anthropic => {
+				resp.map(|b| conversion::messages::from_completions::translate_stream(b, buffer, logger))
+			},
+			(AIProvider::Copilot(_), InputFormat::Completions) => {
+				conversion::completions::passthrough_stream(logger, include_completion_in_log, resp)
+			},
 			// Vertex completions: passthrough for OpenAI-compatible models, translate for Anthropic models
 			(AIProvider::Vertex(_), InputFormat::Completions) if is_vertex_anthropic => {
 				resp.map(|b| conversion::messages::from_completions::translate_stream(b, buffer, logger))
@@ -1304,12 +1342,15 @@ impl AIProvider {
 			(AIProvider::Anthropic(_), InputFormat::Messages) => {
 				resp.map(|b| conversion::messages::passthrough_stream(b, buffer, logger))
 			},
+			(AIProvider::Copilot(_), InputFormat::Messages) if is_copilot_anthropic => {
+				resp.map(|b| conversion::messages::passthrough_stream(b, buffer, logger))
+			},
+			(AIProvider::Copilot(_), InputFormat::Messages) => {
+				resp.map(|b| conversion::completions::from_messages::translate_stream(b, buffer, logger))
+			},
 			// OpenAI/Gemini/Azure messages: translate from chat completions
 			(
-				AIProvider::OpenAI(_)
-				| AIProvider::Copilot(_)
-				| AIProvider::Gemini(_)
-				| AIProvider::Azure(_),
+				AIProvider::OpenAI(_) | AIProvider::Gemini(_) | AIProvider::Azure(_),
 				InputFormat::Messages,
 			) => resp.map(|b| conversion::completions::from_messages::translate_stream(b, buffer, logger)),
 			// Supported paths with conversion...
@@ -1386,10 +1427,20 @@ impl AIProvider {
 	) -> Result<Bytes, AIError> {
 		match (self, req.input_format) {
 			(
-				AIProvider::OpenAI(_) | AIProvider::Copilot(_) | AIProvider::Azure(_),
+				AIProvider::OpenAI(_) | AIProvider::Azure(_),
 				InputFormat::Completions | InputFormat::Responses | InputFormat::Embeddings,
 			) => {
 				// Passthrough; nothing needed
+				Ok(bytes.clone())
+			},
+			(AIProvider::Copilot(p), InputFormat::Completions) => {
+				if p.is_anthropic_model(Some(&req.request_model)) {
+					conversion::messages::from_completions::translate_error(bytes)
+				} else {
+					Ok(bytes.clone())
+				}
+			},
+			(AIProvider::Copilot(_), InputFormat::Responses | InputFormat::Embeddings) => {
 				Ok(bytes.clone())
 			},
 			(AIProvider::Gemini(_), InputFormat::Completions) => {
@@ -1413,10 +1464,16 @@ impl AIProvider {
 				// Passthrough; Vertex embeddings endpoint already returns OpenAI-compatible errors.
 				Ok(bytes.clone())
 			},
-			(
-				AIProvider::OpenAI(_) | AIProvider::Copilot(_) | AIProvider::Azure(_),
-				InputFormat::Messages,
-			) => conversion::completions::from_messages::translate_error(bytes, status),
+			(AIProvider::OpenAI(_) | AIProvider::Azure(_), InputFormat::Messages) => {
+				conversion::completions::from_messages::translate_error(bytes, status)
+			},
+			(AIProvider::Copilot(p), InputFormat::Messages) => {
+				if p.is_anthropic_model(Some(&req.request_model)) {
+					conversion::messages::translate_anthropic_error(bytes, status)
+				} else {
+					conversion::completions::from_messages::translate_error(bytes, status)
+				}
+			},
 			(AIProvider::Gemini(_), InputFormat::Messages) => {
 				conversion::messages::translate_google_error(bytes)
 			},
