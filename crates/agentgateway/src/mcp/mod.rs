@@ -281,7 +281,12 @@ impl Error {
 					id,
 					ErrorData {
 						code,
-						message: self.to_string().into(),
+						message: match self {
+							Error::SendError(_, _) => "failed to send message".into(),
+							Error::Unavailable(_, _) => "service unavailable".into(),
+							Error::Authorization(_, _, _) => "unknown resource".into(),
+							_ => self.to_string().into(),
+						},
 						data: None,
 					},
 				)
