@@ -194,6 +194,7 @@ func (s *Syncer) buildResourceCollections(krtopts krtutil.KrtOptions) {
 
 	// Build XDS collection
 	s.buildXDSCollection(agwResources, addresses, krtopts)
+	s.NackPublisher.SetResourceCollection(agwResources)
 
 	// Set up sync dependencies
 	s.setupSyncDependencies(agwResources, addresses, hasSynced)
@@ -562,8 +563,15 @@ func (s *Syncer) buildAgwResources(
 	referenceIndex = referenceIndex.WithPolicyAttachments(policyReferencesIndexCollection)
 	referenceIndex = referenceIndex.WithListenerSetAttachments(listenerSetAttachmentsIdx)
 
+	resourceNacks := krt.NewStaticCollection[plugins.ResourceNack](nil, nil, krtopts.ToOptions("nacks/Resources")...)
+	s.NackPublisher.SetNackCollection(resourceNacks)
+	resourceNacksByKey := krt.NewIndex(resourceNacks, "resource", func(o plugins.ResourceNack) []string {
+		return []string{o.ResourceName()}
+	})
+	resourceNacksByKeyCollection := resourceNacksByKey.AsCollection(krtopts.ToOptions("nacks/ResourcesByKey")...)
+
 	// Phase 2: Build policies with the fully-populated reference index.
-	agwPolicies, policyStatuses := BuildPolicies(s.agwPlugins, referenceIndex, krtopts)
+	agwPolicies, policyStatuses := BuildPolicies(s.agwPlugins, referenceIndex, resourceNacks, resourceNacksByKeyCollection, krtopts)
 	for _, col := range policyStatuses {
 		status.RegisterStatus(s.statusCollections, col, translator.GetStatus)
 	}

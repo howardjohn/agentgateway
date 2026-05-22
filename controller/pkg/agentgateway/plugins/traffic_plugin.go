@@ -34,6 +34,7 @@ import (
 	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/remotehttp"
 	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/utils"
 	"github.com/agentgateway/agentgateway/controller/pkg/logging"
+	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk/krtutil"
 	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk/reporter"
 	"github.com/agentgateway/agentgateway/controller/pkg/reports"
 	"github.com/agentgateway/agentgateway/controller/pkg/wellknown"
@@ -57,6 +58,7 @@ const (
 	basicAuthPolicySuffix          = ":basicauth"
 	apiKeyPolicySuffix             = ":apikeyauth" //nolint:gosec
 	directResponseSuffix           = ":direct-response"
+	policyReasonNackError          = "AgentGatewayNackError"
 )
 
 var logger = logging.New("agentgateway/plugins")
@@ -99,7 +101,7 @@ func NewAgentPlugin(agw *AgwCollections, resolver remotehttp.Resolver, jwksLooku
 						*gwv1.PolicyStatus,
 						[]AgwPolicy,
 					) {
-						return TranslateAgentgatewayPolicy(krtctx, policyCR, agw, input.References, resolver, jwksLookup)
+						return TranslateAgentgatewayPolicy(krtctx, policyCR, agw, input.References, input.Nacks, input.NacksByKey, resolver, jwksLookup)
 					}, agw.KrtOpts.ToOptions("policies/Agentgateway")...)
 					return ConvertStatusCollection(policyStatusCol, agw.KrtOpts.ToOptions, "policies/Agentgateway"), policyCol
 				},
@@ -134,6 +136,8 @@ func TranslateAgentgatewayPolicy(
 	policy *agentgateway.AgentgatewayPolicy,
 	agw *AgwCollections,
 	references ReferenceIndex,
+	nacks krt.Collection[ResourceNack],
+	nacksByKey krt.IndexCollection[string, ResourceNack],
 	resolver remotehttp.Resolver,
 	jwksLookup jwks.Lookup,
 ) (*gwv1.PolicyStatus, []AgwPolicy) {
@@ -165,6 +169,7 @@ func TranslateAgentgatewayPolicy(
 			// chain happens to reference the same name, which would push config for a phantom target.
 			// Gateway/route targets use direct lookup (no PolicyAttachments), so they're safe.
 			var gatewayTargets []types.NamespacedName
+			nackMessagesByGateway := map[types.NamespacedName][]string{}
 			if !IsBackendLikeTarget(policyTarget) || targetExists {
 				gatewayTargets = references.LookupGatewaysForPolicyTarget(ctx, targetObject, policyTarget).UnsortedList()
 				translatedPolicies := ClonePoliciesForTarget(baseTranslatedPolicies, policyTarget)
@@ -174,6 +179,7 @@ func TranslateAgentgatewayPolicy(
 							Gateway: new(gatewayTarget),
 							Policy:  translatedPolicy,
 						})
+						nackMessagesByGateway[gatewayTarget] = append(nackMessagesByGateway[gatewayTarget], lookupPolicyNackMessages(ctx, nacks, nacksByKey, gatewayTarget, translatedPolicy.Key)...)
 					}
 				}
 			}
@@ -191,7 +197,8 @@ func TranslateAgentgatewayPolicy(
 				}) != -1 {
 					continue
 				}
-				ancestors = append(ancestors, SetAncestorStatus(ar, existingStatus, policy.Generation, baseConds, controller))
+				ancestorGateway := parentRefGateway(policy.Namespace, ar)
+				ancestors = append(ancestors, SetAncestorStatus(ar, existingStatus, policy.Generation, nackConditionMap(baseConds, nackMessagesByGateway[ancestorGateway]), controller))
 			}
 		}
 	}
@@ -294,6 +301,48 @@ func PolicyConditionMap(err error, hasTranslatedPolicies bool) map[string]*Condi
 		}
 	}
 	return conds
+}
+
+func lookupPolicyNackMessages(
+	ctx krt.HandlerContext,
+	nacks krt.Collection[ResourceNack],
+	nacksByKey krt.IndexCollection[string, ResourceNack],
+	gateway types.NamespacedName,
+	policyKey string,
+) []string {
+	if nacks == nil || nacksByKey == nil {
+		return nil
+	}
+	indexKey := gateway.String() + "/policy/" + policyKey
+	matches := krtutil.FetchIndexObjects(ctx, nacksByKey, indexKey)
+	if len(matches) == 0 {
+		return nil
+	}
+	messages := make([]string, 0, len(matches))
+	for _, match := range matches {
+		messages = append(messages, match.Message)
+	}
+	return messages
+}
+
+func nackConditionMap(baseConds map[string]*Condition, nackMessages []string) map[string]*Condition {
+	conds := maps.Clone(baseConds)
+	if len(nackMessages) > 0 {
+		conds[string(shared.PolicyConditionAccepted)] = &Condition{
+			Status:  metav1.ConditionFalse,
+			Reason:  policyReasonNackError,
+			Message: strings.Join(nackMessages, "\n"),
+		}
+	}
+	return conds
+}
+
+func parentRefGateway(defaultNamespace string, ref gwv1.ParentReference) types.NamespacedName {
+	namespace := defaultNamespace
+	if ref.Namespace != nil {
+		namespace = string(*ref.Namespace)
+	}
+	return types.NamespacedName{Namespace: namespace, Name: string(ref.Name)}
 }
 
 func attachmentErrorConditionMap(baseConds map[string]*Condition, attachmentErrors []string) map[string]*Condition {

@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"sort"
+	"time"
 
 	"istio.io/istio/pilot/pkg/util/protoconv"
 	"istio.io/istio/pkg/config"
@@ -20,6 +21,8 @@ import (
 
 type PolicyPluginInput struct {
 	References ReferenceIndex
+	Nacks      krt.Collection[ResourceNack]
+	NacksByKey krt.IndexCollection[string, ResourceNack]
 }
 
 type BackendPlugin struct {
@@ -39,6 +42,26 @@ type AgwPolicy struct {
 	Gateway *types.NamespacedName
 	Policy  *api.Policy
 	// TODO: track errors per policy
+}
+
+type ResourceNack struct {
+	Gateway   types.NamespacedName
+	Key       string
+	TypeUrl   string
+	Message   string
+	Timestamp time.Time
+}
+
+func (n ResourceNack) ResourceName() string {
+	return n.Gateway.String() + "/" + n.Key
+}
+
+func (n ResourceNack) Equals(other ResourceNack) bool {
+	return n.Gateway == other.Gateway &&
+		n.Key == other.Key &&
+		n.TypeUrl == other.TypeUrl &&
+		n.Message == other.Message &&
+		n.Timestamp.Equal(other.Timestamp)
 }
 
 func (p AgwPolicy) Equals(in AgwPolicy) bool {

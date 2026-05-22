@@ -6,7 +6,6 @@ package krtxds
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -64,32 +63,10 @@ type CollectionRegistration struct {
 
 type Registration func(*DiscoveryServer) CollectionRegistration
 
-type nackDiagnostic struct {
-	Key   string `json:"key"`
-	Warn  string `json:"warn,omitempty"`
-	Error string `json:"error,omitempty"`
-}
+type nackDiagnostic = nack.Diagnostic
 
 func parseNackDiagnostics(message string) ([]nackDiagnostic, bool) {
-	if !strings.HasPrefix(strings.TrimSpace(message), "[") {
-		return nil, false
-	}
-
-	var diagnostics []nackDiagnostic
-	if err := json.Unmarshal([]byte(message), &diagnostics); err != nil || len(diagnostics) == 0 {
-		return nil, false
-	}
-
-	for _, diagnostic := range diagnostics {
-		if diagnostic.Key == "" {
-			return nil, false
-		}
-		if diagnostic.Warn == "" && diagnostic.Error == "" {
-			return nil, false
-		}
-	}
-
-	return diagnostics, true
+	return nack.ParseDiagnostics(message)
 }
 
 func TypeName[T proto.Message]() string {
@@ -572,6 +549,7 @@ func shouldRespondDelta(con *Connection, request *discovery.DeltaDiscoveryReques
 			nackEvent := nack.NackEvent{
 				Gateway:   gateway,
 				TypeUrl:   request.TypeUrl,
+				Nonce:     request.ResponseNonce,
 				ErrorMsg:  message,
 				Timestamp: time.Now(),
 			}
@@ -643,6 +621,9 @@ func shouldRespondDelta(con *Connection, request *discovery.DeltaDiscoveryReques
 		wr.AlwaysRespond = false
 		return wr
 	})
+	if nackPublisher != nil && !spontaneousReq {
+		nackPublisher.PublishAck(AgentgatewayID(con.node), request.TypeUrl, request.ResponseNonce)
+	}
 
 	// It is invalid in the below two cases:
 	// 1. no subscribed resources change from spontaneous delta request.
@@ -709,6 +690,9 @@ func (s *DiscoveryServer) pushDeltaXds(con *Connection, w *model.WatchedResource
 		log.Debug("send failure", "type", GetShortType(w.TypeUrl), "node", con.proxy.ID, "resources", len(res), "size", ByteCount(configSize), "error", err)
 		return err
 	}
+	if s.nackPublisher != nil {
+		s.nackPublisher.RecordSentResources(gw, w.TypeUrl, resp.Nonce, deltaResourceNames(res, deletedRes))
+	}
 
 	log.Info("push response",
 		"type", GetShortType(w.TypeUrl),
@@ -719,6 +703,17 @@ func (s *DiscoveryServer) pushDeltaXds(con *Connection, w *model.WatchedResource
 		"size", ByteCount(configSize))
 
 	return nil
+}
+
+func deltaResourceNames(resources model.Resources, deleted model.DeletedResources) []string {
+	names := make([]string, 0, len(resources)+len(deleted))
+	for _, resource := range resources {
+		if resource != nil {
+			names = append(names, resource.Name)
+		}
+	}
+	names = append(names, deleted...)
+	return names
 }
 
 func (s *DiscoveryServer) IsServerReady() bool {

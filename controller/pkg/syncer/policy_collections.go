@@ -31,11 +31,17 @@ func CollectPolicyReferences(agwPlugins plugins.AgwPlugin, references plugins.Re
 }
 
 // BuildPolicies builds all policies using the provided (fully-populated) reference index.
-func BuildPolicies(agwPlugins plugins.AgwPlugin, references plugins.ReferenceIndex, krtopts krtutil.KrtOptions) (krt.Collection[ir.AgwResource], PolicyStatusCollections) {
+func BuildPolicies(
+	agwPlugins plugins.AgwPlugin,
+	references plugins.ReferenceIndex,
+	nacks krt.Collection[plugins.ResourceNack],
+	nacksByKey krt.IndexCollection[string, plugins.ResourceNack],
+	krtopts krtutil.KrtOptions,
+) (krt.Collection[ir.AgwResource], PolicyStatusCollections) {
 	var allPolicies []krt.Collection[plugins.AgwPolicy]
 	policyStatusMap := PolicyStatusCollections{}
 	for gvk, plugin := range agwPlugins.ContributesPolicies {
-		status, col := plugin.Build(plugins.PolicyPluginInput{References: references})
+		status, col := plugin.Build(plugins.PolicyPluginInput{References: references, Nacks: nacks, NacksByKey: nacksByKey})
 		allPolicies = append(allPolicies, col)
 		if status != nil {
 			policyStatusMap[gvk] = status
