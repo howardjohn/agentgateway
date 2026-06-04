@@ -323,6 +323,7 @@ pub struct RawLogging {
 	fields: Option<RawLoggingFields>,
 	level: Option<RawLoggingLevel>,
 	format: Option<LoggingFormat>,
+	database: Option<telemetry::log_store::Config>,
 }
 
 #[apply(schema_de!)]

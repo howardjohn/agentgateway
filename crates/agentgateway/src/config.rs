@@ -462,6 +462,7 @@ pub fn parse_config(
 				.as_ref()
 				.and_then(|l| l.format.clone())
 				.unwrap_or_default(),
+			database: raw.logging.as_ref().and_then(|l| l.database.clone()),
 			fields: raw
 				.logging
 				.and_then(|f| f.fields)

@@ -38,12 +38,32 @@ use crate::proxy::{ProxyResponseReason, dtrace};
 use crate::telemetry::metrics::{
 	GenAILabels, GenAILabelsTokenUsage, HTTPLabels, MCPCall, Metrics, RouteIdentifier,
 };
-use crate::telemetry::trc;
 use crate::telemetry::trc::TraceParent;
+use crate::telemetry::{log_store, trc};
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::agent::{BackendInfo, BindKey, ListenerName, RouteName, Target};
 use crate::types::loadbalancer::ActiveHandle;
 use crate::{cel, llm, mcp};
+
+fn u64_to_i64(value: Option<u64>) -> Option<i64> {
+	value.map(|value| value.min(i64::MAX as u64) as i64)
+}
+
+fn u128_to_i64(value: u128) -> i64 {
+	value.min(i64::MAX as u128) as i64
+}
+
+fn kv_to_json(kv: &[(&str, Option<ValueBag>)]) -> Value {
+	let mut map = serde_json::Map::with_capacity(kv.len());
+	for (key, value) in kv {
+		if let Some(value) = value
+			&& let Ok(value) = serde_json::to_value(value)
+		{
+			map.insert((*key).to_string(), value);
+		}
+	}
+	Value::Object(map)
+}
 
 /// AsyncLog is a wrapper around an item that can be atomically set.
 /// The intent is to provide additional info to the log after we have lost the RequestLog reference,
@@ -119,6 +139,8 @@ pub struct Config {
 	pub level: String,
 	/// Format sets the logging format (text or json)
 	pub format: crate::LoggingFormat,
+	/// Optional request log database sink.
+	pub database: Option<crate::telemetry::log_store::Config>,
 }
 
 #[derive(serde::Serialize, Default, Clone, Debug)]
@@ -869,7 +891,8 @@ impl Drop for DropOnLog {
 			let duration = end_time.duration_since(&log.start);
 			let enable_trace = log.tracer.is_some();
 
-			let llm_response = log.llm_response.take().map(Into::into);
+			let llm_info = log.llm_response.take();
+			let llm_response = llm_info.as_ref().map(LLMContext::from_llm_info);
 
 			let mcp = log.mcp_status.take();
 			let request_handle = log.request_handle.take();
@@ -955,8 +978,8 @@ impl Drop for DropOnLog {
 			}
 
 			let maybe_enable_log = agent_core::telemetry::enabled("request", &Level::INFO);
-			let enable_logs = maybe_enable_log && cel_exec.eval_filter();
-			if !enable_logs && !enable_trace {
+			let log_store_enabled = log_store::enabled();
+			if !maybe_enable_log && !enable_trace && !log_store_enabled {
 				return;
 			}
 
@@ -1214,7 +1237,11 @@ impl Drop for DropOnLog {
 					}
 				}
 			};
-			if enable_logs {
+			if maybe_enable_log || log_store_enabled {
+				let passes_log_filter = cel_exec.eval_filter();
+				if !passes_log_filter {
+					return;
+				}
 				kv.reserve(fields.add.len());
 				for (k, v) in &mut kv {
 					// Remove filtered lines, or things we are about to add
@@ -1231,10 +1258,74 @@ impl Drop for DropOnLog {
 					kv.push((k, eval));
 				}
 
-				agent_core::telemetry::log("info", "request", &kv);
+				if maybe_enable_log {
+					agent_core::telemetry::log("info", "request", &kv);
 
-				if let Some(otel) = &log.otel_logger {
-					otel.emit("info", "request", &kv);
+					if let Some(otel) = &log.otel_logger {
+						otel.emit("info", "request", &kv);
+					}
+				}
+
+				if log_store_enabled {
+					let attributes_json = kv_to_json(&kv);
+					let payload = llm_info.as_ref().and_then(|info| {
+						let request_prompt_json = info
+							.request
+							.prompt
+							.as_ref()
+							.and_then(|prompt| serde_json::to_value(prompt.as_ref()).ok());
+						let response_completion_json = info
+							.response
+							.completion
+							.as_ref()
+							.and_then(|completion| serde_json::to_value(completion).ok());
+						(request_prompt_json.is_some() || response_completion_json.is_some()).then_some(
+							log_store::StoredRequestLogPayload {
+								request_prompt_json,
+								response_completion_json,
+							},
+						)
+					});
+					let has_payload = payload.is_some();
+					let total_tokens = llm_response.as_ref().and_then(|llm| {
+						llm
+							.total_tokens
+							.or_else(|| Some(llm.input_tokens? + llm.output_tokens?))
+					});
+					log_store::emit(log_store::StoredRequestLog {
+						id: uuid::Uuid::new_v4().to_string(),
+						started_at: log.start.as_datetime().with_timezone(&chrono::Utc),
+						completed_at: end_time.as_datetime().with_timezone(&chrono::Utc),
+						duration_ms: u128_to_i64(duration.as_millis()),
+						trace_id: trace_id.map(|id| id.to_string()),
+						span_id: span_id.map(|id| id.to_string()),
+						http_status: log.status.as_ref().map(|s| i64::from(s.as_u16())),
+						error: log.error.clone(),
+						gen_ai_operation_name: log.llm_request.as_ref().map(|request| {
+							if request.input_format == InputFormat::Embeddings {
+								"embeddings".to_string()
+							} else {
+								"chat".to_string()
+							}
+						}),
+						gen_ai_provider_name: log
+							.llm_request
+							.as_ref()
+							.map(|request| request.provider.to_string()),
+						gen_ai_request_model: log
+							.llm_request
+							.as_ref()
+							.map(|request| request.request_model.to_string()),
+						gen_ai_response_model: llm_response
+							.as_ref()
+							.and_then(|llm| llm.response_model.as_ref().map(ToString::to_string)),
+						input_tokens: u64_to_i64(input_tokens),
+						output_tokens: u64_to_i64(llm_response.as_ref().and_then(|llm| llm.output_tokens)),
+						total_tokens: u64_to_i64(total_tokens),
+						has_payload,
+						attributes_json,
+						payload,
+					});
 				}
 			}
 		});

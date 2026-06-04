@@ -46,6 +46,10 @@ pub(crate) fn execute(args: RunArgs) -> anyhow::Result<()> {
 				&config.logging.level,
 				config.logging.format == LoggingFormat::Json,
 			);
+			let _request_log_store = match config.logging.database.as_ref() {
+				Some(cfg) => Some(agentgateway::telemetry::log_store::setup(cfg).await?),
+				None => None,
+			};
 			proxy(Arc::new(config)).await
 		})
 }

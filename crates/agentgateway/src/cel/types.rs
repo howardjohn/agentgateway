@@ -1091,7 +1091,13 @@ pub struct LLMContext {
 
 impl From<llm::LLMInfo> for LLMContext {
 	fn from(value: LLMInfo) -> Self {
-		let resp = value.response;
+		LLMContext::from_llm_info(&value)
+	}
+}
+
+impl LLMContext {
+	pub fn from_llm_info(value: &LLMInfo) -> Self {
+		let resp = &value.response;
 		let mut base = LLMContext {
 			output_tokens: resp.output_tokens,
 			output_image_tokens: resp.output_image_tokens,
@@ -1110,7 +1116,7 @@ impl From<llm::LLMInfo> for LLMContext {
 			response_model: resp.provider_model.clone(),
 			// Not always set
 			completion: resp.completion.clone(),
-			..LLMContext::from(value.request)
+			..LLMContext::from(value.request.clone())
 		};
 
 		if let Some(pt) = resp.input_tokens {
@@ -1120,6 +1126,7 @@ impl From<llm::LLMInfo> for LLMContext {
 		base
 	}
 }
+
 impl From<llm::LLMRequest> for LLMContext {
 	fn from(info: LLMRequest) -> Self {
 		let LLMRequest {
