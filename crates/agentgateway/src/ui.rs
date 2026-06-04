@@ -4,7 +4,7 @@ use std::time::Duration;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use http::header::{AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
 use http::{HeaderName, HeaderValue, Method};
@@ -51,6 +51,9 @@ impl UiHandler {
 			// Redirect to the UI
 			.route("/config", get(get_config).post(write_config))
 			.route("/cel", axum::routing::post(handle_cel))
+			.route("/api/logs/search", post(search_logs))
+			.route("/api/logs/get", post(get_log))
+			.route("/api/logs/analytics/token-usage", post(token_usage))
 			.nest_service("/ui", ui_service)
 			.route("/", get(|| async { Redirect::permanent("/ui") }))
 			.layer(add_cors_layer())
@@ -221,6 +224,33 @@ async fn handle_cel(Json(request): Json<CelRequest>) -> Response {
 	};
 
 	(StatusCode::OK, Json(resp)).into_response()
+}
+
+async fn search_logs(
+	Json(request): Json<crate::telemetry::log_store::SearchRequest>,
+) -> Result<Json<crate::telemetry::log_store::SearchResponse>, ErrorResponse> {
+	crate::telemetry::log_store::search(request)
+		.await
+		.map(Json)
+		.map_err(ErrorResponse::Anyhow)
+}
+
+async fn get_log(
+	Json(request): Json<crate::telemetry::log_store::GetRequest>,
+) -> Result<Json<crate::telemetry::log_store::GetResponse>, ErrorResponse> {
+	crate::telemetry::log_store::get(request)
+		.await
+		.map(Json)
+		.map_err(ErrorResponse::Anyhow)
+}
+
+async fn token_usage(
+	Json(request): Json<crate::telemetry::log_store::TokenUsageRequest>,
+) -> Result<Json<crate::telemetry::log_store::TokenUsageResponse>, ErrorResponse> {
+	crate::telemetry::log_store::token_usage(request)
+		.await
+		.map(Json)
+		.map_err(ErrorResponse::Anyhow)
 }
 
 impl AdminFallback for UiHandler {

@@ -1,9 +1,14 @@
 use anyhow::Context;
-use sqlx::PgPool;
+use serde_json::Value;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::types::Json;
+use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 
-use super::StoredRequestLog;
+use super::{
+	GenAiEntry, GetRequest, GetResponse, GroupBy, GroupByField, LogEntry, LogFilters, PayloadEntry,
+	SearchRequest, SearchResponse, StoredRequestLog, TimeRange, TokenUsageGroup, TokenUsageRequest,
+	TokenUsageResponse, UsageEntry, attr_value, decode_cursor, encode_cursor, limit,
+};
 
 pub struct PostgresLogStore {
 	pool: PgPool,
@@ -53,6 +58,237 @@ impl PostgresLogStore {
 		tx.commit().await?;
 		Ok(())
 	}
+
+	pub async fn search(&self, request: SearchRequest) -> anyhow::Result<SearchResponse> {
+		let limit = limit(request.limit);
+		let mut qb = QueryBuilder::<Postgres>::new(format!("{SELECT_LOGS} WHERE 1=1"));
+		push_filters(&mut qb, request.time_range.as_ref(), &request.filters);
+		if let Some(cursor) = request.cursor.as_deref() {
+			let (completed_at, id) = decode_cursor(cursor)?;
+			qb.push(" AND (completed_at < ");
+			qb.push_bind(completed_at);
+			qb.push(" OR (completed_at = ");
+			qb.push_bind(completed_at);
+			qb.push(" AND id < ");
+			qb.push_bind(id);
+			qb.push("))");
+		}
+		qb.push(" ORDER BY completed_at DESC, id DESC LIMIT ");
+		qb.push_bind(limit + 1);
+		let rows = qb.build().fetch_all(&self.pool).await?;
+		let mut logs = rows
+			.into_iter()
+			.map(|row| row_to_log(row, request.include_attributes, false))
+			.collect::<Result<Vec<_>, _>>()?;
+		let next_cursor = if logs.len() > limit as usize {
+			let _ = logs.pop();
+			logs
+				.last()
+				.map(|log| encode_cursor(log.completed_at, &log.id))
+		} else {
+			None
+		};
+		Ok(SearchResponse { logs, next_cursor })
+	}
+
+	pub async fn get(&self, request: GetRequest) -> anyhow::Result<GetResponse> {
+		let row = if request.include_payload {
+			sqlx::query(SELECT_LOG_WITH_PAYLOAD_BY_ID)
+				.bind(request.id)
+				.fetch_optional(&self.pool)
+				.await?
+		} else {
+			sqlx::query(SELECT_LOG_BY_ID)
+				.bind(request.id)
+				.fetch_optional(&self.pool)
+				.await?
+		};
+		let log = row
+			.map(|row| row_to_log(row, true, request.include_payload))
+			.transpose()?;
+		Ok(GetResponse { log })
+	}
+
+	pub async fn token_usage(
+		&self,
+		request: TokenUsageRequest,
+	) -> anyhow::Result<TokenUsageResponse> {
+		let mut qb = QueryBuilder::<Postgres>::new("SELECT ");
+		push_group_select(&mut qb, &request.group_by);
+		if !request.group_by.is_empty() {
+			qb.push(", ");
+		}
+		qb.push("COUNT(*) AS requests, COALESCE(SUM(input_tokens), 0) AS input_tokens, COALESCE(SUM(output_tokens), 0) AS output_tokens, COALESCE(SUM(total_tokens), 0) AS total_tokens FROM request_logs WHERE 1=1");
+		push_filters(&mut qb, request.time_range.as_ref(), &request.filters);
+		if !request.group_by.is_empty() {
+			qb.push(" GROUP BY ");
+			let mut separated = qb.separated(", ");
+			for idx in 0..request.group_by.len() {
+				separated.push(format!("g{idx}"));
+			}
+		}
+		let rows = qb.build().fetch_all(&self.pool).await?;
+		let groups = rows
+			.into_iter()
+			.map(|row| row_to_token_usage(row, &request.group_by))
+			.collect::<Result<Vec<_>, _>>()?;
+		Ok(TokenUsageResponse { groups })
+	}
+}
+
+fn push_filters(
+	qb: &mut QueryBuilder<Postgres>,
+	time_range: Option<&TimeRange>,
+	filters: &LogFilters,
+) {
+	if let Some(from) = time_range.and_then(|r| r.from) {
+		qb.push(" AND completed_at >= ");
+		qb.push_bind(from);
+	}
+	if let Some(to) = time_range.and_then(|r| r.to) {
+		qb.push(" AND completed_at < ");
+		qb.push_bind(to);
+	}
+	push_in(qb, "http_status", &filters.http_status);
+	push_in(qb, "gen_ai_provider_name", &filters.provider);
+	push_in(qb, "gen_ai_request_model", &filters.request_model);
+	push_in(qb, "gen_ai_response_model", &filters.response_model);
+	if let Some(trace_id) = &filters.trace_id {
+		qb.push(" AND trace_id = ");
+		qb.push_bind(trace_id);
+	}
+	if let Some(has_payload) = filters.has_payload {
+		qb.push(" AND has_payload = ");
+		qb.push_bind(has_payload);
+	}
+	for (key, value) in &filters.attributes {
+		let Some(value) = attr_value(value) else {
+			qb.push(" AND 1=0");
+			continue;
+		};
+		qb.push(" AND attributes_json ->> ");
+		qb.push_bind(key);
+		qb.push(" = ");
+		qb.push_bind(value);
+	}
+}
+
+fn push_in<T>(qb: &mut QueryBuilder<Postgres>, column: &str, values: &[T])
+where
+	T: for<'q> sqlx::Encode<'q, Postgres> + sqlx::Type<Postgres> + Send + Sync,
+{
+	if values.is_empty() {
+		return;
+	}
+	qb.push(" AND ");
+	qb.push(column);
+	qb.push(" IN (");
+	let mut separated = qb.separated(", ");
+	for value in values {
+		separated.push_bind(value);
+	}
+	separated.push_unseparated(")");
+}
+
+fn push_group_select(qb: &mut QueryBuilder<Postgres>, group_by: &[GroupBy]) {
+	let mut separated = qb.separated(", ");
+	for (idx, group) in group_by.iter().enumerate() {
+		match group.field {
+			GroupByField::Provider => {
+				separated.push(format!("gen_ai_provider_name AS g{idx}"));
+			},
+			GroupByField::RequestModel => {
+				separated.push(format!("gen_ai_request_model AS g{idx}"));
+			},
+			GroupByField::ResponseModel => {
+				separated.push(format!("gen_ai_response_model AS g{idx}"));
+			},
+			GroupByField::HttpStatus => {
+				separated.push(format!("http_status::TEXT AS g{idx}"));
+			},
+			GroupByField::Attributes => {
+				separated.push("attributes_json ->> ");
+				separated.push_bind(group.key.as_deref().unwrap_or_default());
+				separated.push(format!(" AS g{idx}"));
+			},
+		};
+	}
+}
+
+fn row_to_token_usage(
+	row: sqlx::postgres::PgRow,
+	group_by: &[GroupBy],
+) -> anyhow::Result<TokenUsageGroup> {
+	let mut group = std::collections::BTreeMap::new();
+	for (idx, spec) in group_by.iter().enumerate() {
+		let value: Option<String> = row.try_get(format!("g{idx}").as_str())?;
+		group.insert(
+			group_key(spec),
+			value.map(Value::String).unwrap_or(Value::Null),
+		);
+	}
+	Ok(TokenUsageGroup {
+		group,
+		requests: row.try_get("requests")?,
+		input_tokens: row.try_get("input_tokens")?,
+		output_tokens: row.try_get("output_tokens")?,
+		total_tokens: row.try_get("total_tokens")?,
+	})
+}
+
+fn row_to_log(
+	row: sqlx::postgres::PgRow,
+	include_attributes: bool,
+	include_payload: bool,
+) -> anyhow::Result<LogEntry> {
+	let attributes: Json<Value> = row.try_get("attributes_json")?;
+	let payload = if include_payload {
+		let request_prompt: Option<Json<Value>> = row.try_get("request_prompt_json")?;
+		let response_completion: Option<Json<Value>> = row.try_get("response_completion_json")?;
+		Some(PayloadEntry {
+			request_prompt: request_prompt.map(|v| v.0),
+			response_completion: response_completion.map(|v| v.0),
+		})
+	} else {
+		None
+	};
+	Ok(LogEntry {
+		id: row.try_get("id")?,
+		started_at: row.try_get("started_at")?,
+		completed_at: row.try_get("completed_at")?,
+		duration_ms: row.try_get("duration_ms")?,
+		trace_id: row.try_get("trace_id")?,
+		span_id: row.try_get("span_id")?,
+		http_status: row.try_get("http_status")?,
+		error: row.try_get("error")?,
+		gen_ai: GenAiEntry {
+			operation_name: row.try_get("gen_ai_operation_name")?,
+			provider_name: row.try_get("gen_ai_provider_name")?,
+			request_model: row.try_get("gen_ai_request_model")?,
+			response_model: row.try_get("gen_ai_response_model")?,
+		},
+		usage: UsageEntry {
+			input_tokens: row.try_get("input_tokens")?,
+			output_tokens: row.try_get("output_tokens")?,
+			total_tokens: row.try_get("total_tokens")?,
+		},
+		has_payload: row.try_get("has_payload")?,
+		attributes: include_attributes.then_some(attributes.0),
+		payload,
+	})
+}
+
+fn group_key(group: &GroupBy) -> String {
+	match group.field {
+		GroupByField::Provider => "provider".to_string(),
+		GroupByField::RequestModel => "requestModel".to_string(),
+		GroupByField::ResponseModel => "responseModel".to_string(),
+		GroupByField::HttpStatus => "httpStatus".to_string(),
+		GroupByField::Attributes => group
+			.key
+			.clone()
+			.unwrap_or_else(|| "attributes".to_string()),
+	}
 }
 
 const SCHEMA: &str = r#"
@@ -100,4 +336,29 @@ INSERT INTO request_logs (
 const INSERT_PAYLOAD: &str = r#"
 INSERT INTO request_log_payloads (log_id, request_prompt_json, response_completion_json)
 VALUES ($1, $2, $3)
+"#;
+
+const SELECT_LOGS: &str = r#"
+SELECT id, started_at, completed_at, duration_ms, trace_id, span_id, http_status, error,
+	gen_ai_operation_name, gen_ai_provider_name, gen_ai_request_model, gen_ai_response_model,
+	input_tokens, output_tokens, total_tokens, has_payload, attributes_json
+FROM request_logs
+"#;
+
+const SELECT_LOG_BY_ID: &str = r#"
+SELECT id, started_at, completed_at, duration_ms, trace_id, span_id, http_status, error,
+	gen_ai_operation_name, gen_ai_provider_name, gen_ai_request_model, gen_ai_response_model,
+	input_tokens, output_tokens, total_tokens, has_payload, attributes_json
+FROM request_logs
+WHERE request_logs.id = $1
+"#;
+
+const SELECT_LOG_WITH_PAYLOAD_BY_ID: &str = r#"
+SELECT request_logs.id, started_at, completed_at, duration_ms, trace_id, span_id, http_status, error,
+	gen_ai_operation_name, gen_ai_provider_name, gen_ai_request_model, gen_ai_response_model,
+	input_tokens, output_tokens, total_tokens, has_payload, attributes_json,
+	request_prompt_json, response_completion_json
+FROM request_logs
+LEFT JOIN request_log_payloads ON request_logs.id = request_log_payloads.log_id
+WHERE request_logs.id = $1
 "#;
