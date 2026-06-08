@@ -3,15 +3,20 @@ use std::time::Duration;
 
 use axum::extract::State;
 use axum::http::StatusCode;
+use axum::response::Sse;
+use axum::response::sse::Event;
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use chrono::Utc;
 use http::header::{AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
 use http::{HeaderName, HeaderValue, Method};
 use hyper::body::Incoming;
 use include_dir::{Dir, include_dir};
 use serde::{Serialize, Serializer};
 use serde_json::Value;
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use tower_serve_static::ServeDir;
@@ -53,6 +58,7 @@ impl UiHandler {
 			.route("/cel", axum::routing::post(handle_cel))
 			.route("/api/logs/search", post(search_logs))
 			.route("/api/logs/get", post(get_log))
+			.route("/api/logs/tail", post(tail_logs))
 			.route("/api/logs/analytics/token-usage", post(token_usage))
 			.nest_service("/ui", ui_service)
 			.route("/", get(|| async { Redirect::permanent("/ui") }))
@@ -251,6 +257,70 @@ async fn token_usage(
 		.await
 		.map(Json)
 		.map_err(ErrorResponse::Anyhow)
+}
+
+async fn tail_logs(
+	Json(mut request): Json<crate::telemetry::log_store::TailRequest>,
+) -> Result<Sse<ReceiverStream<Result<Event, std::convert::Infallible>>>, ErrorResponse> {
+	if !crate::telemetry::log_store::enabled() {
+		return Err(ErrorResponse::String(
+			"request log database is not configured".to_string(),
+		));
+	}
+	let mut cursor = request
+		.cursor
+		.clone()
+		.or_else(|| Some(crate::telemetry::log_store::encode_cursor(Utc::now(), "")));
+	request.limit = Some(request.limit.unwrap_or(100).clamp(1, 500));
+
+	let (tx, rx) = mpsc::channel(32);
+	tokio::spawn(async move {
+		let mut poll = tokio::time::interval(Duration::from_secs(1));
+		let mut heartbeat = tokio::time::interval(Duration::from_secs(15));
+		loop {
+			tokio::select! {
+				_ = poll.tick() => {
+					let mut batch_request = request.clone();
+					batch_request.cursor = cursor.clone();
+					match crate::telemetry::log_store::tail(batch_request).await {
+						Ok(response) => {
+							for log in response.logs {
+								let next = crate::telemetry::log_store::encode_cursor(log.completed_at, &log.id);
+								cursor = Some(next.clone());
+								let event = crate::telemetry::log_store::TailEvent {
+									entry: log,
+									cursor: next,
+								};
+								let Ok(data) = serde_json::to_string(&event) else {
+									continue;
+								};
+								if tx.send(Ok(Event::default().event("log").data(data))).await.is_err() {
+									return;
+								}
+							}
+							if let Some(next) = response.next_cursor {
+								cursor = Some(next);
+							}
+						},
+						Err(err) => {
+							let event = Event::default()
+								.event("error")
+								.data(serde_json::json!({ "message": err.to_string() }).to_string());
+							let _ = tx.send(Ok(event)).await;
+							return;
+						},
+					}
+				},
+				_ = heartbeat.tick() => {
+					if tx.send(Ok(Event::default().event("heartbeat").data("{}"))).await.is_err() {
+						return;
+					}
+				},
+			}
+		}
+	});
+
+	Ok(Sse::new(ReceiverStream::new(rx)))
 }
 
 impl AdminFallback for UiHandler {

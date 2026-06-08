@@ -8,8 +8,9 @@ use sqlx::{QueryBuilder, Row, Sqlite, SqlitePool};
 
 use super::{
 	GenAiEntry, GetRequest, GetResponse, GroupBy, GroupByField, LogEntry, LogFilters, PayloadEntry,
-	SearchRequest, SearchResponse, StoredRequestLog, TimeRange, TokenUsageGroup, TokenUsageRequest,
-	TokenUsageResponse, UsageEntry, attr_value, decode_cursor, encode_cursor, limit,
+	SearchRequest, SearchResponse, StoredRequestLog, TailRequest, TailResponse, TimeRange,
+	TokenUsageGroup, TokenUsageRequest, TokenUsageResponse, UsageEntry, attr_value, decode_cursor,
+	encode_cursor, limit,
 };
 
 pub struct SqliteLogStore {
@@ -142,6 +143,33 @@ impl SqliteLogStore {
 			.map(|row| row_to_token_usage(row, &request.group_by))
 			.collect::<Result<Vec<_>, _>>()?;
 		Ok(TokenUsageResponse { groups })
+	}
+
+	pub async fn tail(&self, request: TailRequest) -> anyhow::Result<TailResponse> {
+		let limit = limit(request.limit);
+		let mut qb = QueryBuilder::<Sqlite>::new(format!("{SELECT_LOGS} WHERE 1=1"));
+		push_filters(&mut qb, None, &request.filters);
+		if let Some(cursor) = request.cursor.as_deref() {
+			let (completed_at, id) = decode_cursor(cursor)?;
+			qb.push(" AND (completed_at > ");
+			qb.push_bind(completed_at);
+			qb.push(" OR (completed_at = ");
+			qb.push_bind(completed_at);
+			qb.push(" AND id > ");
+			qb.push_bind(id);
+			qb.push("))");
+		}
+		qb.push(" ORDER BY completed_at ASC, id ASC LIMIT ");
+		qb.push_bind(limit);
+		let rows = qb.build().fetch_all(&self.pool).await?;
+		let logs = rows
+			.into_iter()
+			.map(|row| row_to_log(row, request.include_attributes, false))
+			.collect::<Result<Vec<_>, _>>()?;
+		let next_cursor = logs
+			.last()
+			.map(|log| encode_cursor(log.completed_at, &log.id));
+		Ok(TailResponse { logs, next_cursor })
 	}
 }
 
