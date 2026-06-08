@@ -1172,6 +1172,7 @@ fn cross_app_access_from_proto_derives_oauth_chain() {
 					method: proto::o_auth_client_auth::Method::ClientSecretPost as i32,
 					..Default::default()
 				}),
+				inline_policies: vec![],
 			}),
 			resource_authorization_server: Some(proto::cross_app_access_auth::Endpoint {
 				token_endpoint: Some(proto::BackendReference {
@@ -1186,6 +1187,7 @@ fn cross_app_access_from_proto_derives_oauth_chain() {
 					method: proto::o_auth_client_auth::Method::ClientSecretPost as i32,
 					..Default::default()
 				}),
+				inline_policies: vec![],
 			}),
 			audience: "https://resource.example.com".to_string(),
 			resources: vec!["https://api.example.com".to_string()],
