@@ -93,6 +93,13 @@ pub async fn token_usage(request: TokenUsageRequest) -> anyhow::Result<TokenUsag
 	store.backend.token_usage(request).await
 }
 
+pub async fn tail(request: TailRequest) -> anyhow::Result<TailResponse> {
+	let store = REQUEST_LOG_STORE
+		.get()
+		.ok_or_else(|| anyhow::anyhow!("request log database is not configured"))?;
+	store.backend.tail(request).await
+}
+
 pub struct RequestLogStoreGuard {
 	writer: tokio::task::JoinHandle<()>,
 }
@@ -193,6 +200,19 @@ pub struct TokenUsageRequest {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TailRequest {
+	#[serde(default)]
+	pub limit: Option<i64>,
+	#[serde(default)]
+	pub cursor: Option<String>,
+	#[serde(default)]
+	pub filters: LogFilters,
+	#[serde(default)]
+	pub include_attributes: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GroupBy {
 	pub field: GroupByField,
 	#[serde(default)]
@@ -226,6 +246,20 @@ pub struct GetResponse {
 #[serde(rename_all = "camelCase")]
 pub struct TokenUsageResponse {
 	pub groups: Vec<TokenUsageGroup>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TailResponse {
+	pub logs: Vec<LogEntry>,
+	pub next_cursor: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TailEvent {
+	pub entry: LogEntry,
+	pub cursor: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -350,6 +384,13 @@ impl Backend {
 		match self {
 			Self::Sqlite(store) => store.token_usage(request).await,
 			Self::Postgres(store) => store.token_usage(request).await,
+		}
+	}
+
+	async fn tail(&self, request: TailRequest) -> anyhow::Result<TailResponse> {
+		match self {
+			Self::Sqlite(store) => store.tail(request).await,
+			Self::Postgres(store) => store.tail(request).await,
 		}
 	}
 }
