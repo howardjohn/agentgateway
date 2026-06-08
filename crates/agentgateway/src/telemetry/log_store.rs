@@ -177,6 +177,8 @@ pub struct SearchRequest {
 	pub filters: LogFilters,
 	#[serde(default)]
 	pub include_attributes: bool,
+	#[serde(default)]
+	pub include_payload: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -209,6 +211,8 @@ pub struct TailRequest {
 	pub filters: LogFilters,
 	#[serde(default)]
 	pub include_attributes: bool,
+	#[serde(default)]
+	pub include_payload: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

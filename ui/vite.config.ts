@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port,
       proxy: { 
+        "/api": proxyTarget,
         "/config_dump": proxyTarget,
         "/config": proxyTarget,
         "/cel": proxyTarget,

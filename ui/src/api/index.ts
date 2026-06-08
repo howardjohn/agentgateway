@@ -14,6 +14,9 @@ export * from "./helpers";
 // Config API
 export * from "./config";
 
+// Logs API
+export * from "./logs";
+
 // SWR Hooks
 export * from "./hooks";
 

@@ -62,7 +62,12 @@ impl PostgresLogStore {
 
 	pub async fn search(&self, request: SearchRequest) -> anyhow::Result<SearchResponse> {
 		let limit = limit(request.limit);
-		let mut qb = QueryBuilder::<Postgres>::new(format!("{SELECT_LOGS} WHERE 1=1"));
+		let select_logs = if request.include_payload {
+			SELECT_LOGS_WITH_PAYLOAD
+		} else {
+			SELECT_LOGS
+		};
+		let mut qb = QueryBuilder::<Postgres>::new(format!("{select_logs} WHERE 1=1"));
 		push_filters(&mut qb, request.time_range.as_ref(), &request.filters);
 		if let Some(cursor) = request.cursor.as_deref() {
 			let (completed_at, id) = decode_cursor(cursor)?;
@@ -79,7 +84,7 @@ impl PostgresLogStore {
 		let rows = qb.build().fetch_all(&self.pool).await?;
 		let mut logs = rows
 			.into_iter()
-			.map(|row| row_to_log(row, request.include_attributes, false))
+			.map(|row| row_to_log(row, request.include_attributes, request.include_payload))
 			.collect::<Result<Vec<_>, _>>()?;
 		let next_cursor = if logs.len() > limit as usize {
 			let _ = logs.pop();
@@ -138,7 +143,12 @@ impl PostgresLogStore {
 
 	pub async fn tail(&self, request: TailRequest) -> anyhow::Result<TailResponse> {
 		let limit = limit(request.limit);
-		let mut qb = QueryBuilder::<Postgres>::new(format!("{SELECT_LOGS} WHERE 1=1"));
+		let select_logs = if request.include_payload {
+			SELECT_LOGS_WITH_PAYLOAD
+		} else {
+			SELECT_LOGS
+		};
+		let mut qb = QueryBuilder::<Postgres>::new(format!("{select_logs} WHERE 1=1"));
 		push_filters(&mut qb, None, &request.filters);
 		if let Some(cursor) = request.cursor.as_deref() {
 			let (completed_at, id) = decode_cursor(cursor)?;
@@ -155,7 +165,7 @@ impl PostgresLogStore {
 		let rows = qb.build().fetch_all(&self.pool).await?;
 		let logs = rows
 			.into_iter()
-			.map(|row| row_to_log(row, request.include_attributes, false))
+			.map(|row| row_to_log(row, request.include_attributes, request.include_payload))
 			.collect::<Result<Vec<_>, _>>()?;
 		let next_cursor = logs
 			.last()
@@ -371,6 +381,15 @@ SELECT id, started_at, completed_at, duration_ms, trace_id, span_id, http_status
 	gen_ai_operation_name, gen_ai_provider_name, gen_ai_request_model, gen_ai_response_model,
 	input_tokens, output_tokens, total_tokens, has_payload, attributes_json
 FROM request_logs
+"#;
+
+const SELECT_LOGS_WITH_PAYLOAD: &str = r#"
+SELECT request_logs.id, started_at, completed_at, duration_ms, trace_id, span_id, http_status, error,
+	gen_ai_operation_name, gen_ai_provider_name, gen_ai_request_model, gen_ai_response_model,
+	input_tokens, output_tokens, total_tokens, has_payload, attributes_json,
+	request_prompt_json, response_completion_json
+FROM request_logs
+LEFT JOIN request_log_payloads ON request_logs.id = request_log_payloads.log_id
 "#;
 
 const SELECT_LOG_BY_ID: &str = r#"
