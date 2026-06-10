@@ -2391,17 +2391,23 @@
 |`binds[].listeners[].routes[].policies.backendAuth.crossAppAccess.cache`|object|Response cache configuration. Defaults to an in-memory cache with 8192 entries and a 300s<br>TTL when the token endpoint omits `expires_in`. Set `maxEntries` to 0 to disable.|
 |`binds[].listeners[].routes[].policies.backendAuth.crossAppAccess.cache.maxEntries`|integer|Maximum number of token exchange responses to keep in the cache. Set to 0 to disable.|
 |`binds[].listeners[].routes[].policies.backendAuth.crossAppAccess.cache.defaultTtl`|string|TTL used when the token endpoint omits `expires_in`. Defaults to 300s.|
-|`binds[].listeners[].routes[].policies.localRateLimit`|object|Local rate limits for incoming requests.|
+|`binds[].listeners[].routes[].policies.localRateLimit`|object|Local rate limits for incoming requests. Each entry must use either the simplified `limit`/`unit`/`burst` fields or the explicit `maxTokens`/`tokensPerFill`/`fillInterval` fields; the two forms cannot be mixed.|
 |`binds[].listeners[].routes[].policies.localRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`binds[].listeners[].routes[].policies.localRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
 |`binds[].listeners[].routes[].policies.localRateLimit.conditional[].maxTokens`|integer|Maximum number of tokens that can accumulate in the local bucket.|
 |`binds[].listeners[].routes[].policies.localRateLimit.conditional[].tokensPerFill`|integer|Number of tokens added to the local bucket each fill interval.|
 |`binds[].listeners[].routes[].policies.localRateLimit.conditional[].fillInterval`|string|How often the local bucket is refilled.|
 |`binds[].listeners[].routes[].policies.localRateLimit.conditional[].type`|enum|Whether this limit counts requests or LLM tokens.<br>Possible values: `requests`, `tokens`.|
+|`binds[].listeners[].routes[].policies.localRateLimit.conditional[].limit`|integer|Sustained request or token allowance per unit.|
+|`binds[].listeners[].routes[].policies.localRateLimit.conditional[].unit`|enum|Unit of time for the limit.<br>Possible values: `seconds`, `minutes`, `hours`.|
+|`binds[].listeners[].routes[].policies.localRateLimit.conditional[].burst`|integer|Additional bucket capacity above the sustained limit.|
 |`binds[].listeners[].routes[].policies.localRateLimit[].maxTokens`|integer|Maximum number of tokens that can accumulate in the local bucket.|
 |`binds[].listeners[].routes[].policies.localRateLimit[].tokensPerFill`|integer|Number of tokens added to the local bucket each fill interval.|
 |`binds[].listeners[].routes[].policies.localRateLimit[].fillInterval`|string|How often the local bucket is refilled.|
 |`binds[].listeners[].routes[].policies.localRateLimit[].type`|enum|Whether this limit counts requests or LLM tokens.<br>Possible values: `requests`, `tokens`.|
+|`binds[].listeners[].routes[].policies.localRateLimit[].limit`|integer|Sustained request or token allowance per unit.|
+|`binds[].listeners[].routes[].policies.localRateLimit[].unit`|enum|Unit of time for the limit.<br>Possible values: `seconds`, `minutes`, `hours`.|
+|`binds[].listeners[].routes[].policies.localRateLimit[].burst`|integer|Additional bucket capacity above the sustained limit.|
 |`binds[].listeners[].routes[].policies.remoteRateLimit`|object|Remote rate limit checks for incoming requests.|
 |`binds[].listeners[].routes[].policies.remoteRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`binds[].listeners[].routes[].policies.remoteRateLimit.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -16191,17 +16197,23 @@
 |`policies[].policy.backendAuth.crossAppAccess.cache`|object|Response cache configuration. Defaults to an in-memory cache with 8192 entries and a 300s<br>TTL when the token endpoint omits `expires_in`. Set `maxEntries` to 0 to disable.|
 |`policies[].policy.backendAuth.crossAppAccess.cache.maxEntries`|integer|Maximum number of token exchange responses to keep in the cache. Set to 0 to disable.|
 |`policies[].policy.backendAuth.crossAppAccess.cache.defaultTtl`|string|TTL used when the token endpoint omits `expires_in`. Defaults to 300s.|
-|`policies[].policy.localRateLimit`|object|Local rate limits for incoming requests.|
+|`policies[].policy.localRateLimit`|object|Local rate limits for incoming requests. Each entry must use either the simplified `limit`/`unit`/`burst` fields or the explicit `maxTokens`/`tokensPerFill`/`fillInterval` fields; the two forms cannot be mixed.|
 |`policies[].policy.localRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`policies[].policy.localRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
 |`policies[].policy.localRateLimit.conditional[].maxTokens`|integer|Maximum number of tokens that can accumulate in the local bucket.|
 |`policies[].policy.localRateLimit.conditional[].tokensPerFill`|integer|Number of tokens added to the local bucket each fill interval.|
 |`policies[].policy.localRateLimit.conditional[].fillInterval`|string|How often the local bucket is refilled.|
 |`policies[].policy.localRateLimit.conditional[].type`|enum|Whether this limit counts requests or LLM tokens.<br>Possible values: `requests`, `tokens`.|
+|`policies[].policy.localRateLimit.conditional[].limit`|integer|Sustained request or token allowance per unit.|
+|`policies[].policy.localRateLimit.conditional[].unit`|enum|Unit of time for the limit.<br>Possible values: `seconds`, `minutes`, `hours`.|
+|`policies[].policy.localRateLimit.conditional[].burst`|integer|Additional bucket capacity above the sustained limit.|
 |`policies[].policy.localRateLimit[].maxTokens`|integer|Maximum number of tokens that can accumulate in the local bucket.|
 |`policies[].policy.localRateLimit[].tokensPerFill`|integer|Number of tokens added to the local bucket each fill interval.|
 |`policies[].policy.localRateLimit[].fillInterval`|string|How often the local bucket is refilled.|
 |`policies[].policy.localRateLimit[].type`|enum|Whether this limit counts requests or LLM tokens.<br>Possible values: `requests`, `tokens`.|
+|`policies[].policy.localRateLimit[].limit`|integer|Sustained request or token allowance per unit.|
+|`policies[].policy.localRateLimit[].unit`|enum|Unit of time for the limit.<br>Possible values: `seconds`, `minutes`, `hours`.|
+|`policies[].policy.localRateLimit[].burst`|integer|Additional bucket capacity above the sustained limit.|
 |`policies[].policy.remoteRateLimit`|object|Remote rate limit checks for incoming requests.|
 |`policies[].policy.remoteRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`policies[].policy.remoteRateLimit.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -28139,17 +28151,23 @@
 |`routeGroups[].routes[].policies.backendAuth.crossAppAccess.cache`|object|Response cache configuration. Defaults to an in-memory cache with 8192 entries and a 300s<br>TTL when the token endpoint omits `expires_in`. Set `maxEntries` to 0 to disable.|
 |`routeGroups[].routes[].policies.backendAuth.crossAppAccess.cache.maxEntries`|integer|Maximum number of token exchange responses to keep in the cache. Set to 0 to disable.|
 |`routeGroups[].routes[].policies.backendAuth.crossAppAccess.cache.defaultTtl`|string|TTL used when the token endpoint omits `expires_in`. Defaults to 300s.|
-|`routeGroups[].routes[].policies.localRateLimit`|object|Local rate limits for incoming requests.|
+|`routeGroups[].routes[].policies.localRateLimit`|object|Local rate limits for incoming requests. Each entry must use either the simplified `limit`/`unit`/`burst` fields or the explicit `maxTokens`/`tokensPerFill`/`fillInterval` fields; the two forms cannot be mixed.|
 |`routeGroups[].routes[].policies.localRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`routeGroups[].routes[].policies.localRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
 |`routeGroups[].routes[].policies.localRateLimit.conditional[].maxTokens`|integer|Maximum number of tokens that can accumulate in the local bucket.|
 |`routeGroups[].routes[].policies.localRateLimit.conditional[].tokensPerFill`|integer|Number of tokens added to the local bucket each fill interval.|
 |`routeGroups[].routes[].policies.localRateLimit.conditional[].fillInterval`|string|How often the local bucket is refilled.|
 |`routeGroups[].routes[].policies.localRateLimit.conditional[].type`|enum|Whether this limit counts requests or LLM tokens.<br>Possible values: `requests`, `tokens`.|
+|`routeGroups[].routes[].policies.localRateLimit.conditional[].limit`|integer|Sustained request or token allowance per unit.|
+|`routeGroups[].routes[].policies.localRateLimit.conditional[].unit`|enum|Unit of time for the limit.<br>Possible values: `seconds`, `minutes`, `hours`.|
+|`routeGroups[].routes[].policies.localRateLimit.conditional[].burst`|integer|Additional bucket capacity above the sustained limit.|
 |`routeGroups[].routes[].policies.localRateLimit[].maxTokens`|integer|Maximum number of tokens that can accumulate in the local bucket.|
 |`routeGroups[].routes[].policies.localRateLimit[].tokensPerFill`|integer|Number of tokens added to the local bucket each fill interval.|
 |`routeGroups[].routes[].policies.localRateLimit[].fillInterval`|string|How often the local bucket is refilled.|
 |`routeGroups[].routes[].policies.localRateLimit[].type`|enum|Whether this limit counts requests or LLM tokens.<br>Possible values: `requests`, `tokens`.|
+|`routeGroups[].routes[].policies.localRateLimit[].limit`|integer|Sustained request or token allowance per unit.|
+|`routeGroups[].routes[].policies.localRateLimit[].unit`|enum|Unit of time for the limit.<br>Possible values: `seconds`, `minutes`, `hours`.|
+|`routeGroups[].routes[].policies.localRateLimit[].burst`|integer|Additional bucket capacity above the sustained limit.|
 |`routeGroups[].routes[].policies.remoteRateLimit`|object|Remote rate limit checks for incoming requests.|
 |`routeGroups[].routes[].policies.remoteRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`routeGroups[].routes[].policies.remoteRateLimit.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -42246,17 +42264,23 @@
 |`routes[].policies.backendAuth.crossAppAccess.cache`|object|Response cache configuration. Defaults to an in-memory cache with 8192 entries and a 300s<br>TTL when the token endpoint omits `expires_in`. Set `maxEntries` to 0 to disable.|
 |`routes[].policies.backendAuth.crossAppAccess.cache.maxEntries`|integer|Maximum number of token exchange responses to keep in the cache. Set to 0 to disable.|
 |`routes[].policies.backendAuth.crossAppAccess.cache.defaultTtl`|string|TTL used when the token endpoint omits `expires_in`. Defaults to 300s.|
-|`routes[].policies.localRateLimit`|object|Local rate limits for incoming requests.|
+|`routes[].policies.localRateLimit`|object|Local rate limits for incoming requests. Each entry must use either the simplified `limit`/`unit`/`burst` fields or the explicit `maxTokens`/`tokensPerFill`/`fillInterval` fields; the two forms cannot be mixed.|
 |`routes[].policies.localRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`routes[].policies.localRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
 |`routes[].policies.localRateLimit.conditional[].maxTokens`|integer|Maximum number of tokens that can accumulate in the local bucket.|
 |`routes[].policies.localRateLimit.conditional[].tokensPerFill`|integer|Number of tokens added to the local bucket each fill interval.|
 |`routes[].policies.localRateLimit.conditional[].fillInterval`|string|How often the local bucket is refilled.|
 |`routes[].policies.localRateLimit.conditional[].type`|enum|Whether this limit counts requests or LLM tokens.<br>Possible values: `requests`, `tokens`.|
+|`routes[].policies.localRateLimit.conditional[].limit`|integer|Sustained request or token allowance per unit.|
+|`routes[].policies.localRateLimit.conditional[].unit`|enum|Unit of time for the limit.<br>Possible values: `seconds`, `minutes`, `hours`.|
+|`routes[].policies.localRateLimit.conditional[].burst`|integer|Additional bucket capacity above the sustained limit.|
 |`routes[].policies.localRateLimit[].maxTokens`|integer|Maximum number of tokens that can accumulate in the local bucket.|
 |`routes[].policies.localRateLimit[].tokensPerFill`|integer|Number of tokens added to the local bucket each fill interval.|
 |`routes[].policies.localRateLimit[].fillInterval`|string|How often the local bucket is refilled.|
 |`routes[].policies.localRateLimit[].type`|enum|Whether this limit counts requests or LLM tokens.<br>Possible values: `requests`, `tokens`.|
+|`routes[].policies.localRateLimit[].limit`|integer|Sustained request or token allowance per unit.|
+|`routes[].policies.localRateLimit[].unit`|enum|Unit of time for the limit.<br>Possible values: `seconds`, `minutes`, `hours`.|
+|`routes[].policies.localRateLimit[].burst`|integer|Additional bucket capacity above the sustained limit.|
 |`routes[].policies.remoteRateLimit`|object|Remote rate limit checks for incoming requests.|
 |`routes[].policies.remoteRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`routes[].policies.remoteRateLimit.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -57025,11 +57049,14 @@
 |`llm.policies.guardrails.response[].rejection.headers.add`|object|Headers to append without replacing existing values.|
 |`llm.policies.guardrails.response[].rejection.headers.set`|object|Headers to set, replacing any existing values.|
 |`llm.policies.guardrails.response[].rejection.headers.remove`|[]string|Header names to remove.|
-|`llm.policies.localRateLimit`|[]object|Local rate limits for incoming requests.|
+|`llm.policies.localRateLimit`|[]object|Local rate limits for incoming requests. Each entry must use either the simplified `limit`/`unit`/`burst` fields or the explicit `maxTokens`/`tokensPerFill`/`fillInterval` fields; the two forms cannot be mixed.|
 |`llm.policies.localRateLimit[].maxTokens`|integer|Maximum number of tokens that can accumulate in the local bucket.|
 |`llm.policies.localRateLimit[].tokensPerFill`|integer|Number of tokens added to the local bucket each fill interval.|
 |`llm.policies.localRateLimit[].fillInterval`|string|How often the local bucket is refilled.|
 |`llm.policies.localRateLimit[].type`|enum|Whether this limit counts requests or LLM tokens.<br>Possible values: `requests`, `tokens`.|
+|`llm.policies.localRateLimit[].limit`|integer|Sustained request or token allowance per unit.|
+|`llm.policies.localRateLimit[].unit`|enum|Unit of time for the limit.<br>Possible values: `seconds`, `minutes`, `hours`.|
+|`llm.policies.localRateLimit[].burst`|integer|Additional bucket capacity above the sustained limit.|
 |`llm.policies.remoteRateLimit`|object|Remote rate limit checks for incoming requests.|
 |`llm.policies.remoteRateLimit.service`|object|Service reference. Service must be defined in the top level services list.|
 |`llm.policies.remoteRateLimit.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
@@ -60135,17 +60162,23 @@
 |`mcp.policies.backendAuth.crossAppAccess.cache`|object|Response cache configuration. Defaults to an in-memory cache with 8192 entries and a 300s<br>TTL when the token endpoint omits `expires_in`. Set `maxEntries` to 0 to disable.|
 |`mcp.policies.backendAuth.crossAppAccess.cache.maxEntries`|integer|Maximum number of token exchange responses to keep in the cache. Set to 0 to disable.|
 |`mcp.policies.backendAuth.crossAppAccess.cache.defaultTtl`|string|TTL used when the token endpoint omits `expires_in`. Defaults to 300s.|
-|`mcp.policies.localRateLimit`|object|Local rate limits for incoming requests.|
+|`mcp.policies.localRateLimit`|object|Local rate limits for incoming requests. Each entry must use either the simplified `limit`/`unit`/`burst` fields or the explicit `maxTokens`/`tokensPerFill`/`fillInterval` fields; the two forms cannot be mixed.|
 |`mcp.policies.localRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`mcp.policies.localRateLimit.conditional[].condition`|string|condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.|
 |`mcp.policies.localRateLimit.conditional[].maxTokens`|integer|Maximum number of tokens that can accumulate in the local bucket.|
 |`mcp.policies.localRateLimit.conditional[].tokensPerFill`|integer|Number of tokens added to the local bucket each fill interval.|
 |`mcp.policies.localRateLimit.conditional[].fillInterval`|string|How often the local bucket is refilled.|
 |`mcp.policies.localRateLimit.conditional[].type`|enum|Whether this limit counts requests or LLM tokens.<br>Possible values: `requests`, `tokens`.|
+|`mcp.policies.localRateLimit.conditional[].limit`|integer|Sustained request or token allowance per unit.|
+|`mcp.policies.localRateLimit.conditional[].unit`|enum|Unit of time for the limit.<br>Possible values: `seconds`, `minutes`, `hours`.|
+|`mcp.policies.localRateLimit.conditional[].burst`|integer|Additional bucket capacity above the sustained limit.|
 |`mcp.policies.localRateLimit[].maxTokens`|integer|Maximum number of tokens that can accumulate in the local bucket.|
 |`mcp.policies.localRateLimit[].tokensPerFill`|integer|Number of tokens added to the local bucket each fill interval.|
 |`mcp.policies.localRateLimit[].fillInterval`|string|How often the local bucket is refilled.|
 |`mcp.policies.localRateLimit[].type`|enum|Whether this limit counts requests or LLM tokens.<br>Possible values: `requests`, `tokens`.|
+|`mcp.policies.localRateLimit[].limit`|integer|Sustained request or token allowance per unit.|
+|`mcp.policies.localRateLimit[].unit`|enum|Unit of time for the limit.<br>Possible values: `seconds`, `minutes`, `hours`.|
+|`mcp.policies.localRateLimit[].burst`|integer|Additional bucket capacity above the sustained limit.|
 |`mcp.policies.remoteRateLimit`|object|Remote rate limit checks for incoming requests.|
 |`mcp.policies.remoteRateLimit.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`mcp.policies.remoteRateLimit.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|

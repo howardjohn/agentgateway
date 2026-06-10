@@ -1740,10 +1740,10 @@
           "default": null
         },
         "localRateLimit": {
-          "description": "Local rate limits for incoming requests.",
+          "description": "Local rate limits for incoming requests. Each entry must use either the simplified `limit`/`unit`/`burst` fields or the explicit `maxTokens`/`tokensPerFill`/`fillInterval` fields; the two forms cannot be mixed.",
           "anyOf": [
             {
-              "$ref": "#/$defs/LocalRateLimitPolicy"
+              "$ref": "#/$defs/LocalRateLimitPolicySchema"
             },
             {
               "type": "null"
@@ -5012,27 +5012,27 @@
         }
       ]
     },
-    "LocalRateLimitPolicy": {
+    "LocalRateLimitPolicySchema": {
       "anyOf": [
         {
-          "$ref": "#/$defs/LocalConditionalPolicies_RateLimitSpec"
+          "$ref": "#/$defs/LocalConditionalRateLimitPoliciesSchema"
         },
         {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/RateLimitSpec"
+            "$ref": "#/$defs/RateLimitConfig"
           }
         }
       ]
     },
-    "LocalConditionalPolicies_RateLimitSpec": {
+    "LocalConditionalRateLimitPoliciesSchema": {
       "type": "object",
       "properties": {
         "conditional": {
           "description": "conditional policy entries. An entry without a condition must be the final fallback.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/LocalConditionalPolicy_RateLimitSpec"
+            "$ref": "#/$defs/ConditionalRateLimitConfig"
           }
         }
       },
@@ -5041,7 +5041,17 @@
         "conditional"
       ]
     },
-    "LocalConditionalPolicy_RateLimitSpec": {
+    "ConditionalRateLimitConfig": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ConditionalExplicitRateLimitSpec"
+        },
+        {
+          "$ref": "#/$defs/ConditionalSimpleRateLimitSpec"
+        }
+      ]
+    },
+    "ConditionalExplicitRateLimitSpec": {
       "type": "object",
       "properties": {
         "condition": {
@@ -5053,8 +5063,7 @@
             {
               "type": "null"
             }
-          ],
-          "default": null
+          ]
         },
         "maxTokens": {
           "description": "Maximum number of tokens that can accumulate in the local bucket.",
@@ -5080,6 +5089,7 @@
           "default": "requests"
         }
       },
+      "additionalProperties": false,
       "required": [
         "fillInterval"
       ]
@@ -5098,7 +5108,79 @@
         }
       ]
     },
-    "RateLimitSpec": {
+    "ConditionalSimpleRateLimitSpec": {
+      "type": "object",
+      "properties": {
+        "condition": {
+          "description": "condition must evaluate to true for this policy to execute. If unset, the policy is the fallback.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type": {
+          "description": "Whether this limit counts requests or LLM tokens.",
+          "$ref": "#/$defs/RateLimitType"
+        },
+        "limit": {
+          "description": "Sustained request or token allowance per unit.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 1
+        },
+        "unit": {
+          "description": "Unit of time for the limit.",
+          "$ref": "#/$defs/RateLimitUnit"
+        },
+        "burst": {
+          "description": "Additional bucket capacity above the sustained limit.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "limit",
+        "unit"
+      ]
+    },
+    "RateLimitUnit": {
+      "oneOf": [
+        {
+          "description": "Per second.",
+          "type": "string",
+          "const": "seconds"
+        },
+        {
+          "description": "Per minute.",
+          "type": "string",
+          "const": "minutes"
+        },
+        {
+          "description": "Per hour.",
+          "type": "string",
+          "const": "hours"
+        }
+      ]
+    },
+    "RateLimitConfig": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExplicitRateLimitSpec"
+        },
+        {
+          "$ref": "#/$defs/SimpleRateLimitSpec"
+        }
+      ]
+    },
+    "ExplicitRateLimitSpec": {
       "type": "object",
       "properties": {
         "maxTokens": {
@@ -5128,6 +5210,38 @@
       "additionalProperties": false,
       "required": [
         "fillInterval"
+      ]
+    },
+    "SimpleRateLimitSpec": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Whether this limit counts requests or LLM tokens.",
+          "$ref": "#/$defs/RateLimitType"
+        },
+        "limit": {
+          "description": "Sustained request or token allowance per unit.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 1
+        },
+        "unit": {
+          "description": "Unit of time for the limit.",
+          "$ref": "#/$defs/RateLimitUnit"
+        },
+        "burst": {
+          "description": "Additional bucket capacity above the sustained limit.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "limit",
+        "unit"
       ]
     },
     "LocalExplicitOrConditional_RemoteRateLimit": {
@@ -11116,10 +11230,10 @@
           ]
         },
         "localRateLimit": {
-          "description": "Local rate limits for incoming requests.",
+          "description": "Local rate limits for incoming requests. Each entry must use either the simplified `limit`/`unit`/`burst` fields or the explicit `maxTokens`/`tokensPerFill`/`fillInterval` fields; the two forms cannot be mixed.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/RateLimitSpec"
+            "$ref": "#/$defs/RateLimitConfig"
           },
           "default": []
         },
