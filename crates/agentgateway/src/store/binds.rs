@@ -30,11 +30,10 @@ use crate::types::agent::{
 };
 use crate::types::agent_xds::Diagnostics;
 use crate::types::discovery::NamespacedHostname;
+use crate::types::proto::agent::Resource as ADPResource;
 use crate::types::proto::agent::resource::Kind as XdsKind;
-use crate::types::proto::agent::{
-	Backend as XdsBackend, Bind as XdsBind, Listener as XdsListener, Policy as XdsPolicy,
-	Resource as ADPResource, Route as XdsRoute, TcpRoute as XdsTcpRoute,
-};
+#[cfg(test)]
+use crate::types::proto::agent::{Bind as XdsBind, Route as XdsRoute};
 use crate::types::{agent, frontend};
 use crate::*;
 
@@ -46,6 +45,115 @@ enum ResourceKind {
 	TcpRoute(RouteKey),
 	Listener(ListenerKey),
 	Backend(ListenerKey),
+}
+
+#[derive(Debug)]
+enum PreparedResource {
+	Bind(Bind),
+	Listener {
+		listener: Listener,
+		bind_name: BindKey,
+	},
+	Route {
+		route: Route,
+		listener_name: ListenerKey,
+		route_group_key: Option<RouteGroupKey>,
+	},
+	TcpRoute {
+		route: TCPRoute,
+		listener_name: ListenerKey,
+	},
+	Backend {
+		key: BackendKey,
+		backend: BackendWithPolicies,
+	},
+	Policy(TargetedPolicy),
+}
+
+#[derive(Debug)]
+struct PreparedUpdate {
+	xds_name: Strng,
+	resource_kind: ResourceKind,
+	resource: PreparedResource,
+}
+
+#[derive(Debug)]
+enum PreparedStoreUpdate {
+	Update(PreparedUpdate),
+	Remove(Strng),
+}
+
+impl PreparedUpdate {
+	fn try_from_xds(
+		name: Strng,
+		res: ADPResource,
+		ipv6_enabled: bool,
+		dynamic_ca_cert_cache: crate::DynamicCaCertCacheConfig,
+		diagnostics: &mut Diagnostics,
+	) -> anyhow::Result<Self> {
+		trace!(%name, "prepare resource {res:?}");
+		let (resource_kind, resource) = match res.kind {
+			Some(XdsKind::Bind(raw)) => {
+				let bind = Bind::from_xds(&raw, ipv6_enabled, diagnostics)?;
+				(
+					ResourceKind::Bind(strng::new(&raw.key)),
+					PreparedResource::Bind(bind),
+				)
+			},
+			Some(XdsKind::Listener(raw)) => {
+				let (listener, bind_name) = Listener::from_xds(&raw, diagnostics, dynamic_ca_cert_cache)?;
+				(
+					ResourceKind::Listener(strng::new(&raw.key)),
+					PreparedResource::Listener {
+						listener,
+						bind_name,
+					},
+				)
+			},
+			Some(XdsKind::Route(raw)) => {
+				let (route, listener_name, route_group_key) = Route::from_xds(&raw, diagnostics)?;
+				(
+					ResourceKind::Route(strng::new(&raw.key)),
+					PreparedResource::Route {
+						route,
+						listener_name,
+						route_group_key,
+					},
+				)
+			},
+			Some(XdsKind::TcpRoute(raw)) => {
+				let (route, listener_name) = TCPRoute::from_xds(&raw, diagnostics)?;
+				(
+					ResourceKind::TcpRoute(strng::new(&raw.key)),
+					PreparedResource::TcpRoute {
+						route,
+						listener_name,
+					},
+				)
+			},
+			Some(XdsKind::Backend(raw)) => {
+				let key = strng::new(&raw.key);
+				let backend = crate::types::agent_xds::backend_with_policies_from_proto(&raw, diagnostics)?;
+				(
+					ResourceKind::Backend(key.clone()),
+					PreparedResource::Backend { key, backend },
+				)
+			},
+			Some(XdsKind::Policy(raw)) => {
+				let policy = crate::types::agent_xds::targeted_policy_from_proto(&raw, diagnostics)?;
+				(
+					ResourceKind::Policy(strng::new(&raw.key)),
+					PreparedResource::Policy(policy),
+				)
+			},
+			_ => return Err(anyhow::anyhow!("unknown resource type")),
+		};
+		Ok(Self {
+			xds_name: name,
+			resource_kind,
+			resource,
+		})
+	}
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -1572,78 +1680,55 @@ impl Store {
 		}
 	}
 
-	fn insert_xds(
-		&mut self,
-		name: Strng,
-		res: ADPResource,
-		diagnostics: &mut Diagnostics,
-	) -> anyhow::Result<()> {
-		trace!(%name, "insert resource {res:?}");
-		match res.kind {
-			Some(XdsKind::Bind(w)) => {
-				self
-					.resources
-					.insert(name, ResourceKind::Bind(strng::new(&w.key)));
-				self.insert_xds_bind(w, diagnostics)
+	fn apply_prepared_update(&mut self, update: PreparedUpdate) {
+		self.resources.insert(update.xds_name, update.resource_kind);
+		match update.resource {
+			PreparedResource::Bind(mut bind) => {
+				// If XDS server pushes the same bind twice (which it shouldn't really do, but oh well),
+				// we need to copy the listeners over.
+				if let Some(old) = self.binds.get(&bind.key) {
+					debug!("bind update, copy old listeners over");
+					bind.listeners = Arc::unwrap_or_clone(old.clone()).listeners;
+				}
+				self.insert_bind(bind);
 			},
-			Some(XdsKind::Listener(w)) => {
-				self
-					.resources
-					.insert(name, ResourceKind::Listener(strng::new(&w.key)));
-				self.insert_xds_listener(w, diagnostics)
+			PreparedResource::Listener {
+				listener,
+				bind_name,
+			} => self.insert_listener(listener, bind_name),
+			PreparedResource::Route {
+				route,
+				listener_name,
+				route_group_key,
+			} => {
+				if let Some(rgk) = route_group_key {
+					// use group over service key here, the leaf route has a service key for policy
+					self.insert_route_into_group(route, rgk);
+				} else if let Some(sk) = route.service_key.clone() {
+					self.insert_service_route(route, sk);
+				} else {
+					self.insert_route(route, listener_name);
+				}
 			},
-			Some(XdsKind::Route(w)) => {
-				self
-					.resources
-					.insert(name, ResourceKind::Route(strng::new(&w.key)));
-				self.insert_xds_route(w, diagnostics)
+			PreparedResource::TcpRoute {
+				route,
+				listener_name,
+			} => {
+				if let Some(sk) = route.service_key.clone() {
+					self.insert_service_tcp_route(route, sk);
+				} else {
+					self.insert_tcp_route(route, listener_name);
+				}
 			},
-			Some(XdsKind::TcpRoute(w)) => {
-				self
-					.resources
-					.insert(name, ResourceKind::TcpRoute(strng::new(&w.key)));
-				self.insert_xds_tcp_route(w, diagnostics)
-			},
-			Some(XdsKind::Backend(w)) => {
-				self
-					.resources
-					.insert(name, ResourceKind::Backend(strng::new(&w.key)));
-				self.insert_xds_backend(w, diagnostics)
-			},
-			Some(XdsKind::Policy(w)) => {
-				self
-					.resources
-					.insert(name, ResourceKind::Policy(strng::new(&w.key)));
-				self.insert_xds_policy(w, diagnostics)
-			},
-			_ => Err(anyhow::anyhow!("unknown resource type")),
+			PreparedResource::Backend { key, backend } => self.insert_backend(key, backend),
+			PreparedResource::Policy(policy) => self.insert_policy(policy),
 		}
 	}
 
-	fn insert_xds_bind(&mut self, raw: XdsBind, diagnostics: &mut Diagnostics) -> anyhow::Result<()> {
-		let mut bind = Bind::from_xds(&raw, self.ipv6_enabled, diagnostics)?;
-		// If XDS server pushes the same bind twice (which it shouldn't really do, but oh well),
-		// we need to copy the listeners over.
-		if let Some(old) = self.binds.get(&bind.key) {
-			debug!("bind update, copy old listeners over");
-			bind.listeners = Arc::unwrap_or_clone(old.clone()).listeners;
-		}
-		self.insert_bind(bind);
-		Ok(())
-	}
-	fn insert_xds_listener(
-		&mut self,
-		raw: XdsListener,
-		diagnostics: &mut Diagnostics,
-	) -> anyhow::Result<()> {
-		let (lis, bind_name) =
-			Listener::from_xds(&raw, diagnostics, self.dynamic_ca_cert_cache.clone())?;
-		self.insert_listener(lis, bind_name);
-		Ok(())
-	}
+	#[cfg(test)]
 	fn insert_xds_route(
 		&mut self,
-		raw: XdsRoute,
+		raw: crate::types::proto::agent::Route,
 		diagnostics: &mut Diagnostics,
 	) -> anyhow::Result<()> {
 		let (route, listener_name, rgk) = Route::from_xds(&raw, diagnostics)?;
@@ -1655,39 +1740,6 @@ impl Store {
 		} else {
 			self.insert_route(route, listener_name);
 		}
-		Ok(())
-	}
-	fn insert_xds_tcp_route(
-		&mut self,
-		raw: XdsTcpRoute,
-		diagnostics: &mut Diagnostics,
-	) -> anyhow::Result<()> {
-		let (route, listener_name) = TCPRoute::from_xds(&raw, diagnostics)?;
-		if let Some(sk) = route.service_key.clone() {
-			self.insert_service_tcp_route(route, sk);
-			Ok(())
-		} else {
-			self.insert_tcp_route(route, listener_name);
-			Ok(())
-		}
-	}
-	fn insert_xds_backend(
-		&mut self,
-		raw: XdsBackend,
-		diagnostics: &mut Diagnostics,
-	) -> anyhow::Result<()> {
-		let key = strng::new(&raw.key);
-		let backend = crate::types::agent_xds::backend_with_policies_from_proto(&raw, diagnostics)?;
-		self.insert_backend(key, backend);
-		Ok(())
-	}
-	fn insert_xds_policy(
-		&mut self,
-		raw: XdsPolicy,
-		diagnostics: &mut Diagnostics,
-	) -> anyhow::Result<()> {
-		let policy = crate::types::agent_xds::targeted_policy_from_proto(&raw, diagnostics)?;
-		self.insert_policy(policy);
 		Ok(())
 	}
 }
@@ -1902,6 +1954,19 @@ impl StoreUpdater {
 		}
 		next_state
 	}
+
+	fn apply_prepared_updates(&self, updates: Vec<PreparedStoreUpdate>) {
+		let mut state = self.state.write().unwrap();
+		for update in updates {
+			match update {
+				PreparedStoreUpdate::Update(update) => state.apply_prepared_update(update),
+				PreparedStoreUpdate::Remove(name) => {
+					debug!("handling delete {}", name);
+					state.remove_resource(&name);
+				},
+			}
+		}
+	}
 }
 
 #[derive(Clone, Debug, Default)]
@@ -1917,34 +1982,46 @@ pub struct PreviousState {
 impl agent_xds::Handler<ADPResource> for StoreUpdater {
 	fn handle(
 		&self,
-		mut updates: Box<&mut dyn Iterator<Item = XdsUpdate<ADPResource>>>,
+		updates: Box<&mut dyn Iterator<Item = XdsUpdate<ADPResource>>>,
 	) -> Result<(), Vec<RejectedConfig>> {
-		let mut state = self.state.write().unwrap();
+		let (ipv6_enabled, dynamic_ca_cert_cache) = {
+			let state = self.state.read().unwrap();
+			(state.ipv6_enabled, state.dynamic_ca_cert_cache.clone())
+		};
+		let mut prepared = Vec::new();
 		let mut rejects = Vec::new();
 
-		for res in updates.as_mut() {
-			let name = res.name();
+		for res in updates {
+			let response_name = res.name();
 			match res {
 				XdsUpdate::Update(w) => {
 					let mut diagnostics = Diagnostics::default();
-					match state.insert_xds(w.name, w.resource, &mut diagnostics) {
-						Ok(()) => {
+					match PreparedUpdate::try_from_xds(
+						w.name,
+						w.resource,
+						ipv6_enabled,
+						dynamic_ca_cert_cache.clone(),
+						&mut diagnostics,
+					) {
+						Ok(update) => {
 							rejects.extend(
 								diagnostics
 									.into_warnings()
 									.into_iter()
-									.map(|warning| RejectedConfig::warning(name.clone(), warning)),
+									.map(|warning| RejectedConfig::warning(response_name.clone(), warning)),
 							);
+							prepared.push(PreparedStoreUpdate::Update(update));
 						},
-						Err(err) => rejects.push(RejectedConfig::error(name, err)),
+						Err(err) => rejects.push(RejectedConfig::error(response_name, err)),
 					}
 				},
 				XdsUpdate::Remove(name) => {
-					debug!("handling delete {}", name);
-					state.remove_resource(&name);
+					prepared.push(PreparedStoreUpdate::Remove(name));
 				},
 			}
 		}
+
+		self.apply_prepared_updates(prepared);
 
 		if rejects.is_empty() {
 			Ok(())

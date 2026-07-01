@@ -12,7 +12,7 @@ use tracing::{Level, instrument};
 use types::discovery::{NamespacedHostname, NetworkAddress};
 use types::proto::workload::address::Type as XdsType;
 use types::proto::workload::{
-	Address as XdsAddress, PortList, Service as XdsService, Workload as XdsWorkload,
+	Address as XdsAddress, Service as XdsService, Workload as XdsWorkload,
 };
 
 use crate::store::SelfWorkload;
@@ -95,22 +95,7 @@ impl Store {
 	pub fn insert_workload(&mut self, w: XdsWorkload) -> anyhow::Result<()> {
 		debug!(uid=%w.uid, "handling insert");
 
-		// Clone services, so we can pass full ownership of the rest of XdsWorkload to build our Workload
-		// object, which doesn't include Services.
-		// In theory, I think we could avoid this if Workload::try_from returning the services.
-		// let services = w.services.clone();
-		// Convert the workload.
-		let (workload, services) = Workload::try_from_xds_with_services(w)?;
-		let workload = Arc::new(workload);
-
-		// First, remove the entry entirely to make sure things are cleaned up properly.
-		self.remove_workload_for_insert(&workload.uid);
-
-		// Lock and upstate the stores.
-		self.workloads.insert(workload.clone());
-		self
-			.services
-			.insert_endpoint_for_services(&workload, &services, self.self_workload.get())?;
+		self.apply_prepared_workload(PreparedWorkload::try_from_xds(w)?);
 
 		Ok(())
 	}
@@ -127,6 +112,50 @@ impl Store {
 		self.insert_service_internal(service);
 		Ok(())
 	}
+	fn apply_prepared_workload(&mut self, prepared: PreparedWorkload) {
+		let PreparedWorkload {
+			workload,
+			endpoints,
+		} = prepared;
+
+		// First, remove the entry entirely to make sure things are cleaned up properly.
+		self.remove_workload_for_insert(&workload.uid);
+
+		// Lock and update the stores.
+		self.workloads.insert(workload.clone());
+		self
+			.services
+			.insert_prepared_endpoints(endpoints, &workload, self.self_workload.get());
+	}
+
+	fn apply_prepared_workloads(&mut self, workloads: Vec<PreparedWorkload>) {
+		let mut endpoints_by_service: HashMap<NamespacedHostname, Vec<(Endpoint, Arc<Workload>)>> =
+			HashMap::new();
+
+		for prepared in workloads {
+			let PreparedWorkload {
+				workload,
+				endpoints,
+			} = prepared;
+
+			// First, remove the entry entirely to make sure things are cleaned up properly.
+			self.remove_workload_for_insert(&workload.uid);
+
+			// Lock and update the stores.
+			self.workloads.insert(workload.clone());
+			for (namespaced_host, endpoint) in endpoints {
+				endpoints_by_service
+					.entry(namespaced_host)
+					.or_default()
+					.push((endpoint, workload.clone()));
+			}
+		}
+
+		self
+			.services
+			.insert_prepared_endpoint_batches(endpoints_by_service, self.self_workload.get());
+	}
+
 	pub fn insert_service_internal(&mut self, mut service: Service) {
 		let key = service.namespaced_hostname();
 		let prev = self.services.get_by_namespaced_host(&key);
@@ -214,6 +243,61 @@ impl Store {
 		}
 		if !self.services.remove(&name) {
 			warn!("tried to remove service, but it was not found");
+		}
+	}
+}
+
+#[derive(Debug)]
+struct PreparedWorkload {
+	workload: Arc<Workload>,
+	endpoints: Vec<(NamespacedHostname, Endpoint)>,
+}
+
+impl PreparedWorkload {
+	fn try_from_xds(w: XdsWorkload) -> anyhow::Result<Self> {
+		let (workload, _) = Workload::try_from_xds_with_services(w)?;
+		Ok(Self::from_workload(Arc::new(workload)))
+	}
+
+	fn from_workload(workload: Arc<Workload>) -> Self {
+		let endpoints = workload
+			.services
+			.iter()
+			.map(|(namespaced_host, ports)| {
+				(
+					namespaced_host.clone(),
+					Endpoint {
+						workload_uid: workload.uid.clone(),
+						port: ports.clone(),
+						status: workload.status,
+					},
+				)
+			})
+			.collect();
+
+		Self {
+			workload,
+			endpoints,
+		}
+	}
+}
+
+#[derive(Debug)]
+enum PreparedUpdate {
+	UpdateWorkload(PreparedWorkload),
+	UpdateService(Service),
+	Remove(Strng),
+}
+
+impl PreparedUpdate {
+	fn try_from_xds(update: XdsUpdate<XdsAddress>) -> anyhow::Result<Self> {
+		match update {
+			XdsUpdate::Update(w) => match w.resource.r#type {
+				Some(XdsType::Workload(w)) => Ok(Self::UpdateWorkload(PreparedWorkload::try_from_xds(w)?)),
+				Some(XdsType::Service(s)) => Ok(Self::UpdateService(Service::try_from(&s)?)),
+				_ => Err(anyhow::anyhow!("unknown address type")),
+			},
+			XdsUpdate::Remove(name) => Ok(Self::Remove(strng::new(name))),
 		}
 	}
 }
@@ -354,27 +438,58 @@ pub struct ServiceStore {
 }
 
 impl ServiceStore {
-	fn insert_endpoint_for_services(
+	fn insert_prepared_endpoints(
 		&mut self,
-		workload: &Arc<Workload>,
-		services: &HashMap<String, PortList>,
+		endpoints: Vec<(NamespacedHostname, Endpoint)>,
+		workload: &Workload,
 		locality_source: Option<&Workload>,
-	) -> anyhow::Result<()> {
-		for (namespaced_host, ports) in services {
-			// Parse the namespaced hostname for the service.
-			let namespaced_host = NamespacedHostname::from_str(namespaced_host)?;
-			self.insert_endpoint(
-				namespaced_host,
-				Endpoint {
-					workload_uid: workload.uid.clone(),
-					port: crate::types::discovery::ports_from_xds(ports),
-					status: workload.status,
-				},
-				workload,
-				locality_source,
-			)
+	) {
+		for (namespaced_host, endpoint) in endpoints {
+			self.insert_endpoint(namespaced_host, endpoint, workload, locality_source)
 		}
-		Ok(())
+	}
+
+	fn insert_prepared_endpoint_batches(
+		&mut self,
+		endpoints_by_service: HashMap<NamespacedHostname, Vec<(Endpoint, Arc<Workload>)>>,
+		locality_source: Option<&Workload>,
+	) {
+		for (service_name, endpoints) in endpoints_by_service {
+			self.insert_endpoint_batch(service_name, endpoints, locality_source)
+		}
+	}
+
+	fn insert_endpoint_batch(
+		&mut self,
+		service_name: NamespacedHostname,
+		endpoints: Vec<(Endpoint, Arc<Workload>)>,
+		locality_source: Option<&Workload>,
+	) {
+		if let Some(svc) = self.get_by_namespaced_host(&service_name) {
+			let ranker = LocalityRanker::new(svc.load_balancer.as_ref(), locality_source);
+			svc.endpoints.insert_many(
+				endpoints.into_iter().filter_map(|(ep, dest_workload)| {
+					if !svc.should_include_endpoint(ep.status) {
+						trace!(
+							"service doesn't accept pod with status {:?}, skip",
+							ep.status
+						);
+						return None;
+					}
+					Some((ep, dest_workload))
+				}),
+				&ranker,
+			);
+		} else {
+			// We received workload endpoints, but don't have the Service yet.
+			// This can happen due to ordering issues.
+			trace!("pod has service {}, but service not found", service_name);
+
+			let staged = self.staged_services.entry(service_name).or_default();
+			for (ep, _) in endpoints {
+				staged.insert(ep.workload_uid.clone(), ep);
+			}
+		}
 	}
 
 	fn insert_endpoint(
@@ -668,7 +783,6 @@ impl StoreUpdater {
 			services: Default::default(),
 			workloads: Default::default(),
 		};
-		let source = s.self_workload.get().cloned();
 		for wl in workloads {
 			trace!("inserting local workload {}", &wl.workload.uid);
 			let mut workload = wl.workload;
@@ -687,21 +801,11 @@ impl StoreUpdater {
 					ports.clone(),
 				);
 			}
-			let w = Arc::new(workload);
-			// First, remove the entry entirely to make sure things are cleaned up properly.
-			s.remove_workload_for_insert(&w.uid);
-
-			// Lock and upstate the stores.
-			s.workloads.insert(w.clone());
-			let services: HashMap<String, PortList> = wl
-				.services
-				.into_iter()
-				.map(|(k, v)| (k, crate::types::discovery::port_list_from_ports(v)))
-				.collect();
-			s.services
-				.insert_endpoint_for_services(&w, &services, source.as_ref())?;
-			old_workloads.remove(&w.uid);
-			next_state.workloads.insert(w.uid.clone());
+			let prepared = PreparedWorkload::from_workload(Arc::new(workload));
+			let uid = prepared.workload.uid.clone();
+			s.apply_prepared_workload(prepared);
+			old_workloads.remove(&uid);
+			next_state.workloads.insert(uid);
 		}
 		for svc in services {
 			let key = svc.namespaced_hostname();
@@ -720,6 +824,47 @@ impl StoreUpdater {
 		}
 		Ok(next_state)
 	}
+
+	fn apply_prepared_updates(&self, updates: Vec<PreparedUpdate>) {
+		let mut state = self.state.write().unwrap();
+		let mut workload_batch = Vec::new();
+		let mut workload_batch_uids = HashSet::new();
+
+		let flush_workload_batch =
+			|state: &mut Store,
+			 workload_batch: &mut Vec<PreparedWorkload>,
+			 workload_batch_uids: &mut HashSet<Strng>| {
+				if workload_batch.is_empty() {
+					return;
+				}
+				workload_batch_uids.clear();
+				state.apply_prepared_workloads(std::mem::take(workload_batch));
+			};
+
+		for update in updates {
+			match update {
+				PreparedUpdate::UpdateWorkload(workload) => {
+					debug!(uid=%workload.workload.uid, "handling insert");
+					if workload_batch_uids.contains(&workload.workload.uid) {
+						flush_workload_batch(&mut state, &mut workload_batch, &mut workload_batch_uids);
+					}
+					workload_batch_uids.insert(workload.workload.uid.clone());
+					workload_batch.push(workload);
+				},
+				PreparedUpdate::UpdateService(service) => {
+					flush_workload_batch(&mut state, &mut workload_batch, &mut workload_batch_uids);
+					debug!("handling insert");
+					state.insert_service_internal(service);
+				},
+				PreparedUpdate::Remove(name) => {
+					flush_workload_batch(&mut state, &mut workload_batch, &mut workload_batch_uids);
+					debug!("handling delete {}", name);
+					state.remove(&name);
+				},
+			}
+		}
+		flush_workload_batch(&mut state, &mut workload_batch, &mut workload_batch_uids);
+	}
 }
 
 pub fn network_addr(network: Strng, vip: IpAddr) -> NetworkAddress {
@@ -734,18 +879,23 @@ impl agent_xds::Handler<XdsAddress> for StoreUpdater {
 		&self,
 		updates: Box<&mut dyn Iterator<Item = agent_xds::XdsUpdate<XdsAddress>>>,
 	) -> Result<(), Vec<agent_xds::RejectedConfig>> {
-		let mut state = self.state.write().unwrap();
-		let handle = |res: XdsUpdate<XdsAddress>| {
-			match res {
-				XdsUpdate::Update(w) => state.insert_address(w.resource)?,
-				XdsUpdate::Remove(name) => {
-					debug!("handling delete {}", name);
-					state.remove(&strng::new(name))
-				},
+		let mut prepared = Vec::new();
+		let mut rejects = Vec::new();
+		for update in updates {
+			let name = update.name();
+			match PreparedUpdate::try_from_xds(update) {
+				Ok(update) => prepared.push(update),
+				Err(err) => rejects.push(agent_xds::RejectedConfig::error(name, err)),
 			}
+		}
+
+		self.apply_prepared_updates(prepared);
+
+		if rejects.is_empty() {
 			Ok(())
-		};
-		agent_xds::handle_single_resource(updates, handle)
+		} else {
+			Err(rejects)
+		}
 	}
 }
 

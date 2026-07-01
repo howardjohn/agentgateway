@@ -206,6 +206,43 @@ impl EndpointSet<Endpoint> {
 		self.event(EndpointEvent::Add(key, ewi, bucket))
 	}
 
+	pub fn insert_many<I>(&self, endpoints: I, ranker: &LocalityRanker)
+	where
+		I: IntoIterator<Item = (Endpoint, Arc<Workload>)>,
+	{
+		let _mu = self.action_mutex.lock();
+		let mut updated_buckets: Vec<Option<EndpointGroup<Endpoint>>> =
+			(0..self.buckets.len()).map(|_| None).collect();
+
+		for (ep, dest_workload) in endpoints {
+			let Some(bucket) = ranker.bucket_for(dest_workload.as_ref()) else {
+				continue; // Strict mode mismatch — drop
+			};
+			let Some(slot) = self.buckets.get(bucket) else {
+				trace!(
+					"bucket {bucket} out of range (have {}), dropping endpoint {}",
+					self.buckets.len(),
+					ep.workload_uid
+				);
+				continue;
+			};
+			let group =
+				updated_buckets[bucket].get_or_insert_with(|| Arc::unwrap_or_clone(slot.load_full()));
+			let key = ep.workload_uid.clone();
+			let ewi = EndpointWithInfo::with_capacity(ep, dest_workload.capacity);
+			group.rejected.swap_remove(&key);
+			group.active.insert(key, ewi);
+		}
+
+		for (bucket, group) in updated_buckets.into_iter().enumerate() {
+			let Some(mut group) = group else {
+				continue;
+			};
+			group.sampler = build_sampler(&group.active);
+			self.buckets[bucket].store(Arc::new(group));
+		}
+	}
+
 	pub fn select_endpoint(
 		&self,
 		workloads: &store::WorkloadStore,
