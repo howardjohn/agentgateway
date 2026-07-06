@@ -455,7 +455,7 @@ impl Session {
 						Box::pin(self.relay.send_fanout(r, ctx, self.relay.merge_empty())).await
 					},
 					ClientRequest::SubscriptionsListenRequest(slr) => {
-						let subscription_id = r.id.clone();
+						let client_filter = slr.params.notifications.clone();
 						let target_names = if let Some(resource_subscriptions) =
 							&mut slr.params.notifications.resource_subscriptions
 						{
@@ -486,12 +486,11 @@ impl Session {
 						} else {
 							None
 						};
-						Box::pin(self.relay.send_fanout_to(
-							r,
-							ctx,
-							self.relay.merge_subscriptions_listen(subscription_id),
-							target_names,
-						))
+						Box::pin(
+							self
+								.relay
+								.send_subscriptions_listen(r, ctx, target_names, client_filter),
+						)
 						.await
 					},
 					ClientRequest::ListPromptsRequest(_) => {

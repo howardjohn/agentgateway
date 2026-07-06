@@ -41,6 +41,24 @@ impl Messages {
 				.boxed(),
 		)
 	}
+
+	pub fn filter_map_server_messages(
+		self,
+		mut f: impl FnMut(ServerJsonRpcMessage) -> Option<ServerJsonRpcMessage> + Send + 'static,
+	) -> Self {
+		Messages(
+			self
+				.0
+				.filter_map(move |message| {
+					let mapped = match message {
+						Ok(message) => f(message).map(Ok),
+						Err(err) => Some(Err(err)),
+					};
+					async move { mapped }
+				})
+				.boxed(),
+		)
+	}
 }
 
 impl Stream for Messages {

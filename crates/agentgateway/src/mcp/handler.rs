@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use agent_core::prelude::AssertSize;
 use agent_core::version::BuildInfo;
@@ -10,10 +11,13 @@ use http::request::Parts;
 use itertools::Itertools;
 use rmcp::ErrorData;
 use rmcp::model::{
-	CacheScope, ClientNotification, ClientRequest, DiscoverResult, Implementation,
-	JsonRpcNotification, JsonRpcRequest, ListPromptsResult, ListResourceTemplatesResult,
-	ListResourcesResult, ListToolsResult, Meta, ProtocolVersion, RequestId, ServerCapabilities,
-	ServerInfo, ServerJsonRpcMessage, ServerNotification, ServerResult, SubscriptionsListenResult,
+	CacheScope, ClientNotification, ClientRequest, ConstString, CustomNotification, DiscoverResult,
+	GetMeta, Implementation, JsonRpcNotification, JsonRpcRequest, ListPromptsResult,
+	ListResourceTemplatesResult, ListResourcesResult, ListToolsResult, Meta,
+	PromptListChangedNotificationMethod, ProtocolVersion, RequestId,
+	ResourceListChangedNotificationMethod, ServerCapabilities, ServerInfo, ServerJsonRpcMessage,
+	ServerNotification, ServerResult, SubscriptionFilter, SubscriptionsAcknowledgedNotification,
+	SubscriptionsAcknowledgedNotificationParams, ToolListChangedNotificationMethod,
 };
 use tracing::{debug, warn};
 
@@ -73,19 +77,107 @@ fn rewrite_resource_update_message(
 	message
 }
 
-fn set_subscription_ack_id(
+fn subscription_ack(
+	subscription_id: RequestId,
+	notifications: SubscriptionFilter,
+) -> ServerJsonRpcMessage {
+	let mut params = SubscriptionsAcknowledgedNotificationParams::new(notifications);
+	let mut meta = Meta::new();
+	meta.set_subscription_id(subscription_id);
+	params.meta = Some(meta);
+	ServerJsonRpcMessage::notification(ServerNotification::SubscriptionsAcknowledgedNotification(
+		SubscriptionsAcknowledgedNotification::new(params),
+	))
+}
+
+fn merge_subscription_ack(
+	mut merged: SubscriptionFilter,
+	next: SubscriptionFilter,
+) -> SubscriptionFilter {
+	if next.tools_list_changed == Some(true) {
+		merged.tools_list_changed = Some(true);
+	}
+	if next.prompts_list_changed == Some(true) {
+		merged.prompts_list_changed = Some(true);
+	}
+	if next.resources_list_changed == Some(true) {
+		merged.resources_list_changed = Some(true);
+	}
+	if let Some(resource_subscriptions) = next.resource_subscriptions {
+		merged
+			.resource_subscriptions
+			.get_or_insert_with(Vec::new)
+			.extend(resource_subscriptions);
+	}
+	merged
+}
+
+fn rewrite_filter_to_downstream(
+	default_target_name: Option<&String>,
+	target: &str,
+	mut filter: SubscriptionFilter,
+) -> SubscriptionFilter {
+	if let Some(resource_subscriptions) = &mut filter.resource_subscriptions {
+		for uri in resource_subscriptions {
+			*uri = resource_uri(default_target_name, target, uri);
+		}
+	}
+	filter
+}
+
+fn tag_subscription_notification(
 	mut message: ServerJsonRpcMessage,
 	subscription_id: &RequestId,
 ) -> ServerJsonRpcMessage {
-	if let ServerJsonRpcMessage::Notification(notification) = &mut message
-		&& let ServerNotification::SubscriptionsAcknowledgedNotification(ack) =
-			&mut notification.notification
-	{
-		let mut meta = ack.params.meta.take().unwrap_or_else(Meta::new);
-		meta.set_subscription_id(subscription_id.clone());
-		ack.params.meta = Some(meta);
+	let ServerJsonRpcMessage::Notification(notification) = &mut message else {
+		return message;
+	};
+	let custom_method = match &notification.notification {
+		ServerNotification::ToolListChangedNotification(_) => {
+			Some(ToolListChangedNotificationMethod::VALUE)
+		},
+		ServerNotification::PromptListChangedNotification(_) => {
+			Some(PromptListChangedNotificationMethod::VALUE)
+		},
+		ServerNotification::ResourceListChangedNotification(_) => {
+			Some(ResourceListChangedNotificationMethod::VALUE)
+		},
+		_ => None,
+	};
+	if let Some(method) = custom_method {
+		let mut custom = CustomNotification::new(method, None);
+		custom
+			.get_meta_mut()
+			.set_subscription_id(subscription_id.clone());
+		notification.notification = ServerNotification::CustomNotification(custom);
+	} else {
+		notification
+			.notification
+			.get_meta_mut()
+			.set_subscription_id(subscription_id.clone());
 	}
 	message
+}
+
+fn rewrite_subscription_notification(
+	default_target_name: Option<&String>,
+	target: &str,
+	subscription_id: &RequestId,
+	message: ServerJsonRpcMessage,
+) -> Option<ServerJsonRpcMessage> {
+	match &message {
+		ServerJsonRpcMessage::Notification(notification) => {
+			if matches!(
+				notification.notification,
+				ServerNotification::SubscriptionsAcknowledgedNotification(_)
+			) {
+				return None;
+			}
+		},
+		_ => return None,
+	}
+	let message = rewrite_resource_update_message(default_target_name, target, message);
+	Some(tag_subscription_notification(message, subscription_id))
 }
 
 #[derive(Debug, Clone)]
@@ -580,9 +672,201 @@ impl Relay {
 		Box::new(move |_, _cel| Ok(rmcp::model::ServerResult::empty(())))
 	}
 
-	pub fn merge_subscriptions_listen(&self, subscription_id: RequestId) -> Box<MergeFn> {
-		Box::new(move |_, _cel| Ok(SubscriptionsListenResult::new(subscription_id).into()))
+	pub async fn send_subscriptions_listen(
+		&self,
+		r: JsonRpcRequest<ClientRequest>,
+		mut ctx: IncomingRequestContext,
+		target_names: Option<Vec<String>>,
+		client_filter: SubscriptionFilter,
+	) -> Result<Response, UpstreamError> {
+		use futures_util::StreamExt;
+
+		let id = r.id.clone();
+		let method = r.request.method().to_string();
+		let selected_upstreams = self
+			.upstreams
+			.iter_named()
+			.filter(|(name, _)| {
+				target_names
+					.as_ref()
+					.is_none_or(|targets| targets.iter().any(|target| target == name.as_str()))
+			})
+			.collect::<Vec<_>>();
+		if selected_upstreams.is_empty() {
+			return Err(UpstreamError::InvalidRequest(
+				"no upstreams available".to_string(),
+			));
+		}
+
+		let service_names = self.mcp_guardrails.as_ref().map(|_| {
+			selected_upstreams
+				.iter()
+				.map(|(name, _)| name.to_string())
+				.collect::<Vec<_>>()
+		});
+		if let Some(ext) = self.mcp_guardrails.as_ref() {
+			let outcome = Box::pin(
+				crate::mcp::guardrails::run_call_request::<serde_json::Value>(
+					ext,
+					&mut crate::mcp::guardrails::CallRequestCtx {
+						backends: service_names.as_deref().unwrap_or_default(),
+						method: method.as_str(),
+						params: None,
+					},
+					&mut ctx,
+					&self.policy_client,
+				)
+				.assert_size::<{ 4 * 1024 }>(),
+			)
+			.await;
+			if let crate::mcp::guardrails::Outcome::Reject(rej) = outcome {
+				return Err(UpstreamError::McpGuardrails(rej));
+			}
+		}
+
+		let futs: Vec<_> = selected_upstreams
+			.into_iter()
+			.map(|(name, con)| {
+				let r = r.clone();
+				let ctx = &ctx;
+				async move { (name, con.generic_stream(r, ctx).await) }
+			})
+			.collect();
+		let fut_results = futures::future::join_all(futs).await;
+
+		let mut streams = Vec::new();
+		let mut acknowledged_filter = SubscriptionFilter::default();
+		let default_target_name = self.upstreams.default_target_name.clone();
+		for (name, result) in fut_results {
+			let mut upstream_stream = match result {
+				Ok(stream) => stream,
+				Err(e) => {
+					if self.upstreams.failure_mode == FailureMode::FailOpen {
+						warn!("upstream '{}' failed during listen, skipping: {}", name, e);
+						continue;
+					}
+					return Err(e);
+				},
+			};
+			match tokio::time::timeout(Duration::from_millis(100), upstream_stream.next()).await {
+				Ok(Some(Ok(ServerJsonRpcMessage::Notification(notification)))) => {
+					if let ServerNotification::SubscriptionsAcknowledgedNotification(ack) =
+						notification.notification
+					{
+						acknowledged_filter = merge_subscription_ack(
+							acknowledged_filter,
+							rewrite_filter_to_downstream(
+								default_target_name.as_ref(),
+								name.as_str(),
+								ack.params.notifications,
+							),
+						);
+					} else {
+						if self.upstreams.failure_mode == FailureMode::FailOpen {
+							warn!(
+								"upstream '{}' sent non-ack notification before subscriptions/listen ack",
+								name
+							);
+							continue;
+						}
+						return Err(UpstreamError::InvalidRequest(format!(
+							"subscriptions/listen upstream {name} sent non-ack notification before ack"
+						)));
+					}
+				},
+				Ok(Some(Ok(ServerJsonRpcMessage::Error(error)))) => {
+					return Err(UpstreamError::InvalidRequest(format!(
+						"subscriptions/listen upstream {name} rejected listen: {}",
+						error.error.message
+					)));
+				},
+				Ok(Some(Ok(ServerJsonRpcMessage::Response(_)))) => {
+					if self.upstreams.failure_mode == FailureMode::FailOpen {
+						warn!(
+							"upstream '{}' sent response instead of subscriptions/listen ack",
+							name
+						);
+						continue;
+					}
+					return Err(UpstreamError::InvalidRequest(format!(
+						"subscriptions/listen upstream {name} sent response instead of ack"
+					)));
+				},
+				Ok(Some(Ok(ServerJsonRpcMessage::Request(_)))) => {
+					if self.upstreams.failure_mode == FailureMode::FailOpen {
+						warn!(
+							"upstream '{}' sent request instead of subscriptions/listen ack",
+							name
+						);
+						continue;
+					}
+					return Err(UpstreamError::InvalidRequest(format!(
+						"subscriptions/listen upstream {name} sent request instead of ack"
+					)));
+				},
+				Err(_) => {
+					if self.upstreams.failure_mode == FailureMode::FailOpen {
+						warn!("upstream '{}' did not send subscriptions/listen ack", name);
+						continue;
+					}
+					return Err(UpstreamError::InvalidRequest(format!(
+						"subscriptions/listen upstream {name} did not send ack"
+					)));
+				},
+				Ok(Some(Err(e))) => {
+					if self.upstreams.failure_mode == FailureMode::FailOpen {
+						warn!("upstream '{}' listen stream failed before ack: {}", name, e);
+						continue;
+					}
+					return Err(UpstreamError::Http(e));
+				},
+				Ok(None) => {
+					if self.upstreams.failure_mode == FailureMode::FailOpen {
+						warn!("upstream '{}' listen stream closed before ack", name);
+						continue;
+					}
+					return Err(UpstreamError::InvalidRequest(format!(
+						"subscriptions/listen upstream {name} closed before ack"
+					)));
+				},
+			}
+
+			let target = name.to_string();
+			let subscription_id = id.clone();
+			let default_target_name = default_target_name.clone();
+			streams.push(upstream_stream.filter_map_server_messages(move |message| {
+				rewrite_subscription_notification(
+					default_target_name.as_ref(),
+					&target,
+					&subscription_id,
+					message,
+				)
+			}));
+		}
+		if streams.is_empty() {
+			return Err(UpstreamError::InvalidRequest(
+				"no upstreams available".to_string(),
+			));
+		}
+
+		if acknowledged_filter == SubscriptionFilter::default() {
+			acknowledged_filter = client_filter;
+		}
+		let ack = subscription_ack(id.clone(), acknowledged_filter);
+		let stream =
+			futures::stream::once(async move { Ok(ack) }).chain(futures::stream::select_all(streams));
+
+		match service_names.and_then(|sn| self.build_guardrails_ctx(&r, &ctx, sn)) {
+			Some(guardrails) => messages_to_response(
+				id,
+				wrap_with_guardrails(stream, guardrails),
+				None,
+				ctx_downstream_modern(&ctx),
+			),
+			None => messages_to_response(id, stream, None, ctx_downstream_modern(&ctx)),
+		}
 	}
+
 	pub async fn send_single(
 		&self,
 		r: JsonRpcRequest<ClientRequest>,
@@ -731,11 +1015,6 @@ impl Relay {
 		target_names: Option<Vec<String>>,
 	) -> Result<Response, UpstreamError> {
 		let id = r.id.clone();
-		let subscription_id = if matches!(&r.request, ClientRequest::SubscriptionsListenRequest(_)) {
-			Some(id.clone())
-		} else {
-			None
-		};
 		let mut streams = Vec::new();
 		let method = r.request.method().to_string();
 		let method = method.as_str();
@@ -803,12 +1082,7 @@ impl Relay {
 		for (name, result) in fut_results {
 			match result {
 				Ok(s) => {
-					let mut s = self.rewrite_outbound_server_messages(name.as_str(), s);
-					if let Some(subscription_id) = subscription_id.clone() {
-						s = s.map_server_messages(move |message| {
-							set_subscription_ack_id(message, &subscription_id)
-						});
-					}
+					let s = self.rewrite_outbound_server_messages(name.as_str(), s);
 					streams.push((name, s));
 				},
 				Err(e) => {
