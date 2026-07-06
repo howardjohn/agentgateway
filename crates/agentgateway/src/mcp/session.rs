@@ -328,6 +328,12 @@ impl Session {
 			Err(UpstreamError::McpGuardrails(rej)) if req_id.is_some() => {
 				Err(mcp::Error::McpGuardrails(req_id.unwrap(), rej).into())
 			},
+			Err(UpstreamError::InvalidRequest(message)) if req_id.is_some() => {
+				Err(mcp::Error::InvalidParams(req_id, message).into())
+			},
+			Err(UpstreamError::InvalidMethod(method)) if req_id.is_some() => {
+				Err(mcp::Error::MethodNotFound(req_id, method).into())
+			},
 			// TODO: this is too broad. We have a big tangle of errors to untangle though
 			Err(e) => Err(mcp::Error::SendError(req_id, e.to_string()).into()),
 		}

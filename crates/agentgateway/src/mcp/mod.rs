@@ -17,7 +17,7 @@ use std::time::Duration;
 use axum_core::BoxError;
 use prometheus_client::encoding::{EncodeLabelValue, LabelValueEncoder};
 pub use rbac::{McpAuthorization, McpAuthorizationSet, ResourceId, ResourceType};
-use rmcp::model::{ErrorCode, ErrorData, JsonRpcError, RequestId};
+use rmcp::model::{ErrorCode, ErrorData, JsonRpcError, ProtocolVersion, RequestId};
 pub use router::App;
 use thiserror::Error;
 
@@ -81,6 +81,12 @@ pub enum Error {
 	HeaderBodyMismatch(Option<RequestId>, &'static str),
 	#[error("invalid MCP routing header: {1}")]
 	InvalidRoutingHeader(Option<RequestId>, &'static str),
+	#[error("method not found: {1}")]
+	MethodNotFound(Option<RequestId>, String),
+	#[error("invalid request parameters: {1}")]
+	InvalidParams(Option<RequestId>, String),
+	#[error("_meta.{1} is required for modern requests")]
+	InvalidRequestMeta(Option<RequestId>, &'static str),
 	#[error("failed to start stdio server: {0}")]
 	Stdio(io::Error),
 	#[error("upstream error: {}", .0.status())]
@@ -126,8 +132,18 @@ impl Error {
 				},
 			),
 			Error::McpGuardrails(id, rejection) => (id.clone(), rejection.clone()),
-			Error::UnsupportedVersion(Some(id), _)
-			| Error::UnsupportedVersionForInitialize(Some(id), _) => (
+			Error::UnsupportedVersion(Some(id), version) => (
+				id.clone(),
+				ErrorData {
+					code: ErrorCode::UNSUPPORTED_PROTOCOL_VERSION,
+					message: self.to_string().into(),
+					data: Some(serde_json::json!({
+						"supported": [ProtocolVersion::STANDARD_HEADERS.as_str()],
+						"requested": version,
+					})),
+				},
+			),
+			Error::UnsupportedVersionForInitialize(Some(id), _) => (
 				id.clone(),
 				ErrorData {
 					code: ErrorCode::UNSUPPORTED_PROTOCOL_VERSION,
@@ -155,6 +171,30 @@ impl Error {
 				id.clone(),
 				ErrorData {
 					code: ErrorCode::HEADER_MISMATCH,
+					message: self.to_string().into(),
+					data: None,
+				},
+			),
+			Error::MethodNotFound(Some(id), _) => (
+				id.clone(),
+				ErrorData {
+					code: ErrorCode::METHOD_NOT_FOUND,
+					message: self.to_string().into(),
+					data: None,
+				},
+			),
+			Error::InvalidParams(Some(id), _) => (
+				id.clone(),
+				ErrorData {
+					code: ErrorCode::INVALID_PARAMS,
+					message: self.to_string().into(),
+					data: None,
+				},
+			),
+			Error::InvalidRequestMeta(Some(id), _) => (
+				id.clone(),
+				ErrorData {
+					code: ErrorCode::INVALID_PARAMS,
 					message: self.to_string().into(),
 					data: None,
 				},
