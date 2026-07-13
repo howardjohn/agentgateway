@@ -496,12 +496,20 @@ spec:
                                                     Credential source, defaulting to a Kubernetes
                                                     `Secret`, containing ADC-compatible Google credential JSON. When using
                                                     the default Secret resolver, this must be stored in the `credentials.json`
-                                                    key. When omitted, ambient credentials are used.
+                                                    key by default; override via `secretRef.key`. When omitted, ambient
+                                                    credentials are used.
                                                   properties:
                                                     group:
                                                       description: |-
                                                         The API group of the referenced credential.
                                                         Empty selects the core API group.
+                                                      type: string
+                                                    key:
+                                                      description: |-
+                                                        The key in the referenced Secret whose value is used. If omitted, a
+                                                        location-specific default key is used.
+                                                      maxLength: 253
+                                                      minLength: 1
                                                       type: string
                                                     kind:
                                                       description: |-
@@ -788,15 +796,21 @@ spec:
                                                             key ID header.
                                                           type: string
                                                         signingKeyRef:
-                                                          description: Secret providing
-                                                            the `signingKey` key with
-                                                            a PEM-encoded RSA or EC
-                                                            private key.
+                                                          description: |-
+                                                            Secret providing the `signingKey` key by default with a PEM-encoded RSA
+                                                            or EC private key; override the key name via `signingKeyRef.key`.
                                                           properties:
                                                             group:
                                                               description: |-
                                                                 The API group of the referenced credential.
                                                                 Empty selects the core API group.
+                                                              type: string
+                                                            key:
+                                                              description: |-
+                                                                The key in the referenced Secret whose value is used. If omitted, a
+                                                                location-specific default key is used.
+                                                              maxLength: 253
+                                                              minLength: 1
                                                               type: string
                                                             kind:
                                                               description: |-
@@ -831,13 +845,21 @@ spec:
                                                       type: object
                                                     secretRef:
                                                       description: |-
-                                                        Secret providing the `clientSecret` key. When omitted, client_id is sent
-                                                        without a secret, which is only valid with ClientSecretPost.
+                                                        Secret providing the `clientSecret` key by default; override via
+                                                        `secretRef.key`. When omitted, client_id is sent without a secret, which
+                                                        is only valid with ClientSecretPost.
                                                       properties:
                                                         group:
                                                           description: |-
                                                             The API group of the referenced credential.
                                                             Empty selects the core API group.
+                                                          type: string
+                                                        key:
+                                                          description: |-
+                                                            The key in the referenced Secret whose value is used. If omitted, a
+                                                            location-specific default key is used.
+                                                          maxLength: 253
+                                                          minLength: 1
                                                           type: string
                                                         kind:
                                                           description: |-
@@ -1771,12 +1793,20 @@ spec:
                                                     Credential source, defaulting to a Kubernetes
                                                     `Secret`, containing ADC-compatible Google credential JSON. When using
                                                     the default Secret resolver, this must be stored in the `credentials.json`
-                                                    key. When omitted, ambient credentials are used.
+                                                    key by default; override via `secretRef.key`. When omitted, ambient
+                                                    credentials are used.
                                                   properties:
                                                     group:
                                                       description: |-
                                                         The API group of the referenced credential.
                                                         Empty selects the core API group.
+                                                      type: string
+                                                    key:
+                                                      description: |-
+                                                        The key in the referenced Secret whose value is used. If omitted, a
+                                                        location-specific default key is used.
+                                                      maxLength: 253
+                                                      minLength: 1
                                                       type: string
                                                     kind:
                                                       description: |-
@@ -2063,15 +2093,21 @@ spec:
                                                             key ID header.
                                                           type: string
                                                         signingKeyRef:
-                                                          description: Secret providing
-                                                            the `signingKey` key with
-                                                            a PEM-encoded RSA or EC
-                                                            private key.
+                                                          description: |-
+                                                            Secret providing the `signingKey` key by default with a PEM-encoded RSA
+                                                            or EC private key; override the key name via `signingKeyRef.key`.
                                                           properties:
                                                             group:
                                                               description: |-
                                                                 The API group of the referenced credential.
                                                                 Empty selects the core API group.
+                                                              type: string
+                                                            key:
+                                                              description: |-
+                                                                The key in the referenced Secret whose value is used. If omitted, a
+                                                                location-specific default key is used.
+                                                              maxLength: 253
+                                                              minLength: 1
                                                               type: string
                                                             kind:
                                                               description: |-
@@ -2106,13 +2142,21 @@ spec:
                                                       type: object
                                                     secretRef:
                                                       description: |-
-                                                        Secret providing the `clientSecret` key. When omitted, client_id is sent
-                                                        without a secret, which is only valid with ClientSecretPost.
+                                                        Secret providing the `clientSecret` key by default; override via
+                                                        `secretRef.key`. When omitted, client_id is sent without a secret, which
+                                                        is only valid with ClientSecretPost.
                                                       properties:
                                                         group:
                                                           description: |-
                                                             The API group of the referenced credential.
                                                             Empty selects the core API group.
+                                                          type: string
+                                                        key:
+                                                          description: |-
+                                                            The key in the referenced Secret whose value is used. If omitted, a
+                                                            location-specific default key is used.
+                                                          maxLength: 253
+                                                          minLength: 1
                                                           type: string
                                                         kind:
                                                           description: |-
@@ -3041,12 +3085,20 @@ spec:
                                                     Credential source, defaulting to a Kubernetes
                                                     `Secret`, containing ADC-compatible Google credential JSON. When using
                                                     the default Secret resolver, this must be stored in the `credentials.json`
-                                                    key. When omitted, ambient credentials are used.
+                                                    key by default; override via `secretRef.key`. When omitted, ambient
+                                                    credentials are used.
                                                   properties:
                                                     group:
                                                       description: |-
                                                         The API group of the referenced credential.
                                                         Empty selects the core API group.
+                                                      type: string
+                                                    key:
+                                                      description: |-
+                                                        The key in the referenced Secret whose value is used. If omitted, a
+                                                        location-specific default key is used.
+                                                      maxLength: 253
+                                                      minLength: 1
                                                       type: string
                                                     kind:
                                                       description: |-
@@ -3333,15 +3385,21 @@ spec:
                                                             key ID header.
                                                           type: string
                                                         signingKeyRef:
-                                                          description: Secret providing
-                                                            the `signingKey` key with
-                                                            a PEM-encoded RSA or EC
-                                                            private key.
+                                                          description: |-
+                                                            Secret providing the `signingKey` key by default with a PEM-encoded RSA
+                                                            or EC private key; override the key name via `signingKeyRef.key`.
                                                           properties:
                                                             group:
                                                               description: |-
                                                                 The API group of the referenced credential.
                                                                 Empty selects the core API group.
+                                                              type: string
+                                                            key:
+                                                              description: |-
+                                                                The key in the referenced Secret whose value is used. If omitted, a
+                                                                location-specific default key is used.
+                                                              maxLength: 253
+                                                              minLength: 1
                                                               type: string
                                                             kind:
                                                               description: |-
@@ -3376,13 +3434,21 @@ spec:
                                                       type: object
                                                     secretRef:
                                                       description: |-
-                                                        Secret providing the `clientSecret` key. When omitted, client_id is sent
-                                                        without a secret, which is only valid with ClientSecretPost.
+                                                        Secret providing the `clientSecret` key by default; override via
+                                                        `secretRef.key`. When omitted, client_id is sent without a secret, which
+                                                        is only valid with ClientSecretPost.
                                                       properties:
                                                         group:
                                                           description: |-
                                                             The API group of the referenced credential.
                                                             Empty selects the core API group.
+                                                          type: string
+                                                        key:
+                                                          description: |-
+                                                            The key in the referenced Secret whose value is used. If omitted, a
+                                                            location-specific default key is used.
+                                                          maxLength: 253
+                                                          minLength: 1
                                                           type: string
                                                         kind:
                                                           description: |-
@@ -4537,12 +4603,20 @@ spec:
                                                     Credential source, defaulting to a Kubernetes
                                                     `Secret`, containing ADC-compatible Google credential JSON. When using
                                                     the default Secret resolver, this must be stored in the `credentials.json`
-                                                    key. When omitted, ambient credentials are used.
+                                                    key by default; override via `secretRef.key`. When omitted, ambient
+                                                    credentials are used.
                                                   properties:
                                                     group:
                                                       description: |-
                                                         The API group of the referenced credential.
                                                         Empty selects the core API group.
+                                                      type: string
+                                                    key:
+                                                      description: |-
+                                                        The key in the referenced Secret whose value is used. If omitted, a
+                                                        location-specific default key is used.
+                                                      maxLength: 253
+                                                      minLength: 1
                                                       type: string
                                                     kind:
                                                       description: |-
@@ -4829,15 +4903,21 @@ spec:
                                                             key ID header.
                                                           type: string
                                                         signingKeyRef:
-                                                          description: Secret providing
-                                                            the `signingKey` key with
-                                                            a PEM-encoded RSA or EC
-                                                            private key.
+                                                          description: |-
+                                                            Secret providing the `signingKey` key by default with a PEM-encoded RSA
+                                                            or EC private key; override the key name via `signingKeyRef.key`.
                                                           properties:
                                                             group:
                                                               description: |-
                                                                 The API group of the referenced credential.
                                                                 Empty selects the core API group.
+                                                              type: string
+                                                            key:
+                                                              description: |-
+                                                                The key in the referenced Secret whose value is used. If omitted, a
+                                                                location-specific default key is used.
+                                                              maxLength: 253
+                                                              minLength: 1
                                                               type: string
                                                             kind:
                                                               description: |-
@@ -4872,13 +4952,21 @@ spec:
                                                       type: object
                                                     secretRef:
                                                       description: |-
-                                                        Secret providing the `clientSecret` key. When omitted, client_id is sent
-                                                        without a secret, which is only valid with ClientSecretPost.
+                                                        Secret providing the `clientSecret` key by default; override via
+                                                        `secretRef.key`. When omitted, client_id is sent without a secret, which
+                                                        is only valid with ClientSecretPost.
                                                       properties:
                                                         group:
                                                           description: |-
                                                             The API group of the referenced credential.
                                                             Empty selects the core API group.
+                                                          type: string
+                                                        key:
+                                                          description: |-
+                                                            The key in the referenced Secret whose value is used. If omitted, a
+                                                            location-specific default key is used.
+                                                          maxLength: 253
+                                                          minLength: 1
                                                           type: string
                                                         kind:
                                                           description: |-
@@ -5812,12 +5900,20 @@ spec:
                                                     Credential source, defaulting to a Kubernetes
                                                     `Secret`, containing ADC-compatible Google credential JSON. When using
                                                     the default Secret resolver, this must be stored in the `credentials.json`
-                                                    key. When omitted, ambient credentials are used.
+                                                    key by default; override via `secretRef.key`. When omitted, ambient
+                                                    credentials are used.
                                                   properties:
                                                     group:
                                                       description: |-
                                                         The API group of the referenced credential.
                                                         Empty selects the core API group.
+                                                      type: string
+                                                    key:
+                                                      description: |-
+                                                        The key in the referenced Secret whose value is used. If omitted, a
+                                                        location-specific default key is used.
+                                                      maxLength: 253
+                                                      minLength: 1
                                                       type: string
                                                     kind:
                                                       description: |-
@@ -6104,15 +6200,21 @@ spec:
                                                             key ID header.
                                                           type: string
                                                         signingKeyRef:
-                                                          description: Secret providing
-                                                            the `signingKey` key with
-                                                            a PEM-encoded RSA or EC
-                                                            private key.
+                                                          description: |-
+                                                            Secret providing the `signingKey` key by default with a PEM-encoded RSA
+                                                            or EC private key; override the key name via `signingKeyRef.key`.
                                                           properties:
                                                             group:
                                                               description: |-
                                                                 The API group of the referenced credential.
                                                                 Empty selects the core API group.
+                                                              type: string
+                                                            key:
+                                                              description: |-
+                                                                The key in the referenced Secret whose value is used. If omitted, a
+                                                                location-specific default key is used.
+                                                              maxLength: 253
+                                                              minLength: 1
                                                               type: string
                                                             kind:
                                                               description: |-
@@ -6147,13 +6249,21 @@ spec:
                                                       type: object
                                                     secretRef:
                                                       description: |-
-                                                        Secret providing the `clientSecret` key. When omitted, client_id is sent
-                                                        without a secret, which is only valid with ClientSecretPost.
+                                                        Secret providing the `clientSecret` key by default; override via
+                                                        `secretRef.key`. When omitted, client_id is sent without a secret, which
+                                                        is only valid with ClientSecretPost.
                                                       properties:
                                                         group:
                                                           description: |-
                                                             The API group of the referenced credential.
                                                             Empty selects the core API group.
+                                                          type: string
+                                                        key:
+                                                          description: |-
+                                                            The key in the referenced Secret whose value is used. If omitted, a
+                                                            location-specific default key is used.
+                                                          maxLength: 253
+                                                          minLength: 1
                                                           type: string
                                                         kind:
                                                           description: |-
@@ -7358,12 +7468,20 @@ spec:
                               Credential source, defaulting to a Kubernetes
                               `Secret`, containing ADC-compatible Google credential JSON. When using
                               the default Secret resolver, this must be stored in the `credentials.json`
-                              key. When omitted, ambient credentials are used.
+                              key by default; override via `secretRef.key`. When omitted, ambient
+                              credentials are used.
                             properties:
                               group:
                                 description: |-
                                   The API group of the referenced credential.
                                   Empty selects the core API group.
+                                type: string
+                              key:
+                                description: |-
+                                  The key in the referenced Secret whose value is used. If omitted, a
+                                  location-specific default key is used.
+                                maxLength: 253
+                                minLength: 1
                                 type: string
                               kind:
                                 description: |-
@@ -7623,13 +7741,21 @@ spec:
                                     description: Optional JWS key ID header.
                                     type: string
                                   signingKeyRef:
-                                    description: Secret providing the `signingKey`
-                                      key with a PEM-encoded RSA or EC private key.
+                                    description: |-
+                                      Secret providing the `signingKey` key by default with a PEM-encoded RSA
+                                      or EC private key; override the key name via `signingKeyRef.key`.
                                     properties:
                                       group:
                                         description: |-
                                           The API group of the referenced credential.
                                           Empty selects the core API group.
+                                        type: string
+                                      key:
+                                        description: |-
+                                          The key in the referenced Secret whose value is used. If omitted, a
+                                          location-specific default key is used.
+                                        maxLength: 253
+                                        minLength: 1
                                         type: string
                                       kind:
                                         description: |-
@@ -7658,13 +7784,21 @@ spec:
                                 type: object
                               secretRef:
                                 description: |-
-                                  Secret providing the `clientSecret` key. When omitted, client_id is sent
-                                  without a secret, which is only valid with ClientSecretPost.
+                                  Secret providing the `clientSecret` key by default; override via
+                                  `secretRef.key`. When omitted, client_id is sent without a secret, which
+                                  is only valid with ClientSecretPost.
                                 properties:
                                   group:
                                     description: |-
                                       The API group of the referenced credential.
                                       Empty selects the core API group.
+                                    type: string
+                                  key:
+                                    description: |-
+                                      The key in the referenced Secret whose value is used. If omitted, a
+                                      location-specific default key is used.
+                                    maxLength: 253
+                                    minLength: 1
                                     type: string
                                   kind:
                                     description: |-
