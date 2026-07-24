@@ -1404,6 +1404,7 @@ pub mod to_completions {
 				completions::UsagePromptDetails {
 					cached_tokens: Some(c),
 					audio_tokens: None,
+					cache_write_tokens: None,
 					rest: Value::Null,
 				}
 			}),
