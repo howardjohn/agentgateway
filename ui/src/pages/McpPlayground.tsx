@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { Braces, Cable, Play, RotateCcw } from "lucide-react";
 import { sendMcpJsonRpc } from "../api/playgroundApi";
-import { applyPlaygroundCors, corsNeedsUpdate, currentOrigin } from "../cors";
+import { corsNeedsUpdate, currentOrigin, playgroundCorsPolicy } from "../cors";
 import { mcpPlaygroundEndpoint } from "../gatewayUrls";
 import {
-  useGatewayConfig,
+  useMcpConfigData,
   useStoredStringState,
-  useUpdateConfig,
+  useUpsertPolicyResource,
 } from "../hooks";
 import {
   extractMcpTools,
@@ -48,10 +48,14 @@ const storageKeys = {
 };
 
 export function McpPlaygroundPage() {
-  const config = useGatewayConfig();
-  const updateConfig = useUpdateConfig();
-  const targets = useMemo(() => config.data?.mcp?.targets ?? [], [config.data]);
-  const mcpEndpoint = mcpPlaygroundEndpoint(config.data);
+  const mcpData = useMcpConfigData();
+  const effectiveConfig = mcpData.data;
+  const upsertPolicy = useUpsertPolicyResource();
+  const targets = useMemo(
+    () => effectiveConfig?.mcp?.targets ?? [],
+    [effectiveConfig],
+  );
+  const mcpEndpoint = mcpPlaygroundEndpoint(effectiveConfig);
   const derivedBaseUrl = mcpEndpoint.baseUrl;
   const baseUrl = derivedBaseUrl;
   const [initialized, setInitialized] = useState(false);
@@ -69,8 +73,8 @@ export function McpPlaygroundPage() {
 
   const selectedTool = tools.find((tool) => tool.name === toolName);
   const needsCors =
-    config.data && !mcpEndpoint.sameOrigin
-      ? corsNeedsUpdate(config.data.mcp?.policies?.cors, "mcp")
+    effectiveConfig && !mcpEndpoint.sameOrigin
+      ? corsNeedsUpdate(effectiveConfig.mcp?.policies?.cors, "mcp")
       : false;
 
   useEffect(() => {
@@ -185,10 +189,17 @@ export function McpPlaygroundPage() {
             <button
               className="button"
               type="button"
-              disabled={updateConfig.isPending}
-              onClick={() =>
-                updateConfig.mutate((next) => applyPlaygroundCors(next, "mcp"))
-              }
+              disabled={upsertPolicy.isPending}
+              onClick={() => {
+                upsertPolicy.mutate({
+                  kind: "mcp.policy",
+                  id: "cors",
+                  value: playgroundCorsPolicy(
+                    effectiveConfig?.mcp?.policies?.cors,
+                    "mcp",
+                  ),
+                });
+              }}
             >
               Apply CORS
             </button>
