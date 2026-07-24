@@ -657,8 +657,8 @@ pub mod typed {
 		},
 	}
 
-	impl Into<super::super::completions::typed::PromptCacheBreakpointParam> for CacheControlEphemeral {
-		fn into(self) -> PromptCacheBreakpointParam {
+	impl From<CacheControlEphemeral> for super::super::completions::typed::PromptCacheBreakpointParam {
+		fn from(_: CacheControlEphemeral) -> Self {
 			PromptCacheBreakpointParam {
 				mode: super::super::completions::typed::PromptCacheBreakpointMode::Explicit,
 			}
