@@ -406,15 +406,10 @@ pub(crate) fn output_item_tool_call_part(item: &OutputItem) -> Option<OutputMess
 	let OutputItem::FunctionCall(call) = item else {
 		return None;
 	};
-	let id = call
-		.id
-		.as_deref()
-		.filter(|id| !id.is_empty())
-		.unwrap_or(call.call_id.as_str());
 	let arguments =
 		serde_json::from_str(&call.arguments).unwrap_or(serde_json::Value::Object(Default::default()));
 	Some(OutputMessagePart::ToolCall {
-		id: strng::new(id),
+		id: strng::new(&call.call_id),
 		name: strng::new(&call.name),
 		arguments,
 	})
@@ -646,7 +641,7 @@ mod tests {
 		let tool_calls = messages[0].tool_calls();
 
 		assert_eq!(tool_calls.len(), 1);
-		assert_eq!(tool_calls[0].id.as_str(), "fc_123");
+		assert_eq!(tool_calls[0].id.as_str(), "call_123");
 		assert_eq!(tool_calls[0].name.as_str(), "get_weather");
 		assert_eq!(
 			tool_calls[0].arguments,
