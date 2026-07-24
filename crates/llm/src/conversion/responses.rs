@@ -64,6 +64,10 @@ pub fn passthrough_stream(
 						r.response.output_tokens = Some(usage.output_tokens as u64);
 						r.response.total_tokens = Some(usage.total_tokens as u64);
 						r.response.cached_input_tokens = Some(usage.input_tokens_details.cached_tokens as u64);
+						r.response.cache_creation_input_tokens = usage
+							.input_tokens_details
+							.cache_write_tokens
+							.map(|tokens| tokens as u64);
 						r.response.reasoning_tokens = Some(usage.output_tokens_details.reasoning_tokens as u64);
 					}
 				});
@@ -100,6 +104,10 @@ pub fn passthrough_stream(
 						r.response.output_tokens = Some(usage.output_tokens as u64);
 						r.response.total_tokens = Some(usage.total_tokens as u64);
 						r.response.cached_input_tokens = Some(usage.input_tokens_details.cached_tokens as u64);
+						r.response.cache_creation_input_tokens = usage
+							.input_tokens_details
+							.cache_write_tokens
+							.map(|tokens| tokens as u64);
 						r.response.reasoning_tokens = Some(usage.output_tokens_details.reasoning_tokens as u64);
 					}
 					if let Some(c) = completion.take() {

@@ -878,7 +878,9 @@ pub mod from_completions {
 			completions::ReasoningEffort::None => None,
 			completions::ReasoningEffort::Minimal | completions::ReasoningEffort::Low => Some(1024),
 			completions::ReasoningEffort::Medium => Some(2048),
-			completions::ReasoningEffort::High | completions::ReasoningEffort::Xhigh => Some(4096),
+			completions::ReasoningEffort::High => Some(4096),
+			completions::ReasoningEffort::Xhigh => Some(8192),
+			completions::ReasoningEffort::Max => Some(16384),
 		}
 	}
 
@@ -1144,11 +1146,18 @@ pub mod from_completions {
 								total_tokens: usage.total_tokens as u32,
 								cache_read_input_tokens: usage.cache_read_input_tokens.map(|i| i as u64),
 								cache_creation_input_tokens: usage.cache_write_input_tokens.map(|i| i as u64),
-								prompt_tokens_details: usage.cache_read_input_tokens.map(|i| UsagePromptDetails {
-									cached_tokens: Some(i as u64),
-									audio_tokens: None,
-									rest: Default::default(),
-								}),
+								prompt_tokens_details: match (
+									usage.cache_read_input_tokens,
+									usage.cache_write_input_tokens,
+								) {
+									(None, None) => None,
+									(cached_tokens, cache_write_tokens) => Some(UsagePromptDetails {
+										cached_tokens: cached_tokens.map(|i| i as u64),
+										audio_tokens: None,
+										cache_write_tokens: cache_write_tokens.map(|i| i as u64),
+										rest: Default::default(),
+									}),
+								},
 								// TODO: can we get reasoning tokens?
 								completion_tokens_details: None,
 							}),
@@ -2190,6 +2199,7 @@ pub mod from_responses {
 					ToolChoiceParam::AllowedTools(_)
 					| ToolChoiceParam::Mcp(_)
 					| ToolChoiceParam::Custom(_)
+					| ToolChoiceParam::ProgrammaticToolCalling(_)
 					| ToolChoiceParam::ApplyPatch
 					| ToolChoiceParam::Shell => {
 						tracing::warn!("Unsupported tool choice for Bedrock: {:?}", tc);
@@ -2218,6 +2228,7 @@ pub mod from_responses {
 			InputParam::Text(text) => vec![InputItem::from(InputMessage {
 				content: vec![InputContent::InputText(InputTextContent {
 					text: text.clone(),
+					prompt_cache_breakpoint: None,
 				})],
 				role: InputRole::User,
 				status: None,
@@ -2659,7 +2670,9 @@ pub mod from_responses {
 			responses::ReasoningEffort::None => None,
 			responses::ReasoningEffort::Minimal | responses::ReasoningEffort::Low => Some(1024),
 			responses::ReasoningEffort::Medium => Some(2048),
-			responses::ReasoningEffort::High | responses::ReasoningEffort::Xhigh => Some(4096),
+			responses::ReasoningEffort::High => Some(4096),
+			responses::ReasoningEffort::Xhigh => Some(8192),
+			responses::ReasoningEffort::Max => Some(16384),
 		}
 	}
 
@@ -2854,6 +2867,7 @@ pub mod from_responses {
 										call_id: tool_call_item_id.clone(),
 										namespace: None,
 										name: restored_name,
+										caller: None,
 										id: Some(tool_call_item_id),
 										status: Some(OutputStatus::InProgress),
 									}),
@@ -2982,6 +2996,7 @@ pub mod from_responses {
 									call_id: item_id.clone(),
 									namespace: None,
 									name,
+									caller: None,
 									id: Some(item_id),
 									status: Some(OutputStatus::Completed),
 								}),
@@ -3045,6 +3060,7 @@ pub mod from_responses {
 						total_tokens: (u.input_tokens + u.output_tokens) as u32,
 						input_tokens_details: InputTokenDetails {
 							cached_tokens: u.cache_read_input_tokens.unwrap_or(0) as u32,
+							cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as u32),
 						},
 						output_tokens_details: OutputTokenDetails {
 							reasoning_tokens: 0,
@@ -3476,13 +3492,18 @@ impl ConverseResponseAdapter {
 				completion_tokens_details: None,
 
 				cache_read_input_tokens: token_usage.cache_read_input_tokens.map(|i| i as u64),
-				prompt_tokens_details: token_usage
-					.cache_read_input_tokens
-					.map(|i| UsagePromptDetails {
-						cached_tokens: Some(i as u64),
+				prompt_tokens_details: match (
+					token_usage.cache_read_input_tokens,
+					token_usage.cache_write_input_tokens,
+				) {
+					(None, None) => None,
+					(cached_tokens, cache_write_tokens) => Some(UsagePromptDetails {
+						cached_tokens: cached_tokens.map(|i| i as u64),
 						audio_tokens: None,
+						cache_write_tokens: cache_write_tokens.map(|i| i as u64),
 						rest: Default::default(),
 					}),
+				},
 				cache_creation_input_tokens: token_usage.cache_write_input_tokens.map(|i| i as u64),
 			})
 			.unwrap_or_default();
@@ -3549,6 +3570,7 @@ impl ConverseResponseAdapter {
 							call_id: tool_use.tool_use_id.clone(),
 							namespace: None,
 							name: restore_tool_name(tool_name_map, &tool_use.name),
+							caller: None,
 							id: Some(tool_use.tool_use_id.clone()),
 							status: Some(responsest::OutputStatus::Completed),
 						},
@@ -3617,6 +3639,7 @@ impl ConverseResponseAdapter {
 			total_tokens: (u.input_tokens + u.output_tokens) as u32,
 			input_tokens_details: responsest::InputTokenDetails {
 				cached_tokens: u.cache_read_input_tokens.unwrap_or(0) as u32,
+				cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as u32),
 			},
 			output_tokens_details: responsest::OutputTokenDetails {
 				reasoning_tokens: 0,

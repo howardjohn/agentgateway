@@ -440,6 +440,7 @@ impl ResponseType for Response {
 
 // 'typed' provides a typed accessor
 pub mod typed {
+	use async_openai::types::chat::PromptCacheBreakpointParam;
 	use serde::{Deserialize, Deserializer, Serialize};
 	use serde_json::Value;
 
@@ -654,6 +655,14 @@ pub mod typed {
 			#[serde(skip_serializing_if = "Option::is_none")]
 			cache_control: Option<CacheControlEphemeral>,
 		},
+	}
+
+	impl Into<super::super::completions::typed::PromptCacheBreakpointParam> for CacheControlEphemeral {
+		fn into(self) -> PromptCacheBreakpointParam {
+			PromptCacheBreakpointParam {
+				mode: super::super::completions::typed::PromptCacheBreakpointMode::Explicit,
+			}
+		}
 	}
 
 	#[derive(Deserialize, Serialize, Default, Debug)]

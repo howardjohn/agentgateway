@@ -31,7 +31,10 @@ impl RawInputItem {
 
 	fn from_user_text(text: String) -> Self {
 		Self::from_typed(InputItem::from(InputMessage {
-			content: vec![InputContent::InputText(InputTextContent { text })],
+			content: vec![InputContent::InputText(InputTextContent {
+				text,
+				prompt_cache_breakpoint: None,
+			})],
 			role: InputRole::User,
 			status: None,
 		}))
@@ -150,6 +153,8 @@ pub struct UsageOutputDetails {
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct UsageInputDetails {
 	pub cached_tokens: Option<u64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub cache_write_tokens: Option<u64>,
 	#[serde(flatten, default)]
 	pub rest: serde_json::Value,
 }
@@ -189,12 +194,14 @@ impl ResponseBuilder {
 			max_output_tokens: None,
 			metadata: None,
 			model: self.model.clone(),
+			moderation: None,
 			object: "response".to_string(),
 			output: Vec::new(),
 			parallel_tool_calls: None,
 			previous_response_id: None,
 			prompt: None,
 			prompt_cache_key: None,
+			prompt_cache_options: None,
 			prompt_cache_retention: None,
 			reasoning: None,
 			safety_identifier: None,
@@ -271,6 +278,7 @@ impl From<SimpleChatCompletionMessage> for InputItem {
 			"system" => InputItem::from(InputMessage {
 				content: vec![InputContent::InputText(InputTextContent {
 					text: msg.content.to_string(),
+					prompt_cache_breakpoint: None,
 				})],
 				role: InputRole::System,
 				status: None,
@@ -278,6 +286,7 @@ impl From<SimpleChatCompletionMessage> for InputItem {
 			"developer" => InputItem::from(InputMessage {
 				content: vec![InputContent::InputText(InputTextContent {
 					text: msg.content.to_string(),
+					prompt_cache_breakpoint: None,
 				})],
 				role: InputRole::Developer,
 				status: None,
@@ -285,6 +294,7 @@ impl From<SimpleChatCompletionMessage> for InputItem {
 			_ => InputItem::from(InputMessage {
 				content: vec![InputContent::InputText(InputTextContent {
 					text: msg.content.to_string(),
+					prompt_cache_breakpoint: None,
 				})],
 				role: InputRole::User,
 				status: None,
@@ -447,7 +457,11 @@ impl ResponseType for Response {
 					.as_ref()
 					.and_then(|d| d.cached_tokens)
 			}),
-			cache_creation_input_tokens: None,
+			cache_creation_input_tokens: self.usage.as_ref().and_then(|u| {
+				u.input_tokens_details
+					.as_ref()
+					.and_then(|d| d.cache_write_tokens)
+			}),
 			service_tier: self.service_tier.as_deref().map(Into::into),
 			provider_model: Some(strng::new(&self.model)),
 			completion: if log_content.completion {

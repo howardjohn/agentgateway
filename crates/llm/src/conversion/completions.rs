@@ -204,6 +204,20 @@ pub mod from_messages {
 			})
 			.unwrap_or(messages::StopReason::EndTurn);
 
+		let cache_creation_input_tokens = usage.as_ref().and_then(|u| {
+			u.prompt_tokens_details
+				.as_ref()
+				.and_then(|d| d.cache_write_tokens)
+				.or(u.cache_creation_input_tokens)
+				.map(|tokens| tokens as usize)
+		});
+		let cache_read_input_tokens = usage.as_ref().and_then(|u| {
+			u.prompt_tokens_details
+				.as_ref()
+				.and_then(|d| d.cached_tokens)
+				.or(u.cache_read_input_tokens)
+				.map(|tokens| tokens as usize)
+		});
 		Ok(messages::MessagesResponse {
 			id,
 			r#type: "message".to_string(),
@@ -215,13 +229,15 @@ pub mod from_messages {
 				input_tokens: usage
 					.as_ref()
 					.map(|u| u.prompt_tokens as usize)
-					.unwrap_or(0),
+					.unwrap_or(0)
+					.saturating_sub(cache_creation_input_tokens.unwrap_or(0))
+					.saturating_sub(cache_read_input_tokens.unwrap_or(0)),
 				output_tokens: usage
 					.as_ref()
 					.map(|u| u.completion_tokens as usize)
 					.unwrap_or(0),
-				cache_creation_input_tokens: None,
-				cache_read_input_tokens: None,
+				cache_creation_input_tokens,
+				cache_read_input_tokens,
 				service_tier,
 			},
 			input_audio_tokens: usage.as_ref().and_then(|u| {
@@ -411,9 +427,30 @@ pub mod from_messages {
 			close_text_block(state, events);
 			close_all_tool_blocks(state, events);
 
+			let cache_creation_input_tokens = usage.as_ref().and_then(|u| {
+				u.prompt_tokens_details
+					.as_ref()
+					.and_then(|d| d.cache_write_tokens)
+					.or(u.cache_creation_input_tokens)
+					.map(|tokens| tokens as usize)
+			});
+			let cache_read_input_tokens = usage.as_ref().and_then(|u| {
+				u.prompt_tokens_details
+					.as_ref()
+					.and_then(|d| d.cached_tokens)
+					.or(u.cache_read_input_tokens)
+					.map(|tokens| tokens as usize)
+			});
 			let (input_tokens, output_tokens) = usage
 				.as_ref()
-				.map(|u| (u.prompt_tokens as usize, u.completion_tokens as usize))
+				.map(|u| {
+					(
+						(u.prompt_tokens as usize)
+							.saturating_sub(cache_creation_input_tokens.unwrap_or(0))
+							.saturating_sub(cache_read_input_tokens.unwrap_or(0)),
+						u.completion_tokens as usize,
+					)
+				})
 				.unwrap_or((0, 0));
 
 			push_event(
@@ -426,8 +463,8 @@ pub mod from_messages {
 					usage: messages::MessageDeltaUsage {
 						input_tokens: Some(input_tokens),
 						output_tokens: Some(output_tokens),
-						cache_creation_input_tokens: None,
-						cache_read_input_tokens: None,
+						cache_creation_input_tokens,
+						cache_read_input_tokens,
 					},
 				},
 			);
@@ -439,6 +476,9 @@ pub mod from_messages {
 					r.response.input_tokens = Some(usage.prompt_tokens as u64);
 					r.response.output_tokens = Some(usage.completion_tokens as u64);
 					r.response.total_tokens = Some(usage.total_tokens as u64);
+					r.response.cache_creation_input_tokens =
+						cache_creation_input_tokens.map(|tokens| tokens as u64);
+					r.response.cached_input_tokens = cache_read_input_tokens.map(|tokens| tokens as u64);
 				});
 			}
 
@@ -646,19 +686,6 @@ pub mod from_messages {
 		}
 	}
 
-	fn system_message_text(content: Vec<messages::ContentBlock>) -> Option<String> {
-		let text = content
-			.into_iter()
-			.filter_map(|block| match block {
-				messages::ContentBlock::Text(messages::ContentTextBlock { text, .. }) => Some(text),
-				_ => None,
-			})
-			.collect::<Vec<_>>()
-			.join("\n");
-
-		(!text.is_empty()).then_some(text)
-	}
-
 	#[allow(deprecated)]
 	fn translate_internal(req: messages::Request) -> completions::Request {
 		let messages::Request {
@@ -678,6 +705,19 @@ pub mod from_messages {
 			output_config,
 		} = req;
 
+		// Explicit prompt-cache breakpoints are accepted only by GPT 5.6 and newer models.
+		let supports_prompt_cache_breakpoint = model
+			.strip_prefix("gpt-")
+			.and_then(|model| model.split('-').next())
+			.and_then(|version| version.split_once('.'))
+			.and_then(|(major, minor)| Some((major.parse::<u32>().ok()?, minor.parse::<u32>().ok()?)))
+			.is_some_and(|version| version >= (5, 6));
+		let cache_breakpoint = |cache_control: Option<messages::CacheControlEphemeral>| {
+			cache_control
+				.filter(|_| supports_prompt_cache_breakpoint)
+				.map(Into::into)
+		};
+
 		let adaptive_thinking_requested = thinking
 			.as_ref()
 			.is_some_and(|t| matches!(t, messages::ThinkingInput::Adaptive {}));
@@ -687,9 +727,8 @@ pub mod from_messages {
 				Some(messages::ThinkingEffort::Low) => completions::ReasoningEffort::Low,
 				Some(messages::ThinkingEffort::Medium) => completions::ReasoningEffort::Medium,
 				Some(messages::ThinkingEffort::High) => completions::ReasoningEffort::High,
-				Some(messages::ThinkingEffort::Xhigh | messages::ThinkingEffort::Max) => {
-					completions::ReasoningEffort::Xhigh
-				},
+				Some(messages::ThinkingEffort::Xhigh) => completions::ReasoningEffort::Xhigh,
+				Some(messages::ThinkingEffort::Max) => completions::ReasoningEffort::Max,
 				// Anthropic adaptive thinking defaults to high effort when omitted.
 				None => completions::ReasoningEffort::High,
 			})
@@ -712,21 +751,30 @@ pub mod from_messages {
 
 		let mut msgs: Vec<completions::RequestMessage> = Vec::new();
 
-		// Handle the system prompt (convert both string and block formats to string)
+		// Preserve system block boundaries regardless of caching metadata.
 		if let Some(system) = system {
-			let system_text = match system {
-				messages::SystemPrompt::Text(text) => text,
-				messages::SystemPrompt::Blocks(blocks) => blocks
-					.into_iter()
-					.map(|block| match block {
-						messages::SystemContentBlock::Text { text, .. } => text,
-					})
-					.collect::<Vec<_>>()
-					.join("\n"),
+			let content = match system {
+				messages::SystemPrompt::Text(text) => completions::RequestSystemMessageContent::Text(text),
+				messages::SystemPrompt::Blocks(blocks) => completions::RequestSystemMessageContent::Array(
+					blocks
+						.into_iter()
+						.map(|block| match block {
+							messages::SystemContentBlock::Text {
+								text,
+								cache_control,
+							} => completions::RequestSystemMessageContentPart::Text(
+								completions::RequestMessageContentPartText {
+									text,
+									prompt_cache_breakpoint: cache_breakpoint(cache_control),
+								},
+							),
+						})
+						.collect(),
+				),
 			};
 			msgs.push(completions::RequestMessage::System(
 				completions::RequestSystemMessage {
-					content: completions::RequestSystemMessageContent::Text(system_text),
+					content,
 					name: None,
 				},
 			));
@@ -740,9 +788,16 @@ pub mod from_messages {
 
 					for block in msg.content {
 						match block {
-							messages::ContentBlock::Text(messages::ContentTextBlock { text, .. }) => {
+							messages::ContentBlock::Text(messages::ContentTextBlock {
+								text,
+								cache_control,
+								..
+							}) => {
 								parts.push(completions::RequestUserMessageContentPart::Text(
-									completions::RequestMessageContentPartText { text },
+									completions::RequestMessageContentPartText {
+										text,
+										prompt_cache_breakpoint: cache_breakpoint(cache_control),
+									},
 								));
 							},
 							messages::ContentBlock::Image(messages::ContentImageBlock { source, .. }) => {
@@ -750,6 +805,9 @@ pub mod from_messages {
 									parts.push(completions::RequestUserMessageContentPart::ImageUrl(
 										completions::RequestMessageContentPartImage {
 											image_url: completions::ImageUrl { url, detail: None },
+											// OpenAI rejects cache breakpoints on image parts even though the
+											// Chat Completions schema exposes this field.
+											prompt_cache_breakpoint: None,
 										},
 									));
 								}
@@ -757,23 +815,63 @@ pub mod from_messages {
 							messages::ContentBlock::ToolResult {
 								tool_use_id,
 								content,
+								cache_control,
 								..
 							} => {
 								let tool_content = match content {
-									ToolResultContent::Text(t) => completions::RequestToolMessageContent::Text(t),
-									ToolResultContent::Array(arr) => completions::RequestToolMessageContent::Array(
-										arr
-											.into_iter()
-											.filter_map(|p| match p {
-												ToolResultContentPart::Text { text, .. } => {
-													Some(completions::RequestToolMessageContentPart::Text(
-														completions::RequestMessageContentPartText { text },
-													))
+									ToolResultContent::Text(t) => match cache_breakpoint(cache_control) {
+										Some(breakpoint) => completions::RequestToolMessageContent::Array(vec![
+											completions::RequestToolMessageContentPart::Text(
+												completions::RequestMessageContentPartText {
+													text: t,
+													prompt_cache_breakpoint: Some(breakpoint),
 												},
-												_ => None,
-											})
-											.collect_vec(),
-									),
+											),
+										]),
+										None => completions::RequestToolMessageContent::Text(t),
+									},
+									ToolResultContent::Array(arr) => {
+										let mut tool_parts = Vec::new();
+										let mut trailing_cache_control =
+											cache_control.filter(|_| supports_prompt_cache_breakpoint);
+										for part in arr {
+											match part {
+												ToolResultContentPart::Text {
+													text,
+													cache_control,
+													..
+												} => tool_parts.push(completions::RequestToolMessageContentPart::Text(
+													completions::RequestMessageContentPartText {
+														text,
+														prompt_cache_breakpoint: cache_breakpoint(cache_control),
+													},
+												)),
+												ToolResultContentPart::Image { cache_control, .. }
+												| ToolResultContentPart::Document { cache_control, .. }
+												| ToolResultContentPart::SearchResult { cache_control, .. } => {
+													if supports_prompt_cache_breakpoint {
+														trailing_cache_control = trailing_cache_control.or(cache_control);
+													}
+												},
+											}
+										}
+										if let Some(cache_control) = trailing_cache_control {
+											let breakpoint = Some(cache_control.into());
+											if let Some(completions::RequestToolMessageContentPart::Text(part)) =
+												tool_parts.last_mut()
+											{
+												part.prompt_cache_breakpoint = breakpoint;
+											} else {
+												tool_parts.push(completions::RequestToolMessageContentPart::Text(
+													completions::RequestMessageContentPartText {
+														text: String::new(),
+														prompt_cache_breakpoint: breakpoint,
+													},
+												));
+											}
+										}
+										completions::RequestToolMessageContent::Array(tool_parts)
+									},
 								};
 								msgs.push(completions::RequestMessage::Tool(
 									completions::RequestToolMessage {
@@ -798,16 +896,20 @@ pub mod from_messages {
 					}
 				},
 				messages::Role::Assistant => {
-					let mut assistant_text = String::new();
+					let mut assistant_parts = Vec::new();
 					let mut tool_calls: Vec<completions::MessageToolCalls> = Vec::new();
 					for block in msg.content {
 						match block {
-							messages::ContentBlock::Text(messages::ContentTextBlock { text, .. }) => {
-								if !assistant_text.is_empty() {
-									assistant_text.push('\n');
-								}
-								assistant_text.push_str(&text);
-							},
+							messages::ContentBlock::Text(messages::ContentTextBlock {
+								text,
+								cache_control,
+								..
+							}) => assistant_parts.push(completions::RequestAssistantMessageContentPart::Text(
+								completions::RequestMessageContentPartText {
+									text,
+									prompt_cache_breakpoint: cache_breakpoint(cache_control),
+								},
+							)),
 							messages::ContentBlock::ToolUse {
 								id, name, input, ..
 							} => {
@@ -830,14 +932,14 @@ pub mod from_messages {
 							_ => {},
 						}
 					}
-					if !assistant_text.is_empty() || !tool_calls.is_empty() {
+					if !assistant_parts.is_empty() || !tool_calls.is_empty() {
 						msgs.push(completions::RequestMessage::Assistant(
 							completions::RequestAssistantMessage {
-								content: if assistant_text.is_empty() {
+								content: if assistant_parts.is_empty() {
 									None
 								} else {
-									Some(completions::RequestAssistantMessageContent::Text(
-										assistant_text,
+									Some(completions::RequestAssistantMessageContent::Array(
+										assistant_parts,
 									))
 								},
 								name: None,
@@ -856,10 +958,27 @@ pub mod from_messages {
 					}
 				},
 				messages::Role::System => {
-					if let Some(text) = system_message_text(msg.content) {
+					let parts = msg
+						.content
+						.into_iter()
+						.filter_map(|block| match block {
+							messages::ContentBlock::Text(messages::ContentTextBlock {
+								text,
+								cache_control,
+								..
+							}) => Some(completions::RequestSystemMessageContentPart::Text(
+								completions::RequestMessageContentPartText {
+									text,
+									prompt_cache_breakpoint: cache_breakpoint(cache_control),
+								},
+							)),
+							_ => None,
+						})
+						.collect::<Vec<_>>();
+					if !parts.is_empty() {
 						msgs.push(completions::RequestMessage::System(
 							completions::RequestSystemMessage {
-								content: completions::RequestSystemMessageContent::Text(text),
+								content: completions::RequestSystemMessageContent::Array(parts),
 								name: None,
 							},
 						));
@@ -1114,7 +1233,11 @@ pub fn passthrough_stream(
 									.prompt_tokens_details
 									.as_ref()
 									.and_then(|d| d.cached_tokens);
-								r.response.cache_creation_input_tokens = u.cache_creation_input_tokens;
+								r.response.cache_creation_input_tokens = u
+									.prompt_tokens_details
+									.as_ref()
+									.and_then(|d| d.cache_write_tokens)
+									.or(u.cache_creation_input_tokens);
 								r.response.reasoning_tokens = u
 									.completion_tokens_details
 									.as_ref()

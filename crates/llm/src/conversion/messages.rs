@@ -406,7 +406,9 @@ pub mod from_completions {
 			completions::ReasoningEffort::None => None,
 			completions::ReasoningEffort::Minimal | completions::ReasoningEffort::Low => Some(1024),
 			completions::ReasoningEffort::Medium => Some(2048),
-			completions::ReasoningEffort::High | completions::ReasoningEffort::Xhigh => Some(4096),
+			completions::ReasoningEffort::High => Some(4096),
+			completions::ReasoningEffort::Xhigh => Some(8192),
+			completions::ReasoningEffort::Max => Some(16384),
 		}
 	}
 
@@ -500,14 +502,18 @@ pub mod from_completions {
 			completion_tokens: resp.usage.output_tokens as u32,
 			total_tokens: (resp.usage.input_tokens + resp.usage.output_tokens) as u32,
 			cache_read_input_tokens: resp.usage.cache_read_input_tokens.map(|i| i as u64),
-			prompt_tokens_details: resp
-				.usage
-				.cache_read_input_tokens
-				.map(|i| UsagePromptDetails {
-					cached_tokens: Some(i as u64),
+			prompt_tokens_details: match (
+				resp.usage.cache_read_input_tokens,
+				resp.usage.cache_creation_input_tokens,
+			) {
+				(None, None) => None,
+				(cached_tokens, cache_write_tokens) => Some(UsagePromptDetails {
+					cached_tokens: cached_tokens.map(|i| i as u64),
 					audio_tokens: None,
+					cache_write_tokens: cache_write_tokens.map(|i| i as u64),
 					rest: Default::default(),
 				}),
+			},
 			cache_creation_input_tokens: resp.usage.cache_creation_input_tokens.map(|i| i as u64),
 
 			completion_tokens_details: None,
@@ -711,11 +717,18 @@ pub mod from_completions {
 									+ usage.output_tokens.unwrap_or_default()) as u32,
 
 								cache_read_input_tokens: usage.cache_read_input_tokens.map(|i| i as u64),
-								prompt_tokens_details: usage.cache_read_input_tokens.map(|i| UsagePromptDetails {
-									cached_tokens: Some(i as u64),
-									audio_tokens: None,
-									rest: Default::default(),
-								}),
+								prompt_tokens_details: match (
+									usage.cache_read_input_tokens,
+									usage.cache_creation_input_tokens,
+								) {
+									(None, None) => None,
+									(cached_tokens, cache_write_tokens) => Some(UsagePromptDetails {
+										cached_tokens: cached_tokens.map(|i| i as u64),
+										audio_tokens: None,
+										cache_write_tokens: cache_write_tokens.map(|i| i as u64),
+										rest: Default::default(),
+									}),
+								},
 								cache_creation_input_tokens: usage.cache_creation_input_tokens.map(|i| i as u64),
 
 								completion_tokens_details: None,

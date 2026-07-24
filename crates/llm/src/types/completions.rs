@@ -121,6 +121,8 @@ pub struct UsagePromptDetails {
 	pub cached_tokens: Option<u64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub audio_tokens: Option<u64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub cache_write_tokens: Option<u64>,
 	#[serde(flatten, default)]
 	pub rest: serde_json::Value,
 }
@@ -192,10 +194,12 @@ impl ResponseType for Response {
 						.and_then(|d| d.cached_tokens)
 				})
 			}),
-			cache_creation_input_tokens: self
-				.usage
-				.as_ref()
-				.and_then(|u| u.cache_creation_input_tokens),
+			cache_creation_input_tokens: self.usage.as_ref().and_then(|u| {
+				u.prompt_tokens_details
+					.as_ref()
+					.and_then(|d| d.cache_write_tokens)
+					.or(u.cache_creation_input_tokens)
+			}),
 			service_tier: self.service_tier.as_deref().map(Into::into),
 			provider_model: Some(strng::new(&self.model)),
 			completion: if log_content.completion {
@@ -480,10 +484,12 @@ pub mod typed {
 		ChatCompletionStreamOptions as StreamOptions, ChatCompletionTool as FunctionTool,
 		ChatCompletionToolChoiceOption as ToolChoiceOption, ChatCompletionToolChoiceOption,
 		ChatCompletionTools as Tool, FinishReason, FunctionCall, FunctionCallStream, FunctionName,
-		FunctionObject, FunctionType, ImageUrl, PredictionContent, ReasoningEffort, ResponseFormat,
-		ResponseFormatJsonSchema, ResponseModalities as ChatCompletionModalities, Role,
-		StopConfiguration as Stop, ToolChoiceOptions, WebSearchOptions,
+		FunctionObject, FunctionType, ImageUrl, PredictionContent, PromptCacheBreakpointParam,
+		ReasoningEffort, ResponseFormat, ResponseFormatJsonSchema,
+		ResponseModalities as ChatCompletionModalities, Role, StopConfiguration as Stop,
+		ToolChoiceOptions, WebSearchOptions,
 	};
+	pub use async_openai::types::responses::PromptCacheBreakpointMode;
 	use serde::{Deserialize, Serialize};
 
 	/// Agentgateway fork of async-openai's `ChatCompletionRequestMessage`.
@@ -573,6 +579,8 @@ pub mod typed {
 		pub cached_tokens: Option<u64>,
 		#[serde(skip_serializing_if = "Option::is_none")]
 		pub audio_tokens: Option<u64>,
+		#[serde(skip_serializing_if = "Option::is_none")]
+		pub cache_write_tokens: Option<u64>,
 		#[serde(flatten, default)]
 		pub rest: serde_json::Value,
 	}

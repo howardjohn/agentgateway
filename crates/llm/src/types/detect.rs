@@ -391,7 +391,19 @@ mod lookups {
 		// Completions
 		&["usage", "completion_tokens_details", "reasoning_tokens"],
 	];
-	pub const CACHE_CREATION_INPUT_TOKENS: [&[&str]; 3] = [
+	pub const CACHE_CREATION_INPUT_TOKENS: [&[&str]; 6] = [
+		// Responses
+		&["usage", "input_tokens_details", "cache_write_tokens"],
+		// Responses streaming
+		&[
+			"response",
+			"usage",
+			"input_tokens_details",
+			"cache_write_tokens",
+		],
+		// Completions
+		&["usage", "prompt_tokens_details", "cache_write_tokens"],
+		// Provider-specific compatibility fields
 		&["usage", "cache_creation_input_tokens"],
 		&["usage", "cacheWriteInputTokens"],
 		// Bedrock invoke

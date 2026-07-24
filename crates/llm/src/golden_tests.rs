@@ -243,6 +243,9 @@ fn request_conversion_golden() {
 			vertex_anthropic.prepare_anthropic_message_body(body)
 		});
 	}
+	test_request(COMPLETIONS, "requests/messages/cache_control.json", |i| {
+		conversion::completions::from_messages::translate(&i)
+	});
 	test_request(
 		COMPLETIONS,
 		"requests/messages/gpt_adaptive_thinking_with_tools.json",
@@ -262,6 +265,9 @@ fn request_conversion_golden() {
 			conversion::openai_compat::from_responses::translate(&i)
 		});
 	}
+	test_request(GEMINI, "requests/responses/cache_control.json", |i| {
+		conversion::openai_compat::from_responses::translate(&i)
+	});
 
 	for name in ["basic", "array"] {
 		let path = format!("requests/embeddings/{name}.json");
@@ -484,5 +490,83 @@ fn get_messages_golden() {
 	extract_messages::<types::responses::Request>(
 		"requests/responses/assistant-history.json",
 		"get-messages-responses",
+	);
+}
+
+#[tokio::test]
+async fn completions_to_messages_stream_preserves_cache_usage() {
+	use http_body_util::BodyExt;
+
+	let input = r#"data: {"id":"chunk","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"model":"gpt-5","usage":{"prompt_tokens":100,"completion_tokens":5,"total_tokens":105,"prompt_tokens_details":{"cached_tokens":20,"cache_write_tokens":30}}}
+
+data: [DONE]
+
+"#;
+	let output = conversion::completions::from_messages::translate_stream(
+		axum_core::body::Body::from(input),
+		1024 * 1024,
+		StreamingUsageGuard::default(),
+	)
+	.collect()
+	.await
+	.unwrap()
+	.to_bytes();
+	let delta = String::from_utf8(output.to_vec())
+		.unwrap()
+		.lines()
+		.filter_map(|line| line.strip_prefix("data: "))
+		.filter_map(|data| serde_json::from_str::<Value>(data).ok())
+		.find(|event| event["type"] == "message_delta")
+		.unwrap();
+
+	assert_eq!(
+		delta["usage"],
+		json!({
+			"input_tokens": 50,
+			"output_tokens": 5,
+			"cache_creation_input_tokens": 30,
+			"cache_read_input_tokens": 20,
+		})
+	);
+}
+
+#[test]
+fn responses_usage_allows_missing_cache_write_tokens() {
+	let event = serde_json::from_value::<types::responses::typed::ResponseStreamEvent>(json!({
+		"type": "response.completed",
+		"sequence_number": 1,
+		"response": {
+			"created_at": 1,
+			"id": "response",
+			"model": "gpt-5",
+			"object": "response",
+			"output": [],
+			"status": "completed",
+			"usage": {
+				"input_tokens": 10,
+				"input_tokens_details": {
+					"cached_tokens": 4
+				},
+				"output_tokens": 2,
+				"output_tokens_details": {
+					"reasoning_tokens": 0
+				},
+				"total_tokens": 12
+			}
+		}
+	}))
+	.unwrap();
+
+	let types::responses::typed::ResponseStreamEvent::ResponseCompleted(completed) = event else {
+		panic!("expected response.completed");
+	};
+	assert_eq!(
+		completed
+			.response
+			.usage
+			.unwrap()
+			.input_tokens_details
+			.cache_write_tokens,
+		None
 	);
 }
