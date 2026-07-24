@@ -161,9 +161,9 @@ mcp:
 {{- end -}}
 {{- if eq .Values.mode "database" -}}
 {{- $_ := set $config "database" (dict "url" .Values.database.postgres.url) -}}
-{{- $_ := set $config "configStore" (dict "mode" "hybrid") -}}
+{{- $_ := set $config "storage" (dict "mode" "hybrid") -}}
 {{- else -}}
-{{- $_ := set $config "configStore" (dict "mode" "file") -}}
+{{- $_ := set $config "storage" (dict "mode" "file") -}}
 {{- end }}
 {{- $_ := set $renderedConfig "config" $config -}}
 {{ toYaml $renderedConfig }}

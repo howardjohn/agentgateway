@@ -76,7 +76,6 @@ pub fn generate_schema() -> Result<()> {
 			let output = std::process::Command::new(cmd_path)
 				.arg(&inline_rule_path)
 				.output();
-			let _ = fs_err::remove_file(&inline_rule_path);
 			output?
 		};
 		if !o.stderr.is_empty() {

@@ -50,10 +50,10 @@ impl App {
 	}
 
 	fn config_resource_store(&self) -> Result<ConfigResourceStore, ErrorResponse> {
-		if self.state.config_store.mode != ConfigStoreMode::Hybrid {
+		if self.state.storage.mode != ConfigStoreMode::Hybrid {
 			return Err(ErrorResponse::Status(
 				StatusCode::FORBIDDEN,
-				"config resource APIs require configStore.mode=hybrid".to_string(),
+				"config resource APIs require config.storage.mode=hybrid".to_string(),
 			));
 		}
 		self
@@ -214,7 +214,7 @@ async fn get_runtime(State(app): State<App>) -> Json<RuntimeInfo> {
 			} else {
 				GatewayRuntimeMode::Standalone
 			},
-			config_store_mode: app.state.config_store.mode,
+			config_store_mode: app.state.storage.mode,
 		},
 	})
 }
@@ -284,7 +284,7 @@ async fn get_config(State(app): State<App>) -> Result<Json<Value>, ErrorResponse
 
 async fn get_effective_config(State(app): State<App>) -> Result<Json<Value>, ErrorResponse> {
 	let base = app.cfg()?.read_to_string().await?;
-	let config = if app.state.config_store.mode == ConfigStoreMode::Hybrid {
+	let config = if app.state.storage.mode == ConfigStoreMode::Hybrid {
 		let resources = app
 			.config_resource_store()?
 			.list(None)
@@ -364,7 +364,7 @@ async fn list_stored_config_resources(
 	app: &App,
 	kind: Option<ConfigResourceKind>,
 ) -> Result<UiConfigResourcesResponse, ErrorResponse> {
-	if app.state.config_store.mode != ConfigStoreMode::Hybrid {
+	if app.state.storage.mode != ConfigStoreMode::Hybrid {
 		return Ok(UiConfigResourcesResponse {
 			resources: Vec::new(),
 		});
@@ -398,9 +398,7 @@ async fn upsert_config_resources(
 	kind: ConfigResourceKind,
 	mut request: ConfigResourceUpsertRequest,
 ) -> Result<UiConfigResourcesResponse, ErrorResponse> {
-	if app.state.config_store.mode == ConfigStoreMode::Hybrid
-		&& kind == ConfigResourceKind::McpSettings
-	{
+	if app.state.storage.mode == ConfigStoreMode::Hybrid && kind == ConfigResourceKind::McpSettings {
 		let file_config = read_file_config(app).await?;
 		for resource in &mut request.resources {
 			remove_file_owned_mcp_settings(&file_config, &mut resource.value)?;
@@ -408,7 +406,7 @@ async fn upsert_config_resources(
 	}
 	let prepared =
 		crate::config_store::prepare_resources(kind, request).map_err(resource_api_error)?;
-	if app.state.config_store.mode == ConfigStoreMode::File {
+	if app.state.storage.mode == ConfigStoreMode::File {
 		let mut config = read_file_config(app).await?;
 		for resource in &prepared {
 			crate::config_store::upsert_file_config_resource(&mut config, resource, None)
@@ -446,12 +444,10 @@ async fn update_config_resource(
 	let kind = kind
 		.parse::<ConfigResourceKind>()
 		.map_err(resource_api_error)?;
-	if app.state.config_store.mode == ConfigStoreMode::Hybrid
-		&& kind == ConfigResourceKind::McpSettings
-	{
+	if app.state.storage.mode == ConfigStoreMode::Hybrid && kind == ConfigResourceKind::McpSettings {
 		remove_file_owned_mcp_settings(&read_file_config(&app).await?, &mut resource.value)?;
 	}
-	let stored_resources = if app.state.config_store.mode == ConfigStoreMode::Hybrid {
+	let stored_resources = if app.state.storage.mode == ConfigStoreMode::Hybrid {
 		Some(
 			app
 				.config_resource_store()?
@@ -464,7 +460,7 @@ async fn update_config_resource(
 	};
 	let prepared = match kind {
 		ConfigResourceKind::LlmApiKey => {
-			if app.state.config_store.mode == ConfigStoreMode::Hybrid
+			if app.state.storage.mode == ConfigStoreMode::Hybrid
 				&& !stored_resources.as_ref().is_some_and(|resources| {
 					resources
 						.iter()
@@ -474,7 +470,7 @@ async fn update_config_resource(
 					"config resource not found: {kind}/{id}"
 				))));
 			}
-			vec![if app.state.config_store.mode == ConfigStoreMode::File {
+			vec![if app.state.storage.mode == ConfigStoreMode::File {
 				crate::config_store::prepare_file_api_key_update(id.clone(), resource.value)
 					.map_err(resource_api_error)?
 			} else {
@@ -492,7 +488,7 @@ async fn update_config_resource(
 			vec![crate::config_store::prepare_resource(kind, resource.value).map_err(resource_api_error)?]
 		},
 	};
-	if app.state.config_store.mode == ConfigStoreMode::File {
+	if app.state.storage.mode == ConfigStoreMode::File {
 		let mut config = read_file_config(&app).await?;
 		for resource in &prepared {
 			crate::config_store::upsert_file_config_resource(&mut config, resource, Some(id.as_str()))
@@ -582,7 +578,7 @@ async fn delete_config_resource(
 	let kind = kind
 		.parse::<ConfigResourceKind>()
 		.map_err(resource_api_error)?;
-	if app.state.config_store.mode == ConfigStoreMode::File {
+	if app.state.storage.mode == ConfigStoreMode::File {
 		let mut config = read_file_config(&app).await?;
 		if !crate::config_store::delete_file_config_resource(&mut config, kind, &id)
 			.map_err(resource_api_error)?
@@ -690,7 +686,7 @@ async fn refresh_base_costs(State(app): State<App>) -> Result<Json<Value>, Error
 			None
 		}
 	});
-	if configured_file.is_none() && app.state.config_store.mode == ConfigStoreMode::Hybrid {
+	if configured_file.is_none() && app.state.storage.mode == ConfigStoreMode::Hybrid {
 		let refreshed = crate::llm::cost::refresh::fetch_models_dev_base_catalog().await?;
 		let resources = app
 			.config_resource_store()?

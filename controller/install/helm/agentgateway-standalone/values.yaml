@@ -105,7 +105,7 @@ monitoring:
     interval: 15s
 
 # Standalone agentgateway configuration. The chart manages
-# config.configStore and config.database based on mode.
+# config.storage and config.database based on mode.
 config: {}
 
 # Postgres connection used by database mode.

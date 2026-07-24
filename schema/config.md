@@ -34,8 +34,8 @@
 |`config.modelCatalog[].inline.providers.*.models.*.tiers[].rates.outputAudio`|string|Cost per 1M output audio tokens. Falls back to the output rate if unset.|
 |`config.database`|object|Primary database used by local runtime features.|
 |`config.database.url`|string|Connection URL for the request log database. A postgres:// or postgresql:// URL uses Postgres; any other value is treated as a SQLite database.|
-|`config.configStore`|object|Controls whether UI-managed configuration is written to the config file or a DB overlay.|
-|`config.configStore.mode`|enum|Possible values: `file`, `hybrid`.|
+|`config.storage`|object|Controls whether UI-managed configuration is written to the config file or a DB overlay.|
+|`config.storage.mode`|enum|Possible values: `file`, `hybrid`.|
 |`config.caAddress`|string|Address of the Certificate Authority used to issue SPIFFE certificates.|
 |`config.caAuthToken`|string|Authentication token for communicating with the Certificate Authority.|
 |`config.xdsAddress`|string|Address of the xDS control plane used for dynamic configuration.|

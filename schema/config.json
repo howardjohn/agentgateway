@@ -171,11 +171,11 @@
             }
           ]
         },
-        "configStore": {
+        "storage": {
           "description": "Controls whether UI-managed configuration is written to the config file or a DB overlay.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RawConfigStoreConfig"
+              "$ref": "#/$defs/RawStorageConfig"
             },
             {
               "type": "null"
@@ -673,7 +673,7 @@
         "url"
       ]
     },
-    "RawConfigStoreConfig": {
+    "RawStorageConfig": {
       "type": "object",
       "properties": {
         "mode": {

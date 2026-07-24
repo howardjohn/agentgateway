@@ -160,7 +160,7 @@ pub struct RawConfig {
 	/// Primary database used by local runtime features.
 	database: Option<telemetry::log_store::Config>,
 	/// Controls whether UI-managed configuration is written to the config file or a DB overlay.
-	config_store: Option<RawConfigStoreConfig>,
+	storage: Option<RawStorageConfig>,
 
 	/// Address of the Certificate Authority used to issue SPIFFE certificates.
 	ca_address: Option<String>,
@@ -409,7 +409,7 @@ pub struct RawLogging {
 
 #[apply(schema_de!)]
 #[derive(Default)]
-pub struct RawConfigStoreConfig {
+pub struct RawStorageConfig {
 	#[serde(default)]
 	mode: ConfigStoreMode,
 }
@@ -614,7 +614,7 @@ pub struct Config {
 	pub metrics: crate::telemetry::log::MetricsConfig,
 	pub logging: crate::telemetry::log::Config,
 	pub database: Option<telemetry::log_store::Config>,
-	pub config_store: ConfigStoreConfig,
+	pub storage: StorageConfig,
 
 	pub dns: client::Config,
 	pub proxy_metadata: ProxyMetadata,
@@ -640,7 +640,7 @@ pub struct ModelCatalogConfig {
 
 #[derive(serde::Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ConfigStoreConfig {
+pub struct StorageConfig {
 	pub mode: ConfigStoreMode,
 }
 

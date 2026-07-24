@@ -218,7 +218,7 @@ fn hybrid_config(database_url: &str) -> String {
 config:
   database:
     url: {database_url}
-  configStore:
+  storage:
     mode: hybrid
 gateways:
   default:
