@@ -360,13 +360,13 @@ fn attributes_for(expression: &cel::IdedExpr) -> FlagSet<Attributes> {
 	let mut attributes: FlagSet<Attributes> = FlagSet::default();
 	for tokens in props {
 		match tokens.as_slice() {
-			["request", "body", ..] => {
+			["request", "body" | "bodyPrefix", ..] => {
 				attributes |= Attributes::Request | Attributes::RequestBody;
 			},
 			["request", ..] => {
 				attributes |= Attributes::Request;
 			},
-			["response", "body", ..] => {
+			["response", "body" | "bodyPrefix", ..] => {
 				attributes |= Attributes::Response | Attributes::ResponseBody;
 			},
 			["response", ..] => {

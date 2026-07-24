@@ -907,6 +907,11 @@ pub struct RequestRef<'a> {
 	#[serde(skip_serializing_if = "is_body_extension_or_direct_none")]
 	pub body: BodyExtensionOrDirect<'a>,
 
+	/// The request body buffered up to `maxBufferSize`. Unlike `body`, this remains available when
+	/// the complete body exceeds the limit and contains the first `maxBufferSize` bytes.
+	#[serde(skip_serializing_if = "BodyPrefixExtensionOrDirect::is_none")]
+	pub body_prefix: BodyPrefixExtensionOrDirect<'a>,
+
 	#[serde(skip_serializing_if = "is_extension_or_direct_none")]
 	pub start_time: ExtensionOrDirect<'a, RequestTime>,
 
@@ -940,6 +945,15 @@ pub struct ResponseRef<'a> {
 
 	#[serde(skip_serializing_if = "is_body_extension_or_direct_none")]
 	pub body: BodyExtensionOrDirect<'a>,
+
+	/// The response body buffered up to `maxBufferSize`. Unlike `body`, this remains available when
+	/// the complete body exceeds the limit and contains the first `maxBufferSize` bytes.
+	#[serde(
+		rename = "bodyPrefix",
+		skip_serializing_if = "BodyPrefixExtensionOrDirect::is_none"
+	)]
+	#[dynamic(rename = "bodyPrefix")]
+	pub body_prefix: BodyPrefixExtensionOrDirect<'a>,
 }
 
 impl<'a> From<&'a ResponseSnapshot> for ResponseRef<'a> {
@@ -952,6 +966,10 @@ impl<'a> From<&'a ResponseSnapshot> for ResponseRef<'a> {
 				buffered: value.body.as_ref(),
 				recorded: value.recorded_body.as_ref(),
 			},
+			body_prefix: BodyPrefixExtensionOrDirect(BodyExtensionOrDirect::Direct {
+				buffered: value.body.as_ref(),
+				recorded: value.recorded_body.as_ref(),
+			}),
 		}
 	}
 }
@@ -1007,6 +1025,11 @@ pub struct RequestRefSerde {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub body: Option<BufferedBody>,
 
+	/// The request body buffered up to `maxBufferSize`. If the complete body exceeds the limit,
+	/// this contains the first `maxBufferSize` bytes.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub body_prefix: Option<BufferedBody>,
+
 	/// The time the request started
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub start_time: Option<RequestTime>,
@@ -1042,6 +1065,15 @@ pub struct ResponseRefSerde {
 	/// Including this attribute in an expression will trigger the body to be buffered.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub body: Option<BufferedBody>,
+
+	/// The response body buffered up to `maxBufferSize`. If the complete body exceeds the limit,
+	/// this contains the first `maxBufferSize` bytes.
+	#[serde(
+		default,
+		rename = "bodyPrefix",
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub body_prefix: Option<BufferedBody>,
 }
 
 impl<'a> From<&'a RequestSnapshot> for RequestRef<'a> {
@@ -1059,6 +1091,10 @@ impl<'a> From<&'a RequestSnapshot> for RequestRef<'a> {
 				buffered: value.body.as_ref(),
 				recorded: value.recorded_body.as_ref(),
 			},
+			body_prefix: BodyPrefixExtensionOrDirect(BodyExtensionOrDirect::Direct {
+				buffered: value.body.as_ref(),
+				recorded: value.recorded_body.as_ref(),
+			}),
 			start_time: value.start_time.as_ref().into(),
 			end_time: None,
 		}
@@ -1076,6 +1112,7 @@ impl<'a, B> From<&'a ::http::Request<B>> for RequestRef<'a> {
 			version: req.version(),
 			headers: Headers::new(req.headers()),
 			body: BodyExtensionOrDirect::Extension(req.extensions()),
+			body_prefix: BodyPrefixExtensionOrDirect(BodyExtensionOrDirect::Extension(req.extensions())),
 			start_time: req.extensions().into(),
 			// Only known in snapshot phase...
 			end_time: None,
@@ -1090,6 +1127,7 @@ impl<'a> From<&'a crate::http::Response> for ResponseRef<'a> {
 			grpc_status: crate::proxy::httpproxy::parse_grpc_status(resp.headers()),
 			headers: Headers::new(resp.headers()),
 			body: BodyExtensionOrDirect::Extension(resp.extensions()),
+			body_prefix: BodyPrefixExtensionOrDirect(BodyExtensionOrDirect::Extension(resp.extensions())),
 		}
 	}
 }
@@ -1103,7 +1141,7 @@ pub struct BufferedBody(
 #[derive(Debug, Clone)]
 enum BufferedBodyState {
 	Complete(Bytes),
-	ExceededLimit,
+	ExceededLimit(Bytes),
 }
 
 impl BufferedBody {
@@ -1111,19 +1149,25 @@ impl BufferedBody {
 		Self(BufferedBodyState::Complete(bytes))
 	}
 
-	pub fn exceeded_limit() -> Self {
-		Self(BufferedBodyState::ExceededLimit)
+	pub fn exceeded_limit(bytes: Bytes) -> Self {
+		Self(BufferedBodyState::ExceededLimit(bytes))
 	}
 
 	pub fn bytes(&self) -> Option<&Bytes> {
 		match &self.0 {
 			BufferedBodyState::Complete(bytes) => Some(bytes),
-			BufferedBodyState::ExceededLimit => None,
+			BufferedBodyState::ExceededLimit(_) => None,
+		}
+	}
+
+	fn prefix_bytes(&self) -> &Bytes {
+		match &self.0 {
+			BufferedBodyState::Complete(bytes) | BufferedBodyState::ExceededLimit(bytes) => bytes,
 		}
 	}
 
 	fn is_too_large(&self) -> bool {
-		matches!(&self.0, BufferedBodyState::ExceededLimit)
+		matches!(&self.0, BufferedBodyState::ExceededLimit(_))
 	}
 }
 
@@ -1131,7 +1175,7 @@ impl From<crate::http::BodyInspection> for BufferedBody {
 	fn from(inspection: crate::http::BodyInspection) -> Self {
 		match inspection {
 			crate::http::BodyInspection::Complete(bytes) => Self::complete(bytes),
-			crate::http::BodyInspection::Partial(_) => Self::exceeded_limit(),
+			crate::http::BodyInspection::Partial(bytes) => Self::exceeded_limit(bytes),
 		}
 	}
 }
@@ -1147,7 +1191,7 @@ impl Serialize for BufferedBody {
 				let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
 				serializer.serialize_str(&encoded)
 			},
-			BufferedBodyState::ExceededLimit => serializer.serialize_none(),
+			BufferedBodyState::ExceededLimit(_) => serializer.serialize_none(),
 		}
 	}
 }
@@ -1174,7 +1218,7 @@ impl DynamicType for BufferedBody {
 	fn materialize(&self) -> Value<'_> {
 		match &self.0 {
 			BufferedBodyState::Complete(bytes) => Value::Bytes(BytesValue::Bytes(bytes.clone())),
-			BufferedBodyState::ExceededLimit => Value::Null,
+			BufferedBodyState::ExceededLimit(_) => Value::Null,
 		}
 	}
 }
@@ -1209,6 +1253,14 @@ impl BodyExtensionOrDirect<'_> {
 		}
 		if let Some(buffered) = self.buffered() {
 			buffered.bytes().cloned()
+		} else {
+			self.recorded().map(RecordedBodyHandle::bytes)
+		}
+	}
+
+	fn prefix_bytes(&self) -> Option<Bytes> {
+		if let Some(buffered) = self.buffered() {
+			Some(buffered.prefix_bytes().clone())
 		} else {
 			self.recorded().map(RecordedBodyHandle::bytes)
 		}
@@ -1254,6 +1306,40 @@ impl DynamicType for BodyExtensionOrDirect<'_> {
 
 	fn materialize(&self) -> Value<'_> {
 		match self.bytes() {
+			Some(bytes) => Value::Bytes(BytesValue::Bytes(bytes)),
+			None => Value::Null,
+		}
+	}
+}
+
+#[derive(Debug, Clone)]
+pub struct BodyPrefixExtensionOrDirect<'a>(BodyExtensionOrDirect<'a>);
+
+impl BodyPrefixExtensionOrDirect<'_> {
+	fn is_none(&self) -> bool {
+		self.0.buffered().is_none() && self.0.recorded().is_none()
+	}
+}
+
+impl Serialize for BodyPrefixExtensionOrDirect<'_> {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: serde::Serializer,
+	{
+		match self.0.prefix_bytes() {
+			Some(bytes) => BufferedBody::complete(bytes).serialize(serializer),
+			None => serializer.serialize_none(),
+		}
+	}
+}
+
+impl DynamicType for BodyPrefixExtensionOrDirect<'_> {
+	fn auto_materialize(&self) -> bool {
+		true
+	}
+
+	fn materialize(&self) -> Value<'_> {
+		match self.0.prefix_bytes() {
 			Some(bytes) => Value::Bytes(BytesValue::Bytes(bytes)),
 			None => Value::Null,
 		}
@@ -2048,6 +2134,10 @@ impl ExecutorSerde {
 					buffered: req.body.as_ref(),
 					recorded: None,
 				},
+				body_prefix: BodyPrefixExtensionOrDirect(BodyExtensionOrDirect::Direct {
+					buffered: req.body_prefix.as_ref().or(req.body.as_ref()),
+					recorded: None,
+				}),
 				start_time: ExtensionOrDirect::Direct(req.start_time.as_ref()),
 				end_time: req.end_time.as_ref(),
 			});
@@ -2063,6 +2153,10 @@ impl ExecutorSerde {
 					buffered: resp.body.as_ref(),
 					recorded: None,
 				},
+				body_prefix: BodyPrefixExtensionOrDirect(BodyExtensionOrDirect::Direct {
+					buffered: resp.body_prefix.as_ref().or(resp.body.as_ref()),
+					recorded: None,
+				}),
 			});
 		}
 		exec.proxy = ExtensionOrDirect::Direct(self.proxy.as_ref());
@@ -2105,6 +2199,7 @@ pub fn full_example_executor() -> ExecutorSerde {
 			version: Version::HTTP_11,
 			headers: req_headers,
 			body: Some(BufferedBody::complete(Bytes::from(r#"{"model": "fast"}"#))),
+			body_prefix: None,
 			start_time: Some(RequestTime(
 				chrono::DateTime::parse_from_rfc3339("2000-01-01T12:00:00Z").unwrap(),
 			)),
@@ -2117,6 +2212,7 @@ pub fn full_example_executor() -> ExecutorSerde {
 			grpc_status: None,
 			headers: resp_headers,
 			body: Some(BufferedBody::complete(Bytes::from(r#"{"ok": true}"#))),
+			body_prefix: None,
 		}),
 		proxy: Some(ProxyContext {
 			bind: Some("bind".into()),
