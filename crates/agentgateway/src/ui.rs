@@ -294,7 +294,7 @@ async fn get_effective_config(State(app): State<App>) -> Result<Json<Value>, Err
 	} else {
 		base
 	};
-	let value = yamlviajson::from_str(&config).map_err(|err| ErrorResponse::Anyhow(err.into()))?;
+	let value = yamlviajson::from_str(&config).map_err(|err| ErrorResponse::Anyhow(err))?;
 	Ok(Json(value))
 }
 
@@ -319,8 +319,7 @@ async fn persist_file_config(app: &App, config_json: &Value) -> Result<(), Error
 			));
 		},
 	};
-	let yaml_content =
-		yamlviajson::to_string(&config_json).map_err(|e| ErrorResponse::Anyhow(e.into()))?;
+	let yaml_content = yamlviajson::to_string(&config_json).map_err(|e| ErrorResponse::Anyhow(e))?;
 	let yaml_file_content = format!("{CONFIG_SCHEMA_HEADER}{yaml_content}");
 
 	let resources =
@@ -380,7 +379,7 @@ async fn list_stored_config_resources(
 
 async fn read_file_config(app: &App) -> Result<Value, ErrorResponse> {
 	let config = app.cfg()?.read_to_string().await?;
-	yamlviajson::from_str(&config).map_err(|err| ErrorResponse::Anyhow(err.into()))
+	yamlviajson::from_str(&config).map_err(|err| ErrorResponse::Anyhow(err))
 }
 
 async fn upsert_config_resources_by_kind(

@@ -968,6 +968,10 @@ test("hybrid LLM and UI policies are stored as individual resources", async ({
 }) => {
   const config = emptyConfig();
   delete (config.llm as Record<string, unknown>).policies;
+  const mcp = config.mcp as Record<string, unknown>;
+  mcp.port = 3000;
+  const mcpPolicies = mcp.policies as Record<string, unknown>;
+  mcpPolicies.cors = { allowOrigins: [] };
   config.gateways = { default: { port: 8080 } };
   config.ui = { gateways: "default" };
   const gateway = await mockGateway(page, config);
@@ -1069,6 +1073,11 @@ test("hybrid LLM and UI policies are stored as individual resources", async ({
   await expect.poll(() => writes.length).toBe(1);
   expect(writes[0]).toMatchObject({ kind: "llm.policy", id: "cors" });
   await expect(page.getByText("Browser access is not allowed")).toHaveCount(0);
+
+  await page.goto("/mcp/playground");
+  await expect(
+    page.getByRole("link", { name: "Configure CORS" }),
+  ).toHaveAttribute("href", "/mcp/policies#cors");
 
   await page.goto("/settings");
   await page.getByText("CORS", { exact: true }).click();

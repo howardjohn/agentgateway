@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { Braces, Cable, Play, RotateCcw } from "lucide-react";
@@ -76,6 +77,13 @@ export function McpPlaygroundPage() {
     effectiveConfig && !mcpEndpoint.sameOrigin
       ? corsNeedsUpdate(effectiveConfig.mcp?.policies?.cors, "mcp")
       : false;
+  const fileCorsOwned = Boolean(
+    mcpData.rawConfig.data?.mcp?.policies &&
+    Object.prototype.hasOwnProperty.call(
+      mcpData.rawConfig.data.mcp.policies,
+      "cors",
+    ),
+  );
 
   useEffect(() => {
     localStorage.removeItem("mcpPlaygroundArgs");
@@ -186,23 +194,29 @@ export function McpPlaygroundPage() {
           state="warn"
           title="Browser access is not allowed"
           action={
-            <button
-              className="button"
-              type="button"
-              disabled={upsertPolicy.isPending}
-              onClick={() => {
-                upsertPolicy.mutate({
-                  kind: "mcp.policy",
-                  id: "cors",
-                  value: playgroundCorsPolicy(
-                    effectiveConfig?.mcp?.policies?.cors,
-                    "mcp",
-                  ),
-                });
-              }}
-            >
-              Apply CORS
-            </button>
+            mcpData.hybrid && fileCorsOwned ? (
+              <Link className="button" to="/mcp/policies" hash="cors">
+                Configure CORS
+              </Link>
+            ) : (
+              <button
+                className="button"
+                type="button"
+                disabled={upsertPolicy.isPending}
+                onClick={() => {
+                  upsertPolicy.mutate({
+                    kind: "mcp.policy",
+                    id: "cors",
+                    value: playgroundCorsPolicy(
+                      effectiveConfig?.mcp?.policies?.cors,
+                      "mcp",
+                    ),
+                  });
+                }}
+              >
+                Apply CORS
+              </button>
+            )
           }
         >
           Add {currentOrigin()} to the MCP CORS policy and expose Mcp-Session-Id

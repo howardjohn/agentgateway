@@ -244,6 +244,13 @@ export function PlaygroundPage() {
     filePolicies,
     "cors",
   );
+  const fileMcpCorsOwned = Boolean(
+    mcpData.rawConfig.data?.mcp?.policies &&
+    Object.prototype.hasOwnProperty.call(
+      mcpData.rawConfig.data.mcp.policies,
+      "cors",
+    ),
+  );
   const needsCors =
     !configDataLoading &&
     !configDataError &&
@@ -579,14 +586,20 @@ export function PlaygroundPage() {
           state="warn"
           title="MCP browser access is not allowed"
           action={
-            <button
-              className="button"
-              type="button"
-              disabled={corsSaving}
-              onClick={applyMcpCors}
-            >
-              Apply MCP CORS
-            </button>
+            hybrid && fileMcpCorsOwned ? (
+              <Link className="button" to="/mcp/policies" hash="cors">
+                Configure CORS
+              </Link>
+            ) : (
+              <button
+                className="button"
+                type="button"
+                disabled={corsSaving}
+                onClick={applyMcpCors}
+              >
+                Apply MCP CORS
+              </button>
+            )
           }
         >
           Add {currentOrigin()} to the MCP CORS policy so the playground can

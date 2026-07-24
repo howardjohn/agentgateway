@@ -583,10 +583,11 @@ function upsertFileConfigResource(
   if (kind === "mcp.target")
     return upsertSectionList(config, "mcp", "targets", value, previousId);
   if (kind === "llm.policy" || kind === "mcp.policy" || kind === "ui.policy") {
+    if (!previousId) throw new Error(`${kind} writes require an id`);
     const sectionName = kind.split(".")[0];
     const section = ensureRecord(config, sectionName);
     const policies = ensureRecord(section, "policies");
-    const policyId = previousId ?? "";
+    const policyId = previousId;
     const existingKeys =
       kind === "llm.policy" && policyId === "apiKey"
         ? record(policies.apiKey).keys
@@ -603,9 +604,9 @@ function upsertFileConfigResource(
       ? keys.findIndex((key, keyIndex) => {
           const keyValue = record(key);
           return (
-            stringValue(record(keyValue.metadata).id) ||
-            `@index:${keyIndex}`
-          ) === previousId;
+            (stringValue(record(keyValue.metadata).id) ||
+              `@index:${keyIndex}`) === previousId
+          );
         })
       : -1;
     if (!previousId || !previousId.startsWith("@index:")) {
@@ -627,10 +628,10 @@ function upsertFileConfigResource(
     return;
   }
   if (kind === "traffic.gateway") {
-    const gateways = ensureRecord(config, "gateways");
-    if (previousId && previousId !== stringValue(value.name))
-      delete gateways[previousId];
     const name = stringValue(value.name);
+    if (!name) throw new Error("traffic.gateway writes require a name");
+    const gateways = ensureRecord(config, "gateways");
+    if (previousId && previousId !== name) delete gateways[previousId];
     delete value.name;
     gateways[name] = value;
     return;
@@ -683,7 +684,9 @@ function deleteFileConfigResource(
     const policy = record(record(record(config.llm).policies).apiKey);
     policy.keys = array(policy.keys).filter((key, index) => {
       const value = record(key);
-      return (stringValue(record(value.metadata).id) || `@index:${index}`) !== id;
+      return (
+        (stringValue(record(value.metadata).id) || `@index:${index}`) !== id
+      );
     });
     return;
   }
