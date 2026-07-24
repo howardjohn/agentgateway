@@ -383,11 +383,8 @@ fn extract_output_messages(resp: &Response) -> Option<Vec<OutputMessage>> {
 	let mut content = Vec::new();
 
 	for item in &resp.output {
-		match item {
-			OutputItem::FunctionCall(_) => {
-				content.extend(output_item_tool_call_part(item));
-			},
-			_ => {},
+		if let OutputItem::FunctionCall(_) = item {
+			content.extend(output_item_tool_call_part(item));
 		}
 	}
 
