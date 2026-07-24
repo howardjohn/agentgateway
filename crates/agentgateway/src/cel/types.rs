@@ -2199,7 +2199,7 @@ pub fn full_example_executor() -> ExecutorSerde {
 			version: Version::HTTP_11,
 			headers: req_headers,
 			body: Some(BufferedBody::complete(Bytes::from(r#"{"model": "fast"}"#))),
-			body_prefix: None,
+			body_prefix: Some(BufferedBody::complete(Bytes::from(r#"{"model": "fast"}"#))),
 			start_time: Some(RequestTime(
 				chrono::DateTime::parse_from_rfc3339("2000-01-01T12:00:00Z").unwrap(),
 			)),
@@ -2212,7 +2212,7 @@ pub fn full_example_executor() -> ExecutorSerde {
 			grpc_status: None,
 			headers: resp_headers,
 			body: Some(BufferedBody::complete(Bytes::from(r#"{"ok": true}"#))),
-			body_prefix: None,
+			body_prefix: Some(BufferedBody::complete(Bytes::from(r#"{"ok": true}"#))),
 		}),
 		proxy: Some(ProxyContext {
 			bind: Some("bind".into()),
