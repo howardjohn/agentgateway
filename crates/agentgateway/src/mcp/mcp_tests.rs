@@ -920,8 +920,8 @@ async fn modern_stateful_streamable_http_does_not_use_sessions() {
 	assert_eq!(with_session.status(), reqwest::StatusCode::BAD_REQUEST);
 }
 
-// TODO this test doesn't regress without downgrade_to_legacy_handshake
-// as our current rmcp fork doesn't replicate the strictness that the python SDK has
+// TODO this test doesn't regress without downgrade_to_legacy_handshake because rmcp does not
+// replicate the strictness that the Python SDK has.
 #[tokio::test]
 async fn stateless_vnext_tools_list_reaches_upstream() {
 	let mock = mock_streamable_http_server(false).await;
@@ -956,7 +956,7 @@ async fn stateless_vnext_tools_list_reaches_upstream() {
 
 #[tokio::test]
 async fn modern_client_multiplex_mixed_servers_falls_back_to_legacy_initialize() {
-	let old = mock_streamable_http_server(false).await;
+	let old = mock_streamable_http_server_without_discover().await;
 	let new = mock_modern_streamable_http_server().await;
 	let t = setup_proxy_test("{}")
 		.unwrap()
@@ -3330,14 +3330,29 @@ async fn mock_modern_streamable_http_server() -> MockServer {
 	mock_modern_streamable_http_server_with_versions(&["2025-06-18", "2026-07-28"]).await
 }
 
+async fn mock_streamable_http_server_without_discover() -> MockServer {
+	mock_streamable_http_server_with_discover_versions(None).await
+}
+
 // Variant of `mock_modern_streamable_http_server` for tests that need custom upstream
 // `server/discover` versions.
 async fn mock_modern_streamable_http_server_with_versions(versions: &[&str]) -> MockServer {
+	mock_streamable_http_server_with_discover_versions(Some(versions)).await
+}
+
+async fn mock_streamable_http_server_with_discover_versions(
+	versions: Option<&[&str]>,
+) -> MockServer {
 	agent_core::telemetry::testing::setup_test_logging();
 	let (tx, rx) = tokio::sync::oneshot::channel();
 	let init_counter = std::sync::Arc::new(tokio::sync::Mutex::new(0_i32));
 	let init_counter_clone = init_counter.clone();
-	let versions: Vec<String> = versions.iter().map(|v| v.to_string()).collect();
+	let versions = versions.map(|versions| {
+		versions
+			.iter()
+			.map(|version| version.to_string())
+			.collect::<Vec<_>>()
+	});
 	let router = axum::Router::new().route(
 		"/mcp",
 		axum::routing::post(move |body: axum::Json<serde_json::Value>| {
@@ -3347,17 +3362,31 @@ async fn mock_modern_streamable_http_server_with_versions(versions: &[&str]) -> 
 				let id = body.get("id").cloned().unwrap_or(serde_json::Value::Null);
 				let method = body.get("method").and_then(|m| m.as_str()).unwrap_or("");
 				let result = match method {
-					"server/discover" => serde_json::json!({
-						"resultType": "complete",
-						"supportedVersions": versions,
-						"capabilities": {
-							"tools": {}
-						},
-						"serverInfo": {
-							"name": "modern-mock",
-							"version": "0.0.1"
-						}
-					}),
+					"server/discover" => {
+						let Some(versions) = versions else {
+							return axum::Json(serde_json::json!({
+								"jsonrpc": "2.0",
+								"id": id,
+								"error": {
+									"code": -32601,
+									"message": method
+								}
+							}));
+						};
+						serde_json::json!({
+							"resultType": "complete",
+							"supportedVersions": versions,
+							"capabilities": {
+								"tools": {}
+							},
+							"serverInfo": {
+								"name": "modern-mock",
+								"version": "0.0.1"
+							},
+							"ttlMs": 0,
+							"cacheScope": "private"
+						})
+					},
 					"initialize" => {
 						*init_counter.lock().await += 1;
 						serde_json::json!({
@@ -3586,7 +3615,7 @@ async fn mock_streamable_http_server_inner(
 		StreamableHttpServerConfig::default()
 			.with_sse_retry(None)
 			.with_sse_keep_alive(None)
-			.with_stateful_mode(stateful)
+			.with_legacy_session_mode(stateful)
 			.with_json_response(false),
 	);
 
@@ -3632,7 +3661,7 @@ async fn mock_paging_streamable_http_server() -> MockServer {
 		StreamableHttpServerConfig::default()
 			.with_sse_retry(None)
 			.with_sse_keep_alive(None)
-			.with_stateful_mode(true)
+			.with_legacy_session_mode(true)
 			.with_json_response(false),
 	);
 
@@ -3675,7 +3704,7 @@ async fn mock_apps_streamable_http_server_with_init_capture()
 		StreamableHttpServerConfig::default()
 			.with_sse_retry(None)
 			.with_sse_keep_alive(None)
-			.with_stateful_mode(true)
+			.with_legacy_session_mode(true)
 			.with_json_response(false),
 	);
 
@@ -3813,12 +3842,12 @@ mod appsmockserver {
 			&self,
 			request: CallToolRequestParams,
 			_: RequestContext<RoleServer>,
-		) -> Result<CallToolResult, McpError> {
+		) -> Result<CallToolResponse, McpError> {
 			match request.name.as_ref() {
-				"show_dashboard" => Ok(CallToolResult::success(vec![ContentBlock::text(
-					"dashboard data",
-				)])),
-				"plain" => Ok(CallToolResult::success(vec![ContentBlock::text("ok")])),
+				"show_dashboard" => {
+					Ok(CallToolResult::success(vec![ContentBlock::text("dashboard data")]).into())
+				},
+				"plain" => Ok(CallToolResult::success(vec![ContentBlock::text("ok")]).into()),
 				_ => Err(McpError::invalid_params("unknown tool", None)),
 			}
 		}
@@ -3847,15 +3876,18 @@ mod appsmockserver {
 			&self,
 			ReadResourceRequestParams { uri, .. }: ReadResourceRequestParams,
 			_: RequestContext<RoleServer>,
-		) -> Result<ReadResourceResult, McpError> {
+		) -> Result<ReadResourceResponse, McpError> {
 			match uri.as_str() {
-				DASHBOARD_URI => Ok(ReadResourceResult::new(vec![
-					ResourceContents::text(DASHBOARD_HTML, uri)
-						.with_mime_type(UI_MIME_TYPE)
-						.with_meta(meta(json!({
-							"ui": {"csp": {"connectDomains": ["https://api.example.com"]}}
-						}))),
-				])),
+				DASHBOARD_URI => Ok(
+					ReadResourceResult::new(vec![
+						ResourceContents::text(DASHBOARD_HTML, uri)
+							.with_mime_type(UI_MIME_TYPE)
+							.with_meta(meta(json!({
+								"ui": {"csp": {"connectDomains": ["https://api.example.com"]}}
+							}))),
+					])
+					.into(),
+				),
 				_ => Err(McpError::resource_not_found(
 					"resource_not_found",
 					Some(json!({ "uri": uri })),
@@ -4105,19 +4137,15 @@ mod mockserver {
 			&self,
 			ReadResourceRequestParams { uri, .. }: ReadResourceRequestParams,
 			_: RequestContext<RoleServer>,
-		) -> Result<ReadResourceResult, McpError> {
+		) -> Result<ReadResourceResponse, McpError> {
 			match uri.as_str() {
 				"str:////Users/to/some/path/" => {
 					let cwd = "/Users/to/some/path/";
-					Ok(ReadResourceResult::new(vec![ResourceContents::text(
-						cwd, uri,
-					)]))
+					Ok(ReadResourceResult::new(vec![ResourceContents::text(cwd, uri)]).into())
 				},
 				"memo://insights" => {
 					let memo = "Business Intelligence Memo\n\nAnalysis has revealed 5 key insights ...";
-					Ok(ReadResourceResult::new(vec![ResourceContents::text(
-						memo, uri,
-					)]))
+					Ok(ReadResourceResult::new(vec![ResourceContents::text(memo, uri)]).into())
 				},
 				_ => Err(McpError::resource_not_found(
 					"resource_not_found",
@@ -4218,12 +4246,10 @@ mod mockserver {
 			&self,
 			request: CallToolRequestParams,
 			_: RequestContext<RoleServer>,
-		) -> Result<CallToolResult, McpError> {
+		) -> Result<CallToolResponse, McpError> {
 			match request.name.as_ref() {
-				"paged_echo" => Ok(CallToolResult::success(vec![ContentBlock::text(
-					"paged ok",
-				)])),
-				"first_page_tool" => Ok(CallToolResult::success(vec![ContentBlock::text("first")])),
+				"paged_echo" => Ok(CallToolResult::success(vec![ContentBlock::text("paged ok")]).into()),
+				"first_page_tool" => Ok(CallToolResult::success(vec![ContentBlock::text("first")]).into()),
 				_ => Err(McpError::invalid_params("unknown tool", None)),
 			}
 		}
@@ -5130,10 +5156,11 @@ fn test_merge_discover_unions_extensions_recorded_at_initialize() {
 	let result = discover_merge(
 		vec![(
 			"modern".into(),
-			ServerResult::DiscoverResult(
-				DiscoverResult::new(ProtocolVersion::KNOWN_VERSIONS.to_vec(), modern_caps)
-					.with_server_info(Implementation::new("modern-server", "1.0")),
-			),
+			ServerResult::DiscoverResult(DiscoverResult::new(
+				ProtocolVersion::KNOWN_VERSIONS.to_vec(),
+				modern_caps,
+				Implementation::new("modern-server", "1.0"),
+			)),
 		)],
 		&empty_cel(),
 	)

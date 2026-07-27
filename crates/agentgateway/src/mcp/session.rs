@@ -656,9 +656,8 @@ impl Session {
 						Box::pin(self.relay.send_single(r, ctx, service_name, None)).await
 					},
 
-					ClientRequest::ListTasksRequest(_)
-					| ClientRequest::GetTaskRequest(_)
-					| ClientRequest::GetTaskPayloadRequest(_)
+					ClientRequest::GetTaskRequest(_)
+					| ClientRequest::UpdateTaskRequest(_)
 					| ClientRequest::CancelTaskRequest(_) => {
 						// TODO(https://github.com/agentgateway/agentgateway/issues/404)
 						Err(UpstreamError::InvalidMethod(r.request.method().to_string()))
@@ -699,16 +698,17 @@ impl Session {
 						},
 						_ => Err(UpstreamError::InvalidMethod(method)),
 					},
+					_ => Err(UpstreamError::InvalidMethod(method)),
 				}
 			},
-			ClientJsonRpcMessage::Notification(mut r) => {
+			ClientJsonRpcMessage::Notification(r) => {
 				let method = match &r.notification {
 					ClientNotification::CancelledNotification(r) => r.method.as_str(),
 					ClientNotification::ProgressNotification(r) => r.method.as_str(),
 					ClientNotification::InitializedNotification(r) => r.method.as_str(),
 					ClientNotification::RootsListChangedNotification(r) => r.method.as_str(),
-					ClientNotification::TaskStatusNotification(r) => r.method.as_str(),
 					ClientNotification::CustomNotification(r) => r.method.as_str(),
+					_ => "unknown",
 				};
 				let ctx = IncomingRequestContext::new(&parts);
 				let (_span, log, _cel) = mcp::handler::setup_request_log(parts, method);
@@ -717,7 +717,6 @@ impl Session {
 					l.method_name = Some(method.to_string());
 					l.session_id = Some(session_id);
 				});
-				self.strip_unsupported_client_capabilities_from_meta(&mut r.notification, &ctx);
 				// TODO: the notification needs to be fanned out in some cases and sent to a single one in others
 				// however, we don't have a way to map to the correct service yet
 				Box::pin(self.relay.send_notification(r, ctx)).await
@@ -735,7 +734,6 @@ impl Session {
 		ctx: &IncomingRequestContext,
 	) {
 		// TODO implement MCP tasks
-		capabilities.tasks = None;
 		if let Some(extensions) = capabilities.extensions.as_mut() {
 			extensions.remove("io.modelcontextprotocol/tasks");
 			if extensions.is_empty() {
@@ -751,7 +749,9 @@ impl Session {
 		}
 	}
 
-	fn strip_unsupported_client_capabilities_from_meta<T: GetMeta>(
+	fn strip_unsupported_client_capabilities_from_meta<
+		T: GetMeta<Metadata = rmcp::model::RequestMetaObject>,
+	>(
 		&self,
 		message: &mut T,
 		ctx: &IncomingRequestContext,

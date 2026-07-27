@@ -5,6 +5,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use ::http::header::{HeaderName, HeaderValue};
+use agent_core::version::BuildInfo;
 use headers::HeaderMapExt;
 use http::Method;
 use http::header::{ACCEPT, CONTENT_LENGTH, CONTENT_TYPE, HOST, TRANSFER_ENCODING};
@@ -694,16 +695,14 @@ impl Handler {
 				DiscoverResult::new(
 					ProtocolVersion::KNOWN_VERSIONS.to_vec(),
 					ServerCapabilities::builder().enable_tools().build(),
+					Implementation::new("agentgateway", BuildInfo::new().version.to_string()),
 				),
 			),
-			ClientRequest::ListTasksRequest(_) => Messages::from_result(id, ListTasksResult::new(vec![])),
-			ClientRequest::GetTaskRequest(_) => {
-				Messages::from_result(id, GetTaskResult::new(Task::default()))
-			},
-			ClientRequest::GetTaskPayloadRequest(_) => {
+			ClientRequest::GetTaskRequest(_)
+			| ClientRequest::UpdateTaskRequest(_)
+			| ClientRequest::CancelTaskRequest(_) => {
 				return Err(UpstreamError::InvalidMethod(method.to_string()));
 			},
-			ClientRequest::CancelTaskRequest(_) => Messages::empty(),
 			ClientRequest::ReadResourceRequest(_) => {
 				Messages::from_result(id, ReadResourceResult::new(vec![]))
 			},
@@ -748,6 +747,7 @@ impl Handler {
 					..Default::default()
 				},
 			),
+			_ => return Err(UpstreamError::InvalidMethod(method.to_string())),
 		};
 		Ok(res)
 	}
