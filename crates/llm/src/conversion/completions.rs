@@ -1002,8 +1002,13 @@ pub mod from_messages {
 			})
 			.collect_vec();
 
-		// Function tools with reasoning_effort are not supported for GPT models.
-		let reasoning_effort = if !tools.is_empty() && model.starts_with("gpt-") {
+		// TODO: Move Messages requests with reasoning and function tools to the Responses API.
+		let supports_reasoning_with_tools = model == "gpt-5"
+			|| model.starts_with("gpt-5-")
+			|| model.starts_with("gpt-5.1")
+			|| model.starts_with("gpt-5.2")
+			|| model.starts_with("o3");
+		let reasoning_effort = if !tools.is_empty() && !supports_reasoning_with_tools {
 			Some(completions::ReasoningEffort::None)
 		} else {
 			reasoning_effort
