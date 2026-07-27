@@ -20,6 +20,7 @@ pub mod parse;
 pub mod tokenizer;
 pub mod types;
 pub mod vertex;
+pub mod vllm;
 
 #[cfg(test)]
 mod golden_tests;
@@ -374,6 +375,8 @@ pub enum AIError {
 	UnsupportedEncoding(Strng),
 	#[error("failed to encode response: {0}")]
 	Encoding(axum_core::Error),
+	#[error("vLLM request failed: {0}")]
+	Vllm(#[from] vllm::Error),
 	#[error("error computing tokens")]
 	JoinError(#[from] tokio::task::JoinError),
 }

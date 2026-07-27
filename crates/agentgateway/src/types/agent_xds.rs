@@ -127,6 +127,7 @@ fn override_ai_provider_model(provider: &mut AIProvider, model: &str) {
 	match provider {
 		AIProvider::Anthropic(provider) => provider.model = model,
 		AIProvider::OpenAI(provider) => provider.model = model,
+		AIProvider::Managed(provider) => provider.model = model,
 		AIProvider::Copilot(provider) => provider.model = model,
 		AIProvider::Gemini(provider) => provider.model = model,
 		AIProvider::Custom(provider) => provider.model = model,
@@ -1775,6 +1776,19 @@ pub(crate) fn backend_with_policies_from_proto(
 								formats,
 							})
 						},
+						Some(provider::Provider::Managed(managed)) => {
+							if managed.frontend_model.is_empty() {
+								return Err(ProtoError::Generic(format!(
+									"AI backend managed provider at index {provider_idx} requires frontendModel"
+								)));
+							}
+							AIProvider::Managed(llm::vllm::Provider::from_config(
+								managed.model.as_deref().map(strng::new),
+								strng::new(&managed.frontend_model),
+								managed.revision.as_deref().map(strng::new),
+								managed.hf_token.clone().map(Into::into),
+							))
+						},
 						Some(provider::Provider::ProviderPreset(provider_preset)) => {
 							let provider_preset = proto::agent::ai_backend::ProviderPreset::try_from(*provider_preset)
 								.map_err(|_| ProtoError::Generic(format!(
@@ -1803,6 +1817,11 @@ pub(crate) fn backend_with_policies_from_proto(
 						.provider_backend
 						.as_ref()
 						.map(|backend| resolve_simple_reference(Some(backend)));
+					if matches!(provider, AIProvider::Managed(_)) && provider_backend.is_none() {
+						return Err(ProtoError::Generic(format!(
+							"AI backend managed provider at index {provider_idx} requires providerBackend"
+						)));
+					}
 					let host_override = provider_config
 						.r#host_override
 						.as_ref()
@@ -5027,6 +5046,78 @@ mod tests {
 			"llm-pool.test-ns.inference.cluster.local"
 		);
 		assert_eq!(*port, 8000);
+		Ok(())
+	}
+
+	#[test]
+	fn test_managed_provider_state_from_xds() -> Result<(), ProtoError> {
+		use proto::agent::ai_backend::Managed;
+		use proto::agent::ai_backend::provider::Provider;
+		use proto::agent::backend_reference;
+		use secrecy::ExposeSecret;
+
+		let proto_backend = proto::agent::Backend {
+			key: "test-ns/managed-backend".to_string(),
+			name: Some(proto::agent::ResourceName {
+				name: "managed-backend".to_string(),
+				namespace: "test-ns".to_string(),
+			}),
+			kind: Some(proto::agent::backend::Kind::Ai(proto::agent::AiBackend {
+				provider_groups: vec![proto::agent::ai_backend::ProviderGroup {
+					providers: vec![proto::agent::ai_backend::Provider {
+						name: "managed".to_string(),
+						host_override: None,
+						path_override: None,
+						path_prefix: None,
+						base_url: None,
+						model_override: None,
+						provider_backend: Some(proto::agent::BackendReference {
+							port: 50051,
+							kind: Some(backend_reference::Kind::Service(
+								backend_reference::Service {
+									namespace: "test-ns".to_string(),
+									hostname: "qwen-llm.test-ns.svc.cluster.local".to_string(),
+								},
+							)),
+						}),
+						provider: Some(Provider::Managed(Managed {
+							model: Some("qwen-chat".to_string()),
+							frontend_model: "Qwen/Qwen3-8B-Instruct".to_string(),
+							revision: Some("revision-1".to_string()),
+							hf_token: Some("hf_test".to_string()),
+						})),
+						inline_policies: vec![],
+					}],
+				}],
+			})),
+			inline_policies: vec![],
+		};
+
+		let bw = backend_with_policies_from_proto(&proto_backend, &mut Diagnostics::default())?;
+		let Backend::AI(_, ai_backend) = &bw.backend else {
+			panic!("Expected Backend::AI, got {:?}", bw.backend);
+		};
+		let providers = ai_backend.providers.iter();
+		let (provider, _) = providers.iter().next().unwrap();
+		let AIProvider::Managed(managed) = &provider.provider else {
+			panic!("Expected AIProvider::Managed");
+		};
+		assert_eq!(managed.model.as_deref(), Some("qwen-chat"));
+		assert_eq!(
+			managed.frontend_model.as_deref(),
+			Some("Qwen/Qwen3-8B-Instruct")
+		);
+		assert_eq!(managed.revision.as_deref(), Some("revision-1"));
+		assert_eq!(
+			managed.hf_token.as_ref().map(ExposeSecret::expose_secret),
+			Some("hf_test")
+		);
+		let Some(SimpleBackendReference::Service { name, port }) = provider.provider_backend.as_ref()
+		else {
+			panic!("Expected managed provider backend reference to resolve to a Service");
+		};
+		assert_eq!(name.namespace.as_str(), "test-ns");
+		assert_eq!(*port, 50051);
 		Ok(())
 	}
 

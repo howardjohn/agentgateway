@@ -26,6 +26,14 @@ spec:
       jsonPath: .spec.match.model
       name: Model Match
       type: string
+    - description: Ready managed model replicas
+      jsonPath: .status.readyReplicas
+      name: Ready
+      type: integer
+    - description: Desired managed model replicas
+      jsonPath: .status.replicas
+      name: Desired
+      type: integer
     - description: The age of the model.
       jsonPath: .metadata.creationTimestamp
       name: Age
@@ -231,6 +239,80 @@ spec:
                     self.backendRef.kind == ''Service'')) || (has(self.backendRef.group)
                     && self.backendRef.group == ''inference.networking.k8s.io'' &&
                     has(self.backendRef.kind) && self.backendRef.kind == ''InferencePool''))'
+              managed:
+                description: Provider-specific settings for a model managed in the
+                  cluster.
+                properties:
+                  modelURI:
+                    description: |-
+                      ModelURI identifies the Hugging Face repository used to load tokenizer
+                      and chat-template metadata. It has the form hf://org/repository or
+                      hf://org/repository@revision.
+                    pattern: ^hf://[^/@]+/[^/@]+(@.+)?$
+                    type: string
+                  parallelism:
+                    default: 1
+                    description: |-
+                      Parallelism is the number of GPUs assigned to each replica and used to
+                      shard the model.
+                    format: int32
+                    maximum: 16
+                    minimum: 1
+                    type: integer
+                  replicas:
+                    default: 1
+                    description: Replicas is the number of independent vLLM model
+                      server replicas.
+                    format: int32
+                    maximum: 128
+                    minimum: 1
+                    type: integer
+                  tokenSecretRef:
+                    description: |-
+                      TokenSecretRef optionally references a Hugging Face token for private or
+                      gated repositories.
+                    properties:
+                      group:
+                        description: API group of the referenced credential; empty
+                          selects the core API group
+                        type: string
+                      key:
+                        description: Key in the referenced Secret. If omitted, a location-specific
+                          default is used
+                        maxLength: 253
+                        minLength: 1
+                        type: string
+                      kind:
+                        description: Kind of the referenced credential; empty defaults
+                          to `Secret`
+                        type: string
+                      name:
+                        description: Name of the referenced credential
+                        maxLength: 253
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    type: object
+                    x-kubernetes-map-type: atomic
+                    x-kubernetes-validations:
+                    - message: custom credential refs must set both group and kind
+                      rule: '(!has(self.group) || size(self.group) == 0) ? (!has(self.kind)
+                        || size(self.kind) == 0 || self.kind == ''Secret'') : (has(self.kind)
+                        && size(self.kind) > 0)'
+                  vllm:
+                    description: VLLM customizes the managed vLLM runtime.
+                    properties:
+                      image:
+                        default: vllm/vllm-openai:v0.25.1
+                        description: Image overrides the controller's pinned vLLM
+                          image.
+                        minLength: 1
+                        type: string
+                    type: object
+                required:
+                - modelURI
+                type: object
               match:
                 description: Conditions for selecting this model from client requests.
                 properties:
@@ -4592,6 +4674,7 @@ spec:
                 - Gemini
                 - Groq
                 - Huggingface
+                - Managed
                 - Mistral
                 - Ollama
                 - OpenAI
@@ -4813,6 +4896,13 @@ spec:
               rule: has(self.bedrock) == (has(self.provider) && self.provider == 'Bedrock')
             - message: custom must be set if and only if provider is Custom
               rule: has(self.custom) == (has(self.provider) && self.provider == 'Custom')
+            - message: managed must be set if and only if provider is Managed
+              rule: has(self.managed) == (has(self.provider) && self.provider == 'Managed')
+            - message: baseURL cannot be used with provider Managed
+              rule: '!has(self.managed) || !has(self.baseURL)'
+            - message: managed models require an exact match.model
+              rule: '!has(self.managed) || !has(self.match) || !has(self.match.model)
+                || !self.match.model.contains(''*'')'
             - message: exactly one of the fields in [provider virtualModel] must be
                 set
               rule: '[has(self.provider),has(self.virtualModel)].filter(x,x==true).size()
@@ -4820,6 +4910,66 @@ spec:
           status:
             description: Current model attachment status.
             properties:
+              conditions:
+                description: Conditions describe the managed model workload.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               parents:
                 description: Status for each Gateway parent to which this model is
                   attached.
@@ -5034,6 +5184,16 @@ spec:
                   type: object
                 maxItems: 16
                 type: array
+              readyReplicas:
+                description: ReadyReplicas is the number of ready managed model server
+                  replicas.
+                format: int32
+                type: integer
+              replicas:
+                description: Replicas is the desired number of managed model server
+                  replicas.
+                format: int32
+                type: integer
             type: object
         required:
         - spec

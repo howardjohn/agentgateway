@@ -174,6 +174,25 @@ spec:
 apiVersion: agentgateway.dev/v1alpha1
 kind: AgentgatewayModel
 metadata:
+  name: managed-qwen
+spec:
+  parentRefs:
+  - name: ai-gateway
+    sectionName: llm
+  match:
+    model: qwen-chat
+  provider: Managed
+  managed:
+    modelURI: hf://Qwen/Qwen3-8B-Instruct@main
+    tokenSecretRef:
+      name: huggingface-token
+      key: token
+    replicas: 2
+    parallelism: 4
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayModel
+metadata:
   name: smart
 spec:
   parentRefs:

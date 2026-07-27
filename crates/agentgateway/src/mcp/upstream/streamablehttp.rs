@@ -30,7 +30,7 @@ impl Client {
 		let hp = http_client.backend().hostport();
 		Ok(Self {
 			http_client,
-			uri: ("http://".to_string() + &hp + path.as_str()).parse()?,
+			uri: ("http://".to_string() + hp.as_str() + path.as_str()).parse()?,
 			session_id: Default::default(),
 		})
 	}

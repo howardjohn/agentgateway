@@ -700,7 +700,7 @@ fn validate_uri(uri_str: Option<String>) -> anyhow::Result<Option<String>> {
 	};
 	let uri = http::Uri::try_from(&uri_str).ctx(format!("invalid URI {uri_str}"))?;
 	if uri.scheme().is_none() {
-		return Ok(Some("https://".to_owned() + &uri_str));
+		return Ok(Some("https://".to_owned() + uri_str.as_str()));
 	}
 	Ok(Some(uri_str))
 }

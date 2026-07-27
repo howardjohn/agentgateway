@@ -70,6 +70,15 @@ rules:
   - patch
   - update
 - apiGroups:
+  - agentgateway.dev
+  resources:
+  - agentgatewaymodels
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+- apiGroups:
   - apiextensions.k8s.io
   resources:
   - customresourcedefinitions

@@ -166,3 +166,13 @@ spec:
   policies:
     auth:
       crossAppAccess: {}
+---
+_err: managed must be set if and only if provider is Managed
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayModel
+metadata:
+  name: managed-without-settings
+spec:
+  parentRefs:
+  - name: ai-gateway
+  provider: Managed

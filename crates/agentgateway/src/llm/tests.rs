@@ -8,6 +8,36 @@ use serde_json::{Value, json};
 use super::*;
 use crate::http::x_headers::TRACEPARENT;
 
+#[test]
+fn managed_provider_deserializes_for_standalone_config() {
+	let provider: AIProvider = serde_json::from_value(json!({
+		"managed": {
+			"model": "served-model",
+			"frontendModel": "Qwen/Qwen3-0.6B",
+			"revision": "0123456789abcdef",
+			"hfToken": "hf_test_token"
+		}
+	}))
+	.expect("deserialize managed provider");
+
+	let AIProvider::Managed(provider) = provider else {
+		panic!("expected managed provider");
+	};
+	assert_eq!(provider.model.as_deref(), Some("served-model"));
+	assert_eq!(provider.frontend_model.as_deref(), Some("Qwen/Qwen3-0.6B"));
+	assert_eq!(provider.revision.as_deref(), Some("0123456789abcdef"));
+	assert_eq!(
+		provider
+			.hf_token
+			.as_ref()
+			.map(secrecy::ExposeSecret::expose_secret),
+		Some("hf_test_token")
+	);
+	let serialized = serde_json::to_string(&AIProvider::Managed(provider)).unwrap();
+	assert!(!serialized.contains("hf_test_token"));
+	assert!(serialized.contains("<redacted>"));
+}
+
 fn llm_request_with_tokens(input_tokens: Option<u64>) -> LLMRequest {
 	LLMRequest {
 		input_tokens,
@@ -138,6 +168,104 @@ fn response_prompt_guard_headers_overwrites_upstream_traceparent() {
 		response_headers.get(TRACEPARENT).unwrap(),
 		"00-11111111111111111111111111111111-2222222222222222-01"
 	);
+}
+
+#[tokio::test]
+async fn vllm_provider_prepares_native_grpc_request() {
+	use std::collections::HashMap;
+	use std::sync::Arc;
+
+	use crate::http::auth::BackendInfo;
+	use crate::test_helpers::proxymock::setup_proxy_test;
+	use crate::types::agent::BackendTarget;
+	use vllm_chat::{ChatRenderer, RenderedPrompt};
+	use vllm_text::Prompt;
+	use vllm_text::tokenizer::{Result as TokenizerResult, Tokenizer};
+
+	#[derive(Debug)]
+	struct ByteTokenizer;
+	impl Tokenizer for ByteTokenizer {
+		fn encode(&self, text: &str, _add_special_tokens: bool) -> TokenizerResult<Vec<u32>> {
+			Ok(text.bytes().map(u32::from).collect())
+		}
+
+		fn decode(&self, token_ids: &[u32], _skip_special_tokens: bool) -> TokenizerResult<String> {
+			Ok(token_ids.iter().map(|id| *id as u8 as char).collect())
+		}
+
+		fn token_to_id(&self, token: &str) -> Option<u32> {
+			(token.len() == 1).then(|| token.as_bytes()[0] as u32)
+		}
+
+		fn id_to_token(&self, id: u32) -> Option<String> {
+			Some((id as u8 as char).to_string())
+		}
+	}
+
+	struct TestRenderer;
+	impl ChatRenderer for TestRenderer {
+		fn render(&self, request: &vllm_chat::ChatRequest) -> vllm_chat::Result<RenderedPrompt> {
+			let text = request
+				.messages
+				.iter()
+				.map(vllm_chat::ChatMessage::text_content)
+				.collect::<vllm_chat::Result<Vec<_>>>()?
+				.join("|");
+			Ok(RenderedPrompt {
+				prompt: Prompt::Text(format!("prompt:{text}:assistant:")),
+				effective_template_kwargs: HashMap::new(),
+			})
+		}
+	}
+
+	let frontend = agent_llm::vllm::Frontend::from_parts(
+		"org/model",
+		Arc::new(TestRenderer),
+		Arc::new(ByteTokenizer),
+	);
+	let provider = AIProvider::Managed(vllm::Provider::new(None, frontend));
+	let inputs = setup_proxy_test("{}").unwrap().pi;
+	let backend_info = BackendInfo {
+		target: BackendTarget::Invalid,
+		call_target: Target::from(("127.0.0.1", agent_llm::vllm::GRPC_PORT)),
+		inputs,
+	};
+	let req = ::http::Request::builder()
+		.uri("/v1/chat/completions")
+		.header(::http::header::CONTENT_TYPE, "application/json")
+		.body(Body::from(
+			br#"{
+				"model": "served-model",
+				"stream": true,
+				"messages": [{"role": "user", "content": "hello"}]
+			}"#
+				.to_vec(),
+		))
+		.unwrap();
+
+	let RequestResult::Success {
+		request,
+		llm_request,
+		upstream_route_type,
+	} = provider
+		.process_completions_request(&backend_info, None, req, false, &mut None)
+		.await
+		.expect("vLLM completions request should process")
+	else {
+		panic!("expected prepared request");
+	};
+
+	let prepared = request
+		.extensions()
+		.get::<VllmPrepared>()
+		.expect("request should be marked for native gRPC dispatch");
+	let expected = b"prompt:hello:assistant:"
+		.iter()
+		.map(|byte| u32::from(*byte))
+		.collect::<Vec<_>>();
+	assert_eq!(prepared.request.token_ids(), expected);
+	assert_eq!(llm_request.input_tokens, Some(expected.len() as u64));
+	assert_eq!(upstream_route_type, RouteType::Completions);
 }
 
 #[tokio::test]

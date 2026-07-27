@@ -253,6 +253,12 @@ func (c *ControllerBuilder) Build() (*syncer.Syncer, error) {
 		CertWatcher:           c.cfg.SetupOpts.CertWatcher,
 	}
 
+	setupLog.Info("creating managed AgentgatewayModel controller")
+	if err := SetupManagedModelController(c.mgr); err != nil {
+		setupLog.Error(err, "unable to create managed AgentgatewayModel controller")
+		return nil, err
+	}
+
 	setupLog.Info("creating base gateway controller")
 	if err := NewBaseGatewayController(
 		gwCfg,

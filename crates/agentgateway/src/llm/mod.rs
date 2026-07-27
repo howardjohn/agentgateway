@@ -31,6 +31,7 @@ use crate::types::agent::{BackendTrafficPolicy, SimpleBackendReference, Target};
 use crate::types::loadbalancer::{ActiveHandle, EndpointWithInfo};
 use crate::*;
 pub mod model_router;
+pub mod vllm;
 pub use agent_llm::{azure, bedrock, vertex};
 
 pub mod cost;
@@ -113,6 +114,7 @@ pub struct NamedAIProvider {
 #[apply(schema!)]
 pub enum AIProvider {
 	OpenAI(openai::Provider),
+	Managed(vllm::Provider),
 	Gemini(gemini::Provider),
 	Vertex(vertex::Provider),
 	Anthropic(anthropic::Provider),
@@ -241,7 +243,7 @@ fn cache_convention_for(
 			Some(Messages | AnthropicTokenCount) => InputExcludesCache,
 			_ => InputIncludesCache,
 		},
-		_ => InputIncludesCache, // openai, azure, gemini, copilot/vertex non-anthropic
+		_ => InputIncludesCache, // openai, vllm, azure, gemini, copilot/vertex non-anthropic
 	}
 }
 
@@ -733,6 +735,42 @@ pub enum RequestResult {
 	},
 }
 
+/// The outbound request selected after all LLM request processing is complete.
+/// HTTP providers use the existing proxy transport; vLLM uses its native Rust
+/// GenerateStream gRPC client.
+pub enum UpstreamRequest {
+	Http(Request),
+	Grpc(Box<GrpcUpstreamRequest>),
+}
+
+pub struct GrpcUpstreamRequest {
+	pub request: Request,
+	pub provider: vllm::Provider,
+	pub prepared: agent_llm::vllm::PreparedRequest,
+}
+
+impl UpstreamRequest {
+	pub fn request(&self) -> &Request {
+		match self {
+			Self::Http(request) => request,
+			Self::Grpc(grpc) => &grpc.request,
+		}
+	}
+
+	pub fn request_mut(&mut self) -> &mut Request {
+		match self {
+			Self::Http(request) => request,
+			Self::Grpc(grpc) => &mut grpc.request,
+		}
+	}
+}
+
+#[derive(Clone)]
+pub(crate) struct VllmPrepared {
+	pub(crate) provider: vllm::Provider,
+	pub(crate) request: agent_llm::vllm::PreparedRequest,
+}
+
 enum PreparedRequest {
 	Ready(LLMRequest),
 	GuardrailRejected {
@@ -751,6 +789,7 @@ impl AIProvider {
 	pub fn provider(&self) -> Strng {
 		match self {
 			AIProvider::OpenAI(_p) => openai::Provider::NAME,
+			AIProvider::Managed(_p) => vllm::Provider::NAME,
 			AIProvider::Anthropic(_p) => anthropic::Provider::NAME,
 			AIProvider::Gemini(_p) => gemini::Provider::NAME,
 			AIProvider::Vertex(_p) => vertex::Provider::NAME,
@@ -767,6 +806,7 @@ impl AIProvider {
 		match self {
 			AIProvider::OpenAI(_) | AIProvider::Copilot(_) => Some(openai::DEFAULT_BASE_PATH),
 			AIProvider::Anthropic(_) => Some(anthropic::DEFAULT_BASE_PATH),
+			AIProvider::Managed(_) => None,
 			_ => None,
 		}
 	}
@@ -774,6 +814,7 @@ impl AIProvider {
 	pub fn override_model(&self) -> Option<Strng> {
 		match self {
 			AIProvider::OpenAI(p) => p.model.clone(),
+			AIProvider::Managed(p) => p.model.clone(),
 			AIProvider::Anthropic(p) => p.model.clone(),
 			AIProvider::Gemini(p) => p.model.clone(),
 			AIProvider::Vertex(p) => p.model.clone(),
@@ -788,6 +829,7 @@ impl AIProvider {
 		use custom::ProviderFormat::*;
 		match self {
 			AIProvider::OpenAI(_) => vec![Completions, Responses, Embeddings, Realtime, Rerank],
+			AIProvider::Managed(_) => vec![Completions],
 			AIProvider::Copilot(_) => {
 				if copilot::Provider::is_anthropic_model(request_model) {
 					vec![Messages]
@@ -831,6 +873,7 @@ impl AIProvider {
 			AIProvider::OpenAI(_) => {
 				vec![ChatFormat::OpenAIResponses, ChatFormat::OpenAICompletions]
 			},
+			AIProvider::Managed(_) => vec![ChatFormat::OpenAICompletions],
 
 			AIProvider::Copilot(_) => copilot::Provider::supported_formats_for_model(request_model),
 
@@ -948,6 +991,7 @@ impl AIProvider {
 		};
 		Some(match self {
 			AIProvider::OpenAI(_) | AIProvider::Gemini(_) | AIProvider::Anthropic(_) => btls,
+			AIProvider::Managed(_) => return None,
 			AIProvider::Copilot(_) => BackendPolicies {
 				backend_auth: Some(BackendAuth::new(BackendAuthKind::Copilot)),
 				..btls
@@ -991,7 +1035,7 @@ impl AIProvider {
 			AIProvider::Vertex(p) => Target::Hostname(p.get_host(route_type), 443),
 			AIProvider::Bedrock(p) => Target::Hostname(p.get_host(route_type), 443),
 			AIProvider::Azure(p) => Target::Hostname(p.get_host(), 443),
-			AIProvider::Custom(_) => return None,
+			AIProvider::Managed(_) | AIProvider::Custom(_) => return None,
 		})
 	}
 
@@ -1086,6 +1130,7 @@ impl AIProvider {
 		}
 
 		match self {
+			AIProvider::Managed(_) => Ok(()),
 			AIProvider::OpenAI(_) => http::modify_req(req, |req| {
 				http::modify_uri(req, |uri| {
 					let path = format!(
@@ -1210,6 +1255,7 @@ impl AIProvider {
 		route_type: RouteType,
 	) -> anyhow::Result<()> {
 		let authority = match self {
+			AIProvider::Managed(_) => return Ok(()),
 			AIProvider::OpenAI(_) => Authority::from_static(openai::DEFAULT_HOST_STR),
 			AIProvider::Copilot(_) => Authority::from_static(copilot::DEFAULT_HOST_STR),
 			AIProvider::Anthropic(_) => Authority::from_static(anthropic::DEFAULT_HOST_STR),
@@ -1621,6 +1667,9 @@ impl AIProvider {
 		req: &types::embeddings::Request,
 	) -> Result<Vec<u8>, AIError> {
 		match self {
+			AIProvider::Managed(_) => Err(AIError::UnsupportedConversion(strng::literal!(
+				"managed provider embeddings"
+			))),
 			AIProvider::Custom(_)
 			| AIProvider::OpenAI(_)
 			| AIProvider::Copilot(_)
@@ -1634,6 +1683,9 @@ impl AIProvider {
 
 	fn render_rerank_request(&self, req: &types::rerank::Request) -> Result<Vec<u8>, AIError> {
 		match self {
+			AIProvider::Managed(_) => Err(AIError::UnsupportedConversion(strng::literal!(
+				"managed provider rerank"
+			))),
 			AIProvider::Custom(_)
 			| AIProvider::OpenAI(_)
 			| AIProvider::Copilot(_)
@@ -1754,9 +1806,35 @@ impl AIProvider {
 				});
 			},
 		};
+		let chat_request = chat_request(&req);
+
+		if let AIProvider::Managed(provider) = self {
+			let types::ChatRequest::Completions(request) = chat_request else {
+				return Err(AIError::UnsupportedConversion(strng::literal!(
+					"managed provider currently supports OpenAI chat completions only"
+				)));
+			};
+			let request_id = uuid::Uuid::new_v4().to_string();
+			let prepared = provider
+				.prepare(request_id, llm_info.request_model.to_string(), request)
+				.await?;
+			llm_info.input_tokens = Some(prepared.token_ids().len() as u64);
+
+			let body = serde_json::to_vec(request).map_err(AIError::RequestMarshal)?;
+			parts.headers.remove(header::CONTENT_LENGTH);
+			parts.extensions.insert(VllmPrepared {
+				provider: provider.clone(),
+				request: prepared,
+			});
+			return Ok(RequestResult::Success {
+				request: Request::from_parts(parts, Body::from(body)),
+				llm_request: llm_info,
+				upstream_route_type: RouteType::Completions,
+			});
+		}
 
 		let rendered = chat_translation.render_request(
-			chat_request(&req),
+			chat_request,
 			&ChatRequestContext {
 				provider: self,
 				headers: &parts.headers,

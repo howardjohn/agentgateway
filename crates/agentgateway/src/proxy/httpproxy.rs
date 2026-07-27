@@ -2505,16 +2505,16 @@ async fn make_backend_call(
 		});
 		return Ok(resp);
 	}
-	let transport = build_backend_transport(&inputs, &backend_call, hbone_source).await?;
 	dtrace::snapshot!(Request, "final request", &req);
-	let request_body_limit = crate::http::buffer_limit(&req);
-	let req = req.map(|b| dtrace::TracingBody::maybe_wrap("final request", b, request_body_limit));
-	let call = client::Call {
-		req,
-		target: backend_call.target,
-		transport,
+	let upstream_request = match req.extensions_mut().remove::<llm::VllmPrepared>() {
+		Some(vllm) => llm::UpstreamRequest::Grpc(Box::new(llm::GrpcUpstreamRequest {
+			request: req,
+			provider: vllm.provider,
+			prepared: vllm.request,
+		})),
+		None => llm::UpstreamRequest::Http(req),
 	};
-	dtrace::trace(|trace| trace.backend_call_started(&call.target));
+	dtrace::trace(|trace| trace.backend_call_started(&backend_call.target));
 	let upstream = inputs.upstream.clone();
 	let llm_response_log = log.as_ref().map(|l| l.llm_response.clone());
 	let log_content = log
@@ -2537,7 +2537,35 @@ async fn make_backend_call(
 			l.request_processing_duration = Some(l.request_processing_start.elapsed());
 		}
 	});
-	let resp = upstream.call(call).await;
+	let resp = match upstream_request {
+		llm::UpstreamRequest::Http(req) => {
+			let transport = build_backend_transport(&inputs, &backend_call, hbone_source).await?;
+			let request_body_limit = crate::http::buffer_limit(&req);
+			let req =
+				req.map(|b| dtrace::TracingBody::maybe_wrap("final request", b, request_body_limit));
+			upstream
+				.call(client::Call {
+					req,
+					target: backend_call.target.clone(),
+					transport,
+				})
+				.await
+		},
+		llm::UpstreamRequest::Grpc(grpc) => Box::pin(grpc.provider.generate_stream(
+			policy_client.clone(),
+			&backend_call.target,
+			&grpc.prepared,
+		))
+		.await
+		.map(|body| {
+			::http::Response::builder()
+				.status(::http::StatusCode::OK)
+				.header(::http::header::CONTENT_TYPE, "text/event-stream")
+				.body(body)
+				.expect("valid vLLM gRPC response")
+		})
+		.map_err(|error| ProxyError::Processing(error.into())),
+	};
 	let outbound_end = Instant::now();
 	log.add(|l| {
 		l.metrics

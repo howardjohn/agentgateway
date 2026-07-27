@@ -8,8 +8,13 @@ import (
 
 // +kubebuilder:rbac:groups=agentgateway.dev,resources=agentgatewaymodels,verbs=get;list;watch
 // +kubebuilder:rbac:groups=agentgateway.dev,resources=agentgatewaymodels/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups="",resources=services,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 // +kubebuilder:printcolumn:name="Model Match",type=string,JSONPath=".spec.match.model",description="Model name matched from client requests"
+// +kubebuilder:printcolumn:name="Ready",type=integer,JSONPath=".status.readyReplicas",description="Ready managed model replicas"
+// +kubebuilder:printcolumn:name="Desired",type=integer,JSONPath=".status.replicas",description="Desired managed model replicas"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="The age of the model."
 
 // +genclient
@@ -55,6 +60,9 @@ type AgentgatewayModelList struct {
 // +kubebuilder:validation:XValidation:rule="has(self.vertexai) == (has(self.provider) && self.provider == 'VertexAI')",message="vertexai must be set if and only if provider is VertexAI"
 // +kubebuilder:validation:XValidation:rule="has(self.bedrock) == (has(self.provider) && self.provider == 'Bedrock')",message="bedrock must be set if and only if provider is Bedrock"
 // +kubebuilder:validation:XValidation:rule="has(self.custom) == (has(self.provider) && self.provider == 'Custom')",message="custom must be set if and only if provider is Custom"
+// +kubebuilder:validation:XValidation:rule="has(self.managed) == (has(self.provider) && self.provider == 'Managed')",message="managed must be set if and only if provider is Managed"
+// +kubebuilder:validation:XValidation:rule="!has(self.managed) || !has(self.baseURL)",message="baseURL cannot be used with provider Managed"
+// +kubebuilder:validation:XValidation:rule="!has(self.managed) || !has(self.match) || !has(self.match.model) || !self.match.model.contains('*')",message="managed models require an exact match.model"
 type AgentgatewayModelSpec struct {
 	// Gateways and listeners to which this model attaches.
 	// +kubebuilder:validation:MinItems=1
@@ -92,6 +100,10 @@ type AgentgatewayModelSpec struct {
 	// Provider-specific settings for a custom provider.
 	// +optional
 	Custom *CustomProviderSettings `json:"custom,omitempty"`
+
+	// Provider-specific settings for a model managed in the cluster.
+	// +optional
+	Managed *ManagedModelSettings `json:"managed,omitempty"`
 
 	// BaseURL overrides the provider address and base path prefix. It must use the
 	// http or https scheme. Backend policies may override the default TLS
@@ -259,7 +271,52 @@ const (
 	ModelProviderXAI         ModelProvider = "XAI"
 	ModelProviderFireworks   ModelProvider = "Fireworks"
 	ModelProviderCustom      ModelProvider = "Custom"
+	ModelProviderManaged     ModelProvider = "Managed"
 )
+
+// ManagedModelSettings provisions an in-cluster vLLM server for this model.
+// The gateway renders and tokenizes requests locally, then sends token IDs to
+// the managed server using the vLLM Generate gRPC API.
+type ManagedModelSettings struct {
+	// ModelURI identifies the Hugging Face repository used to load tokenizer
+	// and chat-template metadata. It has the form hf://org/repository or
+	// hf://org/repository@revision.
+	// +kubebuilder:validation:Pattern=`^hf://[^/@]+/[^/@]+(@.+)?$`
+	// +required
+	ModelURI string `json:"modelURI"`
+
+	// TokenSecretRef optionally references a Hugging Face token for private or
+	// gated repositories.
+	// +optional
+	TokenSecretRef *LocalSecretKeyRef `json:"tokenSecretRef,omitempty"`
+
+	// Replicas is the number of independent vLLM model server replicas.
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=128
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
+
+	// Parallelism is the number of GPUs assigned to each replica and used to
+	// shard the model.
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=16
+	// +optional
+	Parallelism *int32 `json:"parallelism,omitempty"`
+
+	// VLLM customizes the managed vLLM runtime.
+	// +optional
+	VLLM *VLLMConfig `json:"vllm,omitempty"`
+}
+
+type VLLMConfig struct {
+	// Image overrides the controller's pinned vLLM image.
+	// +kubebuilder:default="vllm/vllm-openai:v0.25.1"
+	// +kubebuilder:validation:MinLength=1
+	// +optional
+	Image string `json:"image,omitempty"`
+}
 
 // Visibility of a model to direct client requests.
 // +k8s:enum
@@ -367,4 +424,18 @@ type AgentgatewayModelStatus struct {
 	// +kubebuilder:validation:MaxItems=16
 	// +optional
 	Parents []gwv1.RouteParentStatus `json:"parents,omitempty"`
+
+	// Replicas is the desired number of managed model server replicas.
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
+
+	// ReadyReplicas is the number of ready managed model server replicas.
+	// +optional
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+
+	// Conditions describe the managed model workload.
+	// +listType=map
+	// +listMapKey=type
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }

@@ -109,6 +109,7 @@ hashbrown = "0.17"
 h2 = "0.4"
 headers = "0.4"
 hex = "0.4"
+hf-hub = { version = "0.5", default-features = false, features = ["tokio"] }
 hickory-resolver = { version = "0.26", features = ["serde"] }
 htpasswd-verify-fork = { path = "crates/htpasswd-verify-fork" }
 httpdate = "1.0"
@@ -243,6 +244,8 @@ x509-parser = { version = "0.18", default-features = false, features = ["verify-
 which = "8.0"
 websocket-sans-io = '0.1'
 vector-map = "1.1.0"
+vllm-chat = { git = "https://github.com/vllm-project/vllm", rev = "752a3a504485790a2e8491cacbb35c137339ad34" }
+vllm-text = { git = "https://github.com/vllm-project/vllm", rev = "752a3a504485790a2e8491cacbb35c137339ad34" }
 flagset = "0.4.7"
 crossbeam-channel = "0.5"
 http-serde = "2.1"

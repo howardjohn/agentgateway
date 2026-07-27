@@ -43,10 +43,13 @@ func AgwModelCollection(
 		resources := translateModelForParents(ctx, obj, parentRefs, routeReporter)
 
 		status := rm.BuildRouteStatusWithParentRefDefaulting(context.Background(), obj, inputs.ControllerName, true)
+		result := obj.Status
 		if status == nil {
-			return &agentgateway.AgentgatewayModelStatus{}, resources
+			result.Parents = nil
+			return &result, resources
 		}
-		return &agentgateway.AgentgatewayModelStatus{Parents: status.Parents}, resources
+		result.Parents = status.Parents
+		return &result, resources
 	}, krtopts.ToOptions("translator/AgentgatewayModels")...)
 	status.RegisterStatus(queue, modelStatus, GetStatus)
 
@@ -265,7 +268,7 @@ func translateVirtualModel(ctx RouteContext, model *agentgateway.AgentgatewayMod
 }
 
 func modelConcreteBackend(ctx RouteContext, model *agentgateway.AgentgatewayModel, parent RouteParentReference, selectedModel *string) (*api.Backend, error) {
-	provider, err := translateModelLLMProvider(ctx, model.Namespace, &model.Spec, utils.SingularLLMProviderSubBackendName, selectedModel)
+	provider, err := translateModelLLMProvider(ctx, model.Namespace, model.Name, &model.Spec, utils.SingularLLMProviderSubBackendName, selectedModel)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +293,7 @@ func modelFailoverBackend(ctx RouteContext, model *agentgateway.AgentgatewayMode
 		if refModel.Spec.Provider == nil {
 			return nil, fmt.Errorf("failover target %s/%s is not a concrete provider model", model.Namespace, target.ModelRef.Name)
 		}
-		provider, err := translateModelLLMProvider(ctx, refModel.Namespace, &refModel.Spec, target.ModelRef.Name, new(modelName))
+		provider, err := translateModelLLMProvider(ctx, refModel.Namespace, refModel.Name, &refModel.Spec, target.ModelRef.Name, new(modelName))
 		if err != nil {
 			return nil, err
 		}
@@ -328,7 +331,7 @@ func modelFailoverBackend(ctx RouteContext, model *agentgateway.AgentgatewayMode
 	}, nil
 }
 
-func translateModelLLMProvider(ctx RouteContext, namespace string, model *agentgateway.AgentgatewayModelSpec, providerName string, selectedModel *string) (*api.AIBackend_Provider, error) {
+func translateModelLLMProvider(ctx RouteContext, namespace, modelResourceName string, model *agentgateway.AgentgatewayModelSpec, providerName string, selectedModel *string) (*api.AIBackend_Provider, error) {
 	if err := validateModelBaseURL(model); err != nil {
 		return nil, err
 	}
@@ -344,6 +347,35 @@ func translateModelLLMProvider(ctx RouteContext, namespace string, model *agentg
 		if preset, ok := modelProviderPreset(*model.Provider); ok {
 			provider.ModelOverride = selectedModel
 			provider.Provider = &api.AIBackend_Provider_ProviderPreset{ProviderPreset: preset}
+			return provider, nil
+		}
+		if *model.Provider == agentgateway.ModelProviderManaged {
+			if model.Managed == nil {
+				return nil, fmt.Errorf("managed provider requires managed configuration")
+			}
+			repository, revision, err := parseManagedModelURI(model.Managed.ModelURI)
+			if err != nil {
+				return nil, err
+			}
+			backendRef, err := translateManagedBackendRef(ctx, namespace, modelResourceName)
+			if err != nil {
+				return nil, err
+			}
+			hfToken, err := resolveManagedHFToken(ctx, namespace, model.Managed.TokenSecretRef)
+			if err != nil {
+				return nil, err
+			}
+			provider.ProviderBackend = backendRef
+			var revisionPtr *string
+			if revision != "" {
+				revisionPtr = new(revision)
+			}
+			provider.Provider = &api.AIBackend_Provider_Managed{Managed: &api.AIBackend_Managed{
+				Model:         selectedModel,
+				FrontendModel: repository,
+				Revision:      revisionPtr,
+				HfToken:       hfToken,
+			}}
 			return provider, nil
 		}
 	}
@@ -425,6 +457,67 @@ func translateModelLLMProvider(ctx RouteContext, namespace string, model *agentg
 		return nil, fmt.Errorf("no supported LLM provider configured")
 	}
 	return provider, nil
+}
+
+func parseManagedModelURI(uri string) (repository, revision string, err error) {
+	const prefix = "hf://"
+	if !strings.HasPrefix(uri, prefix) {
+		return "", "", fmt.Errorf("managed modelURI must start with %q", prefix)
+	}
+	value := strings.TrimPrefix(uri, prefix)
+	repository, revision, _ = strings.Cut(value, "@")
+	parts := strings.Split(repository, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("managed modelURI must identify a Hugging Face organization and repository")
+	}
+	if strings.Contains(value, "@") && revision == "" {
+		return "", "", fmt.Errorf("managed modelURI revision must not be empty")
+	}
+	return repository, revision, nil
+}
+
+func translateManagedBackendRef(
+	ctx RouteContext,
+	namespace string,
+	modelResourceName string,
+) (*api.BackendReference, error) {
+	if modelResourceName == "" {
+		return nil, fmt.Errorf("managed provider requires a model resource name")
+	}
+	port := gwv1.PortNumber(kubeutils.ManagedModelGRPCPort)
+	return ctx.References.RouteBackend(
+		ctx.Krt,
+		namespace,
+		wellknown.ServiceGVK.GroupKind(),
+		gwv1.ObjectName(kubeutils.ManagedModelWorkloadName(modelResourceName)),
+		nil,
+		&port,
+	)
+}
+
+func resolveManagedHFToken(
+	ctx RouteContext,
+	namespace string,
+	ref *agentgateway.LocalSecretKeyRef,
+) (*string, error) {
+	if ref == nil {
+		return nil, nil
+	}
+	policyCtx := plugins.PolicyCtx{
+		Krt:                ctx.Krt,
+		Collections:        ctx.Collections,
+		CredentialResolver: kubeutils.NewSecretCredentialResolver(ctx.Secrets),
+		RouteBackend:       ctx.References.RouteBackend,
+	}
+	data, key, err := policyCtx.ResolveCredentialKeyRef(*ref, namespace, "token")
+	if err != nil {
+		return nil, fmt.Errorf("resolve managed Hugging Face token: %w", err)
+	}
+	value, found := kubeutils.GetSecretDataValue(data, key)
+	if !found || value == "" {
+		return nil, fmt.Errorf("managed Hugging Face token Secret does not contain a UTF-8 value for key %q", key)
+	}
+	return new(value), nil
 }
 
 func translateModelPolicies(ctx RouteContext, namespace string, model *agentgateway.AgentgatewayModelSpec) ([]*api.BackendPolicySpec, error) {

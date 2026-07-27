@@ -4,10 +4,14 @@ import (
 	"strings"
 	"testing"
 
+	"istio.io/istio/pkg/kube/krt"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/agentgateway/agentgateway/api"
 	"github.com/agentgateway/agentgateway/controller/api/v1alpha1/agentgateway"
+	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/plugins"
+	"github.com/agentgateway/agentgateway/controller/pkg/utils/kubeutils"
 	"github.com/agentgateway/agentgateway/controller/pkg/wellknown"
 )
 
@@ -121,7 +125,7 @@ func TestModelProviderInlinePolicies(t *testing.T) {
 		},
 	}
 
-	provider, err := translateModelLLMProvider(RouteContext{}, "default", model, "openai", nil)
+	provider, err := translateModelLLMProvider(RouteContext{}, "default", "model", model, "openai", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,6 +227,7 @@ func TestTranslatePresetProviderBaseURL(t *testing.T) {
 	provider, err := translateModelLLMProvider(
 		RouteContext{},
 		"default",
+		"model",
 		&agentgateway.AgentgatewayModelSpec{
 			Provider: &providerType,
 			BaseURL:  &baseURL,
@@ -238,5 +243,53 @@ func TestTranslatePresetProviderBaseURL(t *testing.T) {
 	}
 	if provider.GetBaseUrl() != string(baseURL) {
 		t.Errorf("base URL = %q, want %q", provider.GetBaseUrl(), baseURL)
+	}
+}
+
+func TestTranslateManagedModelUsesManagedService(t *testing.T) {
+	providerType := agentgateway.ModelProviderManaged
+	ctx := RouteContext{RouteContextInputs: RouteContextInputs{
+		References: plugins.ReferenceTypes{
+			RouteBackend: func(
+				_ krt.HandlerContext,
+				namespace string,
+				gk schema.GroupKind,
+				name gwv1.ObjectName,
+				_ *gwv1.Namespace,
+				port *gwv1.PortNumber,
+			) (*api.BackendReference, error) {
+				if namespace != "default" || gk != wellknown.ServiceGVK.GroupKind() {
+					t.Fatalf("unexpected managed backend target: namespace=%q kind=%v", namespace, gk)
+				}
+				if got, want := string(name), kubeutils.ManagedModelWorkloadName("qwen"); got != want {
+					t.Fatalf("managed Service name = %q, want %q", got, want)
+				}
+				if port == nil || *port != gwv1.PortNumber(kubeutils.ManagedModelGRPCPort) {
+					t.Fatalf("managed Service port = %v, want %d", port, kubeutils.ManagedModelGRPCPort)
+				}
+				return &api.BackendReference{}, nil
+			},
+		},
+	}}
+	provider, err := translateModelLLMProvider(
+		ctx,
+		"default",
+		"qwen",
+		&agentgateway.AgentgatewayModelSpec{
+			Provider: &providerType,
+			Managed: &agentgateway.ManagedModelSettings{
+				ModelURI: "hf://Qwen/Qwen3-8B-Instruct@revision-1",
+			},
+		},
+		"provider",
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	managed := provider.GetManaged()
+	if managed == nil || managed.FrontendModel != "Qwen/Qwen3-8B-Instruct" ||
+		managed.Revision == nil || *managed.Revision != "revision-1" {
+		t.Fatalf("unexpected managed provider: %+v", managed)
 	}
 }

@@ -195,6 +195,8 @@ insta.workspace = true
 rstest.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
+vllm-chat.workspace = true
+vllm-text.workspace = true
 which.workspace = true
 rmcp = { version = "2.0", features = [
     "client",

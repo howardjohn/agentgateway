@@ -1710,6 +1710,17 @@ message AIBackend {
     optional string model = 2;
     optional string provider_override = 3;
   }
+  message Managed {
+    // Model name sent to the inference server. When omitted, the requested
+    // model name is preserved.
+    optional string model = 1;
+    // Hugging Face repository used for local rendering and tokenization.
+    string frontend_model = 2;
+    // Optional Hugging Face repository revision.
+    optional string revision = 3;
+    // Optional Hugging Face token used only to fetch frontend metadata.
+    optional string hf_token = 4;
+  }
   // A named provider configuration implemented by the data plane. Its API
   // formats and default endpoint stay aligned between standalone and xDS
   // configuration. Use Custom when those settings must be configured
@@ -1758,6 +1769,7 @@ message AIBackend {
       Azure azure = 13;
       Custom custom = 15;
       ProviderPreset provider_preset = 16;
+      Managed managed = 19;
     }
     repeated BackendPolicySpec inline_policies = 10;
   }

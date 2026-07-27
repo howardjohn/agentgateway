@@ -843,6 +843,7 @@ pub enum LocalBuiltinModelAIProvider {
 	Reference(Strng),
 	#[serde(rename = "openai", alias = "openAI")]
 	OpenAI,
+	Managed,
 	Gemini,
 	Vertex,
 	Anthropic,
@@ -873,6 +874,10 @@ pub struct LocalLLMParams {
 	/// If unset this will be automatically detected from the environment.
 	#[serde(default)]
 	api_key: Option<SecretFromFile>,
+	/// Hugging Face token used by the managed provider to load its local frontend
+	/// metadata. This is not sent to the inference worker.
+	#[serde(default)]
+	hf_token: Option<SecretFromFile>,
 	/// AWS region to use for the Bedrock provider.
 	aws_region: Option<Strng>,
 	/// Google Cloud region to use for the Vertex AI provider.
@@ -913,6 +918,7 @@ impl LocalLLMModels {
 		let LocalLLMParams {
 			model: model_override,
 			api_key: None,
+			hf_token: None,
 			aws_region: None,
 			vertex_region: None,
 			vertex_project: None,
@@ -3955,6 +3961,7 @@ fn ensure_ai_provider_model(provider: &mut AIProvider, model: &str) {
 	match provider {
 		AIProvider::Anthropic(p) => p.model = p.model.clone().or_else(model),
 		AIProvider::OpenAI(p) => p.model = p.model.clone().or_else(model),
+		AIProvider::Managed(p) => p.model = p.model.clone().or_else(model),
 		AIProvider::Copilot(p) => p.model = p.model.clone().or_else(model),
 		AIProvider::Gemini(p) => p.model = p.model.clone().or_else(model),
 		AIProvider::Custom(p) => p.model = p.model.clone().or_else(model),
@@ -4092,6 +4099,13 @@ async fn convert_llm_config(
 			None => strng::format!("llm:model:{}:{idx}", model_config.name),
 		};
 		let p = model_config.params.clone();
+		if p.hf_token.is_some()
+			&& !matches!(
+				&model_config.provider,
+				LocalModelAIProvider::Builtin(LocalBuiltinModelAIProvider::Managed)
+			) {
+			bail!("params.hfToken is only supported by the managed provider");
+		}
 		let model = p.model;
 		let llm_routes = llm_route_types(model_config.passthrough.as_ref());
 
@@ -4109,6 +4123,12 @@ async fn convert_llm_config(
 			},
 			LocalModelAIProvider::Builtin(LocalBuiltinModelAIProvider::OpenAI) => {
 				AIProvider::OpenAI(openai::Provider { model })
+			},
+			LocalModelAIProvider::Builtin(LocalBuiltinModelAIProvider::Managed) => {
+				AIProvider::Managed(crate::llm::vllm::Provider::uninitialized(
+					model,
+					p.hf_token.as_ref().map(|token| token.0.clone()),
+				))
 			},
 			LocalModelAIProvider::Builtin(LocalBuiltinModelAIProvider::Copilot) => {
 				AIProvider::Copilot(copilot::Provider { model })
@@ -4164,7 +4184,6 @@ async fn convert_llm_config(
 				})
 			},
 		};
-
 		// Create backend auth policy
 		let mut pols = vec![];
 		if let Some(key) = p.api_key.as_ref() {
