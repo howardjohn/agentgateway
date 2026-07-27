@@ -3,8 +3,6 @@ kind: Gateway
 metadata:
   name: example
   namespace: default
-  annotations:
-    agentgateway.dev/internal-ports: "8080"
 spec:
   gatewayClassName: agentgateway
   listeners:
@@ -21,6 +19,8 @@ kind: ListenerSet
 metadata:
   name: foo
   namespace: default
+  annotations:
+    agentgateway.dev/internal-ports: "8080"
 spec:
   parentRef:
     name: example
@@ -44,7 +44,6 @@ output:
   resource:
     bind:
       key: 8080/default/example
-      mode: INTERNAL
       port: 8080
 - gateway:
     Name: example
