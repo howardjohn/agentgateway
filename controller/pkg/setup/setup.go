@@ -34,6 +34,7 @@ import (
 	agwplugins "github.com/agentgateway/agentgateway/controller/pkg/agentgateway/plugins"
 	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/policyselection"
 	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/remotehttp"
+	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/translator"
 	"github.com/agentgateway/agentgateway/controller/pkg/apiclient"
 	"github.com/agentgateway/agentgateway/controller/pkg/common"
 	"github.com/agentgateway/agentgateway/controller/pkg/controller"
@@ -248,7 +249,15 @@ func (s *setup) Start(ctx context.Context) error {
 	if persistedJWKS == nil {
 		persistedJWKS = jwks.NewPersistedEntries(s.APIClient, krtOpts, jwks.DefaultJwksStorePrefix, namespaces.GetPodNamespace())
 	}
-	jwksLookup := jwks.NewLookup(persistedJWKS, jwks.NewResolver(resolver))
+	referenceTypes := agwplugins.DefaultReferenceTypes(agwCollections)
+	refGrants := translator.BuildReferenceGrants(translator.ReferenceGrantsCollection(
+		agwCollections.ReferenceGrants,
+		referenceTypes.KnownFromReferences,
+		referenceTypes.KnownToReferences,
+		krtOpts.WithPrefix("jwks"),
+	))
+	jwksResolver := jwks.NewResolver(resolver, refGrants, agwCollections.Settings.BackendRefGrantMode)
+	jwksLookup := jwks.NewLookup(persistedJWKS, jwksResolver)
 
 	for _, mgrCfgFunc := range s.ExtraManagerConfig {
 		err := mgrCfgFunc(mgr)
@@ -273,7 +282,7 @@ func (s *setup) Start(ctx context.Context) error {
 
 	// build jwks store if it doesn't exist
 	if !runnablesRegistry.Contains(jwks.RunnableName) {
-		if err := buildJwksStore(ctx, mgr, s.APIClient, agwCollections, persistedJWKS, resolver); err != nil {
+		if err := buildJwksStore(ctx, mgr, s.APIClient, agwCollections, persistedJWKS, jwksResolver); err != nil {
 			return fmt.Errorf("error creating jwks store %w", err)
 		}
 	}
@@ -459,12 +468,12 @@ func buildJwksStore(
 	apiClient apiclient.Client,
 	agwCollections *agwplugins.AgwCollections,
 	persistedJWKS *jwks.PersistedEntries,
-	resolver remotehttp.Resolver,
+	resolver jwks.Resolver,
 ) error {
 	jwksCollections := jwks.NewCollections(jwks.CollectionInputs{
 		AgentgatewayPolicies: agwCollections.AgentgatewayPolicies,
 		Backends:             agwCollections.Backends,
-		Resolver:             jwks.NewResolver(resolver),
+		Resolver:             resolver,
 		KrtOpts:              agwCollections.KrtOpts,
 	})
 
