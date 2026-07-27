@@ -1625,11 +1625,7 @@ fn normalize_outbound_for_protocol(
 			normalize_result_type(&mut r.result_type, downstream_modern)
 		},
 		ServerResult::CallToolResult(r) => normalize_result_type(&mut r.result_type, downstream_modern),
-		ServerResult::CustomResult(r) => {
-			if !downstream_modern {
-				strip_protocol_result_fields(&mut r.0)
-			}
-		},
+		ServerResult::CustomResult(r) if !downstream_modern => strip_protocol_result_fields(&mut r.0),
 		_ => {},
 	}
 
