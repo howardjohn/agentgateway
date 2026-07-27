@@ -28,6 +28,7 @@ default-members = [
     "crates/cel-fork/cel",
     "crates/cel-fork/cel-derive",
     "crates/celx",
+    "crates/llm",
     "crates/pool",
     "crates/core",
     "crates/hbone",

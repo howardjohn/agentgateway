@@ -506,6 +506,7 @@ data: [DONE]
 		axum_core::body::Body::from(input),
 		1024 * 1024,
 		StreamingUsageGuard::default(),
+		crate::LogContentFields::default(),
 	)
 	.collect()
 	.await

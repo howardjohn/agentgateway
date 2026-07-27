@@ -638,6 +638,7 @@ mod tests {
 			call_id: "call_123".to_string(),
 			namespace: None,
 			name: "get_weather".to_string(),
+			caller: None,
 			id: Some("fc_123".to_string()),
 			status: Some(OutputStatus::Completed),
 		})]);
@@ -667,6 +668,7 @@ mod tests {
 			call_id: "call_123".to_string(),
 			namespace: None,
 			name: "get_weather".to_string(),
+			caller: None,
 			id: Some("fc_123".to_string()),
 			status: Some(OutputStatus::Completed),
 		})]);
