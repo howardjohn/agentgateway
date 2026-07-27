@@ -553,7 +553,8 @@ fn message_protocol_version(message: &ClientJsonRpcMessage) -> Option<ProtocolVe
 }
 
 fn encode_header_value(value: &str) -> String {
-	use base64::{Engine, prelude::BASE64_STANDARD};
+	use base64::Engine;
+	use base64::prelude::BASE64_STANDARD;
 	let bytes = value.as_bytes();
 	let requires_base64 = !value.is_empty()
 		&& (matches!(bytes.first(), Some(b' ' | b'\t'))
@@ -573,7 +574,8 @@ fn encode_header_value(value: &str) -> String {
 }
 
 fn decode_header_value(value: &str) -> Option<String> {
-	use base64::{Engine, prelude::BASE64_STANDARD};
+	use base64::Engine;
+	use base64::prelude::BASE64_STANDARD;
 	match value
 		.strip_prefix(BASE64_HEADER_PREFIX)
 		.and_then(|inner| inner.strip_suffix(BASE64_HEADER_SUFFIX))

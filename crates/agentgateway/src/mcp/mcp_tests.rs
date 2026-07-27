@@ -2306,6 +2306,7 @@ async fn authorization_denied_returns_unknown_resource_error() {
 }
 
 #[tokio::test]
+#[allow(deprecated)] // Intentionally exercises the legacy resources/subscribe protocol.
 async fn resource_subscribe_and_unsubscribe_forward_to_single_backend() {
 	let mock = mock_streamable_http_server(true).await;
 	let (_bind, io) = setup_proxy(&mock, true, false).await;
@@ -2324,6 +2325,7 @@ async fn resource_subscribe_and_unsubscribe_forward_to_single_backend() {
 }
 
 #[tokio::test]
+#[allow(deprecated)] // Intentionally exercises the legacy resources/subscribe protocol.
 async fn multiplex_resource_subscribe_and_unsubscribe_route_to_target() {
 	let mock_a = mock_streamable_http_server(true).await;
 	let mock_b = mock_streamable_http_server(true).await;
@@ -2362,6 +2364,7 @@ async fn multiplex_resource_subscribe_and_unsubscribe_route_to_target() {
 }
 
 #[tokio::test]
+#[allow(deprecated)] // Intentionally exercises the legacy resources/subscribe protocol.
 async fn multiplex_resource_updated_notification_is_prefixed() {
 	let mock_a = mock_streamable_http_server(true).await;
 	let mock_b = mock_streamable_http_server(true).await;
@@ -2394,6 +2397,7 @@ async fn multiplex_resource_updated_notification_is_prefixed() {
 }
 
 #[tokio::test]
+#[allow(deprecated)] // Intentionally exercises the legacy resources/subscribe protocol.
 async fn single_resource_updated_notification_is_not_prefixed() {
 	let mock = mock_streamable_http_server(true).await;
 	let (_bind, io) = setup_proxy(&mock, true, false).await;
