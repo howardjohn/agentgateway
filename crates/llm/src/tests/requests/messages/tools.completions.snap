@@ -32,6 +32,7 @@ info:
     }
   ],
   "model": "claude-opus-4-6",
+  "reasoning_effort": "none",
   "max_completion_tokens": 1024,
   "stream": false,
   "tools": [
