@@ -11,10 +11,7 @@ pub enum DatabasePool {
 	Postgres(PgPool),
 }
 
-/// Default pool size when `maxConnections` is not set in config. Kept small
-/// since agentgateway opens a separate pool per store (request log + config
-/// store) per process; each replica's total connection usage is roughly
-/// `2 * max_connections`.
+/// Default pool size when `maxConnections` is not set in config.
 const DEFAULT_MAX_CONNECTIONS: u32 = 5;
 
 impl DatabasePool {
@@ -27,6 +24,10 @@ impl DatabasePool {
 		max_connections: Option<u32>,
 	) -> anyhow::Result<Self> {
 		let max_connections = max_connections.unwrap_or(DEFAULT_MAX_CONNECTIONS);
+		anyhow::ensure!(
+			max_connections > 0,
+			"database maxConnections must be greater than zero"
+		);
 		if url.starts_with("postgres://") || url.starts_with("postgresql://") {
 			let pool = PgPoolOptions::new()
 				.max_connections(max_connections)

@@ -20,13 +20,15 @@ static REQUEST_LOG_STORE: OnceLock<RequestLogStore> = OnceLock::new();
 static REQUEST_LOG_STORE_BACKLOG: AtomicUsize = AtomicUsize::new(0);
 
 #[apply(schema!)]
+#[derive(Eq, PartialEq)]
 pub struct Config {
 	/// Connection URL for the request log database. A postgres:// or postgresql:// URL uses Postgres; any other value is treated as a SQLite database.
 	pub url: String,
 	/// Maximum number of connections to open in this database's connection pool. Defaults to 5.
-	/// Note this pool is separate from the config store's pool (config.storage.mode=hybrid), which
-	/// is sized independently from the same field when both share the same `url`.
+	/// When the request log and config stores have matching database settings, they share one pool
+	/// with this limit.
 	#[serde(default)]
+	#[cfg_attr(feature = "schema", schemars(range(min = 1)))]
 	pub max_connections: Option<u32>,
 }
 
