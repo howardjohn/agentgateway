@@ -10,6 +10,7 @@ use agent_core::metrics::CustomField;
 use agent_core::strng::{RichStrng, Strng};
 use agent_core::telemetry::{
 	OptionExt, OtelLogSink, ValueBag, current_connection_id, current_request_id, debug, display,
+	quoted,
 };
 use agent_core::{Timestamp, strng};
 use bytes::Buf;
@@ -1443,6 +1444,20 @@ impl Drop for DropOnLog {
 						.as_ref()
 						.and_then(|m| m.session_id.as_ref())
 						.map(display),
+				),
+				(
+					"mcp.error.code",
+					mcp
+						.as_ref()
+						.and_then(|m| m.error.as_ref())
+						.map(|error| error.code.into()),
+				),
+				(
+					"mcp.error.message",
+					mcp
+						.as_ref()
+						.and_then(|m| m.error.as_ref())
+						.map(|error| quoted(&error.message)),
 				),
 				(
 					"inferencepool.selected_endpoint",

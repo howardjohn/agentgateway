@@ -303,6 +303,13 @@ pub struct MCPTool {
 }
 
 #[apply(schema!)]
+#[derive(Default, PartialEq)]
+pub struct MCPError {
+	pub code: i32,
+	pub message: String,
+}
+
+#[apply(schema!)]
 #[derive(Default, PartialEq, ::cel::DynamicType)]
 #[dynamic(rename_all = "camelCase")]
 pub struct MCPTask {
@@ -342,6 +349,12 @@ pub struct MCPInfo {
 	pub resource: Option<ResourceId>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub task: Option<MCPTask>,
+	// Terminal errors arrive while the response body is drained. Keep them out of CEL so policy
+	// evaluation cannot depend on asynchronous stream timing; they are emitted as access-log fields.
+	#[dynamic(skip)]
+	#[cfg_attr(feature = "schema", schemars(skip))]
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub error: Option<MCPError>,
 }
 
 impl MCPInfo {
@@ -352,6 +365,7 @@ impl MCPInfo {
 			&& self.prompt.is_none()
 			&& self.resource.is_none()
 			&& self.task.is_none()
+			&& self.error.is_none()
 	}
 
 	pub fn resource_type(&self) -> Option<MCPOperation> {
@@ -456,7 +470,11 @@ impl MCPInfo {
 		}
 	}
 
-	pub fn capture_call_error<T: serde::Serialize>(&mut self, error: &T) {
+	pub fn capture_error(&mut self, error: &rmcp::ErrorData) {
+		self.error = Some(MCPError {
+			code: error.code.0,
+			message: error.message.to_string(),
+		});
 		if let Some(tool) = self.tool.as_mut() {
 			tool.error = serde_json::to_value(error).ok();
 		}

@@ -3291,6 +3291,8 @@ async fn tool_call_error_exposes_error_payload_to_access_log_cel() {
 	);
 	assert_eq!(log["mcp_args_cel"]["traceId"], trace_id);
 	assert_eq!(log["mcp_error_cel"]["code"], -32602);
+	assert_eq!(log["mcp.error.code"], -32602);
+	assert_eq!(log["mcp.error.message"], "tool not found");
 	assert!(
 		log["mcp_error_cel"]["message"]
 			.as_str()
@@ -3303,6 +3305,36 @@ async fn tool_call_error_exposes_error_payload_to_access_log_cel() {
 	);
 	assert!(log.get("gen_ai.tool.call.arguments").is_none());
 	assert!(log.get("gen_ai.tool.call.result").is_none());
+}
+
+#[tokio::test]
+async fn discover_error_is_recorded_in_access_log() {
+	let mock = mock_streamable_http_server_without_discover().await;
+	let (_t, io) = setup_access_log_mcp_proxy(&mock).await;
+	let body = serde_json::json!({
+		"jsonrpc": "2.0",
+		"id": "discover-log-test",
+		"method": "server/discover",
+		"params": { "_meta": modern_meta() }
+	});
+	let response = mcp_json_post(&reqwest::Client::new(), &format!("http://{io}/mcp"), &body)
+		.header("mcp-protocol-version", "2026-07-28")
+		.header("mcp-method", "server/discover")
+		.send()
+		.await
+		.unwrap();
+	assert_eq!(response.status(), reqwest::StatusCode::OK);
+	let message = read_response_message(response).await;
+	assert_eq!(message["error"]["code"], -32601);
+
+	let log = agent_core::telemetry::testing::eventually_find(&[
+		("scope", "request"),
+		("mcp.method.name", "server/discover"),
+		("mcp.error.message", "server/discover"),
+	])
+	.await
+	.unwrap();
+	assert_eq!(log["mcp.error.code"], -32601);
 }
 
 #[tokio::test]
@@ -5663,7 +5695,7 @@ async fn test_runtime_fanout_fail_open_skips_jsonrpc_error_frames() {
 #[tokio::test]
 async fn test_runtime_fanout_fail_open_all_fail() {
 	use futures_util::StreamExt;
-	use rmcp::model::{ListToolsResult, RequestId};
+	use rmcp::model::RequestId;
 
 	use crate::mcp::mergestream::{MergeStream, Messages};
 
@@ -5672,19 +5704,9 @@ async fn test_runtime_fanout_fail_open_all_fail() {
 
 	let streams = vec![("bad1".into(), err_stream1), ("bad2".into(), err_stream2)];
 
-	let merge = Box::new(
-		|results: Vec<(Strng, rmcp::model::ServerResult)>, _cel: &_| {
-			// All failed, so results should be empty.
-			// Return an empty success result (idiomatic for FailOpen).
-			assert!(results.is_empty());
-			Ok(rmcp::model::ServerResult::ListToolsResult(
-				ListToolsResult {
-					tools: vec![],
-					..Default::default()
-				},
-			))
-		},
-	);
+	let merge = Box::new(|_: Vec<(Strng, rmcp::model::ServerResult)>, _cel: &_| {
+		panic!("merge must not run without a successful upstream")
+	});
 
 	let mut ms = MergeStream::new(
 		streams,
@@ -5697,11 +5719,7 @@ async fn test_runtime_fanout_fail_open_all_fail() {
 	let res = ms.next().await;
 	assert!(res.is_some());
 	let res = res.unwrap();
-	assert!(
-		res.is_ok(),
-		"expected success with FailOpen even if ALL upstreams error mid-request: {:?}",
-		res.err()
-	);
+	assert!(res.is_err(), "expected an error when ALL upstreams fail");
 }
 
 #[tokio::test]
