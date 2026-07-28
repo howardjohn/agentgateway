@@ -734,9 +734,15 @@ impl Gateway {
 					};
 					let binds = inputs.stores.read_binds();
 					let (target_address, bind) = if let Ok(addr) = authority.parse::<SocketAddr>() {
-						// Match an exact bind for this address; otherwise fall back to the internal
-						// wildcard bind, preserving the requested address as the tunnel target.
-						let Some(bind) = binds.find_bind(addr).or_else(|| binds.find_wildcard_bind()) else {
+						// CONNECT re-entry must not expose a bind scoped to a concrete address
+						// (for example, a loopback-only listener). Match only an unspecified-address
+						// bind for this port; otherwise fall back to the explicit internal wildcard
+						// bind, preserving the requested address as the tunnel target.
+						let Some(bind) = binds
+							.find_bind(addr)
+							.filter(|b| b.address.ip().is_unspecified())
+							.or_else(|| binds.find_wildcard_bind())
+						else {
 							return Ok(ProxyError::BindNotFound.into_response_with_grpc(false));
 						};
 						(addr, bind)
