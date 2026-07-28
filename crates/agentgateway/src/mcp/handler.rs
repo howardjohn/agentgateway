@@ -1390,11 +1390,9 @@ impl Relay {
 			upstream_instructions,
 			extensions,
 		);
-		let mut result = DiscoverResult::new(
-			ProtocolVersion::KNOWN_VERSIONS.to_vec(),
-			info.capabilities,
-			info.server_info,
-		);
+		let mut result =
+			DiscoverResult::new(ProtocolVersion::KNOWN_VERSIONS.to_vec(), info.capabilities)
+				.with_server_info(info.server_info);
 		result.instructions = info.instructions;
 		result
 			// Discovery is immediately stale because the gateway has no way to

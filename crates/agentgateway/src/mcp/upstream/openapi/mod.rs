@@ -695,8 +695,11 @@ impl Handler {
 				DiscoverResult::new(
 					ProtocolVersion::KNOWN_VERSIONS.to_vec(),
 					ServerCapabilities::builder().enable_tools().build(),
-					Implementation::new("agentgateway", BuildInfo::new().version.to_string()),
-				),
+				)
+				.with_server_info(Implementation::new(
+					"agentgateway",
+					BuildInfo::new().version.to_string(),
+				)),
 			),
 			ClientRequest::GetTaskRequest(_)
 			| ClientRequest::UpdateTaskRequest(_)

@@ -109,7 +109,7 @@ libc.workspace = true
 rcgen.workspace = true
 regex.workspace = true
 
-rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", branch = "main", features = [
+rmcp = { version = "3.0.0-beta.5", features = [
     "client",
     "server",
     "base64",
@@ -196,7 +196,7 @@ rstest.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 which.workspace = true
-rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", branch = "main", features = [
+rmcp = { version = "3.0.0-beta.5", features = [
     "client",
     "server",
     "base64",

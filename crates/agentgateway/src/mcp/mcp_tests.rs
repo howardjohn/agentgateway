@@ -3776,8 +3776,8 @@ mod appsmockserver {
 	pub const DASHBOARD_HTML: &str = "<html>dashboard</html>";
 	pub const UI_MIME_TYPE: &str = "text/html;profile=mcp-app";
 
-	fn meta(v: serde_json::Value) -> Meta {
-		Meta(v.as_object().cloned().expect("meta must be an object"))
+	fn meta(v: serde_json::Value) -> MetaObject {
+		MetaObject(v.as_object().cloned().expect("meta must be an object"))
 	}
 
 	fn schema() -> Arc<JsonObject> {
@@ -5160,11 +5160,10 @@ fn test_merge_discover_unions_extensions_recorded_at_initialize() {
 	let result = discover_merge(
 		vec![(
 			"modern".into(),
-			ServerResult::DiscoverResult(DiscoverResult::new(
-				ProtocolVersion::KNOWN_VERSIONS.to_vec(),
-				modern_caps,
-				Implementation::new("modern-server", "1.0"),
-			)),
+			ServerResult::DiscoverResult(
+				DiscoverResult::new(ProtocolVersion::KNOWN_VERSIONS.to_vec(), modern_caps)
+					.with_server_info(Implementation::new("modern-server", "1.0")),
+			),
 		)],
 		&empty_cel(),
 	)
