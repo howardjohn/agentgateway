@@ -60,6 +60,13 @@ impl RequestType for Request {
 		false
 	}
 
+	fn to_value(&self) -> serde_json::Result<serde_json::Value> {
+		match self {
+			Self::Raw(body) => serde_json::from_slice(body),
+			Self::Json(body) => Ok(body.clone()),
+		}
+	}
+
 	fn model(&mut self) -> &mut Option<String> {
 		unimplemented!("model is not available");
 	}
