@@ -324,6 +324,13 @@ mod defaults {
 		2_097_152
 	}
 
+	/// Semi-trusted, controller-configured gRPC services that return body mutations do not impose
+	/// a message-size limit.
+	///
+	/// Tonic otherwise defaults to a 4 MiB receive limit, which is too small for services that may
+	/// legitimately return buffered HTTP or MCP bodies.
+	pub const GRPC_MAX_DECODING_MESSAGE_SIZE: usize = usize::MAX;
+
 	pub fn tls_handshake_timeout() -> Duration {
 		Duration::from_secs(15)
 	}
