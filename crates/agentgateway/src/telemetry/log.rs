@@ -2344,6 +2344,7 @@ mod tests {
 		let catalog = ModelCatalog::new(vec![crate::ModelCatalogSource::File {
 			file: catalog_file.path().to_path_buf(),
 		}])
+		.await
 		.unwrap();
 		let request = llm::LLMRequest {
 			input_tokens: None,
