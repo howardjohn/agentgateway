@@ -507,8 +507,7 @@ static DUMP: Lazy<Expression> =
 impl ExecutorResolver<'_> {
 	pub fn slow_debug(&self) -> serde_json::Value {
 		let expr = &DUMP;
-		let cel_value =
-			Value::resolve(expr.expression.expression(), context(), self).unwrap_or(Value::Null);
+		let cel_value = Value::resolve(expr.ast(), context(), self).unwrap_or(Value::Null);
 		let mut v = cel_value.json().unwrap_or(serde_json::Value::Null);
 		// Filter nulls which are just noisy
 		if let serde_json::Value::Object(obj) = &mut v {
@@ -781,7 +780,7 @@ impl<'a> Executor<'a> {
 	pub fn eval(&'a self, expr: &'a Expression) -> Result<Value<'a>, Error> {
 		let resolver = ExecutorResolver { executor: self };
 		let start = dtrace::timed_start();
-		let res = Value::resolve(expr.expression.expression(), context(), &resolver);
+		let res = Value::resolve(expr.ast(), context(), &resolver);
 		dtrace::trace(|t| {
 			t.cel_eval(
 				start,

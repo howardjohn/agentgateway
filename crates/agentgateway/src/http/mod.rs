@@ -33,9 +33,9 @@ pub mod tests_common;
 pub mod transformation_cel;
 
 pub use agent_http::{
-	Body, BodyContent, BodyInspection, BufferLimit, Error, RawBody, RecordedBody, RecordedBodyHandle,
-	Request, RequestBodyExt, Response, ResponseBodyExt, buffer_limit, read_body_with_limit,
-	response_buffer_limit, x_headers,
+	Body, BodyContent, BodyInspection, BufferLimit, Error, PolicyResponse, RawBody, RecordedBody,
+	RecordedBodyHandle, Request, RequestBodyExt, Response, ResponseBodyExt, buffer_limit,
+	merge_in_headers, read_body_with_limit, response_buffer_limit, x_headers,
 };
 
 pub(crate) fn mark_sensitive_headers(req: &mut Request, configured: &[HeaderName]) {
@@ -781,52 +781,19 @@ pub async fn inspect_response_body(resp: &mut Response) -> anyhow::Result<BodyIn
 	resp.body_mut().inspect(lim).await
 }
 
-#[derive(Debug, Default)]
-#[must_use]
-pub struct PolicyResponse {
-	pub direct_response: Option<Response>,
-	pub response_headers: Option<crate::http::HeaderMap>,
+// Small extension to allow apply()ing a PolicyResponse which doesn't have access to a ProxyResponse.
+pub trait PolicyResponseExt {
+	fn apply(self, hm: &mut HeaderMap) -> Result<(), ProxyResponse>;
 }
 
-impl PolicyResponse {
-	pub fn apply(self, hm: &mut HeaderMap) -> Result<(), ProxyResponse> {
+impl PolicyResponseExt for PolicyResponse {
+	fn apply(self, hm: &mut HeaderMap) -> Result<(), ProxyResponse> {
 		if let Some(mut dr) = self.direct_response {
 			merge_in_headers(self.response_headers, dr.headers_mut());
 			Err(ProxyResponse::DirectResponse(Box::new(dr)))
 		} else {
 			merge_in_headers(self.response_headers, hm);
 			Ok(())
-		}
-	}
-	pub fn should_short_circuit(&self) -> bool {
-		self.direct_response.is_some()
-	}
-	pub fn with_response(self, other: Response) -> Self {
-		PolicyResponse {
-			direct_response: Some(other),
-			response_headers: self.response_headers,
-		}
-	}
-}
-
-pub fn merge_in_headers(additional_headers: Option<HeaderMap>, dest: &mut HeaderMap) {
-	if let Some(rh) = additional_headers {
-		// HeaderMap::into_iter reports the name only for the first value in a repeated field.
-		let mut previous_name = None;
-		for (k, v) in rh.into_iter() {
-			if let Some(k) = k {
-				previous_name = Some(k.clone());
-				// Most response mutations replace an existing header. Set-Cookie is not list-valued,
-				// so each policy and upstream cookie must remain a separate appended field.
-				if k == header::SET_COOKIE {
-					dest.append(k, v);
-				} else {
-					dest.insert(k, v);
-				}
-			// Preserve subsequent Set-Cookie values whose repeated field name was omitted above.
-			} else if previous_name.as_ref() == Some(&header::SET_COOKIE) {
-				dest.append(header::SET_COOKIE, v);
-			}
 		}
 	}
 }
