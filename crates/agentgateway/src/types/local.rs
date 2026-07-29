@@ -966,6 +966,13 @@ impl LocalLLMModels {
 			self.params.model = Some(model_override);
 		}
 		self.provider = provider.provider.clone();
+		if let LocalModelAIProvider::Builtin(LocalBuiltinModelAIProvider::Custom(custom)) =
+			&mut self.provider
+		{
+			custom
+				.provider_override
+				.get_or_insert_with(|| provider.name.clone());
+		}
 		if let Some(defaults) = provider.defaults.clone() {
 			self.defaults = merge_optional_maps(defaults.defaults, self.defaults.take());
 			self.overrides = merge_optional_maps(defaults.overrides, self.overrides.take());
