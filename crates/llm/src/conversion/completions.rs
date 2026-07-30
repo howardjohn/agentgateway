@@ -1117,8 +1117,11 @@ fn finalize_streaming_tool_calls(
 		.into_iter()
 		.sorted_by_key(|(idx, ..)| *idx)
 		.map(|(idx, id, name, arguments)| {
-			let arguments =
-				serde_json::from_str(&arguments).unwrap_or(serde_json::Value::Object(Default::default()));
+			let arguments = match serde_json::from_str(&arguments) {
+				Ok(arguments) => arguments,
+				Err(_) if arguments.trim().is_empty() => serde_json::Value::Object(Default::default()),
+				Err(_) => serde_json::Value::String(arguments),
+			};
 			crate::OutputMessagePart::ToolCall {
 				id: id.unwrap_or_else(|| format!("tool_call_{idx}")).into(),
 				name: name.unwrap_or_default().into(),

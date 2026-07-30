@@ -802,11 +802,19 @@ impl StreamingToolCalls {
 	) -> Option<Vec<crate::OutputMessage>> {
 		let content: Vec<_> = std::mem::take(self.calls.as_mut()?)
 			.into_values()
-			.map(|call| crate::OutputMessagePart::ToolCall {
-				id: call.id,
-				name: call.name,
-				arguments: serde_json::from_str(&call.arguments)
-					.unwrap_or(serde_json::Value::Object(Default::default())),
+			.map(|call| {
+				let arguments = match serde_json::from_str(&call.arguments) {
+					Ok(arguments) => arguments,
+					Err(_) if call.arguments.trim().is_empty() => {
+						serde_json::Value::Object(Default::default())
+					},
+					Err(_) => serde_json::Value::String(call.arguments),
+				};
+				crate::OutputMessagePart::ToolCall {
+					id: call.id,
+					name: call.name,
+					arguments,
+				}
 			})
 			.collect();
 		(!content.is_empty()).then(|| {

@@ -457,8 +457,11 @@ pub(crate) fn output_item_tool_call_part(item: &OutputItem) -> Option<OutputMess
 	let OutputItem::FunctionCall(call) = item else {
 		return None;
 	};
-	let arguments =
-		serde_json::from_str(&call.arguments).unwrap_or(serde_json::Value::Object(Default::default()));
+	let arguments = match serde_json::from_str(&call.arguments) {
+		Ok(arguments) => arguments,
+		Err(_) if call.arguments.trim().is_empty() => serde_json::Value::Object(Default::default()),
+		Err(_) => serde_json::Value::String(call.arguments.clone()),
+	};
 	Some(OutputMessagePart::ToolCall {
 		id: strng::new(&call.call_id),
 		name: strng::new(&call.name),

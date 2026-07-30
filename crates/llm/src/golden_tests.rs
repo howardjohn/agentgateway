@@ -619,9 +619,12 @@ mod responses {
 		("gemini_zero_completion_tokens", ALL_COMPLETIONS),
 		("gemini_with_completion_tokens", ALL_COMPLETIONS),
 		("tool_call", ALL_COMPLETIONS),
+		("truncated_tool_call", &[COMPLETIONS_TO_COMPLETIONS]),
 	];
-	const RESPONSES_RESPONSES: &[(&str, &[&str])] =
-		&[("basic", &[RESPONSES_TO_RESPONSES, RESPONSES_TO_DETECT])];
+	const RESPONSES_RESPONSES: &[(&str, &[&str])] = &[
+		("basic", &[RESPONSES_TO_RESPONSES, RESPONSES_TO_DETECT]),
+		("truncated_tool_call", &[RESPONSES_TO_RESPONSES]),
+	];
 	const EMBEDDING_RESPONSES: &[(&str, &str)] = &[
 		("response/bedrock-titan/embeddings.json", BEDROCK_TITAN),
 		("response/bedrock-cohere/embeddings.json", BEDROCK_COHERE),
@@ -761,7 +764,6 @@ mod responses {
 			});
 		}
 	}
-
 	#[test]
 	fn embeddings() {
 		for (path, provider) in EMBEDDING_RESPONSES {
