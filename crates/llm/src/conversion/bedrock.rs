@@ -563,8 +563,11 @@ pub mod from_completions {
 			for call in tool_calls {
 				match call {
 					completions::MessageToolCalls::Function(call) => {
-						let input = serde_json::from_str::<serde_json::Value>(&call.function.arguments)
-							.unwrap_or_else(|_| serde_json::Value::String(call.function.arguments.clone()));
+						// Converse rejects non-object toolUse.input values, despite input being a document.
+						let input = match serde_json::from_str::<serde_json::Value>(&call.function.arguments) {
+							Ok(serde_json::Value::Object(input)) => serde_json::Value::Object(input),
+							_ => serde_json::json!({}),
+						};
 						content.push(bedrock::ContentBlock::ToolUse(bedrock::ToolUseBlock {
 							tool_use_id: call.id.clone(),
 							name: tool_name_map.register(&call.function.name),
@@ -572,8 +575,10 @@ pub mod from_completions {
 						}));
 					},
 					completions::MessageToolCalls::Custom(call) => {
-						let input = serde_json::from_str::<serde_json::Value>(&call.custom_tool.input)
-							.unwrap_or_else(|_| serde_json::Value::String(call.custom_tool.input.clone()));
+						let input = match serde_json::from_str::<serde_json::Value>(&call.custom_tool.input) {
+							Ok(serde_json::Value::Object(input)) => serde_json::Value::Object(input),
+							_ => serde_json::json!({}),
+						};
 						content.push(bedrock::ContentBlock::ToolUse(bedrock::ToolUseBlock {
 							tool_use_id: call.id.clone(),
 							name: tool_name_map.register(&call.custom_tool.name),
