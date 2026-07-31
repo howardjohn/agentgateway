@@ -3069,13 +3069,17 @@ pub mod from_responses {
 
 					let stop = pending_stop_reason.take();
 					let usage_data = pending_usage.take();
-					let finish_reason = stop
-						.as_ref()
-						.map(|stop_reason| {
-							crate::conversion::bedrock::from_messages::translate_stop_reason(*stop_reason)
-						})
-						.as_ref()
-						.and_then(crate::types::serialize_str);
+					let response_status = match stop.as_ref() {
+						Some(bedrock::StopReason::EndTurn)
+						| Some(bedrock::StopReason::StopSequence)
+						| Some(bedrock::StopReason::ToolUse)
+						| None => responses::Status::Completed,
+						Some(bedrock::StopReason::MaxTokens)
+						| Some(bedrock::StopReason::ModelContextWindowExceeded) => responses::Status::Incomplete,
+						Some(bedrock::StopReason::ContentFiltered)
+						| Some(bedrock::StopReason::GuardrailIntervened) => responses::Status::Failed,
+					};
+					let finish_reason = crate::types::serialize_str(&response_status);
 					log.update(|r| {
 						if let Some(completion) = completion.take() {
 							r.response.completion = Some(vec![completion]);

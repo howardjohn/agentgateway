@@ -71,7 +71,7 @@ data: {"type":"response.completed","sequence_number":13,"response":{"created_at"
           }
         }
       ],
-      "finish_reason": "tool_use"
+      "finish_reason": "completed"
     }
   ]
 }

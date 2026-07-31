@@ -872,7 +872,15 @@ pub mod to_responses {
 
 		let stop_reason = pending_stop_reason.take();
 		let usage = pending_usage.take();
-		let finish_reason = stop_reason.as_ref().and_then(crate::types::serialize_str);
+		let response_status = match stop_reason.as_ref() {
+			Some(completions::FinishReason::Stop)
+			| Some(completions::FinishReason::ToolCalls)
+			| Some(completions::FinishReason::FunctionCall)
+			| None => responses::Status::Completed,
+			Some(completions::FinishReason::Length) => responses::Status::Incomplete,
+			Some(completions::FinishReason::ContentFilter) => responses::Status::Failed,
+		};
+		let finish_reason = crate::types::serialize_str(&response_status);
 		let tool_parts = logged_tool_calls.as_mut().and_then(|logged_tool_calls| {
 			crate::conversion::completions::finalize_streaming_tool_calls(
 				logged_tool_calls
