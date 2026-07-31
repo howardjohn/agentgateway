@@ -313,17 +313,14 @@ impl EndpointSet<Endpoint> {
 								ewi.capacity,
 							))
 						};
-						Some((
-							score,
-							Candidate {
-								endpoint: ewi.endpoint.clone(),
-								info: ewi.info.clone(),
-								workload,
-							},
-						))
+						Some((score, ewi, workload))
 					})
 					.max_by(|a, b| a.0.total_cmp(b.0))
-					.map(|(_, candidate)| candidate);
+					.map(|(_, ewi, workload)| Candidate {
+						endpoint: ewi.endpoint.clone(),
+						info: ewi.info.clone(),
+						workload: workload.clone(),
+					});
 				if selected.is_some() {
 					return selected;
 				}
@@ -389,7 +386,7 @@ impl EndpointSet<Endpoint> {
 				Some(Candidate {
 					endpoint: ewi.endpoint.clone(),
 					info: ewi.info.clone(),
-					workload: wl,
+					workload: wl.clone(),
 				})
 			})
 			.max_by(|a, b| a.info.score().total_cmp(&b.info.score()))
@@ -425,7 +422,7 @@ impl EndpointSet<Endpoint> {
 					Some(Candidate {
 						endpoint: ewi.endpoint.clone(),
 						info: ewi.info.clone(),
-						workload: wl,
+						workload: wl.clone(),
 					})
 				})
 				.max_by(|a, b| a.info.score().total_cmp(&b.info.score()))
@@ -465,13 +462,13 @@ fn weighted_rendezvous_score(affinity_key: u64, endpoint_hash: u64, weight: u32)
 	f64::from(weight) / -uniform.ln()
 }
 
-fn viable(
-	workloads: &store::WorkloadStore,
+fn viable<'a>(
+	workloads: &'a store::WorkloadStore,
 	target_port: u16,
 	svc_port: u16,
 	endpoint: &Arc<Endpoint>,
-) -> Option<Arc<Workload>> {
-	let Some(wl) = workloads.find_uid(&endpoint.workload_uid) else {
+) -> Option<&'a Arc<Workload>> {
+	let Some(wl) = workloads.find_uid_ref(&endpoint.workload_uid) else {
 		debug!("failed to fetch workload for {}", endpoint.workload_uid);
 		return None;
 	};
@@ -1227,14 +1224,17 @@ mod benches {
 
 	use super::*;
 
-	fn affinity_fixture(endpoint_count: usize) -> (EndpointSet<Endpoint>, store::DiscoveryStore) {
+	fn affinity_fixture(
+		endpoint_count: usize,
+		capacity: impl Fn(usize) -> u32,
+	) -> (EndpointSet<Endpoint>, store::DiscoveryStore) {
 		let endpoints = EndpointSet::new_empty(1);
 		let mut discovery = store::DiscoveryStore::new();
 		let ranker = LocalityRanker::new(None, None);
 
 		for i in 0..endpoint_count {
 			let uid: Strng = format!("affinity-bench-{i:04}").into();
-			let capacity = (i % 4 + 1) as u32;
+			let capacity = capacity(i);
 			let workload = Arc::new(Workload {
 				uid: uid.clone(),
 				capacity,
@@ -1255,17 +1255,36 @@ mod benches {
 		(endpoints, discovery)
 	}
 
-	/// Measures the real affinity selection loop while keeping fixture construction out of the
-	/// timed section. This includes the ArcSwap snapshot load, endpoint iteration, capacity and
-	/// port viability checks, WorkloadStore lookups, weighted rendezvous scoring, and Arc clones
-	/// used to construct candidates.
+	/// Measures the common equal-weight path, which uses integer rendezvous scores and avoids
+	/// computing a logarithm for each endpoint.
 	#[divan::bench(args = [1_usize, 4, 16, 64, 256, 1024])]
-	fn select_affinity(b: Bencher, endpoint_count: usize) {
-		let (endpoints, discovery) = affinity_fixture(endpoint_count);
+	fn select_affinity_uniform(b: Bencher, endpoint_count: usize) {
+		let (endpoints, discovery) = affinity_fixture(endpoint_count, |_| 1);
 		let affinity_key = hash_affinity_key(b"affinity-benchmark-client");
 
 		b.bench_local(|| {
-			black_box(endpoints.select_affinity(&discovery.workloads, 80, 8080, black_box(affinity_key)))
+			black_box(endpoints.select_affinity(
+				&discovery.workloads,
+				80,
+				8080,
+				black_box(affinity_key),
+			))
+		});
+	}
+
+	/// Measures weighted affinity selection with capacities cycling through 1, 2, 3, and 4.
+	#[divan::bench(args = [1_usize, 4, 16, 64, 256, 1024])]
+	fn select_affinity_weighted(b: Bencher, endpoint_count: usize) {
+		let (endpoints, discovery) = affinity_fixture(endpoint_count, |i| (i % 4 + 1) as u32);
+		let affinity_key = hash_affinity_key(b"affinity-benchmark-client");
+
+		b.bench_local(|| {
+			black_box(endpoints.select_affinity(
+				&discovery.workloads,
+				80,
+				8080,
+				black_box(affinity_key),
+			))
 		});
 	}
 }

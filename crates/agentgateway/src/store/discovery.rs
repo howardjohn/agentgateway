@@ -296,8 +296,12 @@ impl WorkloadStore {
 }
 
 impl WorkloadStore {
+	pub fn find_uid_ref(&self, uid: &Strng) -> Option<&Arc<Workload>> {
+		self.by_uid.get(uid)
+	}
+
 	pub fn find_uid(&self, uid: &Strng) -> Option<Arc<Workload>> {
-		self.by_uid.get(uid).cloned()
+		self.find_uid_ref(uid).cloned()
 	}
 
 	/// Finds the workload by address, as an arc.
