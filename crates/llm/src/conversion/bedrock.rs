@@ -793,7 +793,7 @@ pub mod from_completions {
 			req
 				.reasoning_effort
 				.as_ref()
-				.and_then(reasoning_effort_to_enabled_budget)
+				.and_then(crate::types::thinking_budget_for_reasoning_effort)
 		});
 
 		let additional_model_request_fields = enabled_thinking_budget.map(|budget| {
@@ -872,17 +872,6 @@ pub mod from_completions {
 		helpers::ensure_tool_config_for_history(&mut bedrock_request);
 
 		Ok((bedrock_request, tool_name_map))
-	}
-
-	fn reasoning_effort_to_enabled_budget(effort: &completions::ReasoningEffort) -> Option<u64> {
-		match effort {
-			completions::ReasoningEffort::None => None,
-			completions::ReasoningEffort::Minimal | completions::ReasoningEffort::Low => Some(1024),
-			completions::ReasoningEffort::Medium => Some(2048),
-			completions::ReasoningEffort::High => Some(4096),
-			completions::ReasoningEffort::Xhigh => Some(8192),
-			completions::ReasoningEffort::Max => Some(16384),
-		}
 	}
 
 	fn completions_response_format_to_bedrock_output_config(
@@ -2565,7 +2554,7 @@ pub mod from_responses {
 				.reasoning
 				.as_ref()
 				.and_then(|r| r.effort.as_ref())
-				.and_then(responses_reasoning_effort_to_enabled_budget)
+				.and_then(crate::types::thinking_budget_for_reasoning_effort)
 		});
 		let additional_model_request_fields = enabled_thinking_budget.map(|budget| {
 			serde_json::json!({
@@ -2662,19 +2651,6 @@ pub mod from_responses {
 			.vendor_extensions
 			.as_ref()
 			.and_then(|v| v.thinking_budget_tokens)
-	}
-
-	fn responses_reasoning_effort_to_enabled_budget(
-		effort: &responses::ReasoningEffort,
-	) -> Option<u64> {
-		match effort {
-			responses::ReasoningEffort::None => None,
-			responses::ReasoningEffort::Minimal | responses::ReasoningEffort::Low => Some(1024),
-			responses::ReasoningEffort::Medium => Some(2048),
-			responses::ReasoningEffort::High => Some(4096),
-			responses::ReasoningEffort::Xhigh => Some(8192),
-			responses::ReasoningEffort::Max => Some(16384),
-		}
 	}
 
 	fn responses_text_format_to_bedrock_output_config(

@@ -26,6 +26,8 @@ pub struct Request {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub seed: Option<i64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	pub reasoning_effort: Option<typed::ReasoningEffort>,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub stream_options: Option<StreamOptions>,
 
 	#[serde(skip_serializing_if = "Option::is_none")]

@@ -353,7 +353,7 @@ pub mod from_completions {
 			req
 				.reasoning_effort
 				.as_ref()
-				.and_then(reasoning_effort_to_enabled_budget)
+				.and_then(crate::types::thinking_budget_for_reasoning_effort)
 				.map(|budget_tokens| messages::ThinkingInput::Enabled { budget_tokens })
 		};
 
@@ -398,17 +398,6 @@ pub mod from_completions {
 			metadata,
 			thinking,
 			output_config,
-		}
-	}
-
-	fn reasoning_effort_to_enabled_budget(effort: &completions::ReasoningEffort) -> Option<u64> {
-		match effort {
-			completions::ReasoningEffort::None => None,
-			completions::ReasoningEffort::Minimal | completions::ReasoningEffort::Low => Some(1024),
-			completions::ReasoningEffort::Medium => Some(2048),
-			completions::ReasoningEffort::High => Some(4096),
-			completions::ReasoningEffort::Xhigh => Some(8192),
-			completions::ReasoningEffort::Max => Some(16384),
 		}
 	}
 

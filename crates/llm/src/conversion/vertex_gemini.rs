@@ -888,12 +888,6 @@ pub mod from_completions {
 		model.contains("gemini-3")
 	}
 
-	// Conservative `reasoning_effort` -> Gemini 2.5 `thinkingBudget` mapping, chosen to
-	// be valid for both Flash and Pro (Pro's documented range is 128..=32768).
-	const THINKING_BUDGET_LOW: i32 = 1024;
-	const THINKING_BUDGET_MEDIUM: i32 = 2048;
-	const THINKING_BUDGET_HIGH: i32 = 4096;
-
 	fn thinking_config(req: &types::completions::Request, model: &str) -> Option<vg::ThinkingConfig> {
 		if let Some(tc) = req
 			.rest
@@ -903,31 +897,27 @@ pub mod from_completions {
 			return vg::ThinkingConfig::deserialize(tc).ok();
 		}
 
-		let effort = req.rest.get("reasoning_effort").and_then(Value::as_str)?;
-		if effort == "none" {
-			// Omit thinkingConfig; on Gemini 2.5 Pro emitting budget 0 is rejected.
-			return None;
-		}
-
+		let effort = req.reasoning_effort.as_ref()?;
 		if uses_thinking_levels(model) {
 			let level = match effort {
-				"minimal" | "low" | "medium" | "high" => effort,
-				_ => "medium",
+				types::completions::typed::ReasoningEffort::None => return None,
+				types::completions::typed::ReasoningEffort::Minimal => "minimal",
+				types::completions::typed::ReasoningEffort::Low => "low",
+				types::completions::typed::ReasoningEffort::Medium => "medium",
+				types::completions::typed::ReasoningEffort::High
+				| types::completions::typed::ReasoningEffort::Xhigh
+				| types::completions::typed::ReasoningEffort::Max => "high",
 			};
 			Some(vg::ThinkingConfig {
-				thinking_level: Some(level.to_string()),
+				thinking_level: Some(level.into()),
 				thinking_budget: None,
 				include_thoughts: Some(true),
 			})
 		} else {
-			// Gemini 2.5: map to a conservative integer budget valid for Flash and Pro.
-			// "minimal" is coerced to "low" (no 2.5 analogue).
-			let budget = match effort {
-				"minimal" | "low" => THINKING_BUDGET_LOW,
-				"medium" => THINKING_BUDGET_MEDIUM,
-				"high" => THINKING_BUDGET_HIGH,
-				_ => THINKING_BUDGET_MEDIUM,
-			};
+			// Gemini 2.5 takes the shared conservative budget scale. Some models cap the
+			// thinking budget at 32K; check every target model's limit before raising it.
+			// `none` omits thinkingConfig instead of sending budget 0.
+			let budget = crate::types::thinking_budget_for_reasoning_effort(effort)? as i32;
 			Some(vg::ThinkingConfig {
 				thinking_level: None,
 				thinking_budget: Some(budget),
