@@ -6,6 +6,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use agent_xds::XdsUpdate;
+use hashbrown::HashMap as FastHashMap;
 use itertools::Itertools;
 use tokio::sync::watch::Sender;
 use tracing::{Level, instrument};
@@ -231,7 +232,7 @@ pub struct WorkloadStore {
 	/// by_addr maps workload network addresses to workloads
 	by_addr: HashMap<NetworkAddress, WorkloadByAddr>,
 	/// by_uid maps workload UIDs to workloads
-	pub(super) by_uid: HashMap<Strng, Arc<Workload>>,
+	pub(super) by_uid: FastHashMap<Strng, Arc<Workload>>,
 }
 
 impl WorkloadStore {
