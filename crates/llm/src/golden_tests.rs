@@ -134,6 +134,7 @@ mod requests {
 		("reasoning_max", &[ANTHROPIC, VERTEX_GEMINI]),
 		("reasoning_replay", &[BEDROCK]),
 		("reasoning_replay_unsigned", &[BEDROCK]),
+		("image-url", &[ANTHROPIC]),
 		("image-inline", &[VERTEX_GEMINI]),
 		("image-file", &[VERTEX_GEMINI]),
 		("structured-output", &[VERTEX_GEMINI]),

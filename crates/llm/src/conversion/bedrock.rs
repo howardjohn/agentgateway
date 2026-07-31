@@ -493,12 +493,10 @@ pub mod from_completions {
 							}
 						},
 						completions::RequestUserMessageContentPart::ImageUrl(image) => {
-							if image.image_url.url.starts_with("data:") {
-								out.push(
-									super::CanonicalImage::from_data_url(&image.image_url.url)?
-										.into_bedrock_content_block(),
-								);
-							}
+							out.push(
+								super::CanonicalImage::from_data_url(&image.image_url.url)?
+									.into_bedrock_content_block(),
+							);
 						},
 						completions::RequestUserMessageContentPart::InputAudio(_)
 						| completions::RequestUserMessageContentPart::File(_) => {},
