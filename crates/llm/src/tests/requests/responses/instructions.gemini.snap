@@ -39,6 +39,10 @@ info:
     },
     "prompt": [
       {
+        "role": "system",
+        "content": "Always use the get_weather tool for weather questions."
+      },
+      {
         "role": "user",
         "content": "What is the weather like in San Francisco?"
       }
