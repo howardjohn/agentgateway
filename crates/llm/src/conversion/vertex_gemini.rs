@@ -940,6 +940,9 @@ pub mod to_completions {
 	use crate::types::completions::typed as completions;
 	use crate::{StreamingUsageGuard, json, parse};
 
+	type LoggedToolCall = (Option<String>, Option<String>, String);
+	type LoggedToolCalls = HashMap<u32, LoggedToolCall>;
+
 	pub fn translate_response(bytes: &Bytes) -> Result<Box<dyn ResponseType>, AIError> {
 		let resp: vg::GenerateContentResponse =
 			serde_json::from_slice(bytes).map_err(logged_response_parsing(bytes))?;
@@ -1304,8 +1307,7 @@ pub mod to_completions {
 		let mut state = StreamState::new();
 		let mut saw_token = false;
 		let mut completion = log_content.completion.then(String::new);
-		let mut tool_calls: Option<HashMap<u32, (Option<String>, Option<String>, String)>> =
-			log_content.tool_calls.then(HashMap::new);
+		let mut tool_calls: Option<LoggedToolCalls> = log_content.tool_calls.then(HashMap::new);
 		let body = parse::sse::json_transform_multi::<
 			vg::GenerateContentResponse,
 			completions::StreamResponse,

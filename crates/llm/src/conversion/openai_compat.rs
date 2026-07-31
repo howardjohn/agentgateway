@@ -454,6 +454,9 @@ pub mod to_responses {
 	use crate::types::ResponseType;
 	use crate::{AIError, StreamingUsageGuard, json, logged_response_parsing, parse, types};
 
+	type LoggedToolCall = (Option<String>, Option<String>, String);
+	type LoggedToolCalls = HashMap<u32, LoggedToolCall>;
+
 	/// Translate an OpenAI-compatible chat completions response into an OpenAI Responses response.
 	pub fn translate_response(bytes: &Bytes, model: &str) -> Result<Box<dyn ResponseType>, AIError> {
 		let resp = serde_json::from_slice::<completions::Response>(bytes)
@@ -602,8 +605,7 @@ pub mod to_responses {
 
 		let mut next_output_index: u32 = 1;
 		let mut tool_calls: HashMap<u32, (String, String, String, u32)> = HashMap::new();
-		let mut logged_tool_calls: Option<HashMap<u32, (Option<String>, Option<String>, String)>> =
-			log_content.tool_calls.then(HashMap::new);
+		let mut logged_tool_calls: Option<LoggedToolCalls> = log_content.tool_calls.then(HashMap::new);
 		let mut completion = log_content.completion.then(String::new);
 		let mut pending_stop_reason: Option<completions::FinishReason> = None;
 		let mut pending_usage: Option<completions::Usage> = None;
@@ -859,7 +861,7 @@ pub mod to_responses {
 		response_id: &str,
 		model: &str,
 		completion: &mut Option<String>,
-		logged_tool_calls: &mut Option<HashMap<u32, (Option<String>, Option<String>, String)>>,
+		logged_tool_calls: &mut Option<LoggedToolCalls>,
 	) {
 		use responses::{
 			AssistantRole, ErrorObject, FunctionToolCall, IncompleteDetails, InputTokenDetails,
