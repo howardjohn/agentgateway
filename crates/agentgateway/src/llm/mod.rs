@@ -68,6 +68,18 @@ pub struct AIBackend {
 
 impl AIBackend {
 	pub fn select_provider(&self) -> Option<(Arc<NamedAIProvider>, ActiveHandle)> {
+		self.select_provider_with_affinity(None)
+	}
+
+	pub fn select_provider_with_affinity(
+		&self,
+		affinity_key: Option<u64>,
+	) -> Option<(Arc<NamedAIProvider>, ActiveHandle)> {
+		if let Some(affinity_key) = affinity_key {
+			let (provider, info) = self.providers.select_by_affinity(affinity_key)?;
+			let handle = self.providers.start_request(provider.name.clone(), &info);
+			return Some((provider, handle));
+		}
 		let iter = self.providers.iter();
 		let index = iter.index();
 		if index.is_empty() {

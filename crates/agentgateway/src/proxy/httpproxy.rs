@@ -2040,7 +2040,13 @@ async fn make_backend_call(
 
 	let (mut backend_call, mut maybe_inference) = match backend {
 		Backend::AI(n, ai) => {
-			let (provider, handle) = ai.select_provider().ok_or(ProxyError::NoHealthyEndpoints)?;
+			let affinity_key = policies
+				.session_affinity
+				.as_ref()
+				.and_then(|policy| policy.affinity_key(&req));
+			let (provider, handle) = ai
+				.select_provider_with_affinity(affinity_key)
+				.ok_or(ProxyError::NoHealthyEndpoints)?;
 			log.add(move |l| l.request_handle = Some(handle));
 			let sub_backend_name = BackendTargetRef::Backend {
 				name: n.name.as_ref(),

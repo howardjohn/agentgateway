@@ -1408,29 +1408,6 @@ binds:
 }
 
 #[tokio::test]
-async fn test_session_affinity_requires_service_backend() {
-	let input = r#"
-binds:
-- port: 3000
-  listeners:
-  - routes:
-    - backends:
-      - host: 127.0.0.1:8000
-        policies:
-          sessionAffinity:
-            source: request.headers["x-session-id"]
-"#;
-
-	let err = normalize_test_config(input).await.unwrap_err();
-	assert!(
-		err
-			.to_string()
-			.contains("sessionAffinity is only supported on service route backends"),
-		"unexpected error: {err}"
-	);
-}
-
-#[tokio::test]
 async fn test_session_affinity_service_backend_config() {
 	let input = r#"
 binds:

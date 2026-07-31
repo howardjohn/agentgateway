@@ -755,6 +755,18 @@ impl<T: Clone + Sync + Send + 'static> EndpointSet<T> {
 		ActiveEndpointsIter(self.best_bucket())
 	}
 
+	pub(crate) fn select_by_affinity(
+		&self,
+		affinity_key: u64,
+	) -> Option<(Arc<T>, Arc<EndpointInfo>)> {
+		let iter = self.iter();
+		let endpoint = iter
+			.index()
+			.values()
+			.max_by_key(|endpoint| rendezvous_hash(affinity_key, endpoint.endpoint_hash))?;
+		Some((endpoint.endpoint.clone(), endpoint.info.clone()))
+	}
+
 	/// Visit every endpoint, returning the first `Some` produced by `f`. Active
 	/// endpoints from all buckets are visited before any rejected endpoint, e.g.:
 	///   active in bucket 0
