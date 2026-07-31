@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use twox_hash::XxHash3_64;
-
 use crate::cel::{Executor, Expression};
+use crate::types::loadbalancer::hash_affinity_key;
 use crate::*;
 
 /// Pins requests that carry the same affinity value to the same healthy service endpoint.
@@ -55,7 +54,7 @@ impl Policy {
 			return None;
 		}
 
-		Some(XxHash3_64::oneshot(bytes))
+		Some(hash_affinity_key(bytes))
 	}
 
 	pub fn register_expressions(&self, ctx: &mut crate::cel::ContextBuilder) {

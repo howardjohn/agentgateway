@@ -2748,7 +2748,7 @@ pub fn build_service_call(
 			svc.as_ref(),
 			port,
 			service_override.destination,
-			service_override.affinity_key.as_ref(),
+			service_override.affinity_key,
 		)
 		.ok_or(ProxyError::NoHealthyEndpoints)?;
 

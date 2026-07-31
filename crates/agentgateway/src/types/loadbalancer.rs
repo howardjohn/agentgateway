@@ -21,11 +21,26 @@ use crate::*;
 
 type EndpointKey = Strng;
 
+const AFFINITY_KEY_HASH_SEED: u64 = 0x9e37_79b1_85eb_ca87;
+const ENDPOINT_KEY_HASH_SEED: u64 = 0xc2b2_ae3d_27d4_eb4f;
+
+pub(crate) fn hash_affinity_key(value: &[u8]) -> u64 {
+	XxHash3_64::oneshot_with_seed(AFFINITY_KEY_HASH_SEED, value)
+}
+
+fn hash_endpoint_key(value: &[u8]) -> u64 {
+	XxHash3_64::oneshot_with_seed(ENDPOINT_KEY_HASH_SEED, value)
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct EndpointWithInfo<T> {
 	pub endpoint: Arc<T>,
 	pub info: Arc<EndpointInfo>,
 	pub capacity: u32,
+	/// Hash of the endpoint's stable key, cached when it enters an EndpointGroup so affinity
+	/// selection only needs an integer mix per candidate.
+	#[serde(skip)]
+	endpoint_hash: u64,
 }
 
 impl<T> EndpointWithInfo<T> {
@@ -38,7 +53,12 @@ impl<T> EndpointWithInfo<T> {
 			endpoint: Arc::new(ep),
 			info: Default::default(),
 			capacity,
+			endpoint_hash: 0,
 		}
+	}
+
+	fn cache_endpoint_hash(&mut self, key: &EndpointKey) {
+		self.endpoint_hash = hash_endpoint_key(key.as_bytes());
 	}
 }
 
@@ -97,9 +117,12 @@ pub struct EndpointGroup<T> {
 
 impl<T> EndpointGroup<T> {
 	fn from_pools(
-		active: IndexMap<EndpointKey, EndpointWithInfo<T>>,
-		rejected: IndexMap<EndpointKey, EndpointWithInfo<T>>,
+		mut active: IndexMap<EndpointKey, EndpointWithInfo<T>>,
+		mut rejected: IndexMap<EndpointKey, EndpointWithInfo<T>>,
 	) -> Self {
+		for (key, endpoint) in active.iter_mut().chain(rejected.iter_mut()) {
+			endpoint.cache_endpoint_hash(key);
+		}
 		let sampler = build_sampler(&active);
 		Self {
 			active,
@@ -109,8 +132,9 @@ impl<T> EndpointGroup<T> {
 	}
 
 	/// Promote an endpoint to active, removing any prior rejected entry under the same key.
-	fn add(&mut self, key: EndpointKey, ep: EndpointWithInfo<T>) {
+	fn add(&mut self, key: EndpointKey, mut ep: EndpointWithInfo<T>) {
 		self.rejected.swap_remove(&key);
+		ep.cache_endpoint_hash(&key);
 		let cap = ep.capacity;
 		self.active.insert(key, ep);
 		self.update_sampler(Some(cap));
@@ -223,7 +247,7 @@ impl EndpointSet<Endpoint> {
 		svc: &Service,
 		svc_port: u16,
 		override_dest: Option<SocketAddr>,
-		affinity_key: Option<&u64>,
+		affinity_key: Option<u64>,
 	) -> Option<(Arc<Endpoint>, ActiveHandle, Arc<Workload>)> {
 		let Some(target_port) = svc.ports.get(&svc_port).copied() else {
 			debug!("service {} does not have port {}", svc.hostname, svc_port);
@@ -254,7 +278,7 @@ impl EndpointSet<Endpoint> {
 		workloads: &store::WorkloadStore,
 		svc_port: u16,
 		target_port: u16,
-		affinity_key: &u64,
+		affinity_key: u64,
 	) -> Option<Candidate> {
 		for active_phase in [true, false] {
 			for bucket in &self.buckets {
@@ -267,13 +291,30 @@ impl EndpointSet<Endpoint> {
 				} else {
 					&group.rejected
 				};
+				let unit_weights = if active_phase {
+					matches!(&group.sampler, Sampler::Uniform)
+				} else {
+					endpoints.values().all(|ewi| ewi.capacity == 1)
+				};
 				let selected = endpoints
 					.iter()
 					.filter(|(_, ewi)| ewi.capacity > 0)
-					.filter_map(|(key, ewi)| {
+					.filter_map(|(_, ewi)| {
 						let workload = viable(workloads, target_port, svc_port, &ewi.endpoint)?;
+						let score = if unit_weights {
+							RendezvousScore::Unweighted(rendezvous_hash(
+								affinity_key,
+								ewi.endpoint_hash,
+							))
+						} else {
+							RendezvousScore::Weighted(weighted_rendezvous_score(
+								affinity_key,
+								ewi.endpoint_hash,
+								ewi.capacity,
+							))
+						};
 						Some((
-							weighted_rendezvous_score(affinity_key, key.as_bytes(), ewi.capacity),
+							score,
 							Candidate {
 								endpoint: ewi.endpoint.clone(),
 								info: ewi.info.clone(),
@@ -281,7 +322,7 @@ impl EndpointSet<Endpoint> {
 							},
 						))
 					})
-					.max_by(|a, b| a.0.total_cmp(&b.0))
+					.max_by(|a, b| a.0.total_cmp(b.0))
 					.map(|(_, candidate)| candidate);
 				if selected.is_some() {
 					return selected;
@@ -392,9 +433,34 @@ impl EndpointSet<Endpoint> {
 	}
 }
 
-fn weighted_rendezvous_score(affinity_key: &u64, endpoint: &[u8], weight: u32) -> f64 {
-	let hash = XxHash3_64::oneshot_with_seed(*affinity_key, endpoint);
-	// Map into (0, 1], avoiding ln(0). Weighted HRW chooses max(weight / -ln(u)).
+#[derive(Clone, Copy)]
+enum RendezvousScore {
+	Unweighted(u64),
+	Weighted(f64),
+}
+
+impl RendezvousScore {
+	fn total_cmp(self, other: Self) -> Ordering {
+		match (self, other) {
+			(Self::Unweighted(a), Self::Unweighted(b)) => a.cmp(&b),
+			(Self::Weighted(a), Self::Weighted(b)) => a.total_cmp(&b),
+			_ => unreachable!("all candidates in a group use the same rendezvous score type"),
+		}
+	}
+}
+
+/// SplitMix64's finalizer, used as a fast deterministic hash of the two pre-hashed inputs.
+#[inline]
+fn rendezvous_hash(affinity_key: u64, endpoint_hash: u64) -> u64 {
+	let mut value = affinity_key ^ endpoint_hash;
+	value = (value ^ (value >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+	value = (value ^ (value >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+	value ^ (value >> 31)
+}
+
+fn weighted_rendezvous_score(affinity_key: u64, endpoint_hash: u64, weight: u32) -> f64 {
+	let hash = rendezvous_hash(affinity_key, endpoint_hash);
+	// Map into (0, 1), avoiding both ln(0) and division by -ln(1).
 	let uniform = ((hash >> 11) as f64 + 0.5) / ((1_u64 << 53) as f64);
 	f64::from(weight) / -uniform.ln()
 }
@@ -1155,25 +1221,75 @@ impl<T> ActiveEndpointsIter<T> {
 	}
 }
 
+#[cfg(feature = "internal_benches")]
+mod benches {
+	use divan::{Bencher, black_box};
+
+	use super::*;
+
+	fn affinity_fixture(endpoint_count: usize) -> (EndpointSet<Endpoint>, store::DiscoveryStore) {
+		let endpoints = EndpointSet::new_empty(1);
+		let mut discovery = store::DiscoveryStore::new();
+		let ranker = LocalityRanker::new(None, None);
+
+		for i in 0..endpoint_count {
+			let uid: Strng = format!("affinity-bench-{i:04}").into();
+			let capacity = (i % 4 + 1) as u32;
+			let workload = Arc::new(Workload {
+				uid: uid.clone(),
+				capacity,
+				..Default::default()
+			});
+			discovery.workloads.insert(workload.clone());
+			endpoints.insert(
+				Endpoint {
+					workload_uid: uid,
+					port: HashMap::from([(80, 8080)]),
+					status: crate::types::discovery::HealthStatus::Healthy,
+				},
+				&workload,
+				&ranker,
+			);
+		}
+
+		(endpoints, discovery)
+	}
+
+	/// Measures the real affinity selection loop while keeping fixture construction out of the
+	/// timed section. This includes the ArcSwap snapshot load, endpoint iteration, capacity and
+	/// port viability checks, WorkloadStore lookups, weighted rendezvous scoring, and Arc clones
+	/// used to construct candidates.
+	#[divan::bench(args = [1_usize, 4, 16, 64, 256, 1024])]
+	fn select_affinity(b: Bencher, endpoint_count: usize) {
+		let (endpoints, discovery) = affinity_fixture(endpoint_count);
+		let affinity_key = hash_affinity_key(b"affinity-benchmark-client");
+
+		b.bench_local(|| {
+			black_box(endpoints.select_affinity(&discovery.workloads, 80, 8080, black_box(affinity_key)))
+		});
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 
 	#[test]
 	fn rendezvous_score_is_stable_and_respects_weight() {
-		let affinity_key = 1234;
-		let first = weighted_rendezvous_score(&affinity_key, b"endpoint-a", 1);
+		let affinity_key = hash_affinity_key(b"client-a");
+		let endpoint_a = hash_endpoint_key(b"endpoint-a");
+		let first = weighted_rendezvous_score(affinity_key, endpoint_a, 1);
 		assert_eq!(
 			first,
-			weighted_rendezvous_score(&affinity_key, b"endpoint-a", 1)
+			weighted_rendezvous_score(affinity_key, endpoint_a, 1)
 		);
 		assert_eq!(
 			first * 4.0,
-			weighted_rendezvous_score(&affinity_key, b"endpoint-a", 4)
+			weighted_rendezvous_score(affinity_key, endpoint_a, 4)
 		);
 		assert_ne!(
 			first,
-			weighted_rendezvous_score(&affinity_key, b"endpoint-b", 1)
+			weighted_rendezvous_score(affinity_key, hash_endpoint_key(b"endpoint-b"), 1)
 		);
 	}
 
