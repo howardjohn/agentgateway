@@ -302,10 +302,7 @@ impl EndpointSet<Endpoint> {
 					.filter_map(|(_, ewi)| {
 						let workload = viable(workloads, target_port, svc_port, &ewi.endpoint)?;
 						let score = if unit_weights {
-							RendezvousScore::Unweighted(rendezvous_hash(
-								affinity_key,
-								ewi.endpoint_hash,
-							))
+							RendezvousScore::Unweighted(rendezvous_hash(affinity_key, ewi.endpoint_hash))
 						} else {
 							RendezvousScore::Weighted(weighted_rendezvous_score(
 								affinity_key,
@@ -1263,12 +1260,7 @@ mod benches {
 		let affinity_key = hash_affinity_key(b"affinity-benchmark-client");
 
 		b.bench_local(|| {
-			black_box(endpoints.select_affinity(
-				&discovery.workloads,
-				80,
-				8080,
-				black_box(affinity_key),
-			))
+			black_box(endpoints.select_affinity(&discovery.workloads, 80, 8080, black_box(affinity_key)))
 		});
 	}
 
@@ -1279,12 +1271,7 @@ mod benches {
 		let affinity_key = hash_affinity_key(b"affinity-benchmark-client");
 
 		b.bench_local(|| {
-			black_box(endpoints.select_affinity(
-				&discovery.workloads,
-				80,
-				8080,
-				black_box(affinity_key),
-			))
+			black_box(endpoints.select_affinity(&discovery.workloads, 80, 8080, black_box(affinity_key)))
 		});
 	}
 }

@@ -1320,7 +1320,7 @@ pub struct LocalRouteBackend {
 	pub backend: LocalBackend,
 	/// Backend-level policies such as TLS, authentication, and transformations.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub policies: Option<LocalRouteBackendPolicies>,
+	pub policies: Option<LocalBackendPolicies>,
 }
 
 fn default_weight() -> usize {
@@ -1552,6 +1552,7 @@ impl LocalBackend {
 					mcp_guardrails: None,
 					a2a: None,
 					inference_routing: None,
+					session_affinity: None,
 					ai: None,
 					response_header_modifier: None,
 					request_redirect: None,
@@ -2517,56 +2518,15 @@ pub struct LocalBackendPolicies {
 	/// Route requests through an endpoint picker before forwarding to this backend.
 	#[serde(default)]
 	pub inference_routing: Option<crate::http::ext_proc::InferenceRouting>,
+	/// Keep requests whose CEL expression produces the same value on one backend endpoint.
+	#[serde(default)]
+	pub session_affinity: Option<http::sessionaffinity::Policy>,
 	/// Mark this as LLM traffic to enable LLM processing.
 	#[serde(default)]
 	pub ai: Option<llm::Policy>,
 }
 
-#[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[cfg_attr(
-	feature = "schema",
-	schemars(rename_all = "camelCase", deny_unknown_fields)
-)]
-pub struct LocalRouteBackendPolicies {
-	#[cfg_attr(feature = "schema", serde(flatten))]
-	backend: LocalBackendPolicies,
-
-	/// Keep requests whose CEL expression produces the same value on one service endpoint.
-	#[cfg_attr(feature = "schema", schemars(default))]
-	pub session_affinity: Option<http::sessionaffinity::Policy>,
-}
-
-impl<'de> Deserialize<'de> for LocalRouteBackendPolicies {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where
-		D: Deserializer<'de>,
-	{
-		let value = serde_json::Value::deserialize(deserializer)?;
-		let serde_json::Value::Object(mut fields) = value else {
-			return Err(serde::de::Error::custom(
-				"route backend policies must be an object",
-			));
-		};
-
-		// Deserialize the route-only policy separately, then pass every existing field through the
-		// original LocalBackendPolicies deserializer. This avoids nested serde(flatten), which causes
-		// the inner policy fields to be treated as unknown, while preserving its strict unknown-field
-		// validation and all existing wire formats.
-		let session_affinity = match fields.remove("sessionAffinity") {
-			None | Some(serde_json::Value::Null) => None,
-			Some(value) => Some(serde_json::from_value(value).map_err(serde::de::Error::custom)?),
-		};
-		let backend = serde_json::from_value(serde_json::Value::Object(fields))
-			.map_err(serde::de::Error::custom)?;
-
-		Ok(Self {
-			backend,
-			session_affinity,
-		})
-	}
-}
-
+#[derive(Clone, Copy)]
 enum InferenceRoutingScope {
 	ServiceRouteBackend,
 	NonServiceRouteBackend,
@@ -2578,59 +2538,40 @@ fn validate_inference_routing_scope(
 	policies: Option<&LocalBackendPolicies>,
 	scope: InferenceRoutingScope,
 ) -> anyhow::Result<()> {
-	if policies.is_none_or(|p| p.inference_routing.is_none()) {
+	let Some(policies) = policies else {
 		return Ok(());
+	};
+	if policies.inference_routing.is_some() {
+		let name = "inferenceRouting";
+		match scope {
+			InferenceRoutingScope::ServiceRouteBackend => {},
+			InferenceRoutingScope::NonServiceRouteBackend => {
+				bail!("{name} is only supported on service route backends")
+			},
+			InferenceRoutingScope::NamedBackend => {
+				bail!("{name} is only supported on service route backends, not named backends")
+			},
+			InferenceRoutingScope::AIProviderPolicies => {
+				bail!("{name} is only supported on service route backends, not AI provider policies")
+			},
+		}
 	}
-	match scope {
-		InferenceRoutingScope::ServiceRouteBackend => Ok(()),
-		InferenceRoutingScope::NonServiceRouteBackend => {
-			bail!("inferenceRouting is only supported on service route backends")
-		},
-		InferenceRoutingScope::NamedBackend => {
-			bail!("inferenceRouting is only supported on service route backends, not named backends")
-		},
-		InferenceRoutingScope::AIProviderPolicies => {
-			bail!(
-				"inferenceRouting is only supported on service route backends, not AI provider policies"
-			)
-		},
-	}
+	Ok(())
 }
 
 fn validate_route_backend_policy_scope(
 	backend: &LocalBackend,
-	policies: Option<&LocalRouteBackendPolicies>,
+	policies: Option<&LocalBackendPolicies>,
 ) -> anyhow::Result<()> {
 	let is_service = matches!(backend, LocalBackend::Service { .. });
 	validate_inference_routing_scope(
-		policies.map(|p| &p.backend),
+		policies,
 		if is_service {
 			InferenceRoutingScope::ServiceRouteBackend
 		} else {
 			InferenceRoutingScope::NonServiceRouteBackend
 		},
-	)?;
-	if !is_service && policies.is_some_and(|p| p.session_affinity.is_some()) {
-		bail!("sessionAffinity is only supported on service route backends")
-	}
-	Ok(())
-}
-
-impl LocalRouteBackendPolicies {
-	pub async fn translate(
-		self,
-		resources: &crate::resource_manager::ResourceFetcher,
-	) -> anyhow::Result<Vec<BackendTrafficPolicy>> {
-		let LocalRouteBackendPolicies {
-			backend,
-			session_affinity,
-		} = self;
-		let mut policies = backend.translate(resources).await?;
-		if let Some(policy) = session_affinity {
-			policies.push(BackendTrafficPolicy::SessionAffinity(policy));
-		}
-		Ok(policies)
-	}
+	)
 }
 
 impl LocalBackendPolicies {
@@ -2653,6 +2594,7 @@ impl LocalBackendPolicies {
 			mcp_guardrails,
 			a2a,
 			inference_routing,
+			session_affinity,
 			ai,
 			response_header_modifier,
 			request_redirect,
@@ -2696,6 +2638,9 @@ impl LocalBackendPolicies {
 		}
 		if let Some(p) = inference_routing {
 			pols.push(BackendTrafficPolicy::InferenceRouting(p))
+		}
+		if let Some(p) = session_affinity {
+			pols.push(BackendTrafficPolicy::SessionAffinity(p))
 		}
 		if let Some(p) = backend_tls {
 			pols.push(BackendTrafficPolicy::BackendTLS(

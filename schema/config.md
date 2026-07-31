@@ -6070,6 +6070,8 @@
 |`binds[].listeners[].routes[].backends[].ai.policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`binds[].listeners[].routes[].backends[].ai.policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].backends[].ai.policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`binds[].listeners[].routes[].backends[].ai.policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`binds[].listeners[].routes[].backends[].ai.policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -9098,6 +9100,8 @@
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -12089,6 +12093,8 @@
 |`binds[].listeners[].routes[].backends[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`binds[].listeners[].routes[].backends[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].backends[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`binds[].listeners[].routes[].backends[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`binds[].listeners[].routes[].backends[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`binds[].listeners[].routes[].backends[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -14055,8 +14061,6 @@
 |`binds[].listeners[].routes[].backends[].policies.ai.promptCaching.minTokens`|integer|Minimum prompt size required before cache markers are added.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptCaching.cacheMessageOffset`|integer|Message offset used when choosing where to place cache markers.|
 |`binds[].listeners[].routes[].backends[].policies.ai.routes`|object|Route type overrides selected by request path suffix.|
-|`binds[].listeners[].routes[].backends[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one service endpoint.|
-|`binds[].listeners[].routes[].backends[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`binds[].listeners[].tcpRoutes`|[]object|TCP routes attached directly to this listener.|
 |`binds[].listeners[].tcpRoutes[].name`|string|Name identifying this route.|
 |`binds[].listeners[].tcpRoutes[].namespace`|string|Namespace scoping this route.|
@@ -22207,6 +22211,8 @@
 |`backends[].ai.policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`backends[].ai.policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`backends[].ai.policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`backends[].ai.policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`backends[].ai.policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`backends[].ai.policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`backends[].ai.policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`backends[].ai.policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -25235,6 +25241,8 @@
 |`backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`backends[].ai.groups[].providers[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`backends[].ai.groups[].providers[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`backends[].ai.groups[].providers[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -28224,6 +28232,8 @@
 |`backends[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`backends[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`backends[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`backends[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`backends[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`backends[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`backends[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`backends[].policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -36142,6 +36152,8 @@
 |`routeGroups[].routes[].backends[].ai.policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routeGroups[].routes[].backends[].ai.policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routeGroups[].routes[].backends[].ai.policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`routeGroups[].routes[].backends[].ai.policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routeGroups[].routes[].backends[].ai.policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -39170,6 +39182,8 @@
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -42161,6 +42175,8 @@
 |`routeGroups[].routes[].backends[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routeGroups[].routes[].backends[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routeGroups[].routes[].backends[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`routeGroups[].routes[].backends[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routeGroups[].routes[].backends[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routeGroups[].routes[].backends[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -44127,8 +44143,6 @@
 |`routeGroups[].routes[].backends[].policies.ai.promptCaching.minTokens`|integer|Minimum prompt size required before cache markers are added.|
 |`routeGroups[].routes[].backends[].policies.ai.promptCaching.cacheMessageOffset`|integer|Message offset used when choosing where to place cache markers.|
 |`routeGroups[].routes[].backends[].policies.ai.routes`|object|Route type overrides selected by request path suffix.|
-|`routeGroups[].routes[].backends[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one service endpoint.|
-|`routeGroups[].routes[].backends[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`gateways`|object|gateways defines the entrypoint to the proxy, setting up ports and listeners that features (LLM, MCP, and UI) and routes can attach to.<br>Each gateway defines a port that proxy will listen on, and optionally TLS settings for that port.|
 |`gateways.*.port`|integer|port is the port to listen on for this gateway.|
 |`gateways.*.protocol`|enum|protocol controls whether this gateway accepts HTTP/HTTPS routes or TCP/TLS routes. When omitted, gateways<br>default to HTTP, or HTTPS when tls is set.<br>Possible values: `HTTP`, `HTTPS`, `TCP`, `TLS`, `null`.|
@@ -52643,6 +52657,8 @@
 |`routes[].backends[].ai.policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routes[].backends[].ai.policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routes[].backends[].ai.policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`routes[].backends[].ai.policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routes[].backends[].ai.policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routes[].backends[].ai.policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routes[].backends[].ai.policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`routes[].backends[].ai.policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -55671,6 +55687,8 @@
 |`routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`routes[].backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routes[].backends[].ai.groups[].providers[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -58662,6 +58680,8 @@
 |`routes[].backends[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routes[].backends[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routes[].backends[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
+|`routes[].backends[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routes[].backends[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routes[].backends[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routes[].backends[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
 |`routes[].backends[].policies.ai.promptGuard.streaming`|enum|Apply prompt guards to streaming responses and realtime websocket messages.<br>Possible values: `Disabled`, `Enabled`.|
@@ -60628,8 +60648,6 @@
 |`routes[].backends[].policies.ai.promptCaching.minTokens`|integer|Minimum prompt size required before cache markers are added.|
 |`routes[].backends[].policies.ai.promptCaching.cacheMessageOffset`|integer|Message offset used when choosing where to place cache markers.|
 |`routes[].backends[].policies.ai.routes`|object|Route type overrides selected by request path suffix.|
-|`routes[].backends[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one service endpoint.|
-|`routes[].backends[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`tcpRoutes`|[]object|tcpRoutes defines TCP routes attached to one or more named TCP/TLS gateways.|
 |`tcpRoutes[].gateways`|string|gateways attaches this route to named TCP/TLS gateways or gateway listeners.<br>This can take the form of `<gateway-name>` or `<gateway-name>/<listener-name>` to attach to a specific listener within a gateway.<br>If unset, the 'default' gateway will be used.|
 |`tcpRoutes[].name`|string|Name identifying this route.|
