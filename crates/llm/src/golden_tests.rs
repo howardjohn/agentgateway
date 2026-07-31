@@ -421,8 +421,11 @@ mod responses {
 		let input_path = fixture_path(relative_path);
 		let provider_bytes = fs::read(&input_path)
 			.unwrap_or_else(|e| panic!("{relative_path}: failed to read response input file: {e}"));
-		let provider_value = serde_json::from_slice::<Value>(&provider_bytes)
+		let mut provider_value = serde_json::from_slice::<Value>(&provider_bytes)
 			.unwrap_or_else(|_| Value::String(String::from_utf8_lossy(&provider_bytes).to_string()));
+		if let Value::String(raw) = &mut provider_value {
+			*raw = raw.replace("\r\n", "\n");
+		}
 
 		let resp = xlate(Bytes::copy_from_slice(&provider_bytes))
 			.expect("failed to translate provider response to expected format");
@@ -431,8 +434,11 @@ mod responses {
 			tool_calls: true,
 		});
 		let raw = resp.serialize().expect("failed to serialize response");
-		let resp_val = serde_json::from_slice::<Value>(&raw)
+		let mut resp_val = serde_json::from_slice::<Value>(&raw)
 			.unwrap_or_else(|_| Value::String(String::from_utf8_lossy(&raw).to_string()));
+		if let Value::String(raw) = &mut resp_val {
+			*raw = raw.replace("\r\n", "\n");
+		}
 		let report = json!({
 			"response": resp_val,
 			"parsed": llm_response,
@@ -516,7 +522,8 @@ mod responses {
 				"base64: {}",
 				base64::engine::general_purpose::STANDARD.encode(e.into_bytes())
 			),
-		};
+		}
+		.replace("\r\n", "\n");
 		let report = format!(
 			"{response_body}\n\n{}",
 			serde_json::to_string_pretty(&llm_response).unwrap()
