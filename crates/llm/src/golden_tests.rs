@@ -885,6 +885,7 @@ mod responses {
 								reporter,
 								"input-model",
 								&message_id,
+								LOG_CONTENT,
 								None,
 							)
 						}),
@@ -906,6 +907,7 @@ mod responses {
 								reporter,
 								"input-model",
 								&message_id,
+								LOG_CONTENT,
 								None,
 							)
 						}),
@@ -924,7 +926,12 @@ mod responses {
 						conversion::messages::passthrough_stream(body, BUFFER_LIMIT, reporter, LOG_CONTENT)
 					}),
 					MESSAGES_TO_COMPLETIONS => response.map(|body| {
-						conversion::messages::from_completions::translate_stream(body, BUFFER_LIMIT, reporter)
+						conversion::messages::from_completions::translate_stream(
+							body,
+							BUFFER_LIMIT,
+							reporter,
+							LOG_CONTENT,
+						)
 					}),
 					MESSAGES_TO_DETECT => types::detect::passthrough_stream(reporter, response),
 					_ => unreachable!(),
@@ -949,7 +956,12 @@ mod responses {
 						)
 					}),
 					COMPLETIONS_TO_RESPONSES => response.map(|body| {
-						conversion::openai_compat::to_responses::translate_stream(body, BUFFER_LIMIT, reporter)
+						conversion::openai_compat::to_responses::translate_stream(
+							body,
+							BUFFER_LIMIT,
+							reporter,
+							LOG_CONTENT,
+						)
 					}),
 					COMPLETIONS_TO_DETECT => types::detect::passthrough_stream(reporter, response),
 					_ => unreachable!(),
@@ -967,6 +979,7 @@ mod responses {
 						BUFFER_LIMIT,
 						strng::literal!("input-model"),
 						reporter,
+						LOG_CONTENT,
 					)
 				})
 			})

@@ -578,7 +578,12 @@ pub mod to_responses {
 		response
 	}
 
-	pub fn translate_stream(b: Body, buffer_limit: usize, log: StreamingUsageGuard) -> Body {
+	pub fn translate_stream(
+		b: Body,
+		buffer_limit: usize,
+		log: StreamingUsageGuard,
+		log_content: crate::LogContentFields,
+	) -> Body {
 		use responses::{
 			AssistantRole, FunctionToolCall, OutputContent, OutputItem, OutputMessage, OutputStatus,
 			OutputTextContent, ResponseContentPartAddedEvent, ResponseFunctionCallArgumentsDeltaEvent,
@@ -597,6 +602,9 @@ pub mod to_responses {
 
 		let mut next_output_index: u32 = 1;
 		let mut tool_calls: HashMap<u32, (String, String, String, u32)> = HashMap::new();
+		let mut logged_tool_calls: Option<HashMap<u32, (Option<String>, Option<String>, String)>> =
+			log_content.tool_calls.then(HashMap::new);
+		let mut completion = log_content.completion.then(String::new);
 		let mut pending_stop_reason: Option<completions::FinishReason> = None;
 		let mut pending_usage: Option<completions::Usage> = None;
 
@@ -621,6 +629,8 @@ pub mod to_responses {
 								&log,
 								&response_id,
 								&model_holder.borrow(),
+								&mut completion,
+								&mut logged_tool_calls,
 							);
 						}
 						return events;
@@ -673,6 +683,9 @@ pub mod to_responses {
 
 						if let Some(choice) = chunk.choices.first() {
 							if let Some(content) = &choice.delta.content {
+								if let Some(completion) = completion.as_mut() {
+									completion.push_str(content);
+								}
 								if !sent_content_part {
 									sent_content_part = true;
 									sequence_number += 1;
@@ -716,6 +729,20 @@ pub mod to_responses {
 							if let Some(tcs) = &choice.delta.tool_calls {
 								for tc in tcs {
 									let tool_index = tc.index;
+									if let Some(logged_tool_calls) = logged_tool_calls.as_mut() {
+										let logged_entry = logged_tool_calls.entry(tool_index).or_default();
+										if let Some(id) = &tc.id {
+											logged_entry.0 = Some(id.clone());
+										}
+										if let Some(function) = &tc.function {
+											if let Some(name) = &function.name {
+												logged_entry.1 = Some(name.clone());
+											}
+											if let Some(args) = &function.arguments {
+												logged_entry.2.push_str(args);
+											}
+										}
+									}
 
 									let is_new = !tool_calls.contains_key(&tool_index);
 
@@ -800,6 +827,8 @@ pub mod to_responses {
 								&log,
 								&response_id,
 								&model_holder.borrow(),
+								&mut completion,
+								&mut logged_tool_calls,
 							);
 						}
 					},
@@ -829,6 +858,8 @@ pub mod to_responses {
 		log: &StreamingUsageGuard,
 		response_id: &str,
 		model: &str,
+		completion: &mut Option<String>,
+		logged_tool_calls: &mut Option<HashMap<u32, (Option<String>, Option<String>, String)>>,
 	) {
 		use responses::{
 			AssistantRole, ErrorObject, FunctionToolCall, IncompleteDetails, InputTokenDetails,
@@ -839,6 +870,26 @@ pub mod to_responses {
 
 		let stop_reason = pending_stop_reason.take();
 		let usage = pending_usage.take();
+		let finish_reason = stop_reason.as_ref().and_then(crate::types::serialize_str);
+		let tool_parts = logged_tool_calls.as_mut().and_then(|logged_tool_calls| {
+			crate::conversion::completions::finalize_streaming_tool_calls(
+				logged_tool_calls
+					.drain()
+					.map(|(idx, (id, name, arguments))| (idx, id, name, arguments)),
+			)
+		});
+		let mut tool_parts = tool_parts;
+		let mut finish_reason = finish_reason;
+		log.update(|r| {
+			if let Some(completion) = completion.take() {
+				r.response.completion = Some(vec![completion]);
+			}
+			crate::conversion::completions::build_output_messages(
+				&mut r.response,
+				tool_parts.take(),
+				finish_reason.take(),
+			);
+		});
 
 		let mut sorted_tools: Vec<_> = tool_calls.drain().collect();
 		sorted_tools.sort_by_key(|(_, (_, _, _, output_index))| *output_index);

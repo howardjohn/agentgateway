@@ -928,6 +928,7 @@ pub mod from_completions {
 }
 
 pub mod to_completions {
+	use std::collections::HashMap;
 	use std::time::Instant;
 
 	use axum_core::body::Body;
@@ -1298,9 +1299,13 @@ pub mod to_completions {
 		buffer_limit: usize,
 		model: Strng,
 		log: StreamingUsageGuard,
+		log_content: crate::LogContentFields,
 	) -> Body {
 		let mut state = StreamState::new();
 		let mut saw_token = false;
+		let mut completion = log_content.completion.then(String::new);
+		let mut tool_calls: Option<HashMap<u32, (Option<String>, Option<String>, String)>> =
+			log_content.tool_calls.then(HashMap::new);
 		let body = parse::sse::json_transform_multi::<
 			vg::GenerateContentResponse,
 			completions::StreamResponse,
@@ -1342,6 +1347,56 @@ pub mod to_completions {
 				Some(mut sr) => {
 					if sr.model.is_empty() {
 						sr.model = model.to_string();
+					}
+					if let Some(choice) = sr.choices.first() {
+						if let Some(content) = &choice.delta.content
+							&& let Some(completion) = completion.as_mut()
+						{
+							completion.push_str(content);
+						}
+						if let Some(calls) = &choice.delta.tool_calls {
+							for call in calls {
+								if let Some(tool_calls) = tool_calls.as_mut() {
+									let entry = tool_calls.entry(call.index).or_default();
+									if let Some(id) = &call.id {
+										entry.0 = Some(id.clone());
+									}
+									if let Some(function) = &call.function {
+										if let Some(name) = &function.name {
+											entry.1 = Some(name.clone());
+										}
+										if let Some(arguments) = &function.arguments {
+											entry.2.push_str(arguments);
+										}
+									}
+								}
+							}
+						}
+						if let Some(finish_reason) = choice
+							.finish_reason
+							.as_ref()
+							.and_then(crate::types::serialize_str)
+						{
+							let tool_parts = tool_calls.as_mut().and_then(|tool_calls| {
+								crate::conversion::completions::finalize_streaming_tool_calls(
+									tool_calls
+										.drain()
+										.map(|(idx, (id, name, arguments))| (idx, id, name, arguments)),
+								)
+							});
+							let mut tool_parts = tool_parts;
+							let mut finish_reason = Some(finish_reason);
+							log.update(|r| {
+								if let Some(completion) = completion.take() {
+									r.response.completion = Some(vec![completion]);
+								}
+								crate::conversion::completions::build_output_messages(
+									&mut r.response,
+									tool_parts.take(),
+									finish_reason.take(),
+								);
+							});
+						}
 					}
 					vec![("", sr)]
 				},

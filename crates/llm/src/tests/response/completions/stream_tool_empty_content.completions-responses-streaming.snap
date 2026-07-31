@@ -54,5 +54,24 @@ data: {"type":"response.completed","sequence_number":15,"response":{"created_at"
   "output_tokens": 8,
   "total_tokens": 20,
   "service_tier": "default",
-  "provider_model": "claude-opus-4-8"
+  "provider_model": "claude-opus-4-8",
+  "completion": [
+    ""
+  ],
+  "output_messages": [
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_call",
+          "id": "toolu_empty_content",
+          "name": "Bash",
+          "arguments": {
+            "command": "pwd"
+          }
+        }
+      ],
+      "finish_reason": "tool_calls"
+    }
+  ]
 }

@@ -1110,7 +1110,7 @@ pub mod from_messages {
 /// Build the observability tool-call content parts from accumulated streaming deltas,
 /// keyed by tool-call index. Synthesizes an id when the provider omitted one,
 /// and returns `None` when there are no tool calls.
-fn finalize_streaming_tool_calls(
+pub(crate) fn finalize_streaming_tool_calls(
 	entries: impl IntoIterator<Item = (u32, Option<String>, Option<String>, String)>,
 ) -> Option<Vec<crate::OutputMessagePart>> {
 	let parts: Vec<crate::OutputMessagePart> = entries
