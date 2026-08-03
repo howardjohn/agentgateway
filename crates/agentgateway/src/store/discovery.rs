@@ -232,7 +232,7 @@ pub struct WorkloadStore {
 	/// by_addr maps workload network addresses to workloads
 	by_addr: HashMap<NetworkAddress, WorkloadByAddr>,
 	/// by_uid maps workload UIDs to workloads
-	pub(super) by_uid: FastHashMap<Strng, Arc<Workload>>,
+	pub(super) by_uid: HbHashMap<Strng, Arc<Workload>>,
 }
 
 impl WorkloadStore {

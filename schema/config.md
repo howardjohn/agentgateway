@@ -6070,7 +6070,7 @@
 |`binds[].listeners[].routes[].backends[].ai.policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`binds[].listeners[].routes[].backends[].ai.policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].backends[].ai.policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`binds[].listeners[].routes[].backends[].ai.policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`binds[].listeners[].routes[].backends[].ai.policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`binds[].listeners[].routes[].backends[].ai.policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
@@ -9100,7 +9100,7 @@
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
@@ -12093,7 +12093,7 @@
 |`binds[].listeners[].routes[].backends[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`binds[].listeners[].routes[].backends[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].routes[].backends[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`binds[].listeners[].routes[].backends[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`binds[].listeners[].routes[].backends[].policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`binds[].listeners[].routes[].backends[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`binds[].listeners[].routes[].backends[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
@@ -22211,7 +22211,7 @@
 |`backends[].ai.policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`backends[].ai.policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`backends[].ai.policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`backends[].ai.policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`backends[].ai.policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`backends[].ai.policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`backends[].ai.policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`backends[].ai.policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
@@ -25241,7 +25241,7 @@
 |`backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`backends[].ai.groups[].providers[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`backends[].ai.groups[].providers[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`backends[].ai.groups[].providers[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
@@ -28232,7 +28232,7 @@
 |`backends[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`backends[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`backends[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`backends[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`backends[].policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`backends[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`backends[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`backends[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
@@ -36152,7 +36152,7 @@
 |`routeGroups[].routes[].backends[].ai.policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routeGroups[].routes[].backends[].ai.policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routeGroups[].routes[].backends[].ai.policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`routeGroups[].routes[].backends[].ai.policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routeGroups[].routes[].backends[].ai.policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`routeGroups[].routes[].backends[].ai.policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
@@ -39182,7 +39182,7 @@
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
@@ -42175,7 +42175,7 @@
 |`routeGroups[].routes[].backends[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routeGroups[].routes[].backends[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routeGroups[].routes[].backends[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`routeGroups[].routes[].backends[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routeGroups[].routes[].backends[].policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`routeGroups[].routes[].backends[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routeGroups[].routes[].backends[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
@@ -52657,7 +52657,7 @@
 |`routes[].backends[].ai.policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routes[].backends[].ai.policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routes[].backends[].ai.policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`routes[].backends[].ai.policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routes[].backends[].ai.policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`routes[].backends[].ai.policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routes[].backends[].ai.policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routes[].backends[].ai.policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
@@ -55687,7 +55687,7 @@
 |`routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routes[].backends[].ai.groups[].providers[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`routes[].backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routes[].backends[].ai.groups[].providers[].policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`routes[].backends[].ai.groups[].providers[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|
@@ -58680,7 +58680,7 @@
 |`routes[].backends[].policies.inferenceRouting.endpointPicker.host`|string|Hostname or IP address|
 |`routes[].backends[].policies.inferenceRouting.endpointPicker.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`routes[].backends[].policies.inferenceRouting.destinationMode`|enum|How to use the destination returned by the endpoint picker.<br>Possible values: `validated`, `passthrough`.|
-|`routes[].backends[].policies.sessionAffinity`|object|Keep requests whose CEL expression produces the same value on one backend endpoint.|
+|`routes[].backends[].policies.sessionAffinity`|object|Apply best-effort session affinity using a request value selected by a CEL expression.<br>Requests with the same value are consistently load balanced to the same healthy service<br>endpoint or AI provider, but may be remapped when the available backends change.|
 |`routes[].backends[].policies.sessionAffinity.source`|string|CEL expression evaluated against request state. It must return a string or bytes value.<br>Examples: `request.headers["x-session-id"]` or `string(source.address)`.|
 |`routes[].backends[].policies.ai`|object|Mark this as LLM traffic to enable LLM processing.|
 |`routes[].backends[].policies.ai.promptGuard`|object|Prompt and response guardrails to apply to LLM traffic.|

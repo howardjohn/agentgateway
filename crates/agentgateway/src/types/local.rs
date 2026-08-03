@@ -2518,7 +2518,9 @@ pub struct LocalBackendPolicies {
 	/// Route requests through an endpoint picker before forwarding to this backend.
 	#[serde(default)]
 	pub inference_routing: Option<crate::http::ext_proc::InferenceRouting>,
-	/// Keep requests whose CEL expression produces the same value on one backend endpoint.
+	/// Apply best-effort session affinity using a request value selected by a CEL expression.
+	/// Requests with the same value are consistently load balanced to the same healthy service
+	/// endpoint or AI provider, but may be remapped when the available backends change.
 	#[serde(default)]
 	pub session_affinity: Option<http::sessionaffinity::Policy>,
 	/// Mark this as LLM traffic to enable LLM processing.

@@ -4,10 +4,12 @@ use crate::cel::{Executor, Expression};
 use crate::types::loadbalancer::hash_affinity_key;
 use crate::*;
 
-/// Pins requests that carry the same affinity value to the same healthy service endpoint.
+/// Configures best-effort session affinity using an existing request attribute.
 ///
-/// This policy is intentionally stateless. Every gateway replica computes the same rendezvous
-/// hash from the request affinity value and the currently available endpoint set.
+/// The source CEL expression selects the affinity value. Requests with the same value are
+/// consistently load balanced to the same healthy service endpoint or AI provider. Unlike session
+/// persistence, this policy does not identify or track a previously selected backend, so changes to
+/// the available backends may remap a value.
 #[apply(schema!)]
 #[cfg_attr(feature = "schema", schemars(rename = "SessionAffinityPolicy"))]
 pub struct Policy {

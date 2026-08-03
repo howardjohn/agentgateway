@@ -8531,7 +8531,7 @@
           "default": null
         },
         "sessionAffinity": {
-          "description": "Keep requests whose CEL expression produces the same value on one backend endpoint.",
+          "description": "Apply best-effort session affinity using a request value selected by a CEL expression.\nRequests with the same value are consistently load balanced to the same healthy service\nendpoint or AI provider, but may be remapped when the available backends change.",
           "anyOf": [
             {
               "$ref": "#/$defs/SessionAffinityPolicy"
@@ -8653,7 +8653,7 @@
       ]
     },
     "SessionAffinityPolicy": {
-      "description": "Pins requests that carry the same affinity value to the same healthy service endpoint.\n\nThis policy is intentionally stateless. Every gateway replica computes the same rendezvous\nhash from the request affinity value and the currently available endpoint set.",
+      "description": "Configures best-effort session affinity using an existing request attribute.\n\nThe source CEL expression selects the affinity value. Requests with the same value are\nconsistently load balanced to the same healthy service endpoint or AI provider. Unlike session\npersistence, this policy does not identify or track a previously selected backend, so changes to\nthe available backends may remap a value.",
       "type": "object",
       "properties": {
         "source": {

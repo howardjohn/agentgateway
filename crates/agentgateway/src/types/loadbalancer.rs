@@ -126,12 +126,6 @@ impl<T> EndpointGroup<T> {
 		active: IndexMap<EndpointKey, EndpointWithInfo<T>>,
 		rejected: IndexMap<EndpointKey, EndpointWithInfo<T>>,
 	) -> Self {
-		debug_assert!(
-			active
-				.iter()
-				.chain(&rejected)
-				.all(|(key, endpoint)| endpoint.endpoint_hash == hash_endpoint_key(key.as_bytes()))
-		);
 		let sampler = build_sampler(&active);
 		Self {
 			active,
