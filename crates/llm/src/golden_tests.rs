@@ -73,10 +73,16 @@ mod requests {
 
 		let provider_value =
 			serde_json::from_slice::<Value>(&provider_response).expect("failed to parse provider JSON");
-		let report = json!({
+		let mut report = json!({
 			"request": provider_value,
 			"parsed": llm_request,
 		});
+		// Request metadata originates in a HashMap; keep its snapshot order stable.
+		if let Some(Value::Object(metadata)) =
+			report.pointer_mut("/request/additionalModelRequestFields/metadata")
+		{
+			metadata.sort_keys();
+		}
 		let (snapshot_path, snapshot_name) = snapshot_path_and_name(relative_path, provider);
 
 		insta::with_settings!({
@@ -147,6 +153,11 @@ mod requests {
 		("system_message", &[ANTHROPIC, COMPLETIONS, BEDROCK, VERTEX]),
 		("tools", &[ANTHROPIC, COMPLETIONS, BEDROCK, VERTEX]),
 		("reasoning", &[ANTHROPIC, COMPLETIONS, BEDROCK, VERTEX]),
+		("metadata", &[ANTHROPIC, COMPLETIONS, BEDROCK, VERTEX]),
+		(
+			"structured-output",
+			&[ANTHROPIC, COMPLETIONS, BEDROCK, VERTEX],
+		),
 		("cache_control", &[COMPLETIONS]),
 		("gpt_adaptive_thinking_with_tools", &[COMPLETIONS]),
 		("reasoning_replay", &[BEDROCK]),
@@ -157,6 +168,8 @@ mod requests {
 		("instructions", &[BEDROCK, GEMINI]),
 		("input-list", &[BEDROCK, GEMINI]),
 		("parallel-tool-call", &[BEDROCK, GEMINI]),
+		("structured-output", &[BEDROCK]),
+		("input-media", &[BEDROCK]),
 		("cache_control", &[GEMINI]),
 	];
 	const COUNT_TOKENS_REQUESTS: &[(&str, &[&str])] = &[
@@ -166,6 +179,7 @@ mod requests {
 	const EMBEDDINGS_REQUESTS: &[(&str, &[&str])] = &[
 		("basic", &[OPENAI, BEDROCK_TITAN, BEDROCK_COHERE, VERTEX]),
 		("array", &[OPENAI, BEDROCK_COHERE, VERTEX]),
+		("full", &[VERTEX]),
 	];
 	const RERANK_REQUESTS: &[(&str, &[&str])] = &[
 		("basic", &[COHERE, BEDROCK, VERTEX]),
