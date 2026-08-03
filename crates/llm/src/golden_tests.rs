@@ -73,16 +73,10 @@ mod requests {
 
 		let provider_value =
 			serde_json::from_slice::<Value>(&provider_response).expect("failed to parse provider JSON");
-		let mut report = json!({
+		let report = json!({
 			"request": provider_value,
 			"parsed": llm_request,
 		});
-		// Request metadata originates in a HashMap; keep its snapshot order stable.
-		if let Some(Value::Object(metadata)) =
-			report.pointer_mut("/request/additionalModelRequestFields/metadata")
-		{
-			metadata.sort_keys();
-		}
 		let (snapshot_path, snapshot_name) = snapshot_path_and_name(relative_path, provider);
 
 		insta::with_settings!({
@@ -95,6 +89,8 @@ mod requests {
 			insta::assert_json_snapshot!(snapshot_name, report, {
 				".request.id" => "[id]",
 				".request.created" => "[date]",
+				".request.metadata" => insta::sorted_redaction(),
+				".request.additionalModelRequestFields.metadata" => insta::sorted_redaction(),
 			});
 		});
 	}
