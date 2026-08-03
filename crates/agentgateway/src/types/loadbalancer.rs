@@ -457,11 +457,13 @@ impl RendezvousScore {
 }
 
 /// SplitMix64's finalizer, used as a fast deterministic hash of the two pre-hashed inputs. This is
-/// the per-candidate hot path; XXH3 has already processed both arbitrary-length byte strings. The
-/// multipliers below are SplitMix64's avalanche constants, unlike the arbitrary domain seeds above.
+/// the per-candidate hot path; XXH3 has already processed both arbitrary-length byte strings.
+/// The hashes use separate seeds; with either fixed, XOR is a one-to-one translation of the other
+/// and loses no entropy. SplitMix64 then avalanches the combined value.
 #[inline]
 fn rendezvous_hash(affinity_key: u64, endpoint_hash: u64) -> u64 {
 	let mut value = affinity_key ^ endpoint_hash;
+	// Constants and algorithm from https://rosettacode.org/wiki/Pseudo-random_numbers/Splitmix64
 	value = (value ^ (value >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
 	value = (value ^ (value >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
 	value ^ (value >> 31)
