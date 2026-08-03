@@ -21,9 +21,17 @@ use crate::*;
 
 type EndpointKey = Strng;
 
+// Fixed, non-secret domain separators for the two roles combined by rendezvous_hash. Using
+// different seeds means identical session and endpoint bytes do not produce identical prehashes
+// before they are XORed together. Any two distinct, fixed values would work; primality has no
+// special significance here. We use XXHash's recognizable PRIME64_1 and PRIME64_2 values, which
+// twox-hash declares inside its private xxhash3 module and therefore cannot be imported by users.
+// Keep these stable across replicas and releases: changing either value remaps affinity assignments.
 const AFFINITY_KEY_HASH_SEED: u64 = 0x9e37_79b1_85eb_ca87;
 const ENDPOINT_KEY_HASH_SEED: u64 = 0xc2b2_ae3d_27d4_eb4f;
 
+// Hash the arbitrary-length affinity value once per request. Endpoint selection then operates only
+// on this u64 and the cached endpoint hashes below.
 pub(crate) fn hash_affinity_key(value: &[u8]) -> u64 {
 	XxHash3_64::oneshot_with_seed(AFFINITY_KEY_HASH_SEED, value)
 }
@@ -37,28 +45,26 @@ pub struct EndpointWithInfo<T> {
 	pub endpoint: Arc<T>,
 	pub info: Arc<EndpointInfo>,
 	pub capacity: u32,
-	/// Hash of the endpoint's stable key, cached when it enters an EndpointGroup so affinity
-	/// selection only needs an integer mix per candidate.
+	/// Hash of the endpoint's stable key, computed with the endpoint so there is no uninitialized
+	/// state. Affinity selection therefore needs only an integer mix per candidate.
 	#[serde(skip)]
 	endpoint_hash: u64,
 }
 
 impl<T> EndpointWithInfo<T> {
-	pub fn new(ep: T) -> Self {
-		Self::with_capacity(ep, 1)
+	fn new(key: &EndpointKey, ep: T) -> Self {
+		Self::with_capacity(key, ep, 1)
 	}
 
-	pub fn with_capacity(ep: T, capacity: u32) -> Self {
+	fn with_capacity(key: &EndpointKey, ep: T, capacity: u32) -> Self {
+		// Endpoint identities change far less often than requests arrive. Pay for XXH3 at creation
+		// so the request hot path never reads and hashes an arbitrary-length endpoint key.
 		Self {
 			endpoint: Arc::new(ep),
 			info: Default::default(),
 			capacity,
-			endpoint_hash: 0,
+			endpoint_hash: hash_endpoint_key(key.as_bytes()),
 		}
-	}
-
-	fn cache_endpoint_hash(&mut self, key: &EndpointKey) {
-		self.endpoint_hash = hash_endpoint_key(key.as_bytes());
 	}
 }
 
@@ -117,12 +123,15 @@ pub struct EndpointGroup<T> {
 
 impl<T> EndpointGroup<T> {
 	fn from_pools(
-		mut active: IndexMap<EndpointKey, EndpointWithInfo<T>>,
-		mut rejected: IndexMap<EndpointKey, EndpointWithInfo<T>>,
+		active: IndexMap<EndpointKey, EndpointWithInfo<T>>,
+		rejected: IndexMap<EndpointKey, EndpointWithInfo<T>>,
 	) -> Self {
-		for (key, endpoint) in active.iter_mut().chain(rejected.iter_mut()) {
-			endpoint.cache_endpoint_hash(key);
-		}
+		debug_assert!(
+			active
+				.iter()
+				.chain(&rejected)
+				.all(|(key, endpoint)| endpoint.endpoint_hash == hash_endpoint_key(key.as_bytes()))
+		);
 		let sampler = build_sampler(&active);
 		Self {
 			active,
@@ -132,9 +141,9 @@ impl<T> EndpointGroup<T> {
 	}
 
 	/// Promote an endpoint to active, removing any prior rejected entry under the same key.
-	fn add(&mut self, key: EndpointKey, mut ep: EndpointWithInfo<T>) {
+	fn add(&mut self, key: EndpointKey, ep: EndpointWithInfo<T>) {
 		self.rejected.swap_remove(&key);
-		ep.cache_endpoint_hash(&key);
+		debug_assert_eq!(ep.endpoint_hash, hash_endpoint_key(key.as_bytes()));
 		let cap = ep.capacity;
 		self.active.insert(key, ep);
 		self.update_sampler(Some(cap));
@@ -227,7 +236,7 @@ impl EndpointSet<Endpoint> {
 			None => return, // Strict mode mismatch — drop
 		};
 		let key = ep.workload_uid.clone();
-		let ewi = EndpointWithInfo::with_capacity(ep, dest_workload.capacity);
+		let ewi = EndpointWithInfo::with_capacity(&key, ep, dest_workload.capacity);
 		self.event(EndpointEvent::Add(key, ewi, bucket))
 	}
 
@@ -281,6 +290,9 @@ impl EndpointSet<Endpoint> {
 		affinity_key: u64,
 	) -> Option<Candidate> {
 		for active_phase in [true, false] {
+			// Preserve normal health and locality behavior: exhaust active endpoints across priority
+			// buckets before considering rejected endpoints, and stop at the first bucket with a
+			// viable winner. The affinity hash never overrides priority or health.
 			for bucket in &self.buckets {
 				let group = bucket.load_full();
 				if group.sampler.is_drained() {
@@ -296,6 +308,9 @@ impl EndpointSet<Endpoint> {
 				} else {
 					endpoints.values().all(|ewi| ewi.capacity == 1)
 				};
+				// For weight=1, weight / -ln(u) is strictly increasing in u, so comparing the raw
+				// hash chooses exactly the same endpoint while avoiding an f64 conversion and ln()
+				// for every candidate. A whole candidate set uses one score representation.
 				let selected = endpoints
 					.iter()
 					.filter(|(_, ewi)| ewi.capacity > 0)
@@ -427,9 +442,13 @@ impl EndpointSet<Endpoint> {
 	}
 }
 
+/// Comparable score representations for the two HRW paths. `select_affinity` chooses one path for
+/// the entire candidate set, so comparing different variants would indicate an implementation bug.
 #[derive(Clone, Copy)]
 enum RendezvousScore {
+	/// Equal-capacity fast path: the largest mixed hash is the rendezvous winner.
 	Unweighted(u64),
+	/// Weighted HRW score; larger weights win a proportionally larger keyspace.
 	Weighted(f64),
 }
 
@@ -443,7 +462,9 @@ impl RendezvousScore {
 	}
 }
 
-/// SplitMix64's finalizer, used as a fast deterministic hash of the two pre-hashed inputs.
+/// SplitMix64's finalizer, used as a fast deterministic hash of the two pre-hashed inputs. This is
+/// the per-candidate hot path; XXH3 has already processed both arbitrary-length byte strings. The
+/// multipliers below are SplitMix64's avalanche constants, unlike the arbitrary domain seeds above.
 #[inline]
 fn rendezvous_hash(affinity_key: u64, endpoint_hash: u64) -> u64 {
 	let mut value = affinity_key ^ endpoint_hash;
@@ -454,8 +475,12 @@ fn rendezvous_hash(affinity_key: u64, endpoint_hash: u64) -> u64 {
 
 fn weighted_rendezvous_score(affinity_key: u64, endpoint_hash: u64, weight: u32) -> f64 {
 	let hash = rendezvous_hash(affinity_key, endpoint_hash);
-	// Map into (0, 1), avoiding both ln(0) and division by -ln(1).
+	// Use the 53 bits exactly representable by f64 and place the value at the center of its bucket.
+	// This maps into the open interval (0, 1), avoiding both ln(0) and division by -ln(1).
 	let uniform = ((hash >> 11) as f64 + 0.5) / ((1_u64 << 53) as f64);
+	// This is weighted rendezvous hashing's exponential-race score. Taking the maximum assigns an
+	// endpoint a fraction of keys proportional to its weight while retaining minimal remapping when
+	// the endpoint set changes.
 	f64::from(weight) / -uniform.ln()
 }
 
@@ -656,11 +681,10 @@ impl<T: Clone + Sync + Send + 'static> EndpointSet<T> {
 		let buckets = initial_set
 			.into_iter()
 			.map(|items| {
-				let active = IndexMap::from_iter(
-					items
-						.into_iter()
-						.map(|(k, v)| (k, EndpointWithInfo::new(v))),
-				);
+				let active = IndexMap::from_iter(items.into_iter().map(|(key, endpoint)| {
+					let endpoint = EndpointWithInfo::new(&key, endpoint);
+					(key, endpoint)
+				}));
 				let eg = EndpointGroup::from_pools(active, IndexMap::new());
 				Arc::new(ArcSwap::new(Arc::new(eg)))
 			})
@@ -755,6 +779,9 @@ impl<T: Clone + Sync + Send + 'static> EndpointSet<T> {
 		ActiveEndpointsIter(self.best_bucket())
 	}
 
+	/// Selects an unweighted rendezvous winner from the same highest-priority healthy bucket used by
+	/// normal iteration. If no active endpoint exists there, `iter` exposes its rejected fallback.
+	/// This generic form is used for AI providers, whose stable provider names are EndpointKeys.
 	pub(crate) fn select_by_affinity(
 		&self,
 		affinity_key: u64,
@@ -800,7 +827,8 @@ impl<T: Clone + Sync + Send + 'static> EndpointSet<T> {
 	}
 
 	pub fn insert_key(&self, key: EndpointKey, ep: T, bucket: usize) {
-		self.event(EndpointEvent::Add(key, EndpointWithInfo::new(ep), bucket))
+		let endpoint = EndpointWithInfo::new(&key, ep);
+		self.event(EndpointEvent::Add(key, endpoint, bucket))
 	}
 	pub fn remove(&self, key: EndpointKey) {
 		self.event(EndpointEvent::Delete(key))
@@ -1644,11 +1672,19 @@ mod tests {
 	) -> EndpointGroup<&'static str> {
 		let active_map = active
 			.iter()
-			.map(|v| ((*v).into(), EndpointWithInfo::new(*v)))
+			.map(|v| {
+				let key = (*v).into();
+				let endpoint = EndpointWithInfo::new(&key, *v);
+				(key, endpoint)
+			})
 			.collect();
 		let rejected_map = rejected
 			.iter()
-			.map(|v| ((*v).into(), EndpointWithInfo::new(*v)))
+			.map(|v| {
+				let key = (*v).into();
+				let endpoint = EndpointWithInfo::new(&key, *v);
+				(key, endpoint)
+			})
 			.collect();
 		EndpointGroup::from_pools(active_map, rejected_map)
 	}
@@ -1873,9 +1909,16 @@ mod tests {
 		let mut map = IndexMap::new();
 		for (i, &cap) in caps.iter().enumerate() {
 			let key: Strng = format!("ep{i}").into();
-			map.insert(key, EndpointWithInfo::with_capacity((), cap));
+			let endpoint = EndpointWithInfo::with_capacity(&key, (), cap);
+			map.insert(key, endpoint);
 		}
 		map
+	}
+
+	fn add_with_capacity(group: &mut EndpointGroup<()>, key: &'static str, capacity: u32) {
+		let key = key.into();
+		let endpoint = EndpointWithInfo::with_capacity(&key, (), capacity);
+		group.add(key, endpoint);
 	}
 
 	#[test]
@@ -1957,20 +2000,20 @@ mod tests {
 	#[test]
 	fn build_sampler_reflects_active_state() {
 		let mut group = EndpointGroup::<()>::default();
-		group.add("a".into(), EndpointWithInfo::with_capacity((), 1));
-		group.add("b".into(), EndpointWithInfo::with_capacity((), 1));
+		add_with_capacity(&mut group, "a", 1);
+		add_with_capacity(&mut group, "b", 1);
 		assert!(matches!(group.sampler, Sampler::Uniform));
 
 		// Replace "a" with cap=3 — now mixed, should become Weighted.
-		group.add("a".into(), EndpointWithInfo::with_capacity((), 3));
+		add_with_capacity(&mut group, "a", 3);
 		let Sampler::Weighted(dist) = &group.sampler else {
 			panic!("expected Weighted, got {:?}", group.sampler);
 		};
 		assert_eq!(dist.weights().collect::<Vec<_>>(), vec![3u64, 1]);
 
 		// Drain everything — should become Drained.
-		group.add("a".into(), EndpointWithInfo::with_capacity((), 0));
-		group.add("b".into(), EndpointWithInfo::with_capacity((), 0));
+		add_with_capacity(&mut group, "a", 0);
+		add_with_capacity(&mut group, "b", 0);
 		assert!(group.sampler.is_drained());
 	}
 
@@ -1979,10 +2022,10 @@ mod tests {
 		// Common XDS case: all endpoints share the default cap=1. Adds and
 		// deletes should leave the sampler as Uniform.
 		let mut group = EndpointGroup::<()>::default();
-		group.add("a".into(), EndpointWithInfo::with_capacity((), 1));
+		add_with_capacity(&mut group, "a", 1);
 		assert!(matches!(group.sampler, Sampler::Uniform));
 
-		group.add("b".into(), EndpointWithInfo::with_capacity((), 1));
+		add_with_capacity(&mut group, "b", 1);
 		assert!(matches!(group.sampler, Sampler::Uniform));
 
 		group.remove(&Strng::from("b"));
@@ -1993,20 +2036,20 @@ mod tests {
 	fn update_sampler_rebuilds_on_cap_mismatch() {
 		// Adding a cap=2 endpoint to a Uniform group must transition to Weighted.
 		let mut group = EndpointGroup::<()>::default();
-		group.add("a".into(), EndpointWithInfo::with_capacity((), 1));
+		add_with_capacity(&mut group, "a", 1);
 		assert!(matches!(group.sampler, Sampler::Uniform));
 
-		group.add("b".into(), EndpointWithInfo::with_capacity((), 2));
+		add_with_capacity(&mut group, "b", 2);
 		assert!(matches!(group.sampler, Sampler::Weighted(_)));
 	}
 
 	#[test]
 	fn update_sampler_drained_stays_drained_on_zero_cap_add() {
 		let mut group = EndpointGroup::<()>::default();
-		group.add("a".into(), EndpointWithInfo::with_capacity((), 0));
+		add_with_capacity(&mut group, "a", 0);
 		assert!(matches!(group.sampler, Sampler::Drained));
 
-		group.add("b".into(), EndpointWithInfo::with_capacity((), 0));
+		add_with_capacity(&mut group, "b", 0);
 		assert!(matches!(group.sampler, Sampler::Drained));
 	}
 
@@ -2014,7 +2057,7 @@ mod tests {
 	fn update_sampler_remove_last_uniform_stays_uniform() {
 		// Deleting the last active entry leaves the sampler as Uniform
 		let mut group = EndpointGroup::<()>::default();
-		group.add("a".into(), EndpointWithInfo::with_capacity((), 1));
+		add_with_capacity(&mut group, "a", 1);
 
 		group.remove(&Strng::from("a"));
 		assert!(matches!(group.sampler, Sampler::Uniform));
@@ -2029,7 +2072,7 @@ mod tests {
 		// select_fallback to skip the whole bucket, which would also skip
 		// the rejected pool — the wrong behavior when active is empty.
 		let mut group = EndpointGroup::<()>::default();
-		group.add("a".into(), EndpointWithInfo::with_capacity((), 0));
+		add_with_capacity(&mut group, "a", 0);
 		assert!(matches!(group.sampler, Sampler::Drained));
 
 		group.remove(&Strng::from("a"));

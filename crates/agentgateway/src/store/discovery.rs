@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use agent_xds::XdsUpdate;
-use hashbrown::HashMap as FastHashMap;
+use hashbrown::HashMap as HbHashMap;
 use itertools::Itertools;
 use tokio::sync::watch::Sender;
 use tracing::{Level, instrument};
