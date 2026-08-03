@@ -1,4 +1,5 @@
 use crate::*;
+
 #[apply(schema!)]
 #[serde(tag = "t")]
 pub enum SessionState {

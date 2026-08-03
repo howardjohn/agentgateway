@@ -67,11 +67,7 @@ pub struct AIBackend {
 }
 
 impl AIBackend {
-	pub fn select_provider(&self) -> Option<(Arc<NamedAIProvider>, ActiveHandle)> {
-		self.select_provider_with_affinity(None)
-	}
-
-	pub fn select_provider_with_affinity(
+	pub fn select_provider(
 		&self,
 		affinity_key: Option<u64>,
 	) -> Option<(Arc<NamedAIProvider>, ActiveHandle)> {
