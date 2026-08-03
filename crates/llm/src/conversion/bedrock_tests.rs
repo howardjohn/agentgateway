@@ -1361,6 +1361,7 @@ fn test_embeddings_cohere_with_passthrough_fields() {
 	assert_eq!(bedrock_req.texts, vec!["hello", "world"]);
 	assert_eq!(bedrock_req.input_type, "search_document");
 	assert_eq!(bedrock_req.truncate, Some("END".to_string()));
+	assert_eq!(bedrock_req.output_dimension, None);
 }
 
 #[test]
