@@ -75,7 +75,6 @@ info:
 ---
 {
   "request": {
-    "modelId": "gpt-4-turbo-preview",
     "messages": [
       {
         "role": "user",

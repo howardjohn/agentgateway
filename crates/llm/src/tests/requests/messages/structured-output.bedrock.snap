@@ -25,7 +25,6 @@ info:
 ---
 {
   "request": {
-    "modelId": "anthropic.claude-3-sonnet",
     "messages": [
       {
         "role": "user",

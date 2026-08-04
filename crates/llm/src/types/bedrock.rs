@@ -153,8 +153,8 @@ pub struct InferenceConfiguration {
 
 #[derive(Clone, Serialize, Debug)]
 pub struct ConverseRequest {
-	/// Specifies the model or throughput with which to run inference.
-	#[serde(rename = "modelId")]
+	/// Specifies the model or throughput used in the Converse request URI.
+	#[serde(skip_serializing)]
 	pub model_id: String,
 	/// The messages that you want to send to the model.
 	pub messages: Vec<Message>,
