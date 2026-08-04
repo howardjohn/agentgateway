@@ -143,9 +143,6 @@ pub struct InferenceConfiguration {
 	/// Use nucleus sampling.
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub top_p: Option<f32>,
-	/// Only sample from the top K options for each subsequent token (if supported by model).
-	#[serde(rename = "topK", skip_serializing_if = "Option::is_none")]
-	pub top_k: Option<usize>,
 	/// The stop sequences to use.
 	#[serde(rename = "stopSequences", skip_serializing_if = "Vec::is_empty")]
 	pub stop_sequences: Vec<String>,

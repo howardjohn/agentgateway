@@ -226,6 +226,7 @@ fn test_output_config_effort_without_thinking_is_passed_through() {
 	assert_eq!(
 		out.additional_model_request_fields,
 		Some(json!({
+			"top_k": 50,
 			"output_config": {
 				"effort": "high"
 			}
@@ -234,7 +235,6 @@ fn test_output_config_effort_without_thinking_is_passed_through() {
 	let inference = out.inference_config.unwrap();
 	assert_eq!(inference.temperature, Some(0.7));
 	assert_eq!(inference.top_p, Some(0.8));
-	assert_eq!(inference.top_k, Some(50));
 }
 
 #[test]
@@ -282,6 +282,7 @@ fn test_explicit_empty_output_config_is_preserved() {
 			"thinking": {
 				"type": "adaptive"
 			},
+			"top_k": 50,
 			"output_config": {}
 		}))
 	);
@@ -289,7 +290,6 @@ fn test_explicit_empty_output_config_is_preserved() {
 	let inference = out.inference_config.unwrap();
 	assert_eq!(inference.temperature, Some(0.7));
 	assert_eq!(inference.top_p, Some(0.8));
-	assert_eq!(inference.top_k, Some(50));
 }
 
 #[test]
@@ -402,7 +402,6 @@ fn test_adaptive_thinking_preserves_sampling_and_tool_choice() {
 	let inference = out.inference_config.unwrap();
 	assert_eq!(inference.temperature, Some(0.7));
 	assert_eq!(inference.top_p, Some(0.8));
-	assert_eq!(inference.top_k, Some(50));
 
 	let tool_choice = out
 		.tool_config
@@ -418,7 +417,8 @@ fn test_adaptive_thinking_preserves_sampling_and_tool_choice() {
 		Some(json!({
 			"thinking": {
 				"type": "adaptive"
-			}
+			},
+			"top_k": 50
 		}))
 	);
 }
@@ -479,7 +479,6 @@ fn test_enabled_thinking_applies_sampling_and_tool_choice_constraints() {
 	let inference = out.inference_config.unwrap();
 	assert_eq!(inference.temperature, None);
 	assert_eq!(inference.top_p, None);
-	assert_eq!(inference.top_k, None);
 
 	let tool_choice = out
 		.tool_config
