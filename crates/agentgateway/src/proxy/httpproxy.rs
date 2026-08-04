@@ -2283,7 +2283,7 @@ async fn make_backend_call(
 							&mut log,
 						))
 						.await
-						.map_err(|e| ProxyError::Processing(e.into()))?,
+						.map_err(ProxyError::AI)?,
 						RouteType::Messages => Box::pin(llm.provider.process_messages_request(
 							&backend_info,
 							llm_request_policies.llm.as_deref(),
@@ -2292,7 +2292,7 @@ async fn make_backend_call(
 							&mut log,
 						))
 						.await
-						.map_err(|e| ProxyError::Processing(e.into()))?,
+						.map_err(ProxyError::AI)?,
 						RouteType::Responses => Box::pin(llm.provider.process_responses_request(
 							&backend_info,
 							llm_request_policies.llm.as_deref(),
@@ -2301,7 +2301,7 @@ async fn make_backend_call(
 							&mut log,
 						))
 						.await
-						.map_err(|e| ProxyError::Processing(e.into()))?,
+						.map_err(ProxyError::AI)?,
 						RouteType::Embeddings => Box::pin(llm.provider.process_embeddings_request(
 							&backend_info,
 							llm_request_policies.llm.as_deref(),
@@ -2310,7 +2310,7 @@ async fn make_backend_call(
 							&mut log,
 						))
 						.await
-						.map_err(|e| ProxyError::Processing(e.into()))?,
+						.map_err(ProxyError::AI)?,
 						RouteType::Rerank => Box::pin(llm.provider.process_rerank_request(
 							&backend_info,
 							llm_request_policies.llm.as_deref(),
@@ -2319,7 +2319,7 @@ async fn make_backend_call(
 							&mut log,
 						))
 						.await
-						.map_err(|e| ProxyError::Processing(e.into()))?,
+						.map_err(ProxyError::AI)?,
 						RouteType::AnthropicTokenCount => Box::pin(llm.provider.process_count_tokens_request(
 							&backend_info,
 							req,
@@ -2327,7 +2327,7 @@ async fn make_backend_call(
 							&mut log,
 						))
 						.await
-						.map_err(|e| ProxyError::Processing(e.into()))?,
+						.map_err(ProxyError::AI)?,
 						RouteType::Detect => Box::pin(llm.provider.process_detect_request(
 							&backend_info,
 							llm_request_policies.llm.as_deref(),
@@ -2335,7 +2335,7 @@ async fn make_backend_call(
 							&mut log,
 						))
 						.await
-						.map_err(|e| ProxyError::Processing(e.into()))?,
+						.map_err(ProxyError::AI)?,
 						_ => unreachable!(),
 					};
 					let (mut req, llm_request, upstream_route_type) = match r {
@@ -2613,7 +2613,7 @@ async fn make_backend_call(
 				.assert_size::<{ 4 * 1024 }>(),
 		)
 		.await
-		.map_err(|e| ProxyError::Processing(e.into()))?
+		.map_err(ProxyError::AI)?
 	} else {
 		resp
 	};

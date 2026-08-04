@@ -54,6 +54,7 @@ impl ProxyResponse {
 			| ProxyError::MethodNotAllowed
 			| ProxyError::ProcessingString(_)
 			| ProxyError::Processing(_)
+			| ProxyError::AI(_)
 			| ProxyError::RouteCycleDetected
 			| ProxyError::Body(_)
 			| ProxyError::Http(_)
@@ -195,6 +196,8 @@ pub enum ProxyError {
 	RequestTimeout,
 	#[error("processing failed: {0}")]
 	Processing(anyhow::Error),
+	#[error(transparent)]
+	AI(#[from] llm::AIError),
 	#[error("invalid http: {0}")]
 	Http(#[from] ::http::Error),
 	#[error("ext_proc failed: {0}")]
@@ -290,6 +293,27 @@ impl ProxyError {
 
 			ProxyError::RequestTimeout => StatusCode::GATEWAY_TIMEOUT,
 			ProxyError::Processing(_) => StatusCode::SERVICE_UNAVAILABLE,
+			ProxyError::AI(ref error) => match error {
+				llm::AIError::MissingField(_)
+				| llm::AIError::MessageNotFound
+				| llm::AIError::StreamingUnsupported
+				| llm::AIError::UnsupportedModel
+				| llm::AIError::UnsupportedContent
+				| llm::AIError::UnsupportedConversion(_)
+				| llm::AIError::RequestParsing(_) => StatusCode::BAD_REQUEST,
+				llm::AIError::ModelNotFound => StatusCode::NOT_FOUND,
+				llm::AIError::RequestTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
+				llm::AIError::UnsupportedEncoding(_) => StatusCode::UNSUPPORTED_MEDIA_TYPE,
+				llm::AIError::RequestMarshal(_)
+				| llm::AIError::ResponseParsing(_)
+				| llm::AIError::IncompleteResponse
+				| llm::AIError::InvalidResponse(_)
+				| llm::AIError::ResponseMarshal(_)
+				| llm::AIError::ResponseTooLarge
+				| llm::AIError::PromptWebhookError
+				| llm::AIError::Encoding(_)
+				| llm::AIError::JoinError(_) => StatusCode::SERVICE_UNAVAILABLE,
+			},
 			ProxyError::Http(_) => StatusCode::SERVICE_UNAVAILABLE,
 			ProxyError::Body(_) => StatusCode::SERVICE_UNAVAILABLE,
 			ProxyError::ProcessingString(_) => StatusCode::SERVICE_UNAVAILABLE,
