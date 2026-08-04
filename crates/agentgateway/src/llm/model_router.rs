@@ -60,6 +60,10 @@ pub fn default_route_types() -> Arc<llm::Policy> {
 				llm::RouteType::Completions,
 			),
 			(strng::new("/v1/messages"), llm::RouteType::Messages),
+			(
+				strng::new("/v1/messages/count_tokens"),
+				llm::RouteType::AnthropicTokenCount,
+			),
 			(strng::new(":rawPredict"), llm::RouteType::Messages),
 			(strng::new(":streamRawPredict"), llm::RouteType::Messages),
 			(strng::new("/v1/responses"), llm::RouteType::Responses),
