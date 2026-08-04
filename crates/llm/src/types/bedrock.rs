@@ -141,7 +141,7 @@ pub struct InferenceConfiguration {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub temperature: Option<f32>,
 	/// Use nucleus sampling.
-	#[serde(skip_serializing_if = "Option::is_none")]
+	#[serde(rename = "topP", skip_serializing_if = "Option::is_none")]
 	pub top_p: Option<f32>,
 	/// The stop sequences to use.
 	#[serde(rename = "stopSequences", skip_serializing_if = "Vec::is_empty")]
