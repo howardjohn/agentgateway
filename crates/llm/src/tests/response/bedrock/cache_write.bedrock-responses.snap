@@ -1,20 +1,19 @@
 ---
 source: crates/llm/src/golden_tests.rs
-description: src/tests/response/bedrock/reasoning_unsigned.json
+description: src/tests/response/bedrock/cache_write.json
 info:
   output:
     message:
       role: assistant
       content:
-        - reasoningContent:
-            reasoningText:
-              text: Two plus two is four.
-        - text: The answer is 4.
+        - text: ok
   stopReason: end_turn
   usage:
-    inputTokens: 18
-    outputTokens: 46
-    totalTokens: 64
+    inputTokens: 16
+    outputTokens: 9
+    totalTokens: 2412
+    cacheReadInputTokens: 0
+    cacheWriteInputTokens: 2387
   metrics:
     latencyMs: 2083
 ---
@@ -30,13 +29,7 @@ info:
             "type": "output_text",
             "annotations": [],
             "logprobs": null,
-            "text": "Two plus two is four."
-          },
-          {
-            "type": "output_text",
-            "annotations": [],
-            "logprobs": null,
-            "text": "The answer is 4."
+            "text": "ok"
           }
         ],
         "id": "[id]",
@@ -46,24 +39,26 @@ info:
     ],
     "model": "input-model",
     "usage": {
-      "input_tokens": 18,
-      "output_tokens": 46,
+      "input_tokens": 16,
+      "output_tokens": 9,
       "input_tokens_details": {
-        "cached_tokens": 0
+        "cached_tokens": 0,
+        "cache_write_tokens": 2387
       },
       "output_tokens_details": {
         "reasoning_tokens": 0
       },
-      "total_tokens": 64
+      "total_tokens": 2412
     },
     "created_at": "[date]",
     "object": "response"
   },
   "parsed": {
-    "input_tokens": 18,
-    "output_tokens": 46,
-    "total_tokens": 64,
+    "input_tokens": 16,
+    "output_tokens": 9,
+    "total_tokens": 2412,
     "reasoning_tokens": 0,
+    "cache_creation_input_tokens": 2387,
     "cached_input_tokens": 0,
     "provider_model": "input-model"
   }

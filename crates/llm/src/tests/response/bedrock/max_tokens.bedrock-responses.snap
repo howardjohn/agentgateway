@@ -1,27 +1,22 @@
 ---
 source: crates/llm/src/golden_tests.rs
-description: src/tests/response/bedrock/reasoning_unsigned.json
+description: src/tests/response/bedrock/max_tokens.json
 info:
   output:
     message:
       role: assistant
       content:
-        - reasoningContent:
-            reasoningText:
-              text: Two plus two is four.
-        - text: The answer is 4.
-  stopReason: end_turn
+        - text: Partial response
+  stopReason: max_tokens
   usage:
     inputTokens: 18
     outputTokens: 46
     totalTokens: 64
-  metrics:
-    latencyMs: 2083
 ---
 {
   "response": {
     "id": "[id]",
-    "status": "completed",
+    "status": "incomplete",
     "output": [
       {
         "type": "message",
@@ -30,18 +25,12 @@ info:
             "type": "output_text",
             "annotations": [],
             "logprobs": null,
-            "text": "Two plus two is four."
-          },
-          {
-            "type": "output_text",
-            "annotations": [],
-            "logprobs": null,
-            "text": "The answer is 4."
+            "text": "Partial response"
           }
         ],
         "id": "[id]",
         "role": "assistant",
-        "status": "completed"
+        "status": "incomplete"
       }
     ],
     "model": "input-model",
@@ -57,6 +46,9 @@ info:
       "total_tokens": 64
     },
     "created_at": "[date]",
+    "incomplete_details": {
+      "reason": "max_tokens"
+    },
     "object": "response"
   },
   "parsed": {

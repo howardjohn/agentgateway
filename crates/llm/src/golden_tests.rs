@@ -612,10 +612,14 @@ mod responses {
 	];
 	const BEDROCK_RESPONSES: &[(&str, &[&str])] = &[
 		("basic", ALL_BEDROCK),
+		("max_tokens", &[BEDROCK_TO_RESPONSES]),
 		("tool", ALL_BEDROCK),
 		("reasoning", ALL_BEDROCK),
 		("reasoning_unsigned", ALL_BEDROCK),
-		("cache_write", &[BEDROCK_TO_COMPLETIONS]),
+		(
+			"cache_write",
+			&[BEDROCK_TO_COMPLETIONS, BEDROCK_TO_RESPONSES],
+		),
 	];
 	const ALL_ANTHROPIC: &[&str] = &[
 		MESSAGES_TO_MESSAGES,
