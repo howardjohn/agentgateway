@@ -9,6 +9,31 @@ use crate::types::completions::typed as completions;
 use crate::types::messages::typed as messages;
 use crate::{AIError, StreamingUsageGuard, parse};
 
+const ANTHROPIC_MIN_THINKING_BUDGET_TOKENS: u64 = 1024;
+
+fn cap_thinking_budget_to_max_tokens(budget_tokens: u64, max_tokens: usize) -> Option<u64> {
+	let max_tokens = u64::try_from(max_tokens).unwrap_or(u64::MAX);
+	if budget_tokens < ANTHROPIC_MIN_THINKING_BUDGET_TOKENS
+		|| max_tokens <= ANTHROPIC_MIN_THINKING_BUDGET_TOKENS
+	{
+		return None;
+	}
+	Some(budget_tokens.min(max_tokens - 1))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn cap_thinking_budget_enforces_anthropic_bounds() {
+		assert_eq!(cap_thinking_budget_to_max_tokens(1, 4096), None);
+		assert_eq!(cap_thinking_budget_to_max_tokens(1024, 1024), None);
+		assert_eq!(cap_thinking_budget_to_max_tokens(1024, 1025), Some(1024));
+		assert_eq!(cap_thinking_budget_to_max_tokens(8192, 4096), Some(4095));
+	}
+}
+
 fn anthropic_error_type(status: ::http::StatusCode) -> &'static str {
 	match status {
 		::http::StatusCode::BAD_REQUEST => "invalid_request_error",
@@ -348,16 +373,17 @@ pub mod from_completions {
 			},
 			_ => None,
 		};
-		let explicit_thinking_budget = req.vendor_extensions.thinking_budget_tokens;
-		let thinking = if let Some(budget_tokens) = explicit_thinking_budget {
-			Some(messages::ThinkingInput::Enabled { budget_tokens })
-		} else {
-			req
-				.reasoning_effort
-				.as_ref()
-				.and_then(crate::types::thinking_budget_for_reasoning_effort)
-				.map(|budget_tokens| messages::ThinkingInput::Enabled { budget_tokens })
-		};
+		let thinking = req
+			.vendor_extensions
+			.thinking_budget_tokens
+			.or_else(|| {
+				req
+					.reasoning_effort
+					.as_ref()
+					.and_then(crate::types::thinking_budget_for_reasoning_effort)
+			})
+			.and_then(|budget_tokens| super::cap_thinking_budget_to_max_tokens(budget_tokens, max_tokens))
+			.map(|budget_tokens| messages::ThinkingInput::Enabled { budget_tokens });
 
 		let response_format = match req.response_format {
 			Some(completions::ResponseFormat::JsonSchema { json_schema }) => {
