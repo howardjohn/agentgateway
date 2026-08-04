@@ -2270,6 +2270,9 @@ fn backend_policy_from_proto(
 		Some(bps::Kind::McpAuthorization(rbac)) => {
 			BackendTrafficPolicy::McpAuthorization(mcp_authorization_from_proto(rbac, diagnostics))
 		},
+		Some(bps::Kind::Authorization(rbac)) => {
+			BackendTrafficPolicy::Authorization(authorization_from_proto(rbac, diagnostics))
+		},
 		Some(bps::Kind::McpAuthentication(ma)) => {
 			BackendTrafficPolicy::McpAuthentication(mcp_authentication_from_proto(ma, diagnostics)?)
 		},
@@ -4694,6 +4697,22 @@ mod tests {
 			panic!("Expected Transformation policy variant");
 		};
 		assert_eq!(transformation.expressions().count(), 2);
+		Ok(())
+	}
+
+	#[test]
+	fn test_backend_policy_spec_to_authorization_policy() -> Result<(), ProtoError> {
+		let spec = proto::agent::BackendPolicySpec {
+			kind: Some(proto::agent::backend_policy_spec::Kind::Authorization(
+				proto::agent::traffic_policy_spec::Rbac {
+					allow: vec!["request.headers['x-model-access'] == 'allowed'".to_string()],
+					..Default::default()
+				},
+			)),
+		};
+
+		let policy = backend_policy_from_proto(&spec, &mut Diagnostics::default())?;
+		assert!(matches!(policy, BackendTrafficPolicy::Authorization(_)));
 		Ok(())
 	}
 
