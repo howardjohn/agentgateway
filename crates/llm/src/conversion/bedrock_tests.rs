@@ -12,10 +12,12 @@ use crate::types;
 
 #[tokio::test]
 async fn test_append_done_on_success_omits_done_after_error() {
-	let mut body = super::from_completions::append_done_on_success(futures_util::stream::iter(vec![
-		Ok::<_, axum_core::Error>(Bytes::from_static(b"data: chunk\n\n")),
-		Err(axum_core::Error::new(io::Error::other("boom"))),
-	]));
+	let mut body = crate::parse::sse::append_done_on_success(axum_core::body::Body::from_stream(
+		futures_util::stream::iter(vec![
+			Ok::<_, axum_core::Error>(Bytes::from_static(b"data: chunk\n\n")),
+			Err(axum_core::Error::new(io::Error::other("boom"))),
+		]),
+	));
 
 	let first = body
 		.frame()
@@ -36,13 +38,11 @@ async fn test_append_done_on_success_omits_done_after_error() {
 
 #[tokio::test]
 async fn test_append_done_on_success_does_not_repoll_after_eof() {
-	let mut body =
-		super::from_completions::append_done_on_success(futures_util::stream::iter(vec![Ok::<
-			_,
-			axum_core::Error,
-		>(
-			Bytes::from_static(b"data: chunk\n\n"),
-		)]));
+	let mut body = crate::parse::sse::append_done_on_success(axum_core::body::Body::from_stream(
+		futures_util::stream::iter(vec![Ok::<_, axum_core::Error>(Bytes::from_static(
+			b"data: chunk\n\n",
+		))]),
+	));
 
 	assert!(body.frame().await.is_some(), "data frame should be present");
 	assert!(
