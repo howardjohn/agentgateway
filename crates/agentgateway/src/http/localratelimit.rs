@@ -334,7 +334,7 @@ mod ratelimit {
 
 			let _ = self
 				.available
-				.fetch_update(Ordering::AcqRel, Ordering::Acquire, |v| {
+				.try_update(Ordering::AcqRel, Ordering::Acquire, |v| {
 					if tokens_to_remove < 0 {
 						Some(v.saturating_add(tokens_to_remove.unsigned_abs()))
 					} else {
