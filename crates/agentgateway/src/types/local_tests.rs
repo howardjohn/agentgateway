@@ -2227,9 +2227,7 @@ binds:
 fn test_de_backend_auth_accepts_each_shape() {
 	use serde::de::IntoDeserializer;
 
-	use crate::http::auth::BackendAuthKind;
-
-	let parse = |v: serde_json::Value| -> crate::http::auth::BackendAuth {
+	let parse = |v: serde_json::Value| -> super::LocalBackendAuth {
 		super::de_backend_auth::<serde_json::Value>(v.into_deserializer())
 			.unwrap()
 			.unwrap()
@@ -2238,19 +2236,22 @@ fn test_de_backend_auth_accepts_each_shape() {
 	let copilot_scalar = parse(serde_json::json!("copilot"));
 	assert!(matches!(
 		copilot_scalar.kind,
-		Some(BackendAuthKind::Copilot)
+		Some(super::LocalBackendAuthKind::Copilot)
 	));
 	assert!(copilot_scalar.credentials.is_empty());
 
 	let plain_key = parse(serde_json::json!({"key": "plain-secret"}));
 	assert!(matches!(
 		plain_key.kind,
-		Some(BackendAuthKind::Key { location: None, .. })
+		Some(super::LocalBackendAuthKind::Key { location: None, .. })
 	));
 	assert!(plain_key.credentials.is_empty());
 
 	let full_key = parse(serde_json::json!({"key": {"value": "explicit-secret"}}));
-	assert!(matches!(full_key.kind, Some(BackendAuthKind::Key { .. })));
+	assert!(matches!(
+		full_key.kind,
+		Some(super::LocalBackendAuthKind::Key { .. })
+	));
 	assert!(full_key.credentials.is_empty());
 
 	let full_with_credentials = parse(serde_json::json!({
@@ -2259,7 +2260,7 @@ fn test_de_backend_auth_accepts_each_shape() {
 	}));
 	assert!(matches!(
 		full_with_credentials.kind,
-		Some(BackendAuthKind::Key { .. })
+		Some(super::LocalBackendAuthKind::Key { .. })
 	));
 	assert_eq!(full_with_credentials.credentials.len(), 1);
 
