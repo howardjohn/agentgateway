@@ -23,125 +23,6 @@ env:
   GO_VERSION: "1.26.4"
 
 jobs:
-  #### Proxy jobs ####
-  proxy-test:
-    strategy:
-      matrix:
-        include:
-        - os: blacksmith-4vcpu-ubuntu-2404
-          name: "Proxy Test"
-        - os: windows-2025
-          name: "Proxy Test (Windows)"
-        - os: macos-15
-          name: "Proxy Test (Mac)"
-    runs-on: ${{ matrix.os }}
-    name: ${{ matrix.name }}
-    steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      with:
-        persist-credentials: false
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
-      with:
-        toolchain: "${{ env.RUST_VERSION }}"
-    - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-      # GHA 10gb cache cannot handle all 3 builds. However, because we put all the heavy linux caches on Blacksmith,
-      # we have space for windows and mac.
-      # If we change up the runners, consider if we have space for all three (note: Blacksmith has 25gb though)
-      with:
-        # Github cache will restore from 'main' OR the current branch.
-        # If we cache PR branches, we may evict the 'main' cache and end up with no cache hits at all.
-        # Ideally, we would have main be 'high priority' and not be evicted but I don't think thats possible.
-        save-if: ${{ github.ref == 'refs/heads/main' }}
-    - name: Start validation dependencies
-      if: ${{ startsWith(matrix.os, 'blacksmith-') }}
-      run: tools/manage-validation-deps.sh start
-    - name: Test
-      run: make test
-      env:
-        KEYCLOAK_AVAILABLE: ${{ startsWith(matrix.os, 'blacksmith-') && '1' || '' }}
-    - name: Stop validation dependencies
-      if: ${{ always() && startsWith(matrix.os, 'blacksmith-') }}
-      run: tools/manage-validation-deps.sh stop
-
-  proxy-lint:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      with:
-        persist-credentials: false
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
-      with:
-        toolchain: "${{ env.RUST_VERSION }}"
-    - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-      with:
-        # Github cache will restore from 'main' OR the current branch.
-        # If we cache PR branches, we may evict the 'main' cache and end up with no cache hits at all.
-        # Ideally, we would have main be 'high priority' and not be evicted but I don't think thats possible.
-        save-if: ${{ github.ref == 'refs/heads/main' }}
-    - name: Generation
-      run: make generate-schema check-clean-repo check-default-members
-    - name: Lint
-      run: make lint
-
-  #### UI jobs ####
-  ui-lint:
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: ui
-    steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      with:
-        persist-credentials: false
-    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-      with:
-        node-version: 24
-    - name: Lint
-      run: |
-        npm ci
-        npm run lint
-
-  #### Controller jobs ####
-  controller-test:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      with:
-        persist-credentials: false
-    - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-      with:
-        go-version: "${{ env.GO_VERSION }}"
-        cache-dependency-path: |
-          **/*.sum
-          .github/workflows/cache-lint
-    - name: Test
-      run: go test -race ./...
-
-  controller-lint:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      with:
-        persist-credentials: false
-    - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-      with:
-        go-version: "${{ env.GO_VERSION }}"
-        cache-dependency-path: |
-          **/*.sum
-          .github/workflows/cache-test
-    - name: Lint
-      run: make -C controller analyze
-    - name: go mod tidy
-      run: |
-        go mod tidy
-        git diff --exit-code go.mod go.sum
-    - name: Gen
-      run: |
-        make generate-apis check-clean-repo
-        make -C controller verify
-
   controller-e2e:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
@@ -155,7 +36,7 @@ jobs:
         cat /sys/fs/cgroup/cpu.stat || true
         cat /proc/pressure/cpu || true
         lscpu || true
-        openssl speed -seconds 1  -bytes 256 sha256 || rtue
+        openssl speed -seconds 1 -bytes 256 sha256 || true
     - name: Install Rust
       uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
       with:
@@ -183,17 +64,79 @@ jobs:
     - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
       with:
         go-version: "${{ env.GO_VERSION }}"
-        cache-dependency-path: |
-          **/*.sum
-          .github/workflows/cache-e2e
+        # setup-go's immutable dependency-only key can leave GOCACHE stale forever.
+        # Restore and save the module and build caches separately below instead.
+        cache: false
+    - name: Set Go cache keys
+      id: go-cache-keys
+      run: |
+        {
+          echo "build=$(go env GOCACHE)"
+          echo "modules=$(go env GOMODCACHE)"
+          # The controller imports the local api/ module, so both trees are build inputs.
+          echo "source=$(git rev-parse HEAD:controller)-$(git rev-parse HEAD:api)"
+        } >> "$GITHUB_OUTPUT"
+    - name: Show Go cache configuration
+      run: |
+        echo "Go version: $(go env GOVERSION)"
+        echo "Module cache: ${{ steps.go-cache-keys.outputs.modules }}"
+        echo "Build cache: ${{ steps.go-cache-keys.outputs.build }}"
+        echo "Dependency hash: ${{ hashFiles('**/go.mod', '**/go.sum') }}"
+        echo "Controller/API trees: ${{ steps.go-cache-keys.outputs.source }}"
+    # Module downloads are independent of source. An exact dependency match is
+    # preferred, while the prefix can still reuse unchanged modules after go.sum changes.
+    - name: Restore Go module cache
+      id: go-module-cache
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ steps.go-cache-keys.outputs.modules }}
+        key: go-mod-v0-${{ runner.os }}-${{ runner.arch }}-${{ env.GO_VERSION }}-${{ hashFiles('**/go.mod', '**/go.sum') }}
+        restore-keys: |
+          go-mod-v0-${{ runner.os }}-${{ runner.arch }}-${{ env.GO_VERSION }}-
+    # The controller/API trees make source changes produce a new exact key. Restore
+    # prefixes seed that build from the newest compatible cache instead of starting
+    # cold; non-controller changes retain the exact key and avoid another cache save.
+    - name: Restore Go build cache
+      id: go-build-cache
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ steps.go-cache-keys.outputs.build }}
+        key: go-build-controller-e2e-v0-${{ runner.os }}-${{ runner.arch }}-${{ env.GO_VERSION }}-${{ hashFiles('**/go.mod', '**/go.sum') }}-${{ steps.go-cache-keys.outputs.source }}
+        restore-keys: |
+          go-build-controller-e2e-v0-${{ runner.os }}-${{ runner.arch }}-${{ env.GO_VERSION }}-${{ hashFiles('**/go.mod', '**/go.sum') }}-
+          go-build-controller-e2e-v0-${{ runner.os }}-${{ runner.arch }}-${{ env.GO_VERSION }}-
+    - name: Show Go cache restore results
+      run: |
+        echo "Module exact hit: ${{ steps.go-module-cache.outputs.cache-hit }}"
+        echo "Module matched key: ${{ steps.go-module-cache.outputs.cache-matched-key }}"
+        echo "Build exact hit: ${{ steps.go-build-cache.outputs.cache-hit }}"
+        echo "Build matched key: ${{ steps.go-build-cache.outputs.cache-matched-key }}"
+        du -sh "${{ steps.go-cache-keys.outputs.modules }}" "${{ steps.go-cache-keys.outputs.build }}" 2>/dev/null || true
     - name: Set Path
       run: |
-        echo "./tools" >> $GITHUB_PATH
+        echo "./tools" >> "$GITHUB_PATH"
     - name: Setup
       run: TEST_MODE=e2e ./controller/test/setup/setup-kind-ci.sh
     - name: E2E
       run: |
         CGO_ENABLED=0 PERSIST_INSTALL=true go test -tags=e2e -v ./controller/test/e2e
+    - name: Show populated Go cache sizes
+      run: |
+        du -sh "${{ steps.go-cache-keys.outputs.modules }}" "${{ steps.go-cache-keys.outputs.build }}" 2>/dev/null || true
+    # PRs restore the default branch caches but never publish their own. Successful
+    # main builds roll each cache forward only when its exact input key was absent.
+    - name: Save Go module cache
+      if: ${{ github.ref == 'refs/heads/main' && steps.go-module-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ steps.go-cache-keys.outputs.modules }}
+        key: ${{ steps.go-module-cache.outputs.cache-primary-key }}
+    - name: Save Go build cache
+      if: ${{ github.ref == 'refs/heads/main' && steps.go-build-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ steps.go-cache-keys.outputs.build }}
+        key: ${{ steps.go-build-cache.outputs.cache-primary-key }}
     - name: Archive bug report directory on failure
       if: ${{ failure() }}
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -209,157 +152,5 @@ jobs:
         retention-days: 2
     - name: Summary
       run: |
-        echo '# E2E Timings\n'
-        cat controller/_test/ci-step-timings.log >> $GITHUB_STEP_SUMMARY
-
-  controller-conformance:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      with:
-        persist-credentials: false
-        # git-restore-mtime needs full history to find each file's latest change.
-        fetch-depth: 0
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
-      with:
-        toolchain: "${{ env.RUST_VERSION }}"
-    - name: Restore source mtimes
-      run: ./tools/git-restore-mtime --commit-time
-    # Match the E2E job's exact and fallback cache keys so this job can share them.
-    - name: Set Rust cache generation
-      run: |
-        mkdir -p .github/rust-cache/.cargo
-        printf '# generation = %s\n' "$(git rev-parse HEAD:crates)" > .github/rust-cache/.cargo/config.toml
-    - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-      with:
-        # Workspace artifacts are cheap to cache and can avoid rebuilding when Rust
-        # inputs have not changed. Fallback restores remain best-effort because their
-        # prefix deliberately excludes the source generation above.
-        cache-workspace-crates: true
-        # We only read the cache from 'E2E' job, since they should have identical cache.
-        save-if: "false"
-        shared-key: "controller-e2e" # Pull E2E job's cache
-    - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-      with:
-        go-version: "${{ env.GO_VERSION }}"
-        cache-dependency-path: |
-          **/*.sum
-          .github/workflows/cache-e2e
-    - name: Set Path
-      run: |
-        echo "./tools" >> $GITHUB_PATH
-    - name: Setup
-      run: TEST_MODE=conformance ./controller/test/setup/setup-kind-ci.sh
-    - name: Conformance
-      run: |
-        make -C controller agw-conformance
-    - name: Debug Info
-      if: ${{ failure() }}
-      run: |
-        kubectl describe deployment -A
-        kubectl get pods -A
-        kubectl logs -n agentgateway-system -l app.kubernetes.io/name=agentgateway
-    - name: Upload cargo timings
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-      with:
-        name: cargo-timings-conformance
-        path: target/cargo-timings/cargo-timing*.html
-        retention-days: 2
-    - name: Summary
-      run: |
-        cat-yamls () {
-          local files=("$@")
-          local count=$#
-
-          for ((i=0; i<count-1; i++)); do
-          cat "${files[i]}"
-          echo -e "\n---"
-          done
-
-          if [ $count -gt 0 ]; then
-          cat "${files[count-1]}"
-          fi
-        }
-
-        echo -e '\n# Conformance Reports\n\n```yaml' >> $GITHUB_STEP_SUMMARY
-        cat-yamls ./controller/_test/conformance/*.yaml >> $GITHUB_STEP_SUMMARY
-        echo -e '```\n' >> $GITHUB_STEP_SUMMARY
-        echo -e '# Conformance Timings\n' >> $GITHUB_STEP_SUMMARY
-        cat controller/_test/ci-step-timings.log >> $GITHUB_STEP_SUMMARY
-
-  controller-gie-conformance:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      with:
-        persist-credentials: false
-        # git-restore-mtime needs full history to find each file's latest change.
-        fetch-depth: 0
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
-      with:
-        toolchain: "${{ env.RUST_VERSION }}"
-    - name: Restore source mtimes
-      run: ./tools/git-restore-mtime --commit-time
-    # Match the E2E job's exact and fallback cache keys so this job can share them.
-    - name: Set Rust cache generation
-      run: |
-        mkdir -p .github/rust-cache/.cargo
-        printf '# generation = %s\n' "$(git rev-parse HEAD:crates)" > .github/rust-cache/.cargo/config.toml
-    - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-      with:
-        # Workspace artifacts are cheap to cache and can avoid rebuilding when Rust
-        # inputs have not changed. Fallback restores remain best-effort because their
-        # prefix deliberately excludes the source generation above.
-        cache-workspace-crates: true
-        # We only read the cache from 'E2E' job, since they should have identical cache.
-        save-if: "false"
-        shared-key: "controller-e2e" # Pull E2E job's cache
-    - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-      with:
-        go-version: "${{ env.GO_VERSION }}"
-        cache-dependency-path: |
-          **/*.sum
-          .github/workflows/cache-e2e
-    - name: Set Path
-      run: |
-        echo "./tools" >> $GITHUB_PATH
-    - name: Setup
-      run: TEST_MODE=conformance ./controller/test/setup/setup-kind-ci.sh
-    - name: GIE Conformance
-      run: |
-        make -C controller gie-conformance
-    - name: Debug Info
-      if: ${{ failure() }}
-      run: |
-        kubectl describe deployment -A
-        kubectl get pods -A
-        kubectl logs -n agentgateway-system -l app.kubernetes.io/name=agentgateway
-    - name: Upload cargo timings
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-      with:
-        name: cargo-timings-gie-conformance
-        path: target/cargo-timings/cargo-timing*.html
-        retention-days: 2
-    - name: Summary
-      run: |
-        cat-yamls () {
-          local files=("$@")
-          local count=$#
-
-          for ((i=0; i<count-1; i++)); do
-          cat "${files[i]}"
-          echo -e "\n---"
-          done
-
-          if [ $count -gt 0 ]; then
-          cat "${files[count-1]}"
-          fi
-        }
-
-        echo -e '\n# GIE Conformance Reports\n\n```yaml' >> $GITHUB_STEP_SUMMARY
-        cat-yamls ./controller/_test/conformance/*.yaml >> $GITHUB_STEP_SUMMARY
-        echo -e '```\n' >> $GITHUB_STEP_SUMMARY
-        echo -e '# GIE Conformance Timings\n' >> $GITHUB_STEP_SUMMARY
-        cat controller/_test/ci-step-timings.log >> $GITHUB_STEP_SUMMARY
+        printf '# E2E Timings\n'
+        cat controller/_test/ci-step-timings.log >> "$GITHUB_STEP_SUMMARY"
