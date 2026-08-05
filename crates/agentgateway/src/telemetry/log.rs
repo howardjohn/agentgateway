@@ -1843,6 +1843,11 @@ where
 }
 
 pub struct OtelAccessLogger {
+	inner: super::NonBlockingDrop<OtelAccessLoggerInner>,
+}
+
+#[derive(Debug)]
+struct OtelAccessLoggerInner {
 	provider: SdkLoggerProvider,
 	logger: opentelemetry_sdk::logs::SdkLogger,
 }
@@ -2026,11 +2031,13 @@ impl OtelAccessLogger {
 
 		let logger = provider.logger("agentgateway.access");
 
-		Ok(Self { provider, logger })
+		Ok(Self {
+			inner: super::NonBlockingDrop::new(OtelAccessLoggerInner { provider, logger }),
+		})
 	}
 
 	pub fn shutdown(&self) {
-		let _ = self.provider.shutdown();
+		let _ = self.inner.provider.shutdown();
 	}
 }
 
@@ -2053,7 +2060,7 @@ impl OtelLogSink for OtelAccessLogger {
 			_ => "INFO",
 		};
 
-		let mut record = self.logger.create_log_record();
+		let mut record = self.inner.logger.create_log_record();
 		record.set_severity_number(severity);
 		record.set_severity_text(severity_text);
 		record.set_target(target.to_string());
@@ -2097,11 +2104,11 @@ impl OtelLogSink for OtelAccessLogger {
 			);
 		}
 
-		self.logger.emit(record);
+		self.inner.logger.emit(record);
 	}
 
 	fn shutdown(&self) {
-		let _ = self.provider.shutdown();
+		let _ = self.inner.provider.shutdown();
 	}
 }
 
@@ -2251,7 +2258,7 @@ mod tests {
 			.build();
 		(
 			Arc::new(trc::Tracer {
-				provider,
+				provider: crate::telemetry::NonBlockingDrop::new(provider),
 				processor,
 				fields: Arc::new(LoggingFields::default()),
 				filter: None,
