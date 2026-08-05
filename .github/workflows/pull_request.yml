@@ -148,6 +148,8 @@ jobs:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         persist-credentials: false
+        # git-restore-mtime needs full history to find each file's latest change.
+        fetch-depth: 0
     - name: Check Runner Info
       run: |
         cat /sys/fs/cgroup/cpu.stat || true
@@ -158,8 +160,13 @@ jobs:
       uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
       with:
         toolchain: "${{ env.RUST_VERSION }}"
+    - name: Restore source mtimes
+      run: ./tools/git-restore-mtime --commit-time
     - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       with:
+        # This is cheap to cache and can avoid rebuilding when Rust sources have not
+        # changed. It is best-effort because the cache key does not include sources.
+        cache-workspace-crates: true
         # Github cache will restore from 'main' OR the current branch.
         # If we cache PR branches, we may evict the 'main' cache and end up with no cache hits at all.
         # Ideally, we would have main be 'high priority' and not be evicted but I don't think thats possible.
@@ -202,12 +209,19 @@ jobs:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         persist-credentials: false
+        # git-restore-mtime needs full history to find each file's latest change.
+        fetch-depth: 0
     - name: Install Rust
       uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
       with:
         toolchain: "${{ env.RUST_VERSION }}"
+    - name: Restore source mtimes
+      run: ./tools/git-restore-mtime --commit-time
     - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       with:
+        # This is cheap to cache and can avoid rebuilding when Rust sources have not
+        # changed. It is best-effort because the cache key does not include sources.
+        cache-workspace-crates: true
         # We only read the cache from 'E2E' job, since they should have identical cache.
         save-if: "false"
         shared-key: "controller-e2e" # Pull E2E job's cache
