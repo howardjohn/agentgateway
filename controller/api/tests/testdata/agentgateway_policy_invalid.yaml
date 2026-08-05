@@ -1215,6 +1215,35 @@ spec:
         group: agentgateway.dev
         kind: ""
 ---
+_err: 'Service sectionName must be a numeric port from 1 to 65535'
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: service-named-port-invalid
+spec:
+  targetRefs:
+    - group: ""
+      kind: Service
+      name: backend
+      sectionName: http
+  backend:
+    tls: {}
+---
+_err: 'Service sectionName must be a numeric port from 1 to 65535'
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: service-selector-named-port-invalid
+spec:
+  targetSelectors:
+    - group: ""
+      kind: Service
+      matchLabels:
+        app: backend
+      sectionName: http
+  backend:
+    tls: {}
+---
 _err: 'may only target a Gateway or port, not a listener'
 apiVersion: agentgateway.dev/v1alpha1
 kind: AgentgatewayPolicy

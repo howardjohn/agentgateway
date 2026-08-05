@@ -66,7 +66,7 @@ spec:
                   `sectionName` indicating the listener), `ListenerSet`, `Route`
                   (optionally, with a `sectionName` indicating the route rule), or a
                   `Service` or `Backend` (optionally, with a `sectionName` indicating the
-                  port for `Service`, or sub-backend for `Backend`).
+                  numeric port for `Service`, or sub-backend for `Backend`).
 
                   Note that a backend policy applies when connecting to a specific destination backend. Targeting a higher level
                   resource, like `Gateway`, is just a way to easily apply a policy to a
@@ -10234,6 +10234,14 @@ spec:
               rule: 'has(self.targetSelectors) && has(self.traffic) && has(self.traffic.phase)
                 && self.traffic.phase == ''PreRouting'' ? self.targetSelectors.all(t,
                 t.kind in [''Gateway'', ''ListenerSet'']) : true'
+            - message: Service sectionName must be a numeric port from 1 to 65535
+              rule: '!has(self.targetRefs) || self.targetRefs.all(t, t.kind != ''Service''
+                || !has(t.sectionName) || (int(t.sectionName) >= 1 && int(t.sectionName)
+                <= 65535))'
+            - message: Service sectionName must be a numeric port from 1 to 65535
+              rule: '!has(self.targetSelectors) || self.targetSelectors.all(t, t.kind
+                != ''Service'' || !has(t.sectionName) || (int(t.sectionName) >= 1
+                && int(t.sectionName) <= 65535))'
             - message: exactly one of the fields in [targetRefs targetSelectors] must
                 be set
               rule: '[has(self.targetRefs),has(self.targetSelectors)].filter(x,x==true).size()

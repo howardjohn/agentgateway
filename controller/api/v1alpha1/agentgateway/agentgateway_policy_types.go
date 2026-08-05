@@ -67,6 +67,8 @@ type AgentgatewayPolicyList struct {
 // +kubebuilder:validation:XValidation:rule="has(self.traffic) && has(self.targetSelectors) ? self.targetSelectors.all(t, t.kind in ['Gateway', 'HTTPRoute', 'GRPCRoute', 'ListenerSet', 'InferencePool']) : true",message="the 'traffic' field can only target a Gateway, ListenerSet, GRPCRoute, HTTPRoute, or InferencePool"
 // +kubebuilder:validation:XValidation:rule="has(self.targetRefs) && has(self.traffic) && has(self.traffic.phase) && self.traffic.phase == 'PreRouting' ? self.targetRefs.all(t, t.kind in ['Gateway', 'ListenerSet']) : true",message="the 'traffic.phase=PreRouting' field can only target a Gateway or ListenerSet"
 // +kubebuilder:validation:XValidation:rule="has(self.targetSelectors) && has(self.traffic) && has(self.traffic.phase) && self.traffic.phase == 'PreRouting' ? self.targetSelectors.all(t, t.kind in ['Gateway', 'ListenerSet']) : true",message="the 'traffic.phase=PreRouting' field can only target a Gateway or ListenerSet"
+// +kubebuilder:validation:XValidation:rule="!has(self.targetRefs) || self.targetRefs.all(t, t.kind != 'Service' || !has(t.sectionName) || (int(t.sectionName) >= 1 && int(t.sectionName) <= 65535))",message="Service sectionName must be a numeric port from 1 to 65535"
+// +kubebuilder:validation:XValidation:rule="!has(self.targetSelectors) || self.targetSelectors.all(t, t.kind != 'Service' || !has(t.sectionName) || (int(t.sectionName) >= 1 && int(t.sectionName) <= 65535))",message="Service sectionName must be a numeric port from 1 to 65535"
 type AgentgatewayPolicySpec struct {
 	// Target resources to attach the
 	// policy to.
@@ -127,7 +129,7 @@ type AgentgatewayPolicySpec struct {
 	// `sectionName` indicating the listener), `ListenerSet`, `Route`
 	// (optionally, with a `sectionName` indicating the route rule), or a
 	// `Service` or `Backend` (optionally, with a `sectionName` indicating the
-	// port for `Service`, or sub-backend for `Backend`).
+	// numeric port for `Service`, or sub-backend for `Backend`).
 	//
 	// Note that a backend policy applies when connecting to a specific destination backend. Targeting a higher level
 	// resource, like `Gateway`, is just a way to easily apply a policy to a
