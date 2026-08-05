@@ -1738,7 +1738,7 @@ impl Drop for DropOnLog {
 					let total_tokens = llm_response.as_ref().and_then(|llm| {
 						llm
 							.total_tokens
-							.or_else(|| Some(llm.input_tokens? + llm.output_tokens?))
+							.or_else(|| Some(llm.input_tokens?.saturating_add(llm.output_tokens?)))
 					});
 					log_store::emit(log_store::StoredRequestLog {
 						id: uuid::Uuid::now_v7().to_string(),
@@ -2346,6 +2346,68 @@ mod tests {
 		let _ = tracer.provider.force_flush();
 
 		assert!(exporter.finished_spans().is_empty());
+	}
+
+	#[test]
+	fn llm_span_uses_cache_inclusive_input_tokens() {
+		let request = llm::LLMRequest {
+			input_tokens: None,
+			input_format: InputFormat::Messages,
+			cache_convention: llm::CacheTokenConvention::InputExcludesCache,
+			request_model: strng::literal!("claude"),
+			provider: strng::literal!("anthropic"),
+			streaming: false,
+			params: llm::LLMRequestParams::default(),
+			prompt: None,
+			provider_state: None,
+		};
+		let response = llm::LLMResponse {
+			input_tokens: Some(50),
+			cached_input_tokens: Some(40),
+			cache_creation_input_tokens: Some(10),
+			output_tokens: Some(20),
+			total_tokens: Some(70),
+			..Default::default()
+		};
+
+		let (tracer, exporter) = test_tracer();
+		let mut log = test_request_log();
+		log.tracer = Some(tracer.clone());
+		let mut outgoing = trc::TraceParent::new();
+		outgoing.flags = 1;
+		log.outgoing_span = Some(outgoing);
+		log.llm_request = Some(request.clone());
+		log
+			.llm_response
+			.store(Some(llm::LLMInfo::new(request, response)));
+
+		drop(DropOnLog::from(log));
+		let _ = tracer.provider.force_flush();
+
+		let spans = exporter.finished_spans();
+		let span = spans
+			.iter()
+			.find(|span| span.name.as_ref() == "unknown")
+			.expect("request span should be exported");
+		let value = |key: &str| {
+			span
+				.attributes
+				.iter()
+				.find(|attr| attr.key.as_str() == key)
+				.map(|attr| &attr.value)
+		};
+		assert_eq!(
+			value("gen_ai.usage.input_tokens"),
+			Some(&opentelemetry::Value::I64(100))
+		);
+		assert_eq!(
+			value("gen_ai.usage.cache_read.input_tokens"),
+			Some(&opentelemetry::Value::I64(40))
+		);
+		assert_eq!(
+			value("gen_ai.usage.cache_creation.input_tokens"),
+			Some(&opentelemetry::Value::I64(10))
+		);
 	}
 
 	#[tokio::test]

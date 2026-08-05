@@ -2756,7 +2756,8 @@ async fn custom_llm_provider_inference_routing_sees_input_shape_and_amends_token
 	);
 	assert_eq!(
 		amend_request.descriptors.first().unwrap().hits_addend,
-		Some(21015)
+		// 21 output tokens * 1000 + (15 provider input + 13 cache write + 12 cache read).
+		Some(21040)
 	);
 }
 
