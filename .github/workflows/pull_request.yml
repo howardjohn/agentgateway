@@ -162,10 +162,19 @@ jobs:
         toolchain: "${{ env.RUST_VERSION }}"
     - name: Restore source mtimes
       run: ./tools/git-restore-mtime --commit-time
+    # rust-cache includes nested .cargo/config.toml files in its exact cache key,
+    # but not in its fallback restore prefix. Keying this synthetic config by the
+    # crates/ Git tree makes Rust input changes update the cache, while changes
+    # elsewhere can exactly reuse it without another cache write.
+    - name: Set Rust cache generation
+      run: |
+        mkdir -p .github/rust-cache/.cargo
+        printf '# generation = %s\n' "$(git rev-parse HEAD:crates)" > .github/rust-cache/.cargo/config.toml
     - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       with:
-        # This is cheap to cache and can avoid rebuilding when Rust sources have not
-        # changed. It is best-effort because the cache key does not include sources.
+        # Workspace artifacts are cheap to cache and can avoid rebuilding when Rust
+        # inputs have not changed. Fallback restores remain best-effort because their
+        # prefix deliberately excludes the source generation above.
         cache-workspace-crates: true
         # Github cache will restore from 'main' OR the current branch.
         # If we cache PR branches, we may evict the 'main' cache and end up with no cache hits at all.
@@ -217,10 +226,16 @@ jobs:
         toolchain: "${{ env.RUST_VERSION }}"
     - name: Restore source mtimes
       run: ./tools/git-restore-mtime --commit-time
+    # Match the E2E job's exact and fallback cache keys so this job can share them.
+    - name: Set Rust cache generation
+      run: |
+        mkdir -p .github/rust-cache/.cargo
+        printf '# generation = %s\n' "$(git rev-parse HEAD:crates)" > .github/rust-cache/.cargo/config.toml
     - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       with:
-        # This is cheap to cache and can avoid rebuilding when Rust sources have not
-        # changed. It is best-effort because the cache key does not include sources.
+        # Workspace artifacts are cheap to cache and can avoid rebuilding when Rust
+        # inputs have not changed. Fallback restores remain best-effort because their
+        # prefix deliberately excludes the source generation above.
         cache-workspace-crates: true
         # We only read the cache from 'E2E' job, since they should have identical cache.
         save-if: "false"
