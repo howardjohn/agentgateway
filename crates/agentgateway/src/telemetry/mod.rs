@@ -33,9 +33,9 @@ impl<T: Send + 'static> Drop for NonBlockingDrop<T> {
 			return;
 		};
 		if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-			let _ = runtime.spawn_blocking(move || drop(value));
+			let _task = runtime.spawn_blocking(move || drop(value));
 		} else {
-			let _ = std::thread::spawn(move || drop(value));
+			let _thread = std::thread::spawn(move || drop(value));
 		}
 	}
 }
