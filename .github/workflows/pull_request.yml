@@ -68,6 +68,14 @@ jobs:
       run: make test
       env:
         KEYCLOAK_AVAILABLE: ${{ startsWith(matrix.os, 'blacksmith-') && '1' || '' }}
+        # Generate Cargo's per-crate build report for the artifact below.
+        TIMINGS: true
+    - name: Upload cargo timings
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      with:
+        name: cargo-timings-proxy-test-${{ runner.os }}
+        path: target/cargo-timings/cargo-timing*.html
+        retention-days: 2
     - name: Stop validation dependencies
       if: ${{ always() && startsWith(matrix.os, 'blacksmith-') }}
       run: tools/manage-validation-deps.sh stop
