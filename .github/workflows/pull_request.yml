@@ -25,6 +25,14 @@ env:
 jobs:
   #### Proxy jobs ####
   proxy-test:
+    env:
+      # Test binaries do not need debug symbols in CI. In particular, generating
+      # and linking MSVC PDBs accounts for a large part of the Windows build.
+      CARGO_PROFILE_TEST_DEBUG: 0
+      # This target-specific setting has no effect on the Linux and macOS matrix
+      # entries. lld-link is bundled with LLVM on the Windows runner and is much
+      # faster than the default MSVC linker for these large test executables.
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: lld-link.exe
     strategy:
       matrix:
         include:
