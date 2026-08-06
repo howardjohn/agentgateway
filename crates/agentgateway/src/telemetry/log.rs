@@ -1298,6 +1298,16 @@ impl Drop for DropOnLog {
 			let grpc = log.grpc_status.load();
 
 			let input_tokens = llm_response.as_ref().and_then(|l| l.input_tokens);
+			let time_to_first_token = llm_response
+				.as_ref()
+				.and_then(|l| l.time_to_first_token)
+				.and_then(|duration| duration.0.to_std().ok())
+				.map(|duration| duration.as_secs_f64());
+			let time_per_output_token = llm_response
+				.as_ref()
+				.and_then(|l| l.time_per_output_token)
+				.and_then(|duration| duration.0.to_std().ok())
+				.map(|duration| duration.as_secs_f64());
 			let cost = llm_response.as_ref().and_then(|l| l.cost.as_ref());
 			let usage_cost_total = cost.map(|b| b.total().to_string());
 			let trace_cost_fields = if enable_trace {
@@ -1509,6 +1519,14 @@ impl Drop for DropOnLog {
 						.as_ref()
 						.and_then(|l| l.output_tokens)
 						.map(Into::into),
+				),
+				(
+					"agw.ai.time_to_first_token",
+					time_to_first_token.map(Into::into),
+				),
+				(
+					"agw.ai.time_per_output_token",
+					time_per_output_token.map(Into::into),
 				),
 				(
 					"agw.ai.usage.cost.total",
