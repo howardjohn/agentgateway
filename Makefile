@@ -99,13 +99,13 @@ fix-lint:
 # test
 .PHONY: test
 test:
-	# Unlike --all-targets, these selectors honor test = false on binaries while
-	# still covering library/integration tests, examples, and benchmarks.
-	cargo test --tests --benches --examples $(if $(TIMINGS),--timings)
+	# This covers library unit tests and integration tests while avoiding the
+	# benchmark and example targets that are not retained by rust-cache.
+	cargo test --tests $(if $(TIMINGS),--timings)
 
 .PHONY: test-release
 test-release:
-	cargo test --profile quick-release --tests --benches --examples $(if $(TIMINGS),--timings)
+	cargo test --profile quick-release --tests $(if $(TIMINGS),--timings)
 
 .PHONY: check-default-members
 check-default-members:
