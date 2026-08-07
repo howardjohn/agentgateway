@@ -12,6 +12,7 @@
     "typecheck": "npm run generate-schema && tsc -b",
     "preview": "vite preview --host 0.0.0.0 --port 19001",
     "generate-schema": "node scripts/generate-schema.mjs",
+    "preview:e2e": "VITE_BASE_PATH=/ VITE_E2E=true vite build && vite preview --host 127.0.0.1 --port 19100",
     "test:e2e": "playwright test"
   },
   "dependencies": {

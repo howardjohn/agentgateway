@@ -114,6 +114,15 @@ jobs:
       run: |
         npm ci
         npm run lint
+    - name: End-to-end tests
+      run: npm run test:e2e
+    - name: Upload Playwright traces
+      if: failure()
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      with:
+        name: playwright-ui-traces
+        path: ui/test-results
+        retention-days: 2
 
   #### Controller jobs ####
   controller-test:
