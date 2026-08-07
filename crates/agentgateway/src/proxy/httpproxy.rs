@@ -131,20 +131,24 @@ pub fn apply_logging_policy_to_log(log: &mut RequestLog, lp: &frontend::LoggingP
 			log.cel.fields.clone()
 		};
 	}
-	if let Some(database) = &lp.database
-		&& !database.add.is_empty()
-	{
-		log.cel.database_fields.add = Arc::new(
-			log
-				.cel
-				.database_fields
-				.add
-				.iter()
-				.filter(|(key, _)| !database.add.contains_key(key))
-				.chain(database.add.iter())
-				.map(|(key, value)| (key.clone(), value.clone()))
-				.collect(),
-		);
+	if let Some(database) = &lp.database {
+		log.database_llm = database.llm;
+		if database.llm == Some(frontend::DatabaseLlmMode::Full) {
+			log.cel.ctx().register_log_llm_payload();
+		}
+		if !database.add.is_empty() {
+			log.cel.database_fields.add = Arc::new(
+				log
+					.cel
+					.database_fields
+					.add
+					.iter()
+					.filter(|(key, _)| !database.add.contains_key(key))
+					.chain(database.add.iter())
+					.map(|(key, value)| (key.clone(), value.clone()))
+					.collect(),
+			);
+		}
 	}
 }
 

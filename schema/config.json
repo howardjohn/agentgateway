@@ -9656,6 +9656,17 @@
     "DatabaseLoggingConfig": {
       "type": "object",
       "properties": {
+        "llm": {
+          "description": "LLM detail stored in the database. `metadata` stores request metadata, usage, timing, and\ncost without prompt or completion content in the dedicated payload table. `full`\nadditionally captures and stores prompt and completion content there. When omitted, legacy\nbehavior is preserved: content captured by CEL expressions is also stored in the payload.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DatabaseLlmMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "add": {
           "description": "Database-only fields to add, computed from CEL expressions.",
           "type": "object",
@@ -9665,6 +9676,20 @@
         }
       },
       "additionalProperties": false
+    },
+    "DatabaseLlmMode": {
+      "oneOf": [
+        {
+          "description": "Store LLM metadata without prompt or completion content.",
+          "type": "string",
+          "const": "metadata"
+        },
+        {
+          "description": "Store LLM metadata and prompt/completion content.",
+          "type": "string",
+          "const": "full"
+        }
+      ]
     },
     "TracingConfig": {
       "description": "Configuration for dynamic tracing policy",

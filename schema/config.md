@@ -17047,6 +17047,7 @@
 |`frontendPolicies.accessLog.otlp.protocol`|enum|OTLP protocol used to export logs.<br>Possible values: `grpc`, `http`.|
 |`frontendPolicies.accessLog.otlp.path`|string|OTLP HTTP path used to export logs.|
 |`frontendPolicies.accessLog.database`|object|Database-specific access log settings.|
+|`frontendPolicies.accessLog.database.llm`|enum|LLM detail stored in the database. `metadata` stores request metadata, usage, timing, and<br>cost without prompt or completion content in the dedicated payload table. `full`<br>additionally captures and stores prompt and completion content there. When omitted, legacy<br>behavior is preserved: content captured by CEL expressions is also stored in the payload.<br>Possible values: `metadata`, `full`.|
 |`frontendPolicies.accessLog.database.add`|object|Database-only fields to add, computed from CEL expressions.|
 |`frontendPolicies.logging`|object|Settings for request access logs.|
 |`frontendPolicies.logging.filter`|string|CEL expression that decides whether a request is logged.|
@@ -17331,6 +17332,7 @@
 |`frontendPolicies.logging.otlp.protocol`|enum|OTLP protocol used to export logs.<br>Possible values: `grpc`, `http`.|
 |`frontendPolicies.logging.otlp.path`|string|OTLP HTTP path used to export logs.|
 |`frontendPolicies.logging.database`|object|Database-specific access log settings.|
+|`frontendPolicies.logging.database.llm`|enum|LLM detail stored in the database. `metadata` stores request metadata, usage, timing, and<br>cost without prompt or completion content in the dedicated payload table. `full`<br>additionally captures and stores prompt and completion content there. When omitted, legacy<br>behavior is preserved: content captured by CEL expressions is also stored in the payload.<br>Possible values: `metadata`, `full`.|
 |`frontendPolicies.logging.database.add`|object|Database-only fields to add, computed from CEL expressions.|
 |`frontendPolicies.tracing`|object|Settings for exporting request traces.|
 |`frontendPolicies.tracing.service`|object|Service reference. Service must be defined in the top level services list.|

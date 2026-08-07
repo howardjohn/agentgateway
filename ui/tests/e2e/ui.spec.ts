@@ -41,6 +41,75 @@ test("core pages render with mocked gateway data", async ({ page }) => {
   }
 });
 
+test("log settings migrate prompt logging to the database LLM mode", async ({
+  page,
+}) => {
+  const config = populatedConfig();
+  config.frontendPolicies = {
+    accessLog: {
+      add: {
+        "gen_ai.prompt": "llm.prompt",
+        "gen_ai.completion":
+          'llm.completion.map(c, {"role":"assistant", "content": c})',
+        trace: "request.id",
+      },
+      database: {
+        add: {
+          "gen_ai.prompt": "llm.prompt",
+          "gen_ai.completion":
+            'llm.completion.map(c, {"role":"assistant", "content": c})',
+          tenant: "jwt.sub",
+        },
+      },
+    },
+  };
+  const gateway = await mockGateway(page, config);
+
+  await page.goto("/llm/logs");
+  await page.getByRole("button", { name: "Settings" }).click();
+  const fullLogging = page.getByRole("checkbox", {
+    name: /Include prompts and completions in logs/,
+  });
+  await expect(fullLogging).toBeChecked();
+
+  await fullLogging.uncheck();
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect.poll(() => gateway.postedConfigs.length).toBe(1);
+  expect(gateway.postedConfigs[0].frontendPolicies).toEqual({
+    accessLog: {
+      add: {
+        "gen_ai.prompt": "llm.prompt",
+        "gen_ai.completion":
+          'llm.completion.map(c, {"role":"assistant", "content": c})',
+        trace: "request.id",
+      },
+      database: {
+        llm: "metadata",
+        add: { tenant: "jwt.sub" },
+      },
+    },
+  });
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await fullLogging.check();
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect.poll(() => gateway.postedConfigs.length).toBe(2);
+  expect(gateway.postedConfigs[1].frontendPolicies).toEqual({
+    accessLog: {
+      add: {
+        "gen_ai.prompt": "llm.prompt",
+        "gen_ai.completion":
+          'llm.completion.map(c, {"role":"assistant", "content": c})',
+        trace: "request.id",
+      },
+      database: {
+        llm: "full",
+        add: { tenant: "jwt.sub" },
+      },
+    },
+  });
+});
+
 test("onboards all surfaces from a completely empty config", async ({
   page,
 }) => {

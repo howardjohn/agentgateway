@@ -65,6 +65,30 @@ struct DatabaseAttributes {
 	user_agent_name: Option<String>,
 }
 
+fn database_llm_payload(
+	mode: Option<crate::types::frontend::DatabaseLlmMode>,
+	info: Option<&LLMContext>,
+) -> Option<log_store::StoredRequestLogPayload> {
+	if mode == Some(crate::types::frontend::DatabaseLlmMode::Metadata) {
+		return None;
+	}
+	let info = info?;
+	let request_prompt_json = info
+		.prompt
+		.as_ref()
+		.and_then(|prompt| serde_json::to_value(prompt.as_ref()).ok());
+	let response_completion_json = info
+		.completion
+		.as_ref()
+		.and_then(|completion| serde_json::to_value(completion).ok());
+	(request_prompt_json.is_some() || response_completion_json.is_some()).then_some(
+		log_store::StoredRequestLogPayload {
+			request_prompt_json,
+			response_completion_json,
+		},
+	)
+}
+
 fn database_attributes(kv: &[(&str, Option<ValueBag>)]) -> DatabaseAttributes {
 	let mut agentgateway_user = None;
 	let mut agentgateway_group = None;
@@ -894,6 +918,7 @@ impl RequestLog {
 	) -> Self {
 		RequestLog {
 			cel,
+			database_llm: Default::default(),
 			metrics,
 			model_catalog,
 			start,
@@ -1028,6 +1053,10 @@ impl RequestLog {
 #[derive(Debug)]
 pub struct RequestLog {
 	pub cel: CelLogging,
+	/// Controls whether normalized LLM prompt/completion content is persisted in the database's
+	/// dedicated payload table. `None` preserves the legacy behavior of persisting content captured
+	/// by CEL expressions. This is independent from CEL attribute capture.
+	pub database_llm: Option<crate::types::frontend::DatabaseLlmMode>,
 	pub metrics: Arc<Metrics>,
 	pub model_catalog: Arc<ModelCatalog>,
 	pub start: Timestamp,
@@ -1736,22 +1765,7 @@ impl Drop for DropOnLog {
 						}
 					}
 					let attributes = database_attributes(&db_kv);
-					let payload = llm_response.as_ref().and_then(|info| {
-						let request_prompt_json = info
-							.prompt
-							.as_ref()
-							.and_then(|prompt| serde_json::to_value(prompt.as_ref()).ok());
-						let response_completion_json = info
-							.completion
-							.as_ref()
-							.and_then(|completion| serde_json::to_value(completion).ok());
-						(request_prompt_json.is_some() || response_completion_json.is_some()).then_some(
-							log_store::StoredRequestLogPayload {
-								request_prompt_json,
-								response_completion_json,
-							},
-						)
-					});
+					let payload = database_llm_payload(log.database_llm, llm_response.as_ref());
 					let has_payload = payload.is_some();
 					let total_tokens = llm_response.as_ref().and_then(|llm| {
 						llm
@@ -2246,6 +2260,7 @@ mod tests {
 	use crate::telemetry::metrics::Metrics;
 	use crate::telemetry::trc;
 	use crate::transport::stream::TCPConnectionInfo;
+	use crate::types::frontend::{DatabaseLlmMode, LoggingPolicy};
 
 	#[derive(Clone, Debug, Default)]
 	struct RecordingSpanExporter {
@@ -2309,6 +2324,109 @@ mod tests {
 				raw_peer_addr: None,
 			},
 		)
+	}
+
+	fn llm_context_with_content() -> LLMContext {
+		let request = llm::LLMRequest {
+			input_tokens: None,
+			input_format: llm::InputFormat::Responses,
+			cache_convention: Default::default(),
+			request_model: "test-model".into(),
+			provider: "test-provider".into(),
+			streaming: false,
+			params: Default::default(),
+			prompt: Some(Arc::new(vec![llm::SimpleChatCompletionMessage {
+				role: "user".into(),
+				content: "hello".into(),
+			}])),
+			provider_state: None,
+		};
+		let mut context = LLMContext::from(request);
+		context.completion = Some(vec!["world".to_string()]);
+		context
+	}
+
+	#[test]
+	fn database_llm_omitted_preserves_legacy_payload_without_capture_requirements() {
+		let policy: LoggingPolicy = serde_json::from_value(serde_json::json!({
+			"database": {}
+		}))
+		.unwrap();
+		let mut log = test_request_log();
+
+		crate::proxy::httpproxy::apply_logging_policy_to_log(&mut log, &policy);
+
+		assert_eq!(log.database_llm, None);
+		assert!(!log.cel.cel_context.needs_llm_prompt());
+		assert!(!log.cel.cel_context.needs_llm_completion());
+		assert!(database_llm_payload(None, Some(&llm_context_with_content())).is_some());
+	}
+
+	#[test]
+	fn database_llm_full_enables_capture_requirements() {
+		let policy: LoggingPolicy = serde_json::from_value(serde_json::json!({
+			"database": {"llm": "full"}
+		}))
+		.unwrap();
+		let mut log = test_request_log();
+
+		crate::proxy::httpproxy::apply_logging_policy_to_log(&mut log, &policy);
+
+		assert_eq!(log.database_llm, Some(DatabaseLlmMode::Full));
+		assert!(log.cel.cel_context.needs_llm_prompt());
+		assert!(log.cel.cel_context.needs_llm_completion());
+	}
+
+	#[test]
+	fn database_llm_metadata_does_not_persist_captured_content() {
+		let context = llm_context_with_content();
+		assert!(database_llm_payload(Some(DatabaseLlmMode::Metadata), Some(&context)).is_none());
+	}
+
+	#[test]
+	fn database_add_can_capture_content_without_enabling_payload_storage() {
+		let policy: LoggingPolicy = serde_json::from_value(serde_json::json!({
+			"database": {
+				"llm": "metadata",
+				"add": {"my.prompt": "llm.prompt"}
+			}
+		}))
+		.unwrap();
+		let mut log = test_request_log();
+		let database = policy.database.as_ref().unwrap();
+		for expression in database.add.values_unordered() {
+			log
+				.cel
+				.cel_context
+				.register_log_expression(expression.as_ref());
+		}
+
+		crate::proxy::httpproxy::apply_logging_policy_to_log(&mut log, &policy);
+
+		assert!(log.cel.cel_context.needs_llm_prompt());
+		assert!(!log.cel.cel_context.needs_llm_completion());
+		assert!(log.cel.database_fields.add.contains_key("my.prompt"));
+		assert!(
+			database_llm_payload(
+				Some(DatabaseLlmMode::Metadata),
+				Some(&llm_context_with_content())
+			)
+			.is_none()
+		);
+	}
+
+	#[test]
+	fn database_llm_full_persists_content_in_payload_only() {
+		let context = llm_context_with_content();
+		let payload = database_llm_payload(Some(DatabaseLlmMode::Full), Some(&context)).unwrap();
+		assert_eq!(
+			payload.request_prompt_json,
+			Some(serde_json::json!([{"role": "user", "content": "hello"}]))
+		);
+		assert_eq!(
+			payload.response_completion_json,
+			Some(serde_json::json!(["world"]))
+		);
 	}
 
 	#[test]

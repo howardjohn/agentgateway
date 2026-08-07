@@ -542,8 +542,8 @@ function LogsSettingsDrawer(props: {
         <span>
           <strong>Include prompts and completions in logs</strong>
           <small>
-            Adds `gen_ai.prompt` and `gen_ai.completion` attributes to access
-            logs.
+            Stores prompt and completion content in the database payload.
+            Metadata, usage, timing, and cost are always logged.
           </small>
         </span>
       </label>
