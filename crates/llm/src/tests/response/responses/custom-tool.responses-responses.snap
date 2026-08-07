@@ -10,7 +10,7 @@ info:
       id: ctc_123
       call_id: call_123
       name: exec
-      input: "const r = await tools.exec_command({cmd:\"echo\"}); text(r.output);"
+      input: "{\"cmd\":\"echo\"}"
   usage:
     input_tokens: 10
     input_tokens_details:
@@ -28,7 +28,7 @@ info:
       {
         "type": "custom_tool_call",
         "call_id": "call_123",
-        "input": "const r = await tools.exec_command({cmd:\"echo\"}); text(r.output);",
+        "input": "{\"cmd\":\"echo\"}",
         "name": "exec",
         "id": "[id]"
       }
@@ -61,7 +61,9 @@ info:
             "type": "tool_call",
             "id": "call_123",
             "name": "exec",
-            "arguments": "const r = await tools.exec_command({cmd:\"echo\"}); text(r.output);"
+            "arguments": {
+              "cmd": "echo"
+            }
           }
         ],
         "finish_reason": "completed"

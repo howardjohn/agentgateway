@@ -491,11 +491,14 @@ pub(crate) fn output_item_tool_call_part(item: &OutputItem) -> Option<OutputMess
 			};
 			(&call.call_id, &call.name, arguments)
 		},
-		OutputItem::CustomToolCall(call) => (
-			&call.call_id,
-			&call.name,
-			serde_json::Value::String(call.input.clone()),
-		),
+		OutputItem::CustomToolCall(call) => {
+			let arguments = match serde_json::from_str(&call.input) {
+				Ok(arguments) => arguments,
+				Err(_) if call.input.trim().is_empty() => serde_json::Value::Object(Default::default()),
+				Err(_) => serde_json::Value::String(call.input.clone()),
+			};
+			(&call.call_id, &call.name, arguments)
+		},
 		_ => return None,
 	};
 	Some(OutputMessagePart::ToolCall {
