@@ -1,13 +1,18 @@
 name: Controller build cache
-description: Set up Rust and Go toolchains and restore source-aware controller build caches
+description: Set up Go and optional Rust toolchains and restore source-aware controller build caches
 
 inputs:
   rust-version:
     description: Rust toolchain version
-    required: true
+    required: false
+    default: ""
   go-version:
     description: Go toolchain version
     required: true
+  go-cache-name:
+    description: Namespace for the Go build cache
+    required: false
+    default: controller-e2e
   save:
     description: Save missing caches after a successful job
     required: false
@@ -17,6 +22,7 @@ runs:
   using: composite
   steps:
   - name: Check runner info
+    if: ${{ inputs.rust-version != '' }}
     shell: bash
     run: |
       cat /sys/fs/cgroup/cpu.stat || true
@@ -29,6 +35,7 @@ runs:
     run: echo "$GITHUB_WORKSPACE/tools" >> "$GITHUB_PATH"
 
   - name: Set up Rust build cache
+    if: ${{ inputs.rust-version != '' }}
     uses: ./.github/actions/rust-build-cache
     with:
       rust-version: ${{ inputs.rust-version }}
@@ -98,10 +105,10 @@ runs:
     uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
     with:
       path: ${{ steps.go-cache-keys.outputs.build }}
-      key: go-build-controller-e2e-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-${{ steps.go-cache-keys.outputs.dependencies }}-${{ steps.go-cache-keys.outputs.source }}
+      key: go-build-${{ inputs.go-cache-name }}-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-${{ steps.go-cache-keys.outputs.dependencies }}-${{ steps.go-cache-keys.outputs.source }}
       restore-keys: |
-        go-build-controller-e2e-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-${{ steps.go-cache-keys.outputs.dependencies }}-
-        go-build-controller-e2e-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-
+        go-build-${{ inputs.go-cache-name }}-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-${{ steps.go-cache-keys.outputs.dependencies }}-
+        go-build-${{ inputs.go-cache-name }}-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-
 
   - name: Restore read-only Go build cache
     if: ${{ inputs.save != 'true' }}
@@ -109,10 +116,10 @@ runs:
     uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
     with:
       path: ${{ steps.go-cache-keys.outputs.build }}
-      key: go-build-controller-e2e-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-${{ steps.go-cache-keys.outputs.dependencies }}-${{ steps.go-cache-keys.outputs.source }}
+      key: go-build-${{ inputs.go-cache-name }}-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-${{ steps.go-cache-keys.outputs.dependencies }}-${{ steps.go-cache-keys.outputs.source }}
       restore-keys: |
-        go-build-controller-e2e-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-${{ steps.go-cache-keys.outputs.dependencies }}-
-        go-build-controller-e2e-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-
+        go-build-${{ inputs.go-cache-name }}-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-${{ steps.go-cache-keys.outputs.dependencies }}-
+        go-build-${{ inputs.go-cache-name }}-v0-${{ runner.os }}-${{ runner.arch }}-${{ inputs.go-version }}-
 
   - name: Show Go cache results
     shell: bash
