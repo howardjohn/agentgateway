@@ -9751,6 +9751,7 @@ spec:
                                           Allowance of requests above the request-per-unit
                                           that should be allowed within a short period of time.
                                         format: int32
+                                        minimum: 0
                                         type: integer
                                       requests:
                                         description: |-
@@ -9981,6 +9982,7 @@ spec:
                                 Allowance of requests above the request-per-unit
                                 that should be allowed within a short period of time.
                               format: int32
+                              minimum: 0
                               type: integer
                             requests:
                               description: |-

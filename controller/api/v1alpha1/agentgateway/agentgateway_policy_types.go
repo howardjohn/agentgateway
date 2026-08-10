@@ -3189,6 +3189,7 @@ type LocalRateLimit struct {
 
 	// Allowance of requests above the request-per-unit
 	// that should be allowed within a short period of time.
+	// +kubebuilder:validation:Minimum=0
 	// +optional
 	Burst *int32 `json:"burst,omitempty"`
 }
