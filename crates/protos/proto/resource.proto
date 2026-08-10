@@ -963,10 +963,18 @@ message TrafficPolicySpec {
       REQUEST = 0;
       TOKEN = 1;
     }
+    message Rule {
+      uint64 max_tokens = 1;
+      uint64 tokens_per_fill = 2;
+      google.protobuf.Duration fill_interval = 3;
+      Type type = 4;
+    }
+    // The singular fields contain the first rule for compatibility with older data planes.
     uint64 max_tokens = 1;
     uint64 tokens_per_fill = 2;
     google.protobuf.Duration fill_interval = 3;
     Type type = 4;
+    repeated Rule rules = 5;
   }
   message ExternalAuth {
     enum FailureMode {
