@@ -153,9 +153,9 @@ pub enum LocalJwtConfig {
 		/// Where to read the JWT from in incoming requests.
 		#[cfg_attr(feature = "schema", schemars(default))]
 		location: AuthorizationLocation,
-		/// Expected token issuer, matched against the JWT `iss` claim.
+		/// Expected token issuer. The JWT `iss` claim is required and must match.
 		issuer: String,
-		/// Accepted token audiences, matched against the JWT `aud` claim when set.
+		/// Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.
 		audiences: Option<Vec<String>>,
 		/// JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.
 		jwks: serdes::FileInlineOrRemote,
@@ -220,9 +220,9 @@ impl<'de> Deserialize<'de> for LocalJwtConfig {
 
 #[apply(schema_de!)]
 pub struct ProviderConfig {
-	/// Expected token issuer, matched against the JWT `iss` claim.
+	/// Expected token issuer. The JWT `iss` claim is required and must match.
 	pub issuer: String,
-	/// Accepted token audiences, matched against the JWT `aud` claim when set.
+	/// Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.
 	pub audiences: Option<Vec<String>>,
 	/// JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.
 	pub jwks: serdes::FileInlineOrRemote,
@@ -254,9 +254,10 @@ pub enum Mode {
 /// claims such as `iat` and `jti` are **not** enforced by the underlying
 /// `jsonwebtoken` library and will be silently ignored.
 ///
-/// This only enforces **presence**. Standard claims like `exp` and `nbf`
-/// have their values validated independently (e.g., expiry is always checked
-/// when the `exp` claim is present, regardless of this setting).
+/// This only enforces **presence**. A configured issuer and non-empty audience
+/// list independently require `iss` and `aud`, respectively. Standard claims
+/// like `exp` and `nbf` have their values validated independently (e.g., expiry
+/// is always checked when the `exp` claim is present, regardless of this setting).
 ///
 /// Defaults to `["exp"]`.
 #[derive(Eq, PartialEq)]
@@ -265,7 +266,8 @@ pub struct JWTValidationOptions {
 	/// Claims that must be present in the token before validation.
 	/// Only "exp", "nbf", "aud", "iss", "sub" are enforced; others
 	/// (including "iat" and "jti") are ignored.
-	/// Defaults to ["exp"]. Use an empty list to require no claims.
+	/// Defaults to ["exp"]. Use an empty list to add no claim requirements beyond
+	/// those implied by the configured issuer and audiences.
 	#[serde(default = "default_required_claims")]
 	pub required_claims: HashSet<String>,
 }
@@ -430,18 +432,19 @@ impl Provider {
 			// The new() requires 1 algorithm, so just pass the first before we override it
 			let mut validation = Validation::new(*supported_algorithms.first().unwrap());
 			validation.algorithms = supported_algorithms;
-			// only set audience if audiences were provided
-			// otherwise, disable audience validation
-			if let Some(audiences) = &audiences {
+			// Override required_spec_claims with the user-configured set. A configured
+			// issuer or audience also implies that the corresponding claim must exist;
+			// otherwise there is nothing to match against the configured value.
+			// validate_exp remains true, so exp is still validated if present.
+			validation.required_spec_claims = jwt_validation_options.required_claims.clone();
+			validation.set_issuer(std::slice::from_ref(&issuer));
+			validation.required_spec_claims.insert("iss".to_owned());
+			if let Some(audiences) = audiences.as_ref().filter(|audiences| !audiences.is_empty()) {
 				validation.set_audience(audiences);
+				validation.required_spec_claims.insert("aud".to_owned());
 			} else {
 				validation.validate_aud = false;
 			}
-			validation.set_issuer(std::slice::from_ref(&issuer));
-
-			// Override required_spec_claims with the user-configured set.
-			// validate_exp remains true, so exp is still validated if present.
-			validation.required_spec_claims = jwt_validation_options.required_claims.clone();
 
 			keys.insert(
 				kid,
