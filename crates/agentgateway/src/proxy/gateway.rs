@@ -1011,7 +1011,7 @@ impl Gateway {
 		bind_name: BindKey,
 		inputs: Arc<ProxyInputs>,
 		selected_listener: Option<Arc<Listener>>,
-		stream: Socket,
+		mut stream: Socket,
 		_drain: DrainWatcher,
 	) {
 		let selected_listener = match selected_listener {
@@ -1027,6 +1027,25 @@ impl Gateway {
 				selected_listener
 			},
 		};
+		let tcp = stream.tcp();
+		let unverified_workload = crate::cel::WorkloadContext::from_stores(
+			&inputs.stores,
+			&inputs.cfg.network,
+			tcp.peer_addr.ip(),
+		);
+		let mut source = crate::cel::SourceContext::from_tcp_connection(
+			tcp,
+			stream
+				.ext::<TLSConnectionInfo>()
+				.and_then(|tls| tls.src_identity.clone()),
+			unverified_workload,
+		);
+		if let Some(headers) = stream.ext_mut().remove::<ConnectHeaders>() {
+			source.connect_headers = headers.0;
+		} else if let Some(existing) = stream.ext::<crate::cel::SourceContext>() {
+			source.connect_headers = existing.connect_headers.clone();
+		}
+		stream.ext_mut().insert(source);
 		let target_address = stream.target_address();
 		let proxy = super::tcpproxy::TCPProxy {
 			bind_name,

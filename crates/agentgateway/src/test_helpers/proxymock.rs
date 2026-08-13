@@ -283,7 +283,7 @@ pub fn basic_named_tcp_route(target: Strng) -> TCPRoute {
 		hostnames: Default::default(),
 		backends: vec![TCPRouteBackendReference {
 			weight: 1,
-			backend: SimpleBackendReference::Backend(target),
+			backend: BackendReference::Backend(target),
 			inline_policies: Default::default(),
 		}],
 	}

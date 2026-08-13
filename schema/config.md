@@ -15227,6 +15227,8 @@
 |`binds[].listeners[].tcpRoutes[].backends[].service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`binds[].listeners[].tcpRoutes[].backends[].service.port`|integer|Port on the target Service to route to.|
 |`binds[].listeners[].tcpRoutes[].backends[].host`|string|Hostname or IP address|
+|`binds[].listeners[].tcpRoutes[].backends[].dynamic`|object|Resolve the dial target from downstream TLS SNI and the original destination port.|
+|`binds[].listeners[].tcpRoutes[].backends[].dynamic.target`|string|CEL expression evaluated against TCP connection context to compute a<br>`host:port` dial target. Available fields include `source.*` and<br>`destination.*`; for TLS, `destination.hostname` is the sniffed SNI.|
 |`binds[].listeners[].tcpRoutes[].backends[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`binds[].listeners[].tcpRoutes[].backends[].weight`|integer|Relative weight for load balancing across TCP backends. Defaults to 1.|
 |`binds[].listeners[].tcpRoutes[].backends[].policies`|object|Backend-level policies for TCP backends, such as TLS, authentication, and tunneling.|
@@ -65836,6 +65838,8 @@
 |`tcpRoutes[].backends[].service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`tcpRoutes[].backends[].service.port`|integer|Port on the target Service to route to.|
 |`tcpRoutes[].backends[].host`|string|Hostname or IP address|
+|`tcpRoutes[].backends[].dynamic`|object|Resolve the dial target from downstream TLS SNI and the original destination port.|
+|`tcpRoutes[].backends[].dynamic.target`|string|CEL expression evaluated against TCP connection context to compute a<br>`host:port` dial target. Available fields include `source.*` and<br>`destination.*`; for TLS, `destination.hostname` is the sniffed SNI.|
 |`tcpRoutes[].backends[].backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
 |`tcpRoutes[].backends[].weight`|integer|Relative weight for load balancing across TCP backends. Defaults to 1.|
 |`tcpRoutes[].backends[].policies`|object|Backend-level policies for TCP backends, such as TLS, authentication, and tunneling.|

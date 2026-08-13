@@ -8893,12 +8893,37 @@
           "type": "object",
           "properties": {
             "host": {
-              "description": "Hostname or IP address",
               "type": "string"
             }
           },
           "required": [
             "host"
+          ]
+        },
+        {
+          "description": "Resolve the dial target from downstream TLS SNI and the original destination port.",
+          "type": "object",
+          "properties": {
+            "dynamic": {
+              "type": "object",
+              "properties": {
+                "target": {
+                  "description": "CEL expression evaluated against TCP connection context to compute a\n`host:port` dial target. Available fields include `source.*` and\n`destination.*`; for TLS, `destination.hostname` is the sniffed SNI.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Expression"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "dynamic"
           ]
         },
         {

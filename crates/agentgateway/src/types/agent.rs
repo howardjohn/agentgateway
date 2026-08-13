@@ -1038,7 +1038,11 @@ pub struct TCPRoute {
 pub struct TCPRouteBackendReference {
 	#[serde(default = "default_weight")]
 	pub weight: usize,
-	pub backend: SimpleBackendReference,
+	#[cfg_attr(
+		feature = "schema",
+		schemars(with = "crate::types::local::LocalTCPBackend")
+	)]
+	pub backend: BackendReference,
 	// Inline policies ("filters") of the route backend
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	#[cfg_attr(feature = "schema", schemars(with = "Vec<serde_json::Value>"))]
@@ -1050,7 +1054,7 @@ pub struct TCPRouteBackendReference {
 pub struct TCPRouteBackend {
 	#[serde(default = "default_weight")]
 	pub weight: usize,
-	pub backend: SimpleBackendWithPolicies,
+	pub backend: BackendWithPolicies,
 	// Inline policies ("filters") of the route backend
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub inline_policies: Vec<BackendTrafficPolicy>,

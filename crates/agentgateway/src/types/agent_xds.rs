@@ -1516,7 +1516,7 @@ impl TCPRoute {
 				.iter()
 				.map(|b| TCPRouteBackendReference {
 					weight: b.weight as usize,
-					backend: resolve_simple_reference(b.backend.as_ref()),
+					backend: resolve_reference(b.backend.as_ref()),
 					inline_policies: Vec::new(),
 				})
 				.collect::<Vec<_>>(),

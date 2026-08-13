@@ -2045,7 +2045,7 @@ pub struct LocalTCPRouteBackend {
 	#[serde(default = "default_weight")]
 	pub weight: usize,
 	#[serde(flatten)]
-	pub backend: SimpleLocalBackend,
+	pub backend: LocalTCPBackend,
 	/// Backend-level policies for TCP backends, such as TLS, authentication, and tunneling.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub policies: Option<LocalTCPBackendPolicies>,
@@ -2128,6 +2128,54 @@ impl SimpleLocalBackend {
 			SimpleLocalBackend::Opaque(tgt) => Some(Backend::Opaque(name, tgt.clone())),
 			SimpleLocalBackend::Invalid => Some(Backend::Invalid),
 		}
+	}
+}
+
+#[apply(schema_de!)]
+pub enum LocalTCPBackend {
+	/// Service reference. Service must be defined in the top level services list.
+	Service {
+		/// Name of the target Service, as defined in the top-level `services` list.
+		name: NamespacedHostname,
+		/// Port on the target Service to route to.
+		port: u16,
+	},
+	/// Hostname or IP address
+	#[serde(rename = "host")]
+	Opaque(Target),
+	/// Resolve the dial target from downstream TLS SNI and the original destination port.
+	Dynamic {
+		/// CEL expression evaluated against TCP connection context to compute a
+		/// `host:port` dial target. Available fields include `source.*` and
+		/// `destination.*`; for TLS, `destination.hostname` is the sniffed SNI.
+		#[serde(default, skip_serializing_if = "Option::is_none")]
+		target: Option<Arc<crate::cel::Expression>>,
+	},
+	Backend(
+		/// Explicit backend reference. Backend must be defined in the top level backends list
+		BackendKey,
+	),
+	#[serde(skip_deserializing)]
+	#[cfg_attr(feature = "schema", schemars(skip))]
+	Invalid,
+}
+
+impl LocalTCPBackend {
+	fn as_backend(
+		&self,
+		name: ResourceName,
+		policies: Vec<BackendTrafficPolicy>,
+	) -> Option<BackendWithPolicies> {
+		let backend = match self {
+			LocalTCPBackend::Service { .. } | LocalTCPBackend::Backend(_) => return None,
+			LocalTCPBackend::Opaque(target) => Backend::Opaque(name, target.clone()),
+			LocalTCPBackend::Dynamic { target } => Backend::Dynamic(name, target.clone()),
+			LocalTCPBackend::Invalid => Backend::Invalid,
+		};
+		Some(BackendWithPolicies {
+			backend,
+			inline_policies: policies,
+		})
 	}
 }
 
@@ -3302,16 +3350,17 @@ fn validate_local_listener_ports(config: &LocalConfig) -> anyhow::Result<()> {
 				let protocol = effective_gateway_protocol(listener.protocol, listener.tls.is_some())
 					.with_context(|| format!("gateways.{gateway_name}.listeners[{idx}]"))?;
 				let kind = gateway_route_kind(protocol);
-				if let Some(existing_kind) = listener_kind
-					&& existing_kind != kind
-				{
-					bail!("gateway listeners on port {port} cannot mix HTTP and TCP protocols");
-				}
-				listener_kind = Some(kind);
 				let tls = matches!(
 					protocol,
 					LocalGatewayProtocol::HTTPS | LocalGatewayProtocol::TLS
 				);
+				if let Some(existing_kind) = listener_kind
+					&& existing_kind != kind
+					&& !tls
+				{
+					bail!("gateway listeners on port {port} cannot mix HTTP and TCP protocols");
+				}
+				listener_kind = Some(kind);
 				if let Some(existing_tls) = listener_tls
 					&& existing_tls != tls
 				{
@@ -5324,14 +5373,15 @@ async fn convert_tcp_route(
 			None => Vec::new(),
 		};
 		let bref = match &b.backend {
-			SimpleLocalBackend::Service { name, port } => SimpleBackendReference::Service {
+			LocalTCPBackend::Service { name, port } => BackendReference::Service {
 				name: name.clone(),
 				port: *port,
 			},
-			SimpleLocalBackend::Invalid => SimpleBackendReference::Invalid,
-			_ => SimpleBackendReference::Backend(strng::format!("/{}", backend_key)),
+			LocalTCPBackend::Backend(name) => BackendReference::Backend(name.clone()),
+			LocalTCPBackend::Invalid => BackendReference::Invalid,
+			_ => BackendReference::Backend(strng::format!("/{}", backend_key)),
 		};
-		let maybe_backend = b.backend.as_backends(be_name.clone(), policies);
+		let maybe_backend = b.backend.as_backend(be_name.clone(), policies);
 		let bref = TCPRouteBackendReference {
 			weight: b.weight,
 			backend: bref,
@@ -5339,7 +5389,7 @@ async fn convert_tcp_route(
 		};
 		backend_refs.push(bref);
 		if let Some(be) = maybe_backend {
-			external_backends.push(be.into());
+			external_backends.push(be);
 		}
 	}
 
