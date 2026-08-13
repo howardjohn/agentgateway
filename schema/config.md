@@ -510,7 +510,7 @@
 |`binds[].listeners[].routes[].policies.mcpAuthentication.authorizationLocation.cookie.name`|string|Cookie name containing the credential.|
 |`binds[].listeners[].routes[].policies.mcpAuthentication.authorizationLocation.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`binds[].listeners[].routes[].policies.mcpAuthentication.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`binds[].listeners[].routes[].policies.mcpAuthentication.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`binds[].listeners[].routes[].policies.mcpAuthentication.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`binds[].listeners[].routes[].policies.mcpAuthentication.clientId`|string|OAuth client ID advertised to MCP clients when needed.|
 |`binds[].listeners[].routes[].policies.mcpAuthentication.clientSecret`|string|OAuth client secret injected into proxied token requests for confidential clients.<br>Currently used by the `entra` provider, whose Web-platform app registrations require a<br>client secret at the token endpoint.|
 |`binds[].listeners[].routes[].policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -3723,20 +3723,20 @@
 |`binds[].listeners[].routes[].policies.jwtAuth.location.cookie.name`|string|Cookie name containing the credential.|
 |`binds[].listeners[].routes[].policies.jwtAuth.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`binds[].listeners[].routes[].policies.jwtAuth.providers`|[]object|Trusted issuers and their signing keys.|
-|`binds[].listeners[].routes[].policies.jwtAuth.providers[].issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`binds[].listeners[].routes[].policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`binds[].listeners[].routes[].policies.jwtAuth.providers[].issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`binds[].listeners[].routes[].policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`binds[].listeners[].routes[].policies.jwtAuth.providers[].jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`binds[].listeners[].routes[].policies.jwtAuth.providers[].jwks.file`|string|Path to a file on disk to load the value from.|
 |`binds[].listeners[].routes[].policies.jwtAuth.providers[].jwks.url`|string||
 |`binds[].listeners[].routes[].policies.jwtAuth.providers[].jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`binds[].listeners[].routes[].policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
-|`binds[].listeners[].routes[].policies.jwtAuth.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`binds[].listeners[].routes[].policies.jwtAuth.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`binds[].listeners[].routes[].policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
+|`binds[].listeners[].routes[].policies.jwtAuth.issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`binds[].listeners[].routes[].policies.jwtAuth.audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`binds[].listeners[].routes[].policies.jwtAuth.jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`binds[].listeners[].routes[].policies.jwtAuth.jwks.file`|string|Path to a file on disk to load the value from.|
 |`binds[].listeners[].routes[].policies.jwtAuth.jwks.url`|string||
 |`binds[].listeners[].routes[].policies.jwtAuth.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`binds[].listeners[].routes[].policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`binds[].listeners[].routes[].policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`binds[].listeners[].routes[].policies.oidc`|object|Authenticate browser requests with OIDC authorization code flow.|
 |`binds[].listeners[].routes[].policies.oidc.issuer`|string|Issuer used for discovery and ID token validation.|
 |`binds[].listeners[].routes[].policies.oidc.discovery`|object|Optional discovery document override. If omitted, discovery uses<br>`${issuer}/.well-known/openid-configuration`.|
@@ -15535,20 +15535,20 @@
 |`binds[].listeners[].policies.jwtAuth.location.cookie.name`|string|Cookie name containing the credential.|
 |`binds[].listeners[].policies.jwtAuth.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`binds[].listeners[].policies.jwtAuth.providers`|[]object|Trusted issuers and their signing keys.|
-|`binds[].listeners[].policies.jwtAuth.providers[].issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`binds[].listeners[].policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`binds[].listeners[].policies.jwtAuth.providers[].issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`binds[].listeners[].policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`binds[].listeners[].policies.jwtAuth.providers[].jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`binds[].listeners[].policies.jwtAuth.providers[].jwks.file`|string|Path to a file on disk to load the value from.|
 |`binds[].listeners[].policies.jwtAuth.providers[].jwks.url`|string||
 |`binds[].listeners[].policies.jwtAuth.providers[].jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`binds[].listeners[].policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
-|`binds[].listeners[].policies.jwtAuth.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`binds[].listeners[].policies.jwtAuth.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`binds[].listeners[].policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
+|`binds[].listeners[].policies.jwtAuth.issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`binds[].listeners[].policies.jwtAuth.audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`binds[].listeners[].policies.jwtAuth.jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`binds[].listeners[].policies.jwtAuth.jwks.file`|string|Path to a file on disk to load the value from.|
 |`binds[].listeners[].policies.jwtAuth.jwks.url`|string||
 |`binds[].listeners[].policies.jwtAuth.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`binds[].listeners[].policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`binds[].listeners[].policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`binds[].listeners[].policies.authorization`|object|Authorization rules for incoming HTTP requests.|
 |`binds[].listeners[].policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`binds[].listeners[].policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -18370,7 +18370,7 @@
 |`policies[].policy.mcpAuthentication.authorizationLocation.cookie.name`|string|Cookie name containing the credential.|
 |`policies[].policy.mcpAuthentication.authorizationLocation.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`policies[].policy.mcpAuthentication.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`policies[].policy.mcpAuthentication.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`policies[].policy.mcpAuthentication.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`policies[].policy.mcpAuthentication.clientId`|string|OAuth client ID advertised to MCP clients when needed.|
 |`policies[].policy.mcpAuthentication.clientSecret`|string|OAuth client secret injected into proxied token requests for confidential clients.<br>Currently used by the `entra` provider, whose Web-platform app registrations require a<br>client secret at the token endpoint.|
 |`policies[].policy.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -21583,20 +21583,20 @@
 |`policies[].policy.jwtAuth.location.cookie.name`|string|Cookie name containing the credential.|
 |`policies[].policy.jwtAuth.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`policies[].policy.jwtAuth.providers`|[]object|Trusted issuers and their signing keys.|
-|`policies[].policy.jwtAuth.providers[].issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`policies[].policy.jwtAuth.providers[].audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`policies[].policy.jwtAuth.providers[].issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`policies[].policy.jwtAuth.providers[].audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`policies[].policy.jwtAuth.providers[].jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`policies[].policy.jwtAuth.providers[].jwks.file`|string|Path to a file on disk to load the value from.|
 |`policies[].policy.jwtAuth.providers[].jwks.url`|string||
 |`policies[].policy.jwtAuth.providers[].jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`policies[].policy.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
-|`policies[].policy.jwtAuth.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`policies[].policy.jwtAuth.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`policies[].policy.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
+|`policies[].policy.jwtAuth.issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`policies[].policy.jwtAuth.audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`policies[].policy.jwtAuth.jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`policies[].policy.jwtAuth.jwks.file`|string|Path to a file on disk to load the value from.|
 |`policies[].policy.jwtAuth.jwks.url`|string||
 |`policies[].policy.jwtAuth.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`policies[].policy.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`policies[].policy.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`policies[].policy.oidc`|object|Authenticate browser requests with OIDC authorization code flow.|
 |`policies[].policy.oidc.issuer`|string|Issuer used for discovery and ID token validation.|
 |`policies[].policy.oidc.discovery`|object|Optional discovery document override. If omitted, discovery uses<br>`${issuer}/.well-known/openid-configuration`.|
@@ -33452,7 +33452,7 @@
 |`routeGroups[].routes[].policies.mcpAuthentication.authorizationLocation.cookie.name`|string|Cookie name containing the credential.|
 |`routeGroups[].routes[].policies.mcpAuthentication.authorizationLocation.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`routeGroups[].routes[].policies.mcpAuthentication.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`routeGroups[].routes[].policies.mcpAuthentication.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`routeGroups[].routes[].policies.mcpAuthentication.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`routeGroups[].routes[].policies.mcpAuthentication.clientId`|string|OAuth client ID advertised to MCP clients when needed.|
 |`routeGroups[].routes[].policies.mcpAuthentication.clientSecret`|string|OAuth client secret injected into proxied token requests for confidential clients.<br>Currently used by the `entra` provider, whose Web-platform app registrations require a<br>client secret at the token endpoint.|
 |`routeGroups[].routes[].policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -36665,20 +36665,20 @@
 |`routeGroups[].routes[].policies.jwtAuth.location.cookie.name`|string|Cookie name containing the credential.|
 |`routeGroups[].routes[].policies.jwtAuth.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`routeGroups[].routes[].policies.jwtAuth.providers`|[]object|Trusted issuers and their signing keys.|
-|`routeGroups[].routes[].policies.jwtAuth.providers[].issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`routeGroups[].routes[].policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`routeGroups[].routes[].policies.jwtAuth.providers[].issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`routeGroups[].routes[].policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`routeGroups[].routes[].policies.jwtAuth.providers[].jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`routeGroups[].routes[].policies.jwtAuth.providers[].jwks.file`|string|Path to a file on disk to load the value from.|
 |`routeGroups[].routes[].policies.jwtAuth.providers[].jwks.url`|string||
 |`routeGroups[].routes[].policies.jwtAuth.providers[].jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`routeGroups[].routes[].policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
-|`routeGroups[].routes[].policies.jwtAuth.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`routeGroups[].routes[].policies.jwtAuth.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`routeGroups[].routes[].policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
+|`routeGroups[].routes[].policies.jwtAuth.issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`routeGroups[].routes[].policies.jwtAuth.audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`routeGroups[].routes[].policies.jwtAuth.jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`routeGroups[].routes[].policies.jwtAuth.jwks.file`|string|Path to a file on disk to load the value from.|
 |`routeGroups[].routes[].policies.jwtAuth.jwks.url`|string||
 |`routeGroups[].routes[].policies.jwtAuth.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`routeGroups[].routes[].policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`routeGroups[].routes[].policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`routeGroups[].routes[].policies.oidc`|object|Authenticate browser requests with OIDC authorization code flow.|
 |`routeGroups[].routes[].policies.oidc.issuer`|string|Issuer used for discovery and ID token validation.|
 |`routeGroups[].routes[].policies.oidc.discovery`|object|Optional discovery document override. If omitted, discovery uses<br>`${issuer}/.well-known/openid-configuration`.|
@@ -48193,20 +48193,20 @@
 |`gateways.*.listeners[].jwtAuth.location.cookie.name`|string|Cookie name containing the credential.|
 |`gateways.*.listeners[].jwtAuth.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`gateways.*.listeners[].jwtAuth.providers`|[]object|Trusted issuers and their signing keys.|
-|`gateways.*.listeners[].jwtAuth.providers[].issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`gateways.*.listeners[].jwtAuth.providers[].audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`gateways.*.listeners[].jwtAuth.providers[].issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`gateways.*.listeners[].jwtAuth.providers[].audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`gateways.*.listeners[].jwtAuth.providers[].jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`gateways.*.listeners[].jwtAuth.providers[].jwks.file`|string|Path to a file on disk to load the value from.|
 |`gateways.*.listeners[].jwtAuth.providers[].jwks.url`|string||
 |`gateways.*.listeners[].jwtAuth.providers[].jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`gateways.*.listeners[].jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
-|`gateways.*.listeners[].jwtAuth.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`gateways.*.listeners[].jwtAuth.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`gateways.*.listeners[].jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
+|`gateways.*.listeners[].jwtAuth.issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`gateways.*.listeners[].jwtAuth.audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`gateways.*.listeners[].jwtAuth.jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`gateways.*.listeners[].jwtAuth.jwks.file`|string|Path to a file on disk to load the value from.|
 |`gateways.*.listeners[].jwtAuth.jwks.url`|string||
 |`gateways.*.listeners[].jwtAuth.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`gateways.*.listeners[].jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`gateways.*.listeners[].jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`gateways.*.listeners[].authorization`|object|Authorization rules for incoming HTTP requests.|
 |`gateways.*.listeners[].authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`gateways.*.listeners[].authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -49479,20 +49479,20 @@
 |`gateways.*.jwtAuth.location.cookie.name`|string|Cookie name containing the credential.|
 |`gateways.*.jwtAuth.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`gateways.*.jwtAuth.providers`|[]object|Trusted issuers and their signing keys.|
-|`gateways.*.jwtAuth.providers[].issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`gateways.*.jwtAuth.providers[].audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`gateways.*.jwtAuth.providers[].issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`gateways.*.jwtAuth.providers[].audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`gateways.*.jwtAuth.providers[].jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`gateways.*.jwtAuth.providers[].jwks.file`|string|Path to a file on disk to load the value from.|
 |`gateways.*.jwtAuth.providers[].jwks.url`|string||
 |`gateways.*.jwtAuth.providers[].jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`gateways.*.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
-|`gateways.*.jwtAuth.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`gateways.*.jwtAuth.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`gateways.*.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
+|`gateways.*.jwtAuth.issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`gateways.*.jwtAuth.audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`gateways.*.jwtAuth.jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`gateways.*.jwtAuth.jwks.file`|string|Path to a file on disk to load the value from.|
 |`gateways.*.jwtAuth.jwks.url`|string||
 |`gateways.*.jwtAuth.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`gateways.*.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`gateways.*.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`gateways.*.authorization`|object|Authorization rules for incoming HTTP requests.|
 |`gateways.*.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`gateways.*.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -51118,7 +51118,7 @@
 |`routes[].policies.mcpAuthentication.authorizationLocation.cookie.name`|string|Cookie name containing the credential.|
 |`routes[].policies.mcpAuthentication.authorizationLocation.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`routes[].policies.mcpAuthentication.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`routes[].policies.mcpAuthentication.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`routes[].policies.mcpAuthentication.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`routes[].policies.mcpAuthentication.clientId`|string|OAuth client ID advertised to MCP clients when needed.|
 |`routes[].policies.mcpAuthentication.clientSecret`|string|OAuth client secret injected into proxied token requests for confidential clients.<br>Currently used by the `entra` provider, whose Web-platform app registrations require a<br>client secret at the token endpoint.|
 |`routes[].policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -54331,20 +54331,20 @@
 |`routes[].policies.jwtAuth.location.cookie.name`|string|Cookie name containing the credential.|
 |`routes[].policies.jwtAuth.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`routes[].policies.jwtAuth.providers`|[]object|Trusted issuers and their signing keys.|
-|`routes[].policies.jwtAuth.providers[].issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`routes[].policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`routes[].policies.jwtAuth.providers[].issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`routes[].policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`routes[].policies.jwtAuth.providers[].jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`routes[].policies.jwtAuth.providers[].jwks.file`|string|Path to a file on disk to load the value from.|
 |`routes[].policies.jwtAuth.providers[].jwks.url`|string||
 |`routes[].policies.jwtAuth.providers[].jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`routes[].policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
-|`routes[].policies.jwtAuth.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`routes[].policies.jwtAuth.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`routes[].policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
+|`routes[].policies.jwtAuth.issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`routes[].policies.jwtAuth.audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`routes[].policies.jwtAuth.jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`routes[].policies.jwtAuth.jwks.file`|string|Path to a file on disk to load the value from.|
 |`routes[].policies.jwtAuth.jwks.url`|string||
 |`routes[].policies.jwtAuth.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`routes[].policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`routes[].policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`routes[].policies.oidc`|object|Authenticate browser requests with OIDC authorization code flow.|
 |`routes[].policies.oidc.issuer`|string|Issuer used for discovery and ID token validation.|
 |`routes[].policies.oidc.discovery`|object|Optional discovery document override. If omitted, discovery uses<br>`${issuer}/.well-known/openid-configuration`.|
@@ -69550,20 +69550,20 @@
 |`llm.policies.jwtAuth.location.cookie.name`|string|Cookie name containing the credential.|
 |`llm.policies.jwtAuth.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`llm.policies.jwtAuth.providers`|[]object|Trusted issuers and their signing keys.|
-|`llm.policies.jwtAuth.providers[].issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`llm.policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`llm.policies.jwtAuth.providers[].issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`llm.policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`llm.policies.jwtAuth.providers[].jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`llm.policies.jwtAuth.providers[].jwks.file`|string|Path to a file on disk to load the value from.|
 |`llm.policies.jwtAuth.providers[].jwks.url`|string||
 |`llm.policies.jwtAuth.providers[].jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`llm.policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
-|`llm.policies.jwtAuth.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`llm.policies.jwtAuth.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`llm.policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
+|`llm.policies.jwtAuth.issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`llm.policies.jwtAuth.audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`llm.policies.jwtAuth.jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`llm.policies.jwtAuth.jwks.file`|string|Path to a file on disk to load the value from.|
 |`llm.policies.jwtAuth.jwks.url`|string||
 |`llm.policies.jwtAuth.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`llm.policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`llm.policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`llm.policies.authorization`|object|Authorization rules for incoming HTTP requests.|
 |`llm.policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`llm.policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -73719,7 +73719,7 @@
 |`mcp.policies.mcpAuthentication.authorizationLocation.cookie.name`|string|Cookie name containing the credential.|
 |`mcp.policies.mcpAuthentication.authorizationLocation.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`mcp.policies.mcpAuthentication.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`mcp.policies.mcpAuthentication.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`mcp.policies.mcpAuthentication.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`mcp.policies.mcpAuthentication.clientId`|string|OAuth client ID advertised to MCP clients when needed.|
 |`mcp.policies.mcpAuthentication.clientSecret`|string|OAuth client secret injected into proxied token requests for confidential clients.<br>Currently used by the `entra` provider, whose Web-platform app registrations require a<br>client secret at the token endpoint.|
 |`mcp.policies.a2a`|object|Mark this traffic as A2A to enable A2A processing and telemetry.|
@@ -76932,20 +76932,20 @@
 |`mcp.policies.jwtAuth.location.cookie.name`|string|Cookie name containing the credential.|
 |`mcp.policies.jwtAuth.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`mcp.policies.jwtAuth.providers`|[]object|Trusted issuers and their signing keys.|
-|`mcp.policies.jwtAuth.providers[].issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`mcp.policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`mcp.policies.jwtAuth.providers[].issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`mcp.policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`mcp.policies.jwtAuth.providers[].jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`mcp.policies.jwtAuth.providers[].jwks.file`|string|Path to a file on disk to load the value from.|
 |`mcp.policies.jwtAuth.providers[].jwks.url`|string||
 |`mcp.policies.jwtAuth.providers[].jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`mcp.policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
-|`mcp.policies.jwtAuth.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`mcp.policies.jwtAuth.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`mcp.policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
+|`mcp.policies.jwtAuth.issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`mcp.policies.jwtAuth.audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`mcp.policies.jwtAuth.jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`mcp.policies.jwtAuth.jwks.file`|string|Path to a file on disk to load the value from.|
 |`mcp.policies.jwtAuth.jwks.url`|string||
 |`mcp.policies.jwtAuth.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`mcp.policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`mcp.policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`mcp.policies.oidc`|object|Authenticate browser requests with OIDC authorization code flow.|
 |`mcp.policies.oidc.issuer`|string|Issuer used for discovery and ID token validation.|
 |`mcp.policies.oidc.discovery`|object|Optional discovery document override. If omitted, discovery uses<br>`${issuer}/.well-known/openid-configuration`.|
@@ -78240,20 +78240,20 @@
 |`ui.policies.jwtAuth.location.cookie.name`|string|Cookie name containing the credential.|
 |`ui.policies.jwtAuth.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`ui.policies.jwtAuth.providers`|[]object|Trusted issuers and their signing keys.|
-|`ui.policies.jwtAuth.providers[].issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`ui.policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`ui.policies.jwtAuth.providers[].issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`ui.policies.jwtAuth.providers[].audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`ui.policies.jwtAuth.providers[].jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`ui.policies.jwtAuth.providers[].jwks.file`|string|Path to a file on disk to load the value from.|
 |`ui.policies.jwtAuth.providers[].jwks.url`|string||
 |`ui.policies.jwtAuth.providers[].jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`ui.policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
-|`ui.policies.jwtAuth.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`ui.policies.jwtAuth.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim when set.|
+|`ui.policies.jwtAuth.providers[].jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
+|`ui.policies.jwtAuth.issuer`|string|Expected token issuer. The JWT `iss` claim is required and must match.|
+|`ui.policies.jwtAuth.audiences`|[]string|Accepted token audiences. A non-empty list requires a matching JWT `aud` claim.|
 |`ui.policies.jwtAuth.jwks`|object|JSON Web Key Set used to verify token signatures. Can be inline, from a file, or fetched remotely.|
 |`ui.policies.jwtAuth.jwks.file`|string|Path to a file on disk to load the value from.|
 |`ui.policies.jwtAuth.jwks.url`|string||
 |`ui.policies.jwtAuth.jwtValidationOptions`|object|Claim requirements to enforce after the token signature is verified.|
-|`ui.policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to require no claims.|
+|`ui.policies.jwtAuth.jwtValidationOptions.requiredClaims`|[]string|Claims that must be present in the token before validation.<br>Only "exp", "nbf", "aud", "iss", "sub" are enforced; others<br>(including "iat" and "jti") are ignored.<br>Defaults to ["exp"]. Use an empty list to add no claim requirements beyond<br>those implied by the configured issuer and audiences.|
 |`ui.policies.authorization`|object|Authorization rules for incoming HTTP requests.|
 |`ui.policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`ui.policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|

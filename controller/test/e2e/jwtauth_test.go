@@ -38,6 +38,12 @@ func TestJwtAuth(tt *testing.T) {
 	t.Run("RoutePolicy", func(t base.Test) {
 		testJwtAuthRoutePolicy(t)
 	})
+	t.Run("NoAudienceClaim", func(t base.Test) {
+		t.Apply(manifest("jwtauth", "secured-route.yaml"))
+		t.HTTPRouteAccepted("route-secure", base.Namespace)
+		// The provider does not configure audiences, so a JWT without aud is valid.
+		assertJwtResponse(t, "secureroute.com", jwt1, http.StatusOK)
+	})
 	t.Run("RoutePolicyWithRBAC", func(t base.Test) {
 		testJwtAuthRoutePolicyWithRbac(t)
 	})
