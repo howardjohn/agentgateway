@@ -79,7 +79,6 @@
         "protocol",
         "tunnelProtocol",
         "mode",
-        "listeners",
         "listeners"
       ]
     },
@@ -124,7 +123,7 @@
         }
       ]
     },
-    "Listener": {
+    "DumpListener": {
       "type": "object",
       "properties": {
         "key": {
@@ -155,6 +154,24 @@
         },
         "protocol": {
           "$ref": "#/$defs/ListenerProtocol"
+        },
+        "routes": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/Route"
+          }
+        },
+        "tcpRoutes": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/TCPRoute"
+          }
         }
       },
       "additionalProperties": false,
@@ -240,67 +257,6 @@
     },
     "ServerTLSConfig": {
       "type": "null"
-    },
-    "DumpListener": {
-      "type": "object",
-      "properties": {
-        "key": {
-          "type": "string"
-        },
-        "gatewayName": {
-          "type": "string"
-        },
-        "gatewayNamespace": {
-          "type": "string"
-        },
-        "listenerName": {
-          "type": "string"
-        },
-        "listenerSet": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ResourceName"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "hostname": {
-          "description": "Can be a wildcard",
-          "type": "string"
-        },
-        "protocol": {
-          "$ref": "#/$defs/ListenerProtocol"
-        },
-        "routes": {
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/Route"
-          }
-        },
-        "tcpRoutes": {
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/TCPRoute"
-          }
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "key",
-        "gatewayName",
-        "gatewayNamespace",
-        "listenerName",
-        "hostname",
-        "protocol"
-      ]
     },
     "Route": {
       "type": "object",

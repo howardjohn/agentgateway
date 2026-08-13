@@ -26,7 +26,7 @@ use crate::mcp::{FailureMode, McpAuthorization};
 use crate::store::{LocalWorkload, RequestPolicy};
 use crate::types::agent::{
 	A2aPolicy, Authorization, Backend, BackendKey, BackendReference, BackendTrafficPolicy,
-	BackendWithPolicies, Bind, BindMode, BindProtocol, FrontendPolicy, HeaderMatch,
+	BackendWithPolicies, Bind, BindMode, BindProtocol, BindSnapshot, FrontendPolicy, HeaderMatch,
 	JwtAuthentication, Listener, ListenerKey, ListenerName, ListenerProtocol, ListenerSet,
 	ListenerTarget, LocalMcpAuthentication, McpAuthentication, McpBackend, McpPrefixMode, McpTarget,
 	McpTargetName, McpTargetSpec, OpenAPITarget, PathMatch, PolicyPhase, PolicyTarget, PolicyType,
@@ -303,7 +303,7 @@ fn parse_deprecated_tracing_endpoint(endpoint: &str) -> anyhow::Result<(Target, 
 pub struct NormalizedLocalConfig {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub model_catalog: Option<Vec<crate::ModelCatalogSource>>,
-	pub binds: Vec<Bind>,
+	pub binds: Vec<BindSnapshot>,
 	pub listener_routes: Vec<(ListenerKey, Vec<Route>)>,
 	pub listener_tcp_routes: Vec<(ListenerKey, Vec<TCPRoute>)>,
 	pub policies: Vec<TargetedPolicy>,
@@ -2962,13 +2962,15 @@ async fn convert(
 			// Windows and IPv6 don't mix well apparently?
 			SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), bind_port)
 		};
-		let b = Bind {
-			key: bind_name,
-			address: sockaddr,
-			protocol: detect_bind_protocol(&ls),
-			listeners: ls,
-			tunnel_protocol: b.tunnel_protocol,
-			mode: b.mode,
+		let b = BindSnapshot {
+			bind: Arc::new(Bind {
+				key: bind_name,
+				address: sockaddr,
+				protocol: detect_bind_protocol(&ls),
+				tunnel_protocol: b.tunnel_protocol,
+				mode: b.mode,
+			}),
+			listeners: Arc::new(ls),
 		};
 		all_binds.push(b)
 	}
@@ -3417,7 +3419,7 @@ async fn convert_gateways(
 	config: &crate::Config,
 	gateway: ListenerTarget,
 	gateways: IndexMap<Strng, LocalGateway>,
-	all_binds: &mut Vec<Bind>,
+	all_binds: &mut Vec<BindSnapshot>,
 	all_listener_routes: &mut Vec<(ListenerKey, Vec<Route>)>,
 	all_listener_tcp_routes: &mut Vec<(ListenerKey, Vec<TCPRoute>)>,
 	all_policies: &mut Vec<TargetedPolicy>,
@@ -3489,13 +3491,15 @@ async fn convert_gateways(
 		} else {
 			SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port)
 		};
-		all_binds.push(Bind {
-			key: strng::format!("bind/{port}"),
-			address: sockaddr,
-			protocol: detect_bind_protocol(&listeners),
-			listeners,
-			tunnel_protocol: TunnelProtocol::Direct,
-			mode: BindMode::Standard,
+		all_binds.push(BindSnapshot {
+			bind: Arc::new(Bind {
+				key: strng::format!("bind/{port}"),
+				address: sockaddr,
+				protocol: detect_bind_protocol(&listeners),
+				tunnel_protocol: TunnelProtocol::Direct,
+				mode: BindMode::Standard,
+			}),
+			listeners: Arc::new(listeners),
 		});
 	}
 	Ok(refs)
@@ -4099,7 +4103,7 @@ async fn convert_llm_config(
 	llm_config: LocalLLMConfig,
 	attach_policies_to_route: bool,
 ) -> anyhow::Result<(
-	Bind,
+	BindSnapshot,
 	Vec<Route>,
 	Vec<TargetedPolicy>,
 	Vec<BackendWithPolicies>,
@@ -4584,17 +4588,19 @@ async fn convert_llm_config(
 		SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port)
 	};
 
-	let bind = Bind {
-		key: strng::format!("bind/{}", port),
-		address: sockaddr,
-		protocol: if tls_enabled {
-			BindProtocol::tls
-		} else {
-			BindProtocol::http
-		},
-		listeners: listener_set,
-		tunnel_protocol: TunnelProtocol::Direct,
-		mode: BindMode::Standard,
+	let bind = BindSnapshot {
+		bind: Arc::new(Bind {
+			key: strng::format!("bind/{}", port),
+			address: sockaddr,
+			protocol: if tls_enabled {
+				BindProtocol::tls
+			} else {
+				BindProtocol::http
+			},
+			tunnel_protocol: TunnelProtocol::Direct,
+			mode: BindMode::Standard,
+		}),
+		listeners: Arc::new(listener_set),
 	};
 
 	Ok((bind, routes, all_policies, all_backends))
@@ -4607,7 +4613,7 @@ async fn convert_mcp_config(
 	mcp_config: LocalSimpleMcpConfig,
 	shared_port: bool,
 ) -> anyhow::Result<(
-	Bind,
+	BindSnapshot,
 	Vec<Route>,
 	Vec<TargetedPolicy>,
 	Vec<BackendWithPolicies>,
@@ -4677,13 +4683,15 @@ async fn convert_mcp_config(
 		SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port)
 	};
 
-	let bind = Bind {
-		key: strng::format!("bind/{}", port),
-		address: sockaddr,
-		protocol: BindProtocol::http,
-		listeners: listener_set,
-		tunnel_protocol: TunnelProtocol::Direct,
-		mode: BindMode::Standard,
+	let bind = BindSnapshot {
+		bind: Arc::new(Bind {
+			key: strng::format!("bind/{}", port),
+			address: sockaddr,
+			protocol: BindProtocol::http,
+			tunnel_protocol: TunnelProtocol::Direct,
+			mode: BindMode::Standard,
+		}),
+		listeners: Arc::new(listener_set),
 	};
 
 	let backends = LocalBackend::MCP(backend)

@@ -1261,7 +1261,7 @@ impl HTTPProxy {
 
 	fn detect_misdirected(
 		log: &RequestLog,
-		bind: &Bind,
+		bind: &BindSnapshot,
 		req: &Request,
 		selected_listener: &Listener,
 	) -> Result<(), ProxyError> {
@@ -4359,19 +4359,21 @@ mod route_chain_tests {
 			.unwrap()
 	}
 
-	fn bind() -> Bind {
-		Bind {
-			key: proxymock::BIND_KEY,
-			address: "127.0.0.1:0".parse().unwrap(),
-			listeners: ListenerSet::from_list([Listener {
+	fn bind() -> BindSnapshot {
+		BindSnapshot {
+			bind: Arc::new(Bind {
+				key: proxymock::BIND_KEY,
+				address: "127.0.0.1:0".parse().unwrap(),
+				protocol: BindProtocol::http,
+				tunnel_protocol: Default::default(),
+				mode: Default::default(),
+			}),
+			listeners: Arc::new(ListenerSet::from_list([Listener {
 				key: proxymock::LISTENER_KEY,
 				name: Default::default(),
 				hostname: Default::default(),
 				protocol: ListenerProtocol::HTTP,
-			}]),
-			protocol: BindProtocol::http,
-			tunnel_protocol: Default::default(),
-			mode: Default::default(),
+			}])),
 		}
 	}
 
