@@ -9126,6 +9126,18 @@
           ],
           "default": null
         },
+        "networkExtAuthz": {
+          "description": "HTTP external authorization performed once for each downstream network connection.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExtAuthz"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "proxy": {
           "description": "Enable downstream PROXY protocol handling on this gateway or port, including\nversion matching and whether PROXY headers are required or optional.",
           "anyOf": [
