@@ -681,6 +681,9 @@ impl HTTPProxy {
 				ProxyResponse::DirectResponse(dr) => *dr,
 			},
 		};
+		// LLM buffering deliberately leaves decoded bodies plain so response policies can safely read
+		// and replace them. Restore the upstream-selected encoding only after every such policy ran.
+		llm::encode_deferred_response(&mut resp);
 		if let Some(log) = log.as_mut() {
 			dtrace::snapshot!(Response, "final response", log, &resp);
 		}

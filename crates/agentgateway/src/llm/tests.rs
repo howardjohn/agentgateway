@@ -1352,7 +1352,6 @@ fn gemini_count_tokens_response_reports_total_tokens() {
 	let buffered = BufferedResponse {
 		parts: ::http::Response::new(()).into_parts().0,
 		bytes: bytes::Bytes::from_static(body),
-		encoding: None,
 	};
 
 	let log = AsyncLog::<llm::LLMInfo>::default();
@@ -2290,6 +2289,83 @@ async fn process_response_routes_streaming_error_to_buffered_path() {
 		message.contains("toolResult"),
 		"translated error should preserve the original message, got: {message}",
 	);
+}
+
+#[tokio::test]
+async fn upstream_encoding_is_applied_after_messages_response_translation() {
+	use crate::proxy::httpproxy::PolicyClient;
+	use crate::test_helpers::proxymock::setup_proxy_test;
+
+	let provider = AIProvider::OpenAI(openai::Provider {
+		model: None,
+		moderation: None,
+	});
+	let mut req = llm_request_with_tokens(None);
+	req.input_format = InputFormat::Messages;
+	req.request_model = "gpt-4o".into();
+	req.streaming = false;
+	let upstream_body = br#"{"id":"chatcmpl-1","object":"chat.completion","created":0,"model":"gpt-4o","choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"Hello!"}}],"usage":{"prompt_tokens":3,"completion_tokens":2,"total_tokens":5}}"#;
+	let compressed = crate::http::compression::encode_body(upstream_body, "br")
+		.await
+		.unwrap();
+	let upstream = ::http::Response::builder()
+		.header(::http::header::CONTENT_ENCODING, "br")
+		.header(::http::header::CONTENT_LENGTH, compressed.len())
+		.body(Body::from(compressed))
+		.unwrap();
+
+	let response = provider
+		.process_response(
+			PolicyClient::new(setup_proxy_test("{}").unwrap().pi),
+			req,
+			LLMResponsePolicies::default(),
+			None,
+			AsyncLog::default(),
+			llm::LogContentFields::default(),
+			None,
+			upstream,
+		)
+		.await
+		.unwrap();
+
+	// Keep the response plain while later response policies can still replace its body.
+	assert!(
+		!response
+			.headers()
+			.contains_key(::http::header::CONTENT_ENCODING)
+	);
+	assert!(
+		response
+			.extensions()
+			.get::<crate::cel::BufferedBody>()
+			.is_none()
+	);
+	let (parts, body) = response.into_parts();
+	let mut body: Value = serde_json::from_slice(&body.collect().await.unwrap().to_bytes()).unwrap();
+	assert_eq!(body["type"], "message");
+	assert_eq!(body["content"][0]["text"], "Hello!");
+	// Stand in for a later response-body policy mutation.
+	body["policy_applied"] = true.into();
+	let mut response = Response::from_parts(parts, Body::from(serde_json::to_vec(&body).unwrap()));
+
+	encode_deferred_response(&mut response);
+	assert_eq!(response.headers()[::http::header::CONTENT_ENCODING], "br");
+	assert!(
+		!response
+			.headers()
+			.contains_key(::http::header::CONTENT_LENGTH)
+	);
+	let content_encoding = response.headers().typed_get::<ContentEncoding>();
+	let (_, body) = crate::http::compression::to_bytes_with_decompression(
+		response.into_body(),
+		content_encoding.as_ref(),
+		1024 * 1024,
+	)
+	.await
+	.unwrap();
+	let body: Value = serde_json::from_slice(&body).unwrap();
+	assert_eq!(body["type"], "message");
+	assert_eq!(body["policy_applied"], true);
 }
 
 #[test]

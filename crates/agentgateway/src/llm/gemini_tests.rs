@@ -958,7 +958,6 @@ async fn count_tokens_errors_pass_through_unchanged() {
 	let buffered = BufferedResponse {
 		parts,
 		bytes: body.clone(),
-		encoding: None,
 	};
 
 	let resp = provider
