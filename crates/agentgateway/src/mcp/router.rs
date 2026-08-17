@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -115,7 +116,7 @@ impl App {
 		};
 		let sessions = self.session.clone();
 		sessions.ensure_idle_running();
-		let client = PolicyClient::new(pi.clone());
+		let client = PolicyClient::new(pi.clone()).with_parent(req.deref());
 		let authorization_policies = backend_policies
 			.mcp_authorization
 			.unwrap_or_else(|| McpAuthorizationSet::new(RuleSets::from(Vec::new())));
@@ -126,8 +127,6 @@ impl App {
 		let logy = log.mcp_status.clone();
 		logy.store(Some(MCPInfo::default()));
 		req.extensions_mut().insert(logy);
-		let tracer = log.span_writer();
-		req.extensions_mut().insert(tracer);
 
 		if backend.dns_rebinding_protection
 			&& let Some(resp) = mcp::dns_rebinding::reject_non_localhost(&req)

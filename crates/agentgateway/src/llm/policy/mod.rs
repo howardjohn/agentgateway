@@ -7,7 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::http::filters::{BackendRequestTimeout, HeaderModifier};
 use crate::http::jwt::Claims;
-use crate::http::{HeaderOrPseudo, Response, StatusCode, auth};
+use crate::http::{HeaderOrPseudo, Response, StatusCode};
 use crate::llm::policy::webhook::{MaskActionBody, RequestAction, ResponseAction};
 use crate::llm::{AIError, RequestType, ResponseType};
 use crate::proxy::httpproxy::PolicyClient;
@@ -848,13 +848,12 @@ impl Policy {
 
 	pub async fn apply_prompt_guard(
 		&self,
-		backend_info: &auth::BackendInfo,
+		client: &PolicyClient,
 		req: &mut dyn RequestType,
 		http_headers: &HeaderMap,
 		claims: Option<Claims>,
 		original: Option<&cel::RequestSnapshot>,
 	) -> anyhow::Result<Option<(Response, &'static str)>> {
-		let client = PolicyClient::new(backend_info.inputs.clone());
 		for g in self
 			.prompt_guard
 			.as_ref()
@@ -862,9 +861,9 @@ impl Policy {
 			.flat_map(|g| g.request.iter())
 		{
 			let (action, rejection) =
-				Self::apply_single_request_guard(g, req, http_headers, &client, claims.clone(), original)
+				Self::apply_single_request_guard(g, req, http_headers, client, claims.clone(), original)
 					.await?;
-			Self::record_guardrail_trip(&client, GuardrailPhase::Request, action);
+			Self::record_guardrail_trip(client, GuardrailPhase::Request, action);
 			if let Some(res) = rejection {
 				return Ok(Some((res, g.kind.name())));
 			}

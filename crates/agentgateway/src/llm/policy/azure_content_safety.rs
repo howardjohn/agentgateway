@@ -247,7 +247,7 @@ async fn send_content_safety_request<Req: Serialize, Resp: serde::de::Deserializ
 
 	let resp = client
 		.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::Guardrail)
-		.call_with_explicit_policies_list(with_default_timeout(req), mock_be, pols)
+		.call_with_explicit_policies_list_traced(with_default_timeout(req), mock_be, pols)
 		.await?;
 
 	let status = resp.status();

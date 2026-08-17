@@ -102,14 +102,15 @@ pub fn trace_span_data(
 	name: impl Into<std::borrow::Cow<'static, str>>,
 	span_kind: SpanKind,
 	span: &TraceParent,
-	parent: Option<&TraceParent>,
+	parent: Option<(&TraceParent, bool)>,
 	start_time: std::time::SystemTime,
 	end_time: std::time::SystemTime,
 	attributes: Vec<KeyValue>,
+	status: Status,
 ) -> SpanData {
-	let parent_span_id = parent
-		.map(|parent| SpanId::from(parent.span_id))
-		.unwrap_or(SpanId::INVALID);
+	let (parent_span_id, parent_span_is_remote) = parent
+		.map(|(parent, remote)| (SpanId::from(parent.span_id), remote))
+		.unwrap_or((SpanId::INVALID, false));
 	SpanData {
 		span_context: SpanContext::new(
 			TraceId::from(span.trace_id),
@@ -119,7 +120,7 @@ pub fn trace_span_data(
 			TraceState::default(),
 		),
 		parent_span_id,
-		parent_span_is_remote: parent.is_some(),
+		parent_span_is_remote,
 		span_kind,
 		name: name.into(),
 		start_time,
@@ -128,7 +129,7 @@ pub fn trace_span_data(
 		dropped_attributes_count: 0,
 		events: SpanEvents::default(),
 		links: SpanLinks::default(),
-		status: Status::default(),
+		status,
 		instrumentation_scope: InstrumentationScope::builder("agentgateway").build(),
 	}
 }
@@ -280,11 +281,13 @@ impl Tracer {
 		request: &RequestLog,
 		end: &agent_core::Timestamp,
 		cel_exec: &CelLoggingExecutor,
+		protocol_span_name: Option<&str>,
 		attrs: &[(&str, Option<ValueBag<'v>>)],
 	) {
 		let mut attributes = attrs
 			.iter()
 			.filter(|(k, _)| !self.fields.has(k))
+			.filter(|(k, _)| *k != "error")
 			.filter_map(|(k, v)| v.as_ref().map(|v| (k, v)))
 			.map(|(k, v)| KeyValue::new(Key::new(k.to_string()), to_otel(v)))
 			.collect_vec();
@@ -327,22 +330,30 @@ impl Tracer {
 			}
 		}
 
-		let span_name = span_name.unwrap_or_else(|| match (&request.method, &request.path_match) {
-			(Some(method), Some(path_match)) => {
-				format!("{method} {path_match}")
-			},
-			_ => "unknown".to_string(),
+		let span_name = span_name.unwrap_or_else(|| {
+			protocol_span_name.map(str::to_owned).unwrap_or_else(|| {
+				match (&request.method, &request.path_match) {
+					(Some(method), Some(path_match)) => format!("{method} {path_match}"),
+					_ => "unknown".to_string(),
+				}
+			})
 		});
+		let status = if let Some(error) = &request.error {
+			Status::error(error.clone())
+		} else {
+			Status::default()
+		};
 
 		let out_span = request.outgoing_span.as_ref().unwrap();
 		self.processor.emit(trace_span_data(
 			span_name,
 			SpanKind::Server,
 			out_span,
-			request.incoming_span.as_ref(),
+			request.incoming_span.as_ref().map(|parent| (parent, true)),
 			start,
 			end,
 			attributes,
+			status,
 		));
 	}
 }
@@ -669,8 +680,11 @@ mod traceparent {
 			}
 		}
 		pub fn insert_header(&self, req: &mut Request) {
+			self.insert_headers(req.headers_mut());
+		}
+		pub fn insert_headers(&self, headers: &mut ::http::HeaderMap) {
 			let hv = hyper::header::HeaderValue::from_bytes(format!("{self:?}").as_bytes()).unwrap();
-			req.headers_mut().insert(TRACEPARENT, hv);
+			headers.insert(TRACEPARENT, hv);
 		}
 		pub fn from_request(req: &Request) -> Option<Self> {
 			req
@@ -889,7 +903,7 @@ mod tests {
 			database_fields: &database_fields,
 		};
 
-		tracer.send(&request, &Timestamp::now(), &cel_exec, &[]);
+		tracer.send(&request, &Timestamp::now(), &cel_exec, None, &[]);
 		let _ = tracer.provider.force_flush();
 
 		let spans = exporter.finished_spans();

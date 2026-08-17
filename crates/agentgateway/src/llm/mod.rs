@@ -1923,11 +1923,13 @@ impl AIProvider {
 			p.apply_prompt_enrichment(req);
 
 			if original_format.supports_prompt_guard() {
+				let client =
+					PolicyClient::new(backend_info.inputs.clone()).with_parent_extensions(&parts.extensions);
 				let http_headers = &parts.headers;
 				let claims = parts.extensions.get::<Claims>().cloned();
 				let original = log.as_ref().and_then(|l| l.request_snapshot.clone());
 				if let Some((response, guardrail)) = p
-					.apply_prompt_guard(backend_info, req, http_headers, claims, original.as_deref())
+					.apply_prompt_guard(&client, req, http_headers, claims, original.as_deref())
 					.await
 					.map_err(|e| {
 						warn!("failed to call prompt guard webhook: {e}");

@@ -376,7 +376,7 @@ async fn send_model_armor_request<T: Serialize>(
 
 	let resp = client
 		.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::Guardrail)
-		.call_with_explicit_policies_list(with_default_timeout(req), mock_be, pols)
+		.call_with_explicit_policies_list_traced(with_default_timeout(req), mock_be, pols)
 		.await?;
 
 	let resp: SanitizeResponse = json::from_response_body(resp).await?;

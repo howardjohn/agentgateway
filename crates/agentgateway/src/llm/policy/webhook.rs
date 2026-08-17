@@ -254,7 +254,7 @@ pub(super) async fn send_request(
 	let res = Box::pin(
 		client
 			.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::Guardrail)
-			.call_reference(whr, &webhook.target),
+			.call_reference_traced(whr, &webhook.target),
 	)
 	.await?;
 	let parsed = json::from_response_body(res).await?;
@@ -276,7 +276,7 @@ pub(super) async fn send_response(
 	)?);
 	let res = client
 		.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::Guardrail)
-		.call_reference(whr, &webhook.target)
+		.call_reference_traced(whr, &webhook.target)
 		.await?;
 	let parsed = json::from_response_body(res).await?;
 	Ok(parsed)

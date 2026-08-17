@@ -26,7 +26,7 @@ use crate::http::{
 use crate::proxy::dtrace::{Severity, pol_event, pol_result_timed};
 use crate::proxy::httpproxy::PolicyClient;
 use crate::proxy::{ProxyError, ProxyResponse, dtrace};
-use crate::telemetry::log::RequestLog;
+use crate::telemetry::log::{RequestLog, copy_span_writer};
 use crate::telemetry::metrics::{OutboundCallKind, OutboundCallSubtype};
 use crate::transport::stream::{TCPConnectionInfo, TLSConnectionInfo};
 use crate::types::agent::SimpleBackendReferenceWithPolicies;
@@ -379,9 +379,9 @@ impl ExtAuthz {
 			return cached_response.apply(req);
 		}
 		pol_event!(Severity::Info, "{}", cache_lookup);
-		let chan = self
-			.target
-			.grpc_channel(client.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::ExtAuthz));
+		let policy_client =
+			client.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::ExtAuthz);
+		let chan = self.target.grpc_channel(policy_client.clone());
 		let mut grpc_client = AuthorizationClient::new(chan)
 			.max_decoding_message_size(defaults::GRPC_MAX_DECODING_MESSAGE_SIZE);
 		// Get connection info with proper error handling
@@ -553,10 +553,20 @@ impl ExtAuthz {
 				tls_session,
 			}),
 		};
+		let mut authz_req = tonic::Request::new(authz_req);
+		copy_span_writer(req.extensions(), authz_req.extensions_mut());
+		let mut span = policy_client.start_grpc_span(
+			&mut authz_req,
+			self.target.target.as_ref(),
+			"/envoy.service.auth.v3.Authorization/Check",
+		);
 
 		let scope = dtrace::start_scope("ext_authz");
 		let resp = grpc_client.check(authz_req).await;
 		drop(scope);
+		if let Some(span) = span.as_deref_mut() {
+			span.record_grpc_result(&resp);
+		}
 
 		trace!("check response: {:?}", resp);
 		let cr = match resp {
@@ -798,6 +808,7 @@ impl ExtAuthz {
 		let mut check_req = rb
 			.body(http::Body::from(body))
 			.map_err(|e| ProxyError::Processing(e.into()))?;
+		copy_span_writer(req.extensions(), check_req.extensions_mut());
 
 		// Include any request headers
 		let include = if self.include_request_headers.is_empty() {
@@ -841,7 +852,7 @@ impl ExtAuthz {
 		let scope = dtrace::start_scope("ext_authz");
 		let resp = client
 			.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::ExtAuthz)
-			.call_reference_with_policies(
+			.call_reference_with_policies_traced(
 				check_req,
 				&self.target.target,
 				self.target.policies.as_slice(),

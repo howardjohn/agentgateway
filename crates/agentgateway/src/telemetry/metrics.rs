@@ -159,6 +159,16 @@ pub enum OutboundCallKind {
 	Mirror,
 }
 
+impl OutboundCallKind {
+	pub const fn as_str(self) -> &'static str {
+		match self {
+			Self::Primary => "Primary",
+			Self::Policy => "Policy",
+			Self::Mirror => "Mirror",
+		}
+	}
+}
+
 #[derive(
 	Copy, Clone, Hash, Debug, PartialEq, Eq, prometheus_client::encoding::EncodeLabelValue, Default,
 )]
@@ -177,7 +187,22 @@ pub enum OutboundCallSubtype {
 	Oidc,
 }
 
-#[derive(Clone, Hash, Debug, PartialEq, Eq, EncodeLabelSet)]
+impl OutboundCallSubtype {
+	pub const fn as_str(self) -> &'static str {
+		match self {
+			Self::Http => "Http",
+			Self::Llm => "Llm",
+			Self::Mcp => "Mcp",
+			Self::ExtAuthz => "ExtAuthz",
+			Self::ExtProc => "ExtProc",
+			Self::Guardrail => "Guardrail",
+			Self::RateLimit => "RateLimit",
+			Self::Oidc => "Oidc",
+		}
+	}
+}
+
+#[derive(Copy, Clone, Hash, Debug, PartialEq, Eq, EncodeLabelSet)]
 pub struct OutboundCallLabels {
 	pub kind: OutboundCallKind,
 	pub subtype: OutboundCallSubtype,
