@@ -196,6 +196,10 @@ pub struct RawConfig {
 	standard_attributes: Option<RawStandardAttributes>,
 	/// Stats/metrics server address in the format "ip:port", "localhost:port", "unix:/path/to/socket", or "off"
 	stats_addr: Option<String>,
+	/// Histogram representation to collect. Native histograms are exposed only through the
+	/// Prometheus protobuf format. Defaults to classic.
+	#[serde(default)]
+	histograms: HistogramMode,
 	/// Readiness probe server address in the format "ip:port", "localhost:port", "unix:/path/to/socket", or "off"
 	readiness_addr: Option<String>,
 
@@ -450,6 +454,18 @@ pub enum LoggingFormat {
 	Json,
 }
 
+#[apply(schema!)]
+#[derive(Default, Copy, Eq, PartialEq)]
+pub enum HistogramMode {
+	/// Collect classic histogram buckets only.
+	#[default]
+	Classic,
+	/// Collect native histogram buckets only.
+	Native,
+	/// Collect both classic and native histogram buckets.
+	Both,
+}
+
 #[apply(schema_de!)]
 pub struct RawMetrics {
 	/// Metric names to exclude from collection.
@@ -613,6 +629,7 @@ pub struct Config {
 	pub num_worker_threads: usize,
 	pub admin_addr: Address,
 	pub stats_addr: Address,
+	pub histograms: HistogramMode,
 	pub readiness_addr: Address,
 	// For waypoint identification
 	pub self_addr: Option<types::discovery::WaypointIdentity>,

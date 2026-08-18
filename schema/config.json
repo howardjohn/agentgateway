@@ -291,6 +291,11 @@
             "null"
           ]
         },
+        "histograms": {
+          "description": "Histogram representation to collect. Native histograms are exposed only through the\nPrometheus protobuf format. Defaults to classic.",
+          "$ref": "#/$defs/HistogramMode",
+          "default": "classic"
+        },
         "readinessAddr": {
           "description": "Readiness probe server address in the format \"ip:port\", \"localhost:port\", \"unix:/path/to/socket\", or \"off\"",
           "type": [
@@ -731,6 +736,25 @@
         }
       },
       "additionalProperties": false
+    },
+    "HistogramMode": {
+      "oneOf": [
+        {
+          "description": "Collect classic histogram buckets only.",
+          "type": "string",
+          "const": "classic"
+        },
+        {
+          "description": "Collect native histogram buckets only.",
+          "type": "string",
+          "const": "native"
+        },
+        {
+          "description": "Collect both classic and native histogram buckets.",
+          "type": "string",
+          "const": "both"
+        }
+      ]
     },
     "RawSession": {
       "type": "object",
