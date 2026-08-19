@@ -2667,7 +2667,7 @@ async fn make_backend_call(
 				"http.status",
 				i64::from(response.status().as_u16()),
 			)),
-			Err(error) => span.set_error(error.to_string()),
+			Err(error) => span.set_error(error.as_reason().to_string(), error.to_string()),
 		}
 	}
 	let outbound_end = Instant::now();
@@ -4309,7 +4309,7 @@ impl PolicyClient {
 					i64::from(response.status().as_u16()),
 				));
 			},
-			Err(error) => span.set_error(error.to_string()),
+			Err(error) => span.set_error(error.as_reason().to_string(), error.to_string()),
 		}
 	}
 

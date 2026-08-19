@@ -2331,9 +2331,12 @@ impl SpanWriteOnDrop {
 		}
 	}
 
-	pub fn set_error(&mut self, error: impl Into<String>) {
+	pub fn set_error(&mut self, error_type: impl Into<String>, description: impl Into<String>) {
 		if self.parent.is_some() {
-			self.status = Status::error(error.into());
+			self
+				.attributes
+				.push(KeyValue::new("error.type", error_type.into()));
+			self.status = Status::error(description.into());
 		}
 	}
 
@@ -2350,7 +2353,7 @@ impl SpanWriteOnDrop {
 
 	pub fn record_grpc_error(&mut self, status: &tonic::Status) {
 		self.record_grpc_status(status.code());
-		self.set_error(status.to_string());
+		self.set_error(format!("{:?}", status.code()), status.to_string());
 	}
 }
 impl Drop for SpanWriteOnDrop {
@@ -2645,11 +2648,15 @@ mod tests {
 
 		let mut outbound_request = ::http::Request::new(crate::http::Body::empty());
 		{
-			let span = request.span_writer().start_outbound(OutboundCallLabels {
+			let mut span = request.span_writer().start_outbound(OutboundCallLabels {
 				kind: OutboundCallKind::Policy,
 				subtype: OutboundCallSubtype::ExtAuthz,
 			});
 			span.inject_context(&mut outbound_request);
+			span.set_error(
+				ProxyResponseReason::ExtAuth.to_string(),
+				"authorization denied",
+			);
 		}
 		let propagated = trc::TraceParent::from_request(&outbound_request).unwrap();
 
@@ -2673,6 +2680,11 @@ mod tests {
 			"agentgateway.outbound.subtype",
 			OutboundCallSubtype::ExtAuthz.as_str(),
 		)));
+		assert!(child.attributes.contains(&KeyValue::new(
+			"error.type",
+			ProxyResponseReason::ExtAuth.to_string(),
+		)));
+		assert_eq!(child.status, Status::error("authorization denied"));
 	}
 
 	#[test]

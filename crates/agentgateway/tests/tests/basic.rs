@@ -285,12 +285,12 @@ async fn tracing_exports_to_otel_trace_mock() {
 	let spans = spans.lock().unwrap();
 	let ext_authz = spans
 		.iter()
-		.find(|span| span.name == "ext_authz")
-		.expect("ext_authz span should be exported");
+		.find(|span| span.name == "ExtAuthz")
+		.expect("ExtAuthz span should be exported");
 	let request = spans
 		.iter()
-		.find(|span| span.name != "ext_authz")
-		.expect("request span should be exported");
+		.find(|span| span.trace_id == ext_authz.trace_id && span.span_id == ext_authz.parent_span_id)
+		.expect("parent request span should be exported");
 	assert_eq!(ext_authz.trace_id, request.trace_id);
 	assert_eq!(ext_authz.parent_span_id, request.span_id);
 }

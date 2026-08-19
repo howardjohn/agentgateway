@@ -98,6 +98,7 @@ pub fn new_trace_processor(
 	SharedSpanProcessor::new(processor)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn trace_span_data(
 	name: impl Into<std::borrow::Cow<'static, str>>,
 	span_kind: SpanKind,

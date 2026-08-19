@@ -25,8 +25,8 @@ use crate::mcp::mergestream::Messages;
 use crate::mcp::router::{McpBackendGroup, McpTarget};
 use crate::mcp::streamablehttp::StreamableHttpPostResponse;
 use crate::mcp::{FailureMode, mergestream, upstream};
-use crate::proxy::ProxyError;
 use crate::proxy::httpproxy::PolicyClient;
+use crate::proxy::{ProxyError, ProxyResponseReason};
 use crate::telemetry::log::SpanWriter;
 use crate::telemetry::metrics::{OutboundCallKind, OutboundCallLabels, OutboundCallSubtype};
 use crate::types::agent::{McpPrefixMode, McpTargetSpec};
@@ -235,14 +235,17 @@ impl Upstream {
 		ctx: &IncomingRequestContext,
 	) -> Result<mergestream::Messages, UpstreamError> {
 		let method = request.request.method().to_string();
-		let operation_target = match &request.request {
-			ClientRequest::CallToolRequest(request) => Some(request.params.name.as_ref()),
-			ClientRequest::GetPromptRequest(request) => Some(request.params.name.as_str()),
-			ClientRequest::CompleteRequest(request) => match &request.params.r#ref {
-				rmcp::model::Reference::Prompt(prompt) => Some(prompt.name.as_str()),
-				_ => None,
+		let (operation_target, tool_name) = match &request.request {
+			ClientRequest::CallToolRequest(request) => {
+				let name = request.params.name.as_ref();
+				(Some(name), Some(name))
 			},
-			_ => None,
+			ClientRequest::GetPromptRequest(request) => (Some(request.params.name.as_str()), None),
+			ClientRequest::CompleteRequest(request) => match &request.params.r#ref {
+				rmcp::model::Reference::Prompt(prompt) => (Some(prompt.name.as_str()), None),
+				_ => (None, None),
+			},
+			_ => (None, None),
 		};
 		let mut ctx = ctx.clone();
 		let mut span = ctx.extensions().get::<SpanWriter>().and_then(|writer| {
@@ -260,6 +263,9 @@ impl Upstream {
 			});
 			span.add_attribute(KeyValue::new("mcp.method.name", method.clone()));
 			span.add_attribute(KeyValue::new("mcp.target", target_name.to_string()));
+			if let Some(tool_name) = tool_name {
+				span.add_attribute(KeyValue::new("gen_ai.tool.name", tool_name.to_owned()));
+			}
 
 			span.inject_headers(ctx.headers_mut());
 			ctx.extensions_mut().insert(span.span_writer());
@@ -306,7 +312,7 @@ impl Upstream {
 		}
 		.await;
 		if let (Some(span), Err(error)) = (span.as_mut(), &result) {
-			span.set_error(error.to_string());
+			span.set_error(ProxyResponseReason::MCP.to_string(), error.to_string());
 		}
 		result
 	}
