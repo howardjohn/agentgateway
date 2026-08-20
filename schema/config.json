@@ -6317,6 +6317,17 @@
             },
             "metadata": {
               "description": "Optional metadata attached to requests authenticated with this key."
+            },
+            "allowedModels": {
+              "description": "Model patterns this key is allowed to access.\nOmitted means no additional constraint; an empty list denies all models.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "default": null
             }
           },
           "additionalProperties": false,
@@ -6333,6 +6344,17 @@
             },
             "metadata": {
               "description": "Optional metadata attached to requests authenticated with this key."
+            },
+            "allowedModels": {
+              "description": "Model patterns this key is allowed to access.\nOmitted means no additional constraint; an empty list denies all models.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "default": null
             }
           },
           "additionalProperties": false,

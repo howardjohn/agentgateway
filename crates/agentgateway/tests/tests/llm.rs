@@ -212,6 +212,55 @@ async fn setup_local_llm_config(yaml: &str) -> TestBind {
 }
 
 #[tokio::test]
+async fn llm_api_key_allowed_models_filters_discovery_and_requests() {
+	let mock = body_mock(llm_body!("response/completions/basic.json")).await;
+	let config = format!(
+		r#"
+llm:
+  port: 0
+  policies:
+    apiKey:
+      keys:
+      - key: sk-restricted
+        metadata:
+          name: restricted
+        allowedModels:
+        - openai/gpt-*
+        - direct-model
+      mode: strict
+  models:
+  - name: openai/*
+    provider: openAI
+    params:
+      baseUrl: http://{}
+  - name: direct-model
+    provider: openAI
+    params:
+      baseUrl: http://{}
+"#,
+		mock.address(),
+		mock.address(),
+	);
+	let t = setup_local_llm_config(&config).await;
+	let io = t.serve_http(strng::literal!("bind/0"));
+	let authorization = [("authorization", "Bearer sk-restricted")];
+
+	let mut models = list_models(io.clone(), &authorization).await;
+	models.sort();
+	assert_eq!(models, vec!["direct-model", "openai/*"]);
+
+	let response = send_completions_with_model(io.clone(), "openai/gpt-4o", &authorization).await;
+	assert_eq!(response.status(), StatusCode::OK);
+	let _ = read_body_raw(response.into_body()).await;
+
+	let response = send_completions_with_model(io, "openai/claude", &authorization).await;
+	assert_eq!(response.status(), StatusCode::FORBIDDEN);
+	let body: Value = serde_json::from_slice(&read_body_raw(response.into_body()).await).unwrap();
+	assert_eq!(body["error"]["code"], "model_not_allowed");
+	assert_eq!(mock.received_requests().await.unwrap().len(), 1);
+}
+
+#[tokio::test]
 async fn llm_local_router_handles_models_virtual_model_and_missing_model() {
 	let mock = body_mock(llm_body!("response/completions/basic.json")).await;
 	let config = format!(
