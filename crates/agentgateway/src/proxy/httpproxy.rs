@@ -4324,17 +4324,7 @@ impl PolicyClient {
 		}
 	}
 
-	pub async fn call_reference(
-		&self,
-		req: Request,
-		backend_ref: &SimpleBackendReference,
-	) -> Result<Response, ProxyError> {
-		self
-			.call_reference_with_policies(req, backend_ref, &[])
-			.await
-	}
-
-	pub async fn call_reference_with_policies(
+	pub(crate) async fn call_reference_with_policies_untraced(
 		&self,
 		mut req: Request,
 		backend_ref: &SimpleBackendReference,
@@ -4374,7 +4364,7 @@ impl PolicyClient {
 		Ok((backend.backend, pols))
 	}
 
-	pub fn call_reference_with_policies_traced<'a>(
+	pub fn call_reference_with_policies<'a>(
 		&'a self,
 		mut req: Request,
 		backend_ref: &'a SimpleBackendReference,
@@ -4399,30 +4389,34 @@ impl PolicyClient {
 		})
 	}
 
-	pub fn call_reference_traced<'a>(
+	pub fn call_reference<'a>(
 		&'a self,
 		req: Request,
 		backend_ref: &'a SimpleBackendReference,
 	) -> Pin<Box<dyn Future<Output = Result<Response, ProxyError>> + Send + 'a>> {
-		self.call_reference_with_policies_traced(req, backend_ref, &[])
+		self.call_reference_with_policies(req, backend_ref, &[])
 	}
 
-	pub async fn call(
+	pub fn call(
 		&self,
-		req: Request,
+		mut req: Request,
 		backend: SimpleBackendWithPolicies,
-	) -> Result<Response, ProxyError> {
-		let start = std::time::Instant::now();
-		let backend = BackendWithPolicies::from(backend);
-		let pols = get_backend_policies(&self.inputs, &backend, &[], None);
-		let res = self
-			.internal_call_with_policies(req, backend.backend, pols)
-			.await;
-		self.observe_outbound(start);
-		res
+	) -> Pin<Box<dyn Future<Output = Result<Response, ProxyError>> + Send + '_>> {
+		Box::pin(async move {
+			let start = std::time::Instant::now();
+			let backend = BackendWithPolicies::from(backend);
+			let pols = get_backend_policies(&self.inputs, &backend, &[], None);
+			let mut span = self.start_outbound_span(&mut req);
+			let result = self
+				.internal_call_with_policies(req, backend.backend, pols)
+				.await;
+			self.observe_outbound(start);
+			Self::finish_outbound_span(span.as_deref_mut(), &result);
+			result
+		})
 	}
 
-	pub async fn call_with_explicit_policies(
+	pub(crate) async fn call_with_explicit_policies_untraced(
 		&self,
 		req: Request,
 		backend: &SimpleBackend,
@@ -4437,34 +4431,22 @@ impl PolicyClient {
 		res
 	}
 
-	pub async fn call_with_explicit_policies_list(
-		&self,
-		req: Request,
-		backend: Backend,
-		policies: Vec<BackendTrafficPolicy>,
-	) -> Result<Response, ProxyError> {
-		let start = std::time::Instant::now();
-		let pols = self
-			.inputs
-			.stores
-			.read_binds()
-			.inline_backend_policies(&policies);
-		let res = self.internal_call_with_policies(req, backend, pols).await;
-		self.observe_outbound(start);
-		res
-	}
-
-	pub fn call_with_explicit_policies_list_traced(
+	pub fn call_with_explicit_policies_list(
 		&self,
 		mut req: Request,
 		backend: Backend,
 		policies: Vec<BackendTrafficPolicy>,
 	) -> Pin<Box<dyn Future<Output = Result<Response, ProxyError>> + Send + '_>> {
 		Box::pin(async move {
+			let start = std::time::Instant::now();
+			let pols = self
+				.inputs
+				.stores
+				.read_binds()
+				.inline_backend_policies(&policies);
 			let mut span = self.start_outbound_span(&mut req);
-			let result = self
-				.call_with_explicit_policies_list(req, backend, policies)
-				.await;
+			let result = self.internal_call_with_policies(req, backend, pols).await;
+			self.observe_outbound(start);
 			Self::finish_outbound_span(span.as_deref_mut(), &result);
 			result
 		})
@@ -4498,20 +4480,15 @@ impl PolicyClient {
 		})
 	}
 
-	pub async fn simple_call(&self, req: Request) -> Result<Response, ProxyError> {
-		let start = std::time::Instant::now();
-		let res = Box::pin(self.inputs.upstream.simple_call(req)).await;
-		self.observe_outbound(start);
-		res
-	}
-
-	pub fn simple_call_traced(
+	pub fn simple_call(
 		&self,
 		mut req: Request,
 	) -> Pin<Box<dyn Future<Output = Result<Response, ProxyError>> + Send + '_>> {
 		Box::pin(async move {
+			let start = std::time::Instant::now();
 			let mut span = self.start_outbound_span(&mut req);
-			let result = self.simple_call(req).await;
+			let result = Box::pin(self.inputs.upstream.simple_call(req)).await;
+			self.observe_outbound(start);
 			Self::finish_outbound_span(span.as_deref_mut(), &result);
 			result
 		})

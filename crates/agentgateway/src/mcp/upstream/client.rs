@@ -65,7 +65,9 @@ impl McpHttpClient {
 			self
 				.client
 				.with_outbound(OutboundCallKind::Primary, OutboundCallSubtype::Mcp)
-				.call_with_explicit_policies(req, &self.backend, policies),
+				// The Upstream layer owns the semantic MCP span so it can include the MCP method,
+				// target, and tool name. Tracing this HTTP transport would create a duplicate span.
+				.call_with_explicit_policies_untraced(req, &self.backend, policies),
 		)
 		.await?;
 

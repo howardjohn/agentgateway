@@ -1274,7 +1274,7 @@ impl Relay {
 			.iter_named()
 			.map(|(name, con)| {
 				let ctx = &ctx;
-				async move { (name, con.delete(ctx).await) }
+				async move { (name.clone(), con.delete(name.as_str(), ctx).await) }
 			})
 			.collect();
 
@@ -1309,7 +1309,7 @@ impl Relay {
 			.iter_named()
 			.map(|(name, con)| {
 				let ctx = &ctx;
-				async move { (name, con.get_event_stream(ctx).await) }
+				async move { (name.clone(), con.get_event_stream(name.as_str(), ctx).await) }
 			})
 			.collect();
 
@@ -1463,7 +1463,8 @@ impl Relay {
 		};
 
 		let us = self.upstreams.get(upstream.as_str())?;
-		us.generic_client_message(message, &ctx).await?;
+		us.generic_client_message(upstream.as_str(), message, &ctx)
+			.await?;
 		Ok(accepted_response())
 	}
 
@@ -1478,7 +1479,14 @@ impl Relay {
 			.map(|(name, con)| {
 				let notification = r.notification.clone();
 				let ctx = &ctx;
-				async move { (name, con.generic_notification(notification, ctx).await) }
+				async move {
+					(
+						name.clone(),
+						con
+							.generic_notification(name.as_str(), notification, ctx)
+							.await,
+					)
+				}
 			})
 			.collect();
 
@@ -1514,7 +1522,7 @@ impl Relay {
 				"unknown service {service_name}"
 			)));
 		};
-		us.generic_notification(r, &ctx).await?;
+		us.generic_notification(service_name, r, &ctx).await?;
 		Ok(accepted_response())
 	}
 

@@ -83,7 +83,7 @@ pub(crate) async fn exchange_code_with_timeout(
 	req.extensions_mut().insert(BackendRequestTimeout(timeout));
 	let resp = client
 		.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::Oidc)
-		.simple_call_traced(req)
+		.simple_call(req)
 		.await
 		.map_err(anyhow::Error::from)
 		.map_err(Error::TokenExchangeFailed)?;

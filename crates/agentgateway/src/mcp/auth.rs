@@ -292,7 +292,7 @@ pub(super) async fn authorization_server_metadata(
 		.body(Body::empty())?;
 	let upstream = client
 		.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::Oidc)
-		.simple_call_traced(ureq)
+		.simple_call(ureq)
 		.await?;
 	let limit = crate::http::response_buffer_limit(&upstream);
 	let mut resp: serde_json::Value = from_body_with_limit(upstream.into_body(), limit)
@@ -504,7 +504,7 @@ pub(super) async fn client_registration(
 
 	let mut upstream = client
 		.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::Oidc)
-		.simple_call_traced(ureq)
+		.simple_call(ureq)
 		.await?;
 
 	// Add CORS headers to the response
@@ -618,7 +618,7 @@ pub(super) async fn entra_token(
 	let ureq = builder.body(Body::from(form))?;
 	let upstream = client
 		.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::Oidc)
-		.simple_call_traced(ureq)
+		.simple_call(ureq)
 		.await?;
 
 	Ok(upstream)

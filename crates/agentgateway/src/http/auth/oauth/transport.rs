@@ -213,7 +213,7 @@ pub(super) async fn request_token(
 
 	let resp = client
 		.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::Oidc)
-		.call_reference_with_policies_traced(req, spec.target, spec.policies)
+		.call_reference_with_policies(req, spec.target, spec.policies)
 		.await
 		.map_err(|e| FetchError::Upstream(anyhow!("token exchange request failed: {e}")))?;
 

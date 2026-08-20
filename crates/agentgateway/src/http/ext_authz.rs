@@ -852,7 +852,7 @@ impl ExtAuthz {
 		let scope = dtrace::start_scope("ext_authz");
 		let resp = client
 			.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::ExtAuthz)
-			.call_reference_with_policies_traced(
+			.call_reference_with_policies(
 				check_req,
 				&self.target.target,
 				self.target.policies.as_slice(),

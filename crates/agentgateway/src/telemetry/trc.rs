@@ -491,7 +491,7 @@ impl opentelemetry_http::HttpClient for PolicyOtelHttpClient {
 		let resp = handle
 			.spawn(async move {
 				client
-					.call_reference_with_policies(req, &backend_ref, &policies)
+					.call_reference_with_policies_untraced(req, &backend_ref, &policies)
 					.await
 					.map_err(Box::new)
 			})
