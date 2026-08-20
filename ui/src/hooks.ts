@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
+import { getBudgetStatus } from '@/api/budgetsApi';
 import { getConfig, getEffectiveConfig, writeConfig } from '@/api/configApi';
 import { getConfigDump } from '@/api/configDumpApi';
 import {
@@ -167,6 +168,16 @@ export function useTrafficConfigData(options?: { enabled?: boolean }) {
 		isLoading: config.isLoading || runtime.isLoading || configResources.isLoading,
 		error: config.error ?? runtime.error ?? configResources.error
 	};
+}
+
+export function useBudgetStatus(options?: { enabled?: boolean }) {
+	return useQuery({
+		queryKey: ['budgetStatus'],
+		queryFn: getBudgetStatus,
+		enabled: options?.enabled ?? true,
+		refetchInterval: 15_000,
+		retry: false
+	});
 }
 
 export function useConfigDumpMode() {

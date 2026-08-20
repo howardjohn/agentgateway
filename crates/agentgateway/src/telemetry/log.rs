@@ -959,6 +959,7 @@ impl RequestLog {
 			outgoing_span: None,
 			llm_request: None,
 			llm_response: Default::default(),
+			budgets: None,
 			a2a_method: None,
 			a2a_response: None,
 			inference_pool: None,
@@ -1125,6 +1126,7 @@ pub struct RequestLog {
 
 	pub llm_request: Option<llm::LLMRequest>,
 	pub llm_response: AsyncLog<llm::LLMInfo>,
+	pub budgets: Option<crate::http::budget::BudgetSettlement>,
 
 	pub a2a_method: Option<Strng>,
 	pub a2a_response: Option<a2a::ResponseInfo>,
@@ -1208,6 +1210,9 @@ impl Drop for DropOnLog {
 				.map(|llm_info| LLMContext::from_llm_info(llm_info, Some(log.model_catalog.as_ref())));
 			if let Some(llm_response) = llm_response.as_mut() {
 				llm_response.set_token_timing(log.start.as_instant(), end_time.as_instant());
+			}
+			if let (Some(budgets), Some(llm_response)) = (log.budgets.take(), llm_response.as_ref()) {
+				budgets.settle(llm_response);
 			}
 
 			let mcp = log.mcp_status.take();

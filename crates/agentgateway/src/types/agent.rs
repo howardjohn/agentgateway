@@ -2785,6 +2785,7 @@ pub enum TrafficPolicy {
 	Oidc(RequestPolicy<crate::http::oidc::OidcPolicy>),
 	BasicAuth(RequestPolicy<crate::http::basicauth::BasicAuthentication>),
 	APIKey(RequestPolicy<crate::http::apikey::APIKeyAuthentication>),
+	Budget(RequestPolicy<crate::http::budget::BudgetPolicy>),
 	Transformation(RequestPolicy<crate::http::transformation_cel::Transformation>),
 	Csrf(RequestPolicy<crate::http::csrf::Csrf>),
 

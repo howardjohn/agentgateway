@@ -2,6 +2,7 @@ import type { StoresDump } from '@/gateway-admin';
 import type {
 	BackendAuth,
 	BackendAuthCompat,
+	Budget,
 	CorsSerde,
 	ExtAuthz,
 	ExtProc,
@@ -53,6 +54,7 @@ export type LlmModel = LocalLLMModels;
 export type LlmVirtualModel = LocalLLMVirtualModel;
 export type LlmProvider = LocalLLMProvider;
 export type LlmGuardrail = PromptGuard;
+export type VirtualApiKeyBudget = Budget;
 export type VirtualApiKey = LocalAPIKey;
 export type LlmApiKeyPolicy = LocalAPIKeys;
 export type LlmPolicy = LocalLLMPolicy;

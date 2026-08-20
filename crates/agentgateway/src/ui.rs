@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use agent_core::version::BuildInfo;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{StatusCode, Uri};
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Redirect, Response, Sse};
@@ -109,6 +109,7 @@ pub fn router(
 		.route("/api/logs/analytics/summary", post(analytics_summary))
 		.route("/api/costs/models", get(cost_models))
 		.route("/api/costs/refresh-base", post(refresh_base_costs))
+		.route("/api/budgets/status", get(budget_status))
 		.nest_service("/ui", ui_service)
 		.route("/", get(|| async { Redirect::permanent("/ui") }))
 		.with_state(App {
@@ -752,6 +753,24 @@ async fn cost_models(
 	State(app): State<App>,
 ) -> Result<Json<crate::llm::catalog::ModelCatalogModels>, ErrorResponse> {
 	Ok(Json(app.model_catalog.list_models()))
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BudgetStatusQuery {
+	api_key_name: Option<String>,
+}
+
+async fn budget_status(
+	State(app): State<App>,
+	Query(query): Query<BudgetStatusQuery>,
+) -> Result<Json<crate::http::budget::BudgetStatusResponse>, ErrorResponse> {
+	Ok(Json(
+		app
+			.state
+			.budget_policy
+			.status(query.api_key_name.as_deref())?,
+	))
 }
 
 #[derive(serde::Deserialize)]

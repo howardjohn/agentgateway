@@ -161,7 +161,16 @@ pub fn setup_llm_named_provider_mock(
 	provider: LocalNamedAIProvider,
 	config: &str,
 ) -> (MockServer, TestBind, Client<MemoryConnector, Body>) {
-	let t = setup_proxy_test(config).unwrap();
+	let config = crate::config::parse_config(config.to_string(), None).unwrap();
+	setup_llm_named_provider_mock_with_config(mock, provider, config)
+}
+
+pub fn setup_llm_named_provider_mock_with_config(
+	mock: MockServer,
+	provider: LocalNamedAIProvider,
+	config: crate::Config,
+) -> (MockServer, TestBind, Client<MemoryConnector, Body>) {
+	let t = setup_proxy_test_with_config(config);
 	let resources = crate::resource_manager::ResourceFetcher::direct(t.pi.upstream.clone());
 	let be = futures::executor::block_on(
 		crate::types::local::LocalAIBackend::Provider(provider).translate(&resources),
@@ -1039,6 +1048,12 @@ impl TestBind {
 		)
 		.await
 		.unwrap();
+		self
+			.pi
+			.cfg
+			.budget_policy
+			.apply_registration(normalized.budget_registration.clone())
+			.unwrap();
 		for v in normalized.policies.into_iter() {
 			self.policies += 1;
 			self.with_policy(TargetedPolicy {

@@ -150,7 +150,7 @@ impl ConfigResourceStore {
 		Self::from_pool(DatabasePool::connect_with_max_connections(url, max_connections).await?).await
 	}
 
-	async fn from_pool(pool: DatabasePool) -> anyhow::Result<Self> {
+	pub async fn from_pool(pool: DatabasePool) -> anyhow::Result<Self> {
 		let (change_tx, _) = watch::channel(());
 		match &pool {
 			DatabasePool::Sqlite(pool) => {
