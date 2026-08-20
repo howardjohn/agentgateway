@@ -116,7 +116,8 @@ impl App {
 		};
 		let sessions = self.session.clone();
 		sessions.ensure_idle_running();
-		let client = PolicyClient::new(pi.clone()).with_parent(req.deref());
+		let client = PolicyClient::new(pi.clone());
+		let request_client = client.with_parent(req.deref());
 		let authorization_policies = backend_policies
 			.mcp_authorization
 			.unwrap_or_else(|| McpAuthorizationSet::new(RuleSets::from(Vec::new())));
@@ -146,7 +147,7 @@ impl App {
 		// replaces this with the post-authentication request state.
 		Self::snapshot_request_without_clearing_extensions(&mut req, log);
 		if let Some(auth) = authn.as_ref()
-			&& let Some(resp) = auth::enforce_authentication(&mut req, auth, &client).await?
+			&& let Some(resp) = auth::enforce_authentication(&mut req, auth, &request_client).await?
 		{
 			return Ok(resp);
 		}

@@ -314,6 +314,7 @@ impl Relay {
 		policies: McpAuthorizationSet,
 		client: PolicyClient,
 	) -> Result<Self, mcp::Error> {
+		let client = PolicyClient::new(client.inputs.clone());
 		Ok(Self {
 			upstreams: Arc::new(upstream::UpstreamGroup::new(client.clone(), backend)?),
 			policies,

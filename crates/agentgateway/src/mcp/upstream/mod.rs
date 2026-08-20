@@ -470,6 +470,7 @@ impl UpstreamGroup {
 	}
 
 	pub(crate) fn new(client: PolicyClient, backend: McpBackendGroup) -> Result<Self, mcp::Error> {
+		let client = PolicyClient::new(client.inputs.clone());
 		let is_multiplexing = backend.targets.len() != 1;
 		let default_target_name = (!is_multiplexing && backend.prefix_mode != McpPrefixMode::Always)
 			.then(|| backend.targets[0].name.to_string());

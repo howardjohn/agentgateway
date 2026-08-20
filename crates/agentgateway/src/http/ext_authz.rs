@@ -561,9 +561,7 @@ impl ExtAuthz {
 			"/envoy.service.auth.v3.Authorization/Check",
 		);
 
-		let scope = dtrace::start_scope("ext_authz");
 		let resp = grpc_client.check(authz_req).await;
-		drop(scope);
 		if let Some(span) = span.as_deref_mut() {
 			span.record_grpc_result(&resp);
 		}
@@ -849,7 +847,6 @@ impl ExtAuthz {
 		check_req
 			.extensions_mut()
 			.insert(BackendRequestTimeout(Duration::from_secs(2)));
-		let scope = dtrace::start_scope("ext_authz");
 		let resp = client
 			.with_outbound(OutboundCallKind::Policy, OutboundCallSubtype::ExtAuthz)
 			.call_reference_with_policies(
@@ -865,7 +862,6 @@ impl ExtAuthz {
 				return self.handle_auth_failure(&e.to_string());
 			},
 		};
-		drop(scope);
 		if resp.status().is_success() {
 			let mut included_headers = HeaderMap::new();
 			for k in include_response_headers {

@@ -46,6 +46,7 @@ impl McpHttpClient {
 		&self,
 		req: http::Request<crate::http::Body>,
 	) -> Result<http::Response<crate::http::Body>, ProxyError> {
+		let client = self.client.with_parent(&req);
 		let mut policies = self.base_policies.clone();
 
 		if self.stateful
@@ -62,9 +63,9 @@ impl McpHttpClient {
 		}
 
 		let resp = Box::pin(
-			self
-				.client
+			client
 				.with_outbound(OutboundCallKind::Primary, OutboundCallSubtype::Mcp)
+				.with_dtrace_scope(format!("mcp {}", self.target_name))
 				// The Upstream layer owns the semantic MCP span so it can include the MCP method,
 				// target, and tool name. Tracing this HTTP transport would create a duplicate span.
 				.call_with_explicit_policies_untraced(req, &self.backend, policies),

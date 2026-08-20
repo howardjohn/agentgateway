@@ -442,7 +442,7 @@ impl ExtProcInstance {
 		let (tx_req, rx_req) = tokio::sync::mpsc::channel(10);
 		let (tx_resp, mut rx_resp) = tokio::sync::mpsc::channel(10);
 		let req_stream = tokio_stream::wrappers::ReceiverStream::new(rx_req);
-		tokio::task::spawn(async move {
+		dtrace::spawn(async move {
 			let mut request = tonic::Request::new(req_stream);
 			*request.metadata_mut() = grpc_initial_metadata;
 			let mut span = span_client.start_grpc_span(

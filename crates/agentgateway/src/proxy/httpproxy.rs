@@ -4212,6 +4212,7 @@ pub struct PolicyClient {
 struct PolicyClientContext {
 	outbound: Option<OutboundCallLabels>,
 	span_writer: SpanWriter,
+	dtrace_scope: Option<String>,
 }
 
 impl PolicyClient {
@@ -4235,6 +4236,10 @@ impl PolicyClient {
 			context: Some(Arc::new(PolicyClientContext {
 				outbound: self.outbound(),
 				span_writer,
+				dtrace_scope: self
+					.context
+					.as_ref()
+					.and_then(|context| context.dtrace_scope.clone()),
 			})),
 		}
 	}
@@ -4253,12 +4258,56 @@ impl PolicyClient {
 					.as_ref()
 					.map(|context| context.span_writer.clone())
 					.unwrap_or_default(),
+				dtrace_scope: None,
+			})),
+		}
+	}
+
+	pub(crate) fn with_dtrace_scope(&self, scope: impl Into<String>) -> PolicyClient {
+		PolicyClient {
+			inputs: self.inputs.clone(),
+			context: Some(Arc::new(PolicyClientContext {
+				outbound: self.outbound(),
+				span_writer: self
+					.context
+					.as_ref()
+					.map(|context| context.span_writer.clone())
+					.unwrap_or_default(),
+				dtrace_scope: Some(scope.into()),
 			})),
 		}
 	}
 
 	fn outbound(&self) -> Option<OutboundCallLabels> {
 		self.context.as_ref().and_then(|context| context.outbound)
+	}
+
+	fn dtrace_scope(&self) -> Option<&str> {
+		let labels = self.outbound()?;
+		if let Some(scope) = self
+			.context
+			.as_ref()
+			.and_then(|context| context.dtrace_scope.as_deref())
+		{
+			return Some(scope);
+		}
+		Some(match labels.kind {
+			OutboundCallKind::Mirror => "mirror",
+			OutboundCallKind::Primary => match labels.subtype {
+				OutboundCallSubtype::Http => "http",
+				OutboundCallSubtype::Llm => "llm",
+				OutboundCallSubtype::Mcp => "mcp",
+				_ => labels.subtype.as_str(),
+			},
+			OutboundCallKind::Policy => match labels.subtype {
+				OutboundCallSubtype::ExtAuthz => "ext_authz",
+				OutboundCallSubtype::ExtProc => "ext_proc",
+				OutboundCallSubtype::Guardrail => "guardrail",
+				OutboundCallSubtype::RateLimit => "rate_limit",
+				OutboundCallSubtype::Oidc => "oidc",
+				_ => labels.subtype.as_str(),
+			},
+		})
 	}
 
 	fn start_outbound_span(&self, req: &mut Request) -> Option<Box<SpanWriteOnDrop>> {
@@ -4482,7 +4531,8 @@ impl PolicyClient {
 	) -> Pin<Box<dyn Future<Output = Result<Response, ProxyError>> + Send + '_>> {
 		let mut req = Some(req);
 		Box::pin(async move {
-			Box::pin(
+			let mut response_policies = Default::default();
+			let call = Box::pin(
 				make_backend_call(
 					self.inputs.clone(),
 					Arc::new(LLMRequestPolicies::default()),
@@ -4493,12 +4543,12 @@ impl PolicyClient {
 					// Here we don't have a log to pass. MCP and LLM flows expect there to always be a log.
 					// As such, we ensure we ONLY call this with Simple backend type which cannot be MCP/LLM
 					None,
-					&mut Default::default(),
+					&mut response_policies,
 				)
 				.assert_size::<{ 7 * 1024 }>(),
-			)
-			.await
-			.map_err(ProxyResponse::downcast)
+			);
+			let result = dtrace::scope_future(self.dtrace_scope(), call).await;
+			result.map_err(ProxyResponse::downcast)
 		})
 	}
 
@@ -4509,7 +4559,8 @@ impl PolicyClient {
 		Box::pin(async move {
 			let start = std::time::Instant::now();
 			let mut span = self.start_outbound_span(&mut req);
-			let result = Box::pin(self.inputs.upstream.simple_call(req)).await;
+			let call = Box::pin(self.inputs.upstream.simple_call(req));
+			let result = dtrace::scope_future(self.dtrace_scope(), call).await;
 			self.observe_outbound(start);
 			Self::finish_outbound_span(span.as_deref_mut(), &result);
 			result
