@@ -98,7 +98,7 @@
 |`config.backend.keepalives.time`|string|Idle time before the first keepalive probe is sent.|
 |`config.backend.keepalives.interval`|string|Time between successive keepalive probes.|
 |`config.backend.keepalives.retries`|integer|Number of unacknowledged probes before the connection is considered dead.|
-|`config.backend.connectTimeout`|string|Maximum time to wait when establishing a connection to an upstream. Defaults to 10 seconds.|
+|`config.backend.connectTimeout`|string|Maximum time to wait when establishing a connection to an upstream. Defaults to 11 seconds.|
 |`config.backend.poolIdleTimeout`|string|The maximum duration to keep an idle connection alive.|
 |`config.backend.poolMaxSize`|integer|The maximum number of connections allowed in the pool, per hostname. If set, this will limit<br>the total number of connections kept alive to any given host.<br>Note: excess connections will still be created, they will just not remain idle.<br>If unset, there is no limit|
 |`config.hbone`|object|HBONE (HTTP/2 CONNECT tunnel) protocol configuration.|

@@ -278,7 +278,7 @@ pub struct BackendConfig {
 	/// TCP keepalive configuration for upstream connections.
 	#[serde(default)]
 	keepalives: types::agent::KeepaliveConfig,
-	/// Maximum time to wait when establishing a connection to an upstream. Defaults to 10 seconds.
+	/// Maximum time to wait when establishing a connection to an upstream. Defaults to 11 seconds.
 	#[serde(with = "serde_dur")]
 	#[cfg_attr(feature = "schema", schemars(with = "String"))]
 	#[serde(default = "defaults::connect_timeout")]
@@ -328,7 +328,9 @@ mod defaults {
 	use std::time::Duration;
 
 	pub fn connect_timeout() -> Duration {
-		Duration::from_secs(10)
+		// Most systems use 10s. Using 11s makes timeouts from this setting distinguishable
+		// from another layer's 10s timeout.
+		Duration::from_secs(11)
 	}
 	pub fn pool_idle_timeout() -> Duration {
 		Duration::from_secs(90)

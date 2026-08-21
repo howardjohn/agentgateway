@@ -419,7 +419,7 @@
               "interval": "3m0s",
               "retries": 9
             },
-            "connectTimeout": "10s",
+            "connectTimeout": "11s",
             "poolIdleTimeout": "1m30s",
             "poolMaxSize": null
           }
@@ -1061,9 +1061,9 @@
           }
         },
         "connectTimeout": {
-          "description": "Maximum time to wait when establishing a connection to an upstream. Defaults to 10 seconds.",
+          "description": "Maximum time to wait when establishing a connection to an upstream. Defaults to 11 seconds.",
           "type": "string",
-          "default": "10s"
+          "default": "11s"
         },
         "poolIdleTimeout": {
           "description": "The maximum duration to keep an idle connection alive.",
@@ -4476,18 +4476,24 @@
       "properties": {
         "keepalives": {
           "description": "TCP keepalive settings for backend connections.",
-          "$ref": "#/$defs/KeepaliveConfig"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/KeepaliveConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "connectTimeout": {
           "description": "Maximum time allowed to establish a backend TCP connection.",
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
-      "additionalProperties": false,
-      "required": [
-        "keepalives",
-        "connectTimeout"
-      ]
+      "additionalProperties": false
     },
     "Tunnel": {
       "type": "object",
