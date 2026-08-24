@@ -580,13 +580,17 @@ function upsertFileConfigResource(
 		const index = previousId
 			? keys.findIndex((key, keyIndex) => {
 					const keyValue = record(key);
-					return (stringValue(record(keyValue.metadata).id) || `@index:${keyIndex}`) === previousId;
+					return (
+						(stringValue(record(keyValue.metadata)['agentgateway.dev/id']) ||
+							`@index:${keyIndex}`) === previousId
+					);
 				})
 			: -1;
 		if (!previousId || !previousId.startsWith('@index:')) {
 			value.metadata = {
 				...record(value.metadata),
-				id: previousId ?? `test-key-${keys.length + 1}`
+				'agentgateway.dev/id': previousId ?? `test-key-${keys.length + 1}`,
+				'agentgateway.dev/createdAt': 1783641600
 			};
 		}
 		if (index >= 0) keys[index] = value;
@@ -649,7 +653,9 @@ function deleteFileConfigResource(config: TestConfig, kind: string, id: string) 
 		const policy = record(record(record(config.llm).policies).apiKey);
 		policy.keys = array(policy.keys).filter((key, index) => {
 			const value = record(key);
-			return (stringValue(record(value.metadata).id) || `@index:${index}`) !== id;
+			return (
+				(stringValue(record(value.metadata)['agentgateway.dev/id']) || `@index:${index}`) !== id
+			);
 		});
 		return;
 	}

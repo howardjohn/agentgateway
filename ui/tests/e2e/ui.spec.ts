@@ -249,7 +249,11 @@ test('raw configuration lists hybrid database resources with masked keys', async
 						id: 'key-id',
 						value: {
 							key: 'agw_sk_supersecret123',
-							metadata: { id: 'key-id', name: 'Test key' }
+							metadata: {
+								'agentgateway.dev/id': 'key-id',
+								'agentgateway.dev/createdAt': 1783641600,
+								name: 'Test key'
+							}
 						},
 						revision: 1,
 						createdAt: '2026-07-10T00:00:00Z',

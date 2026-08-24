@@ -42,12 +42,13 @@ import {
 } from '@/policies/AuthorizationLocation';
 import { KeyValueEditor } from '@/policies/PolicyFormControls';
 import { AdvancedSettingRow } from '@/policies/PolicyLayout';
-import { randomUuid } from '@/randomUuid';
 import { type SchemaHelp, useSchemaHelp } from '@/schemaHelp';
 import type { GatewayConfig, LlmApiKeyPolicy, VirtualApiKey } from '@/types';
 
 const fileOwnedPolicyMessage =
 	'This API key policy is file-owned and cannot be modified in hybrid mode.';
+const managedMetadataPrefix = 'agentgateway.dev/';
+const apiKeyIdMetadata = 'agentgateway.dev/id';
 
 export function KeysPage() {
 	const {
@@ -105,7 +106,7 @@ export function KeysPage() {
 		const previousId = previous ? keyId(previous) || `@index:${previousIndex}` : undefined;
 		const value = structuredClone(key);
 		if (value.metadata && typeof value.metadata === 'object') {
-			delete value.metadata.id;
+			value.metadata = withoutServerMetadata(metadataObject(value.metadata));
 		}
 		upsertResource.mutate({ kind: 'llm.apiKey', value, previousId }, { onSuccess: closeKeyDrawer });
 	}
@@ -569,13 +570,8 @@ function KeyEditor(props: {
 	const duplicateName = isNew ? duplicateKeyName(name, props.existingKeys) : false;
 
 	function virtualKey() {
-		const metadataId =
-			typeof initialMetadata.id === 'string' && initialMetadata.id.trim()
-				? initialMetadata.id.trim()
-				: randomUuid();
 		const metadata = {
 			...metadataValues,
-			id: metadataId,
 			...(name.trim() ? { name: name.trim() } : {})
 		};
 		const nextKey = isNew
@@ -724,7 +720,7 @@ function KeyEditor(props: {
 function newVirtualKey(): VirtualApiKey {
 	return {
 		key: '',
-		metadata: { id: randomUuid(), name: '' }
+		metadata: { name: '' }
 	};
 }
 
@@ -766,13 +762,14 @@ function normalizeKeyName(name: string) {
 
 function keyId(key: VirtualApiKey) {
 	const metadata = metadataObject(key.metadata);
-	return typeof metadata.id === 'string' && metadata.id.trim() ? metadata.id.trim() : '';
+	const id = metadata[apiKeyIdMetadata];
+	return typeof id === 'string' && id.trim() ? id.trim() : '';
 }
 
 function keyResourceForDisplay(key: VirtualApiKey) {
 	const value = structuredClone(key);
 	if (value.metadata && typeof value.metadata === 'object') {
-		delete value.metadata.id;
+		value.metadata = withoutServerMetadata(metadataObject(value.metadata));
 	}
 	return value;
 }
@@ -889,10 +886,15 @@ function metadataObject(value: unknown): Record<string, unknown> {
 }
 
 function withoutManagedMetadata(value: Record<string, unknown>) {
-	const next = { ...value };
+	const next = withoutServerMetadata(value);
 	delete next.name;
-	delete next.id;
 	return next;
+}
+
+function withoutServerMetadata(value: Record<string, unknown>) {
+	return Object.fromEntries(
+		Object.entries(value).filter(([key]) => !key.startsWith(managedMetadataPrefix))
+	);
 }
 
 function stringMetadata(value: Record<string, unknown>) {
