@@ -95,9 +95,12 @@ export function useLlmConfigData(options?: { enabled?: boolean }) {
 		[rawConfig.data?.llm?.policies]
 	);
 	const policies = (config.data?.llm?.policies ?? {}) as NonNullable<LlmConfig['policies']>;
-	const models = config.data?.llm?.models ?? [];
-	const virtualModels = config.data?.llm?.virtualModels ?? [];
-	const providers = config.data?.llm?.providers ?? [];
+	const models = useMemo(() => config.data?.llm?.models ?? [], [config.data?.llm?.models]);
+	const virtualModels = useMemo(
+		() => config.data?.llm?.virtualModels ?? [],
+		[config.data?.llm?.virtualModels]
+	);
+	const providers = useMemo(() => config.data?.llm?.providers ?? [], [config.data?.llm?.providers]);
 	const apiKeys = (policies.apiKey as LlmApiKeyPolicy | null | undefined)?.keys ?? [];
 	const warnings = useMemo(
 		() =>

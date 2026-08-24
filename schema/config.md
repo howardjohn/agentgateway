@@ -5055,7 +5055,7 @@
 |`binds[].listeners[].routes[].policies.substrateIngress.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`binds[].listeners[].routes[].policies.substrateIngress.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`binds[].listeners[].routes[].policies.substrateIngress.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
-|`binds[].listeners[].routes[].policies.substrateIngress.policies.backendAuth.key.value`|object|Secret value to send to the backend.|
+|`binds[].listeners[].routes[].policies.substrateIngress.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`binds[].listeners[].routes[].policies.substrateIngress.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
 |`binds[].listeners[].routes[].policies.substrateIngress.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`binds[].listeners[].routes[].policies.substrateIngress.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
@@ -5339,7 +5339,7 @@
 |`binds[].listeners[].routes[].policies.substrateEgress.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`binds[].listeners[].routes[].policies.substrateEgress.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`binds[].listeners[].routes[].policies.substrateEgress.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
-|`binds[].listeners[].routes[].policies.substrateEgress.policies.backendAuth.key.value`|object|Secret value to send to the backend.|
+|`binds[].listeners[].routes[].policies.substrateEgress.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`binds[].listeners[].routes[].policies.substrateEgress.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
 |`binds[].listeners[].routes[].policies.substrateEgress.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`binds[].listeners[].routes[].policies.substrateEgress.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
@@ -23683,7 +23683,7 @@
 |`policies[].policy.substrateIngress.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`policies[].policy.substrateIngress.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`policies[].policy.substrateIngress.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
-|`policies[].policy.substrateIngress.policies.backendAuth.key.value`|object|Secret value to send to the backend.|
+|`policies[].policy.substrateIngress.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`policies[].policy.substrateIngress.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
 |`policies[].policy.substrateIngress.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`policies[].policy.substrateIngress.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
@@ -23967,7 +23967,7 @@
 |`policies[].policy.substrateEgress.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`policies[].policy.substrateEgress.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`policies[].policy.substrateEgress.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
-|`policies[].policy.substrateEgress.policies.backendAuth.key.value`|object|Secret value to send to the backend.|
+|`policies[].policy.substrateEgress.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`policies[].policy.substrateEgress.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
 |`policies[].policy.substrateEgress.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`policies[].policy.substrateEgress.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
@@ -39503,7 +39503,7 @@
 |`routeGroups[].routes[].policies.substrateIngress.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`routeGroups[].routes[].policies.substrateIngress.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`routeGroups[].routes[].policies.substrateIngress.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
-|`routeGroups[].routes[].policies.substrateIngress.policies.backendAuth.key.value`|object|Secret value to send to the backend.|
+|`routeGroups[].routes[].policies.substrateIngress.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`routeGroups[].routes[].policies.substrateIngress.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
 |`routeGroups[].routes[].policies.substrateIngress.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`routeGroups[].routes[].policies.substrateIngress.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
@@ -39787,7 +39787,7 @@
 |`routeGroups[].routes[].policies.substrateEgress.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`routeGroups[].routes[].policies.substrateEgress.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`routeGroups[].routes[].policies.substrateEgress.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
-|`routeGroups[].routes[].policies.substrateEgress.policies.backendAuth.key.value`|object|Secret value to send to the backend.|
+|`routeGroups[].routes[].policies.substrateEgress.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`routeGroups[].routes[].policies.substrateEgress.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
 |`routeGroups[].routes[].policies.substrateEgress.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`routeGroups[].routes[].policies.substrateEgress.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
@@ -57933,7 +57933,7 @@
 |`routes[].policies.substrateIngress.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`routes[].policies.substrateIngress.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`routes[].policies.substrateIngress.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
-|`routes[].policies.substrateIngress.policies.backendAuth.key.value`|object|Secret value to send to the backend.|
+|`routes[].policies.substrateIngress.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`routes[].policies.substrateIngress.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
 |`routes[].policies.substrateIngress.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`routes[].policies.substrateIngress.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
@@ -58217,7 +58217,7 @@
 |`routes[].policies.substrateEgress.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`routes[].policies.substrateEgress.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`routes[].policies.substrateEgress.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
-|`routes[].policies.substrateEgress.policies.backendAuth.key.value`|object|Secret value to send to the backend.|
+|`routes[].policies.substrateEgress.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`routes[].policies.substrateEgress.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
 |`routes[].policies.substrateEgress.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`routes[].policies.substrateEgress.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
@@ -81366,7 +81366,7 @@
 |`mcp.policies.substrateIngress.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`mcp.policies.substrateIngress.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`mcp.policies.substrateIngress.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
-|`mcp.policies.substrateIngress.policies.backendAuth.key.value`|object|Secret value to send to the backend.|
+|`mcp.policies.substrateIngress.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`mcp.policies.substrateIngress.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
 |`mcp.policies.substrateIngress.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`mcp.policies.substrateIngress.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
@@ -81650,7 +81650,7 @@
 |`mcp.policies.substrateEgress.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`mcp.policies.substrateEgress.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
 |`mcp.policies.substrateEgress.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
-|`mcp.policies.substrateEgress.policies.backendAuth.key.value`|object|Secret value to send to the backend.|
+|`mcp.policies.substrateEgress.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`mcp.policies.substrateEgress.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
 |`mcp.policies.substrateEgress.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`mcp.policies.substrateEgress.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
