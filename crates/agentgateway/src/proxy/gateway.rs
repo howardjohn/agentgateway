@@ -653,7 +653,10 @@ impl Gateway {
 				}
 			},
 			TunnelProtocol::HboneGateway => {
-				let _ = Self::terminate_gateway_hbone(inputs, raw_stream, policies, drain).await;
+				let err = Self::terminate_gateway_hbone(inputs, raw_stream, policies, drain).await;
+				if let Err(e) = err {
+					warn!(src.addr = %peer_addr, "hbone error: {e}");
+				}
 			},
 			TunnelProtocol::Connect => {
 				// Terminate the OUTER TLS (when the bind is TLS) BEFORE serving CONNECT,
@@ -1540,18 +1543,25 @@ impl Gateway {
 		debug!(?req, "received request");
 
 		let uri = req.uri();
-		let hbone_addr = HboneAddress::try_from(uri)
+		let address = HboneAddress::try_from(uri)
 			.map_err(|_| InboundError(anyhow::anyhow!("bad request"), StatusCode::BAD_REQUEST))
-			.unwrap();
-		let socket_addr = hbone_addr
-			.socket_addr()
-			.ok_or_else(|| {
-				InboundError(
-					anyhow::anyhow!("hostname resolution not supported"),
-					StatusCode::BAD_REQUEST,
-				)
-			})
-			.unwrap();
+			.and_then(|hbone_addr| {
+				let socket_addr = hbone_addr.socket_addr().ok_or_else(|| {
+					InboundError(
+						anyhow::anyhow!("hostname resolution not supported"),
+						StatusCode::BAD_REQUEST,
+					)
+				})?;
+				Ok((hbone_addr, socket_addr))
+			});
+		let (hbone_addr, socket_addr) = match address {
+			Ok(address) => address,
+			Err(InboundError(error, status)) => {
+				warn!("hbone failed: {error}");
+				let _ = req.send_error(build_response(status));
+				return;
+			},
+		};
 		let Some(bind) = pi.stores.read_binds().find_bind(socket_addr) else {
 			warn!("no bind for {hbone_addr}");
 			let Ok(_) = req
@@ -1740,5 +1750,4 @@ fn find_service_by_hostname(
 
 /// InboundError represents an error with an associated status code.
 #[derive(Debug)]
-#[allow(dead_code)]
 struct InboundError(anyhow::Error, StatusCode);
