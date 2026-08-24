@@ -388,7 +388,7 @@ ${Array.from({ length: 24 }, (_, index) => `/workspace/path-${index + 1}`).join(
 								}
 							]
 						},
-						{ role: 'user', parts: [{ type: 'text', text: 'ping' }] },
+						{ role: 'user', parts: [{ type: 'text', text: 'Summarize the result.' }] },
 						{
 							role: 'assistant',
 							parts: [
@@ -425,7 +425,7 @@ ${Array.from({ length: 24 }, (_, index) => `/workspace/path-${index + 1}`).join(
 							]
 						}
 					],
-					responseCompletion: [{ role: 'assistant', content: '**pong**' }]
+					responseCompletion: [{ role: 'assistant', parts: [{ type: 'text', text: '**pong**' }] }]
 				}
 			}
 		});

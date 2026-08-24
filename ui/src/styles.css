@@ -2834,9 +2834,140 @@ tbody tr:hover {
 }
 
 .log-detail-view {
+	--log-step-system: #718096;
+	--log-step-input: #4f8ddf;
+	--log-step-model: #9b59cf;
+	--log-step-tool-call: #e58b25;
+	--log-step-tool-result: #36a269;
 	display: flex;
 	flex-direction: column;
 	gap: 18px;
+}
+
+.log-trajectory {
+	min-width: 0;
+	overflow: hidden;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--surface);
+}
+
+.log-trajectory-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	border-bottom: 1px solid var(--line);
+	padding: 10px 13px;
+}
+
+.log-trajectory-header h3 {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.log-trajectory-header span,
+.log-trajectory-caption {
+	color: var(--muted);
+	font-size: 11px;
+}
+
+.log-trajectory-scroll {
+	overflow-x: auto;
+	padding: 10px 13px 8px;
+}
+
+.log-trajectory-chart {
+	display: grid;
+	gap: 5px;
+}
+
+.log-trajectory-row {
+	display: grid;
+	grid-template-columns: 76px minmax(0, 1fr);
+	gap: 8px;
+	align-items: center;
+}
+
+.log-trajectory-label {
+	color: var(--muted);
+	font-size: 11px;
+	font-weight: 550;
+}
+
+.log-trajectory-track {
+	display: grid;
+	align-items: center;
+	min-height: 10px;
+	gap: 3px;
+}
+
+.log-trajectory-bar {
+	width: 100%;
+	height: 9px;
+	min-width: 0;
+	border: 0;
+	border-radius: 2px;
+	padding: 0;
+	opacity: 0.82;
+}
+
+.log-trajectory-bar:hover,
+.log-trajectory-bar:focus-visible,
+.log-trajectory-bar.selected {
+	opacity: 1;
+	outline: 2px solid color-mix(in srgb, var(--text) 75%, transparent);
+	outline-offset: 1px;
+}
+
+.log-trajectory-bar.input {
+	background: var(--log-step-input);
+}
+
+.log-trajectory-bar.input.system {
+	background: var(--log-step-system);
+}
+
+.log-trajectory-bar.model {
+	background: var(--log-step-model);
+}
+
+.log-trajectory-bar.tool-call {
+	background: var(--log-step-tool-call);
+}
+
+.log-trajectory-bar.tool-result {
+	background: var(--log-step-tool-result);
+}
+
+.log-trajectory-caption {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-height: 29px;
+	overflow: hidden;
+	border-top: 1px solid var(--line);
+	padding: 7px 13px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.log-trajectory-caption > span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.log-trajectory-caption > a {
+	flex: 0 0 auto;
+	color: var(--primary);
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.log-trajectory-caption > a:hover {
+	text-decoration: underline;
 }
 
 /* Detail header */
@@ -3410,6 +3541,19 @@ tbody tr:hover {
 	color: var(--muted);
 	font-size: 12px;
 	font-style: italic;
+}
+
+.log-msg[id],
+.log-msg-content[id],
+.log-tool-block[id] {
+	scroll-margin-top: 24px;
+}
+
+.log-msg:target,
+.log-msg-content:target,
+.log-tool-block:target {
+	outline: 2px solid color-mix(in srgb, var(--primary) 70%, transparent);
+	outline-offset: 2px;
 }
 
 /* Tool call / result blocks */

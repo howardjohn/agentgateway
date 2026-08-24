@@ -1384,6 +1384,8 @@ function logUsageDetail(entry: LogEntry): LogUsageDetail {
 
 function LogDetailView(props: { entry: LogEntry; onOpenSettings?: () => void }) {
 	const messages = logConversation(props.entry);
+	const trajectory = trajectoryEvents(messages);
+	const conversationRef = useRef<HTMLDetailsElement>(null);
 	const usage = logUsageDetail(props.entry);
 	const identity = logIdentity(props.entry);
 	const provider = props.entry.genAi.providerName ?? null;
@@ -1395,6 +1397,27 @@ function LogDetailView(props: { entry: LogEntry; onOpenSettings?: () => void }) 
 		(original != null && request != null && original !== request) ||
 		(response != null && request != null && response !== request);
 	const userAgent = stringValue(attributeValue(props.entry.attributes, 'user_agent.name'));
+	const trajectoryAnchors = trajectory.map(event => event.anchorId).join('|');
+
+	function jumpToConversation(anchorId: string) {
+		if (conversationRef.current) conversationRef.current.open = true;
+		window.requestAnimationFrame(() => {
+			document.getElementById(anchorId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			const hash = `#${anchorId}`;
+			if (window.location.hash !== hash) window.history.pushState(null, '', hash);
+		});
+	}
+
+	useEffect(() => {
+		const anchorId = decodeURIComponent(window.location.hash.slice(1));
+		if (!trajectory.some(event => event.anchorId === anchorId)) return;
+		if (conversationRef.current) conversationRef.current.open = true;
+		const frame = window.requestAnimationFrame(() => {
+			document.getElementById(anchorId)?.scrollIntoView({ block: 'center' });
+		});
+		return () => window.cancelAnimationFrame(frame);
+	}, [props.entry.id, trajectoryAnchors]);
+
 	return (
 		<div className="log-detail-view">
 			<div className="log-detail-top">
@@ -1458,6 +1481,8 @@ function LogDetailView(props: { entry: LogEntry; onOpenSettings?: () => void }) 
 				/>
 			</div>
 
+			{trajectory.length ? <LogTrajectory events={trajectory} onJump={jumpToConversation} /> : null}
+
 			<div className="log-detail-grid">
 				<section className="log-detail-section">
 					<h4>Request</h4>
@@ -1486,7 +1511,7 @@ function LogDetailView(props: { entry: LogEntry; onOpenSettings?: () => void }) 
 			</div>
 
 			{messages.length ? (
-				<details className="log-conversation">
+				<details className="log-conversation" ref={conversationRef}>
 					<summary>
 						<ChevronRight className="log-conversation-chevron" size={15} />
 						<span className="log-conversation-title">Conversation</span>
@@ -1496,7 +1521,11 @@ function LogDetailView(props: { entry: LogEntry; onOpenSettings?: () => void }) 
 					</summary>
 					<div className="log-thread">
 						{messages.map((message, index) => (
-							<LogMessageView message={message} key={`${message.role}-${index}`} />
+							<LogMessageView
+								events={trajectory.filter(event => event.messageIndex === index)}
+								message={message}
+								key={`${message.role}-${index}`}
+							/>
 						))}
 					</div>
 				</details>
@@ -1520,6 +1549,217 @@ function LogDetailView(props: { entry: LogEntry; onOpenSettings?: () => void }) 
 			</details>
 		</div>
 	);
+}
+
+type TrajectoryLane = 'input' | 'model' | 'tool-call' | 'tool-result';
+
+type TrajectoryEvent = {
+	lane: TrajectoryLane;
+	label: string;
+	approxTokens: number;
+	anchorId: string;
+	messageIndex: number;
+	partIndex?: number;
+	system?: boolean;
+};
+
+const TRAJECTORY_LANES: Array<{ lane: TrajectoryLane; label: string }> = [
+	{ lane: 'input', label: 'Input' },
+	{ lane: 'model', label: 'Model' },
+	{ lane: 'tool-call', label: 'Tool call' },
+	{ lane: 'tool-result', label: 'Tool result' }
+];
+
+function LogTrajectory(props: { events: TrajectoryEvent[]; onJump: (anchorId: string) => void }) {
+	const [selected, setSelected] = useState<number | null>(null);
+	if (!props.events.length) return null;
+
+	const selectedEvent = selected == null ? null : props.events[selected];
+	const chartStyle = {
+		minWidth: `${Math.max(420, props.events.length * 24 + 92)}px`
+	};
+	const trackStyle = {
+		gridTemplateColumns: props.events
+			.map(event => `minmax(14px, ${event.approxTokens}fr)`)
+			.join(' ')
+	};
+
+	return (
+		<section className="log-trajectory" aria-labelledby="log-trajectory-title">
+			<div className="log-trajectory-header">
+				<h3 id="log-trajectory-title">Trajectory</h3>
+				<span>
+					{formatNumber(props.events.length)} step{props.events.length === 1 ? '' : 's'}
+				</span>
+			</div>
+			<div className="log-trajectory-scroll">
+				<div className="log-trajectory-chart" style={chartStyle}>
+					{TRAJECTORY_LANES.map(({ lane, label }) => (
+						<div className="log-trajectory-row" key={lane}>
+							<span className="log-trajectory-label">{label}</span>
+							<div className="log-trajectory-track" style={trackStyle}>
+								{props.events.map((event, index) =>
+									event.lane === lane ? (
+										<button
+											aria-label={`Step ${index + 1}: ${event.label}`}
+											aria-pressed={selected === index}
+											className={`log-trajectory-bar ${lane}${event.system ? ' system' : ''}${selected === index ? ' selected' : ''}`}
+											key={`${lane}-${index}`}
+											title={`Step ${index + 1}: ${event.label}`}
+											type="button"
+											onClick={() => setSelected(current => (current === index ? null : index))}
+											onDoubleClick={() => {
+												setSelected(index);
+												props.onJump(event.anchorId);
+											}}
+										/>
+									) : (
+										<span
+											aria-hidden="true"
+											className="log-trajectory-gap"
+											key={`${lane}-${index}`}
+										/>
+									)
+								)}
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+			<div className="log-trajectory-caption" aria-live="polite">
+				<span>
+					{selectedEvent
+						? `Step ${selected! + 1} ${selectedEvent.label}`
+						: 'Width shows approximate tokens'}
+				</span>
+				{selectedEvent ? (
+					<a
+						href={`#${selectedEvent.anchorId}`}
+						onClick={event => {
+							event.preventDefault();
+							props.onJump(selectedEvent.anchorId);
+						}}
+					>
+						Jump to conversation
+					</a>
+				) : null}
+			</div>
+		</section>
+	);
+}
+
+function trajectoryEvents(messages: RenderedLogMessage[]): TrajectoryEvent[] {
+	const events: Array<Omit<TrajectoryEvent, 'anchorId'>> = [];
+	for (const [messageIndex, message] of messages.entries()) {
+		if (message.parts) {
+			for (const [partIndex, part] of message.parts.entries()) {
+				const base = { messageIndex, partIndex };
+				switch (part.type) {
+					case 'text': {
+						if (!part.text.trim()) break;
+						const model = message.role === 'assistant';
+						events.push({
+							...base,
+							lane: model ? 'model' : 'input',
+							label: trajectoryMessageLabel(
+								model ? 'Model' : message.role === 'system' ? 'System' : 'User',
+								part.text
+							),
+							approxTokens: approximateTokenCount(part.text),
+							system: message.role === 'system'
+						});
+						break;
+					}
+					case 'toolCall':
+						events.push({
+							...base,
+							lane: 'tool-call',
+							label: `Tool call: ${part.name}`,
+							approxTokens: approximateTokenCount(
+								`${part.name}\n${trajectoryValueText(part.arguments)}`
+							)
+						});
+						break;
+					case 'toolResult':
+						events.push({
+							...base,
+							lane: 'tool-result',
+							label: `Tool result: ${part.name ?? 'unknown'}`,
+							approxTokens: approximateTokenCount(trajectoryValueText(part.content))
+						});
+						break;
+					case 'reasoning':
+						// Encrypted reasoning size is not a meaningful token estimate.
+						break;
+				}
+			}
+			continue;
+		}
+
+		if (message.role === 'assistant') {
+			if (message.content.trim()) {
+				events.push({
+					lane: 'model',
+					label: trajectoryMessageLabel('Model', message.content),
+					approxTokens: approximateTokenCount(message.content),
+					messageIndex
+				});
+			}
+			for (const call of message.toolCalls ?? []) {
+				events.push({
+					lane: 'tool-call',
+					label: `Tool call: ${call.name}`,
+					approxTokens: approximateTokenCount(
+						`${call.name}\n${trajectoryValueText(call.arguments)}`
+					),
+					messageIndex
+				});
+			}
+		} else if (message.role === 'tool') {
+			events.push({
+				lane: 'tool-result',
+				label: `Tool result: ${message.name ?? 'unknown'}`,
+				approxTokens: approximateTokenCount(message.content),
+				messageIndex
+			});
+		} else if (message.content.trim()) {
+			events.push({
+				lane: 'input',
+				label: trajectoryMessageLabel(
+					message.role === 'system' ? 'System' : 'User',
+					message.content
+				),
+				approxTokens: approximateTokenCount(message.content),
+				messageIndex,
+				system: message.role === 'system'
+			});
+		}
+	}
+	return events.map((event, index) => ({
+		...event,
+		anchorId: `conversation-step-${index + 1}`
+	}));
+}
+
+function approximateTokenCount(text: string) {
+	return Math.max(1, Math.ceil(text.length / 4));
+}
+
+function trajectoryValueText(value: unknown) {
+	if (value === undefined || value === null) return '';
+	if (typeof value === 'string') return value;
+	try {
+		return JSON.stringify(value);
+	} catch {
+		return String(value);
+	}
+}
+
+function trajectoryMessageLabel(prefix: string, content: string) {
+	const compact = content.replace(/\s+/g, ' ').trim();
+	if (!compact) return prefix;
+	const preview = compact.length > 64 ? `${compact.slice(0, 61)}...` : compact;
+	return `${prefix}: ${preview}`;
 }
 
 function LogStat(props: { label: string; value: string; sub?: string }) {
@@ -1736,7 +1976,7 @@ const LOG_ROLE_LABELS: Record<RenderedLogMessage['role'], string> = {
 	tool: 'Tool'
 };
 
-function LogMessageView(props: { message: RenderedLogMessage }) {
+function LogMessageView(props: { message: RenderedLogMessage; events: TrajectoryEvent[] }) {
 	const message = props.message;
 	const content = message.content;
 	const isSystem = message.role === 'system';
@@ -1749,9 +1989,15 @@ function LogMessageView(props: { message: RenderedLogMessage }) {
 		message.parts || hasToolCalls || hasToolResults || hasReasoning
 			? serializeLogMessage(message)
 			: content;
+	const messageAnchor = props.events.find(
+		event => event.partIndex == null && event.lane !== 'tool-call'
+	)?.anchorId;
+	const toolCallEvents = props.events.filter(
+		event => event.partIndex == null && event.lane === 'tool-call'
+	);
 
 	return (
-		<article className={`log-msg ${message.role}`}>
+		<article className={`log-msg ${message.role}`} id={messageAnchor}>
 			<header className="log-msg-header">
 				<span className="log-msg-role">{LOG_ROLE_LABELS[message.role]}</span>
 				{message.role === 'tool' && message.name ? (
@@ -1767,6 +2013,7 @@ function LogMessageView(props: { message: RenderedLogMessage }) {
 					<>
 						{message.parts.map((part, index) => (
 							<LogMessagePartView
+								anchorId={props.events.find(event => event.partIndex === index)?.anchorId}
 								part={part}
 								collapsed={part.type === 'text' && collapsed}
 								key={`${part.type}-${index}`}
@@ -1803,6 +2050,7 @@ function LogMessageView(props: { message: RenderedLogMessage }) {
 				{!message.parts && hasToolCalls
 					? message.toolCalls!.map((call, index) => (
 							<LogToolBlock
+								anchorId={toolCallEvents[index]?.anchorId}
 								kind="call"
 								name={call.name}
 								value={call.arguments}
@@ -1834,16 +2082,30 @@ function LogMessageView(props: { message: RenderedLogMessage }) {
 	);
 }
 
-function LogMessagePartView(props: { part: RenderedLogMessagePart; collapsed: boolean }) {
+function LogMessagePartView(props: {
+	part: RenderedLogMessagePart;
+	collapsed: boolean;
+	anchorId?: string;
+}) {
 	const part = props.part;
 	switch (part.type) {
 		case 'text':
-			return part.text ? <LogMarkdown content={part.text} collapsed={props.collapsed} /> : null;
+			return part.text ? (
+				<LogMarkdown content={part.text} collapsed={props.collapsed} anchorId={props.anchorId} />
+			) : null;
 		case 'toolCall':
-			return <LogToolBlock kind="call" name={part.name} value={part.arguments} />;
+			return (
+				<LogToolBlock
+					anchorId={props.anchorId}
+					kind="call"
+					name={part.name}
+					value={part.arguments}
+				/>
+			);
 		case 'toolResult':
 			return (
 				<LogToolBlock
+					anchorId={props.anchorId}
 					kind="result"
 					name={part.name ?? 'unknown'}
 					value={part.content}
@@ -1962,7 +2224,7 @@ function escapeLogMarkdownHtml(value: string) {
 		.replaceAll("'", '&#39;');
 }
 
-function LogMarkdown(props: { content: string; collapsed: boolean }) {
+function LogMarkdown(props: { content: string; collapsed: boolean; anchorId?: string }) {
 	const html = useMemo(
 		() =>
 			DOMPurify.sanitize(
@@ -1983,6 +2245,7 @@ function LogMarkdown(props: { content: string; collapsed: boolean }) {
 		<div
 			className={`log-msg-content log-markdown${props.collapsed ? ' collapsed' : ''}`}
 			dangerouslySetInnerHTML={{ __html: html }}
+			id={props.anchorId}
 		/>
 	);
 }
@@ -1990,6 +2253,7 @@ function LogMarkdown(props: { content: string; collapsed: boolean }) {
 function LogToolBlock(props: {
 	kind: 'call' | 'result' | 'reasoning';
 	name: string;
+	anchorId?: string;
 	value?: unknown;
 	isError?: boolean;
 }) {
@@ -2010,6 +2274,7 @@ function LogToolBlock(props: {
 	return (
 		<div
 			className={`log-tool-block ${props.kind}${props.isError ? ' error' : ''}${open ? ' open' : ''}`}
+			id={props.anchorId}
 		>
 			<div className="log-tool-head">
 				<button

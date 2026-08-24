@@ -44,14 +44,21 @@ test('core pages render with mocked gateway data', async ({ page }) => {
 
 test('log detail renders the normalized conversation', async ({ page }) => {
 	await mockGateway(page);
-	await page.goto('/llm/logs?log=log-1');
+	await page.goto('/llm/logs?log=log-1#conversation-step-3');
 
 	await expect(page.locator('.log-call-preview')).toHaveText('Summarize the result.');
 	const turn = page.getByLabel('Tool result → Assistant');
 	await expect(turn).toBeVisible();
 	await turn.hover();
 	await expect(page.getByRole('tooltip')).toHaveText('Tool result → Assistant');
-	await page.locator('.log-conversation').getByText('Conversation').click();
+	await expect(page.getByRole('heading', { name: 'Trajectory' })).toBeVisible();
+	await expect(page.locator('.log-conversation')).toHaveAttribute('open', '');
+	await expect(page.locator('#conversation-step-3')).toBeVisible();
+	await expect(page.locator('.log-trajectory-bar.input')).toHaveCount(2);
+	await expect(page.locator('.log-trajectory-bar.input.system')).toHaveCount(1);
+	await expect(page.locator('.log-trajectory-bar.model')).toHaveCount(2);
+	await expect(page.locator('.log-trajectory-bar.tool-call')).toHaveCount(1);
+	await expect(page.locator('.log-trajectory-bar.tool-result')).toHaveCount(1);
 	await expect(page.locator('.log-markdown strong')).toHaveText('pong');
 	await expect(page.locator('.log-markdown a, .log-markdown img')).toHaveCount(0);
 	await expect(page.locator('.log-msg.system .log-markdown')).toContainText('docs [image: probe]');
@@ -71,6 +78,14 @@ test('log detail renders the normalized conversation', async ({ page }) => {
 	);
 	await page.locator('.log-tool-block.result .log-tool-toggle').click();
 	await expect(page.locator('.log-tool-block.result .json-block')).toContainText('"answer": "ok"');
+
+	await page.getByRole('button', { name: 'Step 4: Tool call: lookup' }).click();
+	await expect(page.locator('.log-trajectory-caption > span')).toHaveText(
+		'Step 4 Tool call: lookup'
+	);
+	await page.getByRole('link', { name: 'Jump to conversation' }).click();
+	await expect(page).toHaveURL(/#conversation-step-4$/);
+	await expect(page.locator('#conversation-step-4')).toBeInViewport();
 });
 
 test('log settings migrate prompt logging to the database LLM mode', async ({ page }) => {
