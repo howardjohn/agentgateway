@@ -2001,10 +2001,14 @@ impl AIProvider {
 		llm_info.cache_convention =
 			cache_convention_for(self, provider_format, &llm_info.request_model);
 		if let Some(log) = log
-			&& log.cel.cel_context.needs_llm_prompt()
 			&& original_format.supports_prompt_guard()
 		{
-			llm_info.prompt = Some(req.get_messages().into());
+			if log.database_llm == Some(crate::types::frontend::DatabaseLlmMode::Full) {
+				log.input_messages = Some(req.get_messages_v2().into());
+			}
+			if log.cel.cel_context.needs_llm_prompt() {
+				llm_info.prompt = Some(req.get_messages().into());
+			}
 		}
 
 		Ok(PreparedRequest::Ready(llm_info))

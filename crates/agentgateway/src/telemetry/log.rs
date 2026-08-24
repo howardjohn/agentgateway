@@ -67,20 +67,33 @@ struct DatabaseAttributes {
 
 fn database_llm_payload(
 	mode: Option<crate::types::frontend::DatabaseLlmMode>,
+	input_messages: Option<&[agent_llm::types::NormalizedMessage]>,
 	info: Option<&LLMContext>,
 ) -> Option<log_store::StoredRequestLogPayload> {
 	if mode == Some(crate::types::frontend::DatabaseLlmMode::Metadata) {
 		return None;
 	}
-	let info = info?;
-	let request_prompt_json = info
-		.prompt
-		.as_ref()
-		.and_then(|prompt| serde_json::to_value(prompt.as_ref()).ok());
-	let response_completion_json = info
-		.completion
-		.as_ref()
-		.and_then(|completion| serde_json::to_value(completion).ok());
+	let request_prompt_json = if mode == Some(crate::types::frontend::DatabaseLlmMode::Full) {
+		input_messages
+			.and_then(|messages| serde_json::to_value(messages).ok())
+			.or_else(|| {
+				info?
+					.prompt
+					.as_ref()
+					.and_then(|prompt| serde_json::to_value(prompt.as_ref()).ok())
+			})
+	} else {
+		info?
+			.prompt
+			.as_ref()
+			.and_then(|prompt| serde_json::to_value(prompt.as_ref()).ok())
+	};
+	let response_completion_json = info.and_then(|info| {
+		info
+			.completion
+			.as_ref()
+			.and_then(|completion| serde_json::to_value(completion).ok())
+	});
 	(request_prompt_json.is_some() || response_completion_json.is_some()).then_some(
 		log_store::StoredRequestLogPayload {
 			request_prompt_json,
@@ -919,6 +932,7 @@ impl RequestLog {
 		RequestLog {
 			cel,
 			database_llm: Default::default(),
+			input_messages: Default::default(),
 			metrics,
 			model_catalog,
 			start,
@@ -1066,6 +1080,8 @@ pub struct RequestLog {
 	/// dedicated payload table. `None` preserves the legacy behavior of persisting content captured
 	/// by CEL expressions. This is independent from CEL attribute capture.
 	pub database_llm: Option<crate::types::frontend::DatabaseLlmMode>,
+	/// Provider-neutral input messages retained for full database payload logging.
+	pub input_messages: Option<Arc<Vec<agent_llm::types::NormalizedMessage>>>,
 	pub metrics: Arc<Metrics>,
 	pub model_catalog: Arc<ModelCatalog>,
 	pub start: Timestamp,
@@ -1826,7 +1842,11 @@ impl Drop for DropOnLog {
 						}
 					}
 					let attributes = database_attributes(&db_kv);
-					let payload = database_llm_payload(log.database_llm, llm_response.as_ref());
+					let payload = database_llm_payload(
+						log.database_llm,
+						log.input_messages.as_deref().map(Vec::as_slice),
+						llm_response.as_ref(),
+					);
 					let has_payload = payload.is_some();
 					let total_tokens = llm_response.as_ref().and_then(|llm| {
 						llm
@@ -2544,7 +2564,7 @@ mod tests {
 		assert_eq!(log.database_llm, None);
 		assert!(!log.cel.cel_context.needs_llm_prompt());
 		assert!(!log.cel.cel_context.needs_llm_completion());
-		assert!(database_llm_payload(None, Some(&llm_context_with_content())).is_some());
+		assert!(database_llm_payload(None, None, Some(&llm_context_with_content())).is_some());
 	}
 
 	#[test]
@@ -2558,14 +2578,14 @@ mod tests {
 		crate::proxy::httpproxy::apply_logging_policy_to_log(&mut log, &policy);
 
 		assert_eq!(log.database_llm, Some(DatabaseLlmMode::Full));
-		assert!(log.cel.cel_context.needs_llm_prompt());
+		assert!(!log.cel.cel_context.needs_llm_prompt());
 		assert!(log.cel.cel_context.needs_llm_completion());
 	}
 
 	#[test]
 	fn database_llm_metadata_does_not_persist_captured_content() {
 		let context = llm_context_with_content();
-		assert!(database_llm_payload(Some(DatabaseLlmMode::Metadata), Some(&context)).is_none());
+		assert!(database_llm_payload(Some(DatabaseLlmMode::Metadata), None, Some(&context)).is_none());
 	}
 
 	#[test]
@@ -2594,6 +2614,7 @@ mod tests {
 		assert!(
 			database_llm_payload(
 				Some(DatabaseLlmMode::Metadata),
+				None,
 				Some(&llm_context_with_content())
 			)
 			.is_none()
@@ -2603,10 +2624,20 @@ mod tests {
 	#[test]
 	fn database_llm_full_persists_content_in_payload_only() {
 		let context = llm_context_with_content();
-		let payload = database_llm_payload(Some(DatabaseLlmMode::Full), Some(&context)).unwrap();
+		let messages = vec![agent_llm::types::NormalizedMessage {
+			role: "user".into(),
+			parts: vec![agent_llm::types::NormalizedMessagePart::text(
+				"hello".into(),
+			)],
+		}];
+		let payload =
+			database_llm_payload(Some(DatabaseLlmMode::Full), Some(&messages), Some(&context)).unwrap();
 		assert_eq!(
 			payload.request_prompt_json,
-			Some(serde_json::json!([{"role": "user", "content": "hello"}]))
+			Some(serde_json::json!([{
+				"role": "user",
+				"parts": [{"type": "text", "text": "hello"}]
+			}]))
 		);
 		assert_eq!(
 			payload.response_completion_json,

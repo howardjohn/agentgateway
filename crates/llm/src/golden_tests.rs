@@ -555,6 +555,41 @@ mod requests {
 		extract::<types::gemini::Request>("requests/gemini/tools.json", "get-messages-gemini");
 		extract::<types::gemini::Request>("requests/gemini/image-inline.json", "get-messages-gemini");
 	}
+
+	#[test]
+	fn get_messages_v2() {
+		fn extract<R: RequestType + DeserializeOwned>(fixture: &str, provider: &str) {
+			let path = fixture_path(fixture);
+			let input_str = fs::read_to_string(&path).expect("failed to read input file");
+			let raw: Value = serde_json::from_str(&input_str).expect("failed to parse input JSON");
+			let request: R = serde_json::from_str(&input_str).expect("failed to parse JSON");
+
+			let (snapshot_path, snapshot_name) = snapshot_path_and_name(fixture, provider);
+			insta::with_settings!({
+				info => &raw,
+				description => path.to_string_lossy().to_string(),
+				omit_expression => true,
+				prepend_module_to_snapshot => false,
+				snapshot_path => snapshot_path,
+			}, {
+				insta::assert_json_snapshot!(snapshot_name, request.get_messages_v2());
+			});
+		}
+
+		extract::<types::completions::Request>(
+			"requests/completions/tool-call.json",
+			"get-messages-v2-completions",
+		);
+		extract::<types::messages::Request>(
+			"requests/messages/tool_result_error.json",
+			"get-messages-v2-messages",
+		);
+		extract::<types::responses::Request>(
+			"requests/responses/parallel-tool-call.json",
+			"get-messages-v2-responses",
+		);
+		extract::<types::gemini::Request>("requests/gemini/tools.json", "get-messages-v2-gemini");
+	}
 }
 
 mod responses {
