@@ -124,6 +124,7 @@ export interface LogEntry {
 	spanId?: string | null;
 	httpStatus?: number | null;
 	error?: string | null;
+	promptPreview?: string | null;
 	genAi: {
 		operationName?: string | null;
 		providerName?: string | null;

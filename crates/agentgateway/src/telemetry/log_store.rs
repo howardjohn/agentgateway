@@ -571,6 +571,7 @@ pub struct LogEntry {
 	pub span_id: Option<String>,
 	pub http_status: Option<i64>,
 	pub error: Option<String>,
+	pub prompt_preview: Option<String>,
 	pub gen_ai: GenAiEntry,
 	pub usage: UsageEntry,
 	pub cost: Option<f64>,
@@ -579,6 +580,25 @@ pub struct LogEntry {
 	pub attributes: Option<Value>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub payload: Option<PayloadEntry>,
+}
+
+fn prompt_preview(prompt: Option<&Value>) -> Option<String> {
+	let messages = prompt?.as_array()?;
+	messages.iter().rev().find_map(|message| {
+		if message.get("role").and_then(Value::as_str) != Some("user") {
+			return None;
+		}
+		let text = message
+			.get("parts")?
+			.as_array()?
+			.iter()
+			.filter(|part| part.get("type").and_then(Value::as_str) == Some("text"))
+			.filter_map(|part| part.get("text").and_then(Value::as_str))
+			.collect::<Vec<_>>()
+			.join("\n");
+		let text = text.trim();
+		(!text.is_empty()).then(|| text.chars().take(180).collect())
+	})
 }
 
 #[derive(Clone, Debug, Serialize)]

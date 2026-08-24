@@ -7,7 +7,7 @@ use super::{
 	GenAiEntry, GetRequest, GetResponse, GroupBy, GroupByField, LogEntry, LogFilters, PayloadEntry,
 	SearchRequest, SearchResponse, StoredRequestLog, StoredRequestLogPayload, TailRequest,
 	TailResponse, TimeRange, UsageEntry, analytics_window, attr_filter_values, decode_cursor,
-	encode_cursor, limit, promoted_attribute_column,
+	encode_cursor, limit, promoted_attribute_column, prompt_preview,
 };
 
 pub struct SqliteLogStore {
@@ -488,8 +488,9 @@ fn row_to_log(
 	include_payload: bool,
 ) -> anyhow::Result<LogEntry> {
 	let attributes: Json<Value> = row.try_get("attributes_json")?;
+	let request_prompt: Option<Json<Value>> = row.try_get("request_prompt_json")?;
+	let prompt_preview = prompt_preview(request_prompt.as_ref().map(|value| &value.0));
 	let payload = if include_payload {
-		let request_prompt: Option<Json<Value>> = row.try_get("request_prompt_json")?;
 		let response_completion: Option<Json<Value>> = row.try_get("response_completion_json")?;
 		Some(PayloadEntry {
 			request_prompt: request_prompt.map(|v| v.0),
@@ -507,6 +508,7 @@ fn row_to_log(
 		span_id: row.try_get("span_id")?,
 		http_status: row.try_get("http_status")?,
 		error: row.try_get("error")?,
+		prompt_preview,
 		gen_ai: GenAiEntry {
 			operation_name: row.try_get("gen_ai_operation_name")?,
 			provider_name: row.try_get("gen_ai_provider_name")?,
@@ -613,15 +615,17 @@ CREATE INDEX IF NOT EXISTS idx_request_logs_user_agent_completed_at ON request_l
 const SELECT_LOGS: &str = r#"
 SELECT id, started_at, completed_at, duration_ms, trace_id, span_id, http_status, error,
 	gen_ai_operation_name, gen_ai_provider_name, gen_ai_request_model, gen_ai_response_model,
-	input_tokens, output_tokens, total_tokens, cost, has_payload, attributes_json
+	input_tokens, output_tokens, total_tokens, cost, has_payload, attributes_json, request_prompt_json
 FROM request_logs
+LEFT JOIN request_log_payloads ON request_logs.id = request_log_payloads.log_id
 "#;
 
 const SELECT_LOG_BY_ID: &str = r#"
 SELECT id, started_at, completed_at, duration_ms, trace_id, span_id, http_status, error,
 	gen_ai_operation_name, gen_ai_provider_name, gen_ai_request_model, gen_ai_response_model,
-	input_tokens, output_tokens, total_tokens, cost, has_payload, attributes_json
+	input_tokens, output_tokens, total_tokens, cost, has_payload, attributes_json, request_prompt_json
 FROM request_logs
+LEFT JOIN request_log_payloads ON request_logs.id = request_log_payloads.log_id
 WHERE request_logs.id = ?
 "#;
 

@@ -329,6 +329,7 @@ export async function mockGateway(page: Page, initialConfig: TestConfig = popula
 					spanId: 'span-1',
 					httpStatus: 200,
 					error: null,
+					promptPreview: 'Summarize the result.',
 					genAi: {
 						providerName: 'anthropic',
 						requestModel: 'resilient',

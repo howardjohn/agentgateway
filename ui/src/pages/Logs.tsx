@@ -1105,7 +1105,7 @@ function logMessagePreview(entry: LogEntry) {
 	const message =
 		findLastMessage(messages, item => item.role === 'user' && Boolean(item.content.trim())) ??
 		findLastMessage(messages, item => Boolean(item.content.trim()));
-	const text = message?.content.trim() || entry.error || '';
+	const text = message?.content.trim() || entry.promptPreview?.trim() || entry.error || '';
 	return text.length > 180 ? `${text.slice(0, 177)}...` : text;
 }
 
