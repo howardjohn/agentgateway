@@ -88,12 +88,43 @@ fn database_llm_payload(
 			.as_ref()
 			.and_then(|prompt| serde_json::to_value(prompt.as_ref()).ok())
 	};
-	let response_completion_json = info.and_then(|info| {
-		info
-			.completion
-			.as_ref()
-			.and_then(|completion| serde_json::to_value(completion).ok())
-	});
+	let response_completion_json = if mode == Some(crate::types::frontend::DatabaseLlmMode::Full) {
+		info.and_then(|info| {
+			// Response capture exposes visible text and structured tool calls separately. Recombine them
+			// into the same provider-neutral message shape used for the stored request.
+			let mut parts = info
+				.completion
+				.iter()
+				.flatten()
+				// Tool-call-only responses may initialize completion capture with an empty string. Omitting
+				// it prevents a phantom empty assistant message in the conversation view.
+				.filter(|completion| !completion.trim().is_empty())
+				.map(|completion| agent_llm::types::NormalizedMessagePart::text(completion.as_str().into()))
+				.collect::<Vec<_>>();
+			parts.extend(info.tool_calls.iter().flatten().map(|call| {
+				agent_llm::types::NormalizedMessagePart::tool_call(
+					call.id.clone(),
+					call.name.clone(),
+					call.arguments.clone(),
+				)
+			}));
+			if parts.is_empty() {
+				return None;
+			}
+			serde_json::to_value([agent_llm::types::NormalizedMessage {
+				role: "assistant".into(),
+				parts,
+			}])
+			.ok()
+		})
+	} else {
+		info.and_then(|info| {
+			info
+				.completion
+				.as_ref()
+				.and_then(|completion| serde_json::to_value(completion).ok())
+		})
+	};
 	(request_prompt_json.is_some() || response_completion_json.is_some()).then_some(
 		log_store::StoredRequestLogPayload {
 			request_prompt_json,
@@ -2580,6 +2611,7 @@ mod tests {
 		assert_eq!(log.database_llm, Some(DatabaseLlmMode::Full));
 		assert!(!log.cel.cel_context.needs_llm_prompt());
 		assert!(log.cel.cel_context.needs_llm_completion());
+		assert!(log.cel.cel_context.needs_llm_tool_calls());
 	}
 
 	#[test]
@@ -2623,7 +2655,13 @@ mod tests {
 
 	#[test]
 	fn database_llm_full_persists_content_in_payload_only() {
-		let context = llm_context_with_content();
+		let mut context = llm_context_with_content();
+		context.completion = Some(vec![String::new()]);
+		context.tool_calls = Some(vec![agent_llm::types::ToolCall {
+			id: "call-1".into(),
+			name: "lookup".into(),
+			arguments: serde_json::json!({"query": "weather"}),
+		}]);
 		let messages = vec![agent_llm::types::NormalizedMessage {
 			role: "user".into(),
 			parts: vec![agent_llm::types::NormalizedMessagePart::text(
@@ -2641,7 +2679,17 @@ mod tests {
 		);
 		assert_eq!(
 			payload.response_completion_json,
-			Some(serde_json::json!(["world"]))
+			Some(serde_json::json!([{
+				"role": "assistant",
+				"parts": [
+					{
+						"type": "toolCall",
+						"id": "call-1",
+						"name": "lookup",
+						"arguments": {"query": "weather"}
+					}
+				]
+			}]))
 		);
 	}
 
