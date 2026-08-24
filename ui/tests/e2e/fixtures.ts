@@ -371,8 +371,48 @@ export async function mockGateway(page: Page, initialConfig: TestConfig = popula
 				cost: 0.0005,
 				hasPayload: true,
 				payload: {
-					requestPrompt: [{ role: 'user', content: 'ping' }],
-					responseCompletion: 'pong'
+					requestPrompt: [
+						{
+							role: 'system',
+							parts: [
+								{
+									type: 'text',
+									text: `# Instructions
+
+${Array.from({ length: 24 }, (_, index) => `/workspace/path-${index + 1}`).join('\n')}
+
+[docs](https://example.invalid/docs) ![probe](https://example.invalid/pixel)`
+								}
+							]
+						},
+						{ role: 'user', parts: [{ type: 'text', text: 'ping' }] },
+						{
+							role: 'assistant',
+							parts: [
+								{ type: 'text', text: 'I’ll look that up.' },
+								{
+									type: 'toolCall',
+									id: 'call-1',
+									name: 'lookup',
+									arguments: 'line one\nline two'
+								},
+								{ type: 'reasoning', content: { summary: 'Checking the source' } }
+							]
+						},
+						{
+							role: 'user',
+							parts: [
+								{
+									type: 'toolResult',
+									id: 'call-1',
+									name: 'lookup',
+									content: { answer: 'ok' },
+									isError: false
+								}
+							]
+						}
+					],
+					responseCompletion: [{ role: 'assistant', content: '**pong**' }]
 				}
 			}
 		});

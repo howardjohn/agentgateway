@@ -1,4 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
+import DOMPurify from 'dompurify';
 import {
 	ArrowRight,
 	Braces,
@@ -12,6 +13,7 @@ import {
 	User,
 	Wrench
 } from 'lucide-react';
+import { marked } from 'marked';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { analyticsSummary, getLog, searchLogs, streamLogs } from '@/api/logsApi';
@@ -1051,11 +1053,25 @@ function analyticsRecordCost(value: unknown) {
 	return 0;
 }
 
+type RenderedLogMessagePart =
+	| { type: 'text'; text: string }
+	| { type: 'toolCall'; id?: string; name: string; arguments?: unknown }
+	| { type: 'toolResult'; id?: string; name?: string; content?: unknown; isError?: boolean }
+	| { type: 'reasoning'; content?: unknown };
+
 type RenderedLogMessage = {
 	role: 'system' | 'user' | 'assistant' | 'tool';
 	content: string;
 	name?: string;
-	toolCalls?: Array<{ name: string; arguments?: unknown }>;
+	parts?: RenderedLogMessagePart[];
+	toolCalls?: Array<{ id?: string; name: string; arguments?: unknown }>;
+	toolResults?: Array<{
+		id?: string;
+		name?: string;
+		content?: unknown;
+		isError?: boolean;
+	}>;
+	reasoning?: unknown[];
 };
 
 function originalModelForLog(entry: LogEntry) {
@@ -1678,6 +1694,12 @@ function LogMessageView(props: { message: RenderedLogMessage }) {
 	const collapsible = content.length > (isSystem ? 280 : 2000);
 	const [collapsed, setCollapsed] = useState(collapsible);
 	const hasToolCalls = Boolean(message.toolCalls?.length);
+	const hasToolResults = Boolean(message.toolResults?.length);
+	const hasReasoning = Boolean(message.reasoning?.length);
+	const copyValue =
+		message.parts || hasToolCalls || hasToolResults || hasReasoning
+			? serializeLogMessage(message)
+			: content;
 
 	return (
 		<article className={`log-msg ${message.role}`}>
@@ -1686,19 +1708,37 @@ function LogMessageView(props: { message: RenderedLogMessage }) {
 				{message.role === 'tool' && message.name ? (
 					<code className="log-msg-name">{message.name}</code>
 				) : null}
-				{content ? (
-					<span className="log-msg-meta">{formatNumber(content.length)} chars</span>
+				{copyValue ? (
+					<span className="log-msg-meta">{formatNumber(copyValue.length)} chars</span>
 				) : null}
-				{content ? <CopyButton value={content} /> : null}
+				{copyValue ? <CopyButton value={copyValue} /> : null}
 			</header>
 			<div className="log-msg-body">
-				{message.role === 'tool' ? (
-					<LogToolBlock kind="result" name={message.name ?? 'unknown'} content={content} />
+				{message.parts ? (
+					<>
+						{message.parts.map((part, index) => (
+							<LogMessagePartView
+								part={part}
+								collapsed={part.type === 'text' && collapsed}
+								key={`${part.type}-${index}`}
+							/>
+						))}
+						{collapsible ? (
+							<button
+								className="log-msg-toggle"
+								type="button"
+								onClick={() => setCollapsed(current => !current)}
+							>
+								{collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+								{collapsed ? `Show all (${formatNumber(content.length)} chars)` : 'Collapse'}
+							</button>
+						) : null}
+					</>
+				) : message.role === 'tool' && !hasToolResults ? (
+					<LogToolBlock kind="result" name={message.name ?? 'unknown'} value={content} />
 				) : content ? (
 					<>
-						<div className={collapsed ? 'log-msg-content collapsed' : 'log-msg-content'}>
-							{content}
-						</div>
+						<LogMarkdown content={content} collapsed={collapsed} />
 						{collapsible ? (
 							<button
 								className="log-msg-toggle"
@@ -1711,71 +1751,208 @@ function LogMessageView(props: { message: RenderedLogMessage }) {
 						) : null}
 					</>
 				) : null}
-				{hasToolCalls
+				{!message.parts && hasToolCalls
 					? message.toolCalls!.map((call, index) => (
 							<LogToolBlock
 								kind="call"
 								name={call.name}
-								args={call.arguments}
+								value={call.arguments}
 								key={`${call.name}-${index}`}
 							/>
 						))
 					: null}
-				{!content && !hasToolCalls ? <span className="log-msg-empty">empty message</span> : null}
+				{!message.parts && hasToolResults
+					? message.toolResults!.map((result, index) => (
+							<LogToolBlock
+								kind="result"
+								name={result.name ?? 'unknown'}
+								value={result.content}
+								isError={result.isError}
+								key={`${result.id ?? result.name ?? 'result'}-${index}`}
+							/>
+						))
+					: null}
+				{!message.parts && hasReasoning
+					? message.reasoning!.map((reasoning, index) => (
+							<LogToolBlock
+								kind="reasoning"
+								name="reasoning"
+								value={reasoning}
+								key={`reasoning-${index}`}
+							/>
+						))
+					: null}
+				{!content && !hasToolCalls && !hasToolResults && !hasReasoning ? (
+					<span className="log-msg-empty">empty message</span>
+				) : null}
 			</div>
 		</article>
 	);
 }
 
+function LogMessagePartView(props: { part: RenderedLogMessagePart; collapsed: boolean }) {
+	const part = props.part;
+	switch (part.type) {
+		case 'text':
+			return part.text ? <LogMarkdown content={part.text} collapsed={props.collapsed} /> : null;
+		case 'toolCall':
+			return <LogToolBlock kind="call" name={part.name} value={part.arguments} />;
+		case 'toolResult':
+			return (
+				<LogToolBlock
+					kind="result"
+					name={part.name ?? 'unknown'}
+					value={part.content}
+					isError={part.isError}
+				/>
+			);
+		case 'reasoning':
+			return <LogToolBlock kind="reasoning" name="reasoning" value={part.content} />;
+	}
+}
+
+function serializeLogMessage(message: RenderedLogMessage) {
+	return (
+		JSON.stringify(
+			{
+				role: message.role,
+				...(message.parts
+					? { parts: message.parts }
+					: {
+							...(message.content ? { content: message.content } : {}),
+							...(message.toolCalls?.length ? { toolCalls: message.toolCalls } : {}),
+							...(message.toolResults?.length ? { toolResults: message.toolResults } : {}),
+							...(message.reasoning?.length ? { reasoning: message.reasoning } : {})
+						})
+			},
+			null,
+			2
+		) ?? ''
+	);
+}
+
+const logMarkdownRenderer = new marked.Renderer();
+logMarkdownRenderer.html = ({ text }) => escapeLogMarkdownHtml(text).replaceAll('\n', '<br>');
+logMarkdownRenderer.link = ({ text }) => escapeLogMarkdownHtml(text);
+logMarkdownRenderer.image = ({ text }) =>
+	text ? `[image: ${escapeLogMarkdownHtml(text)}]` : '[image]';
+
+const LOG_MARKDOWN_TAGS = [
+	'blockquote',
+	'br',
+	'code',
+	'del',
+	'em',
+	'h1',
+	'h2',
+	'h3',
+	'h4',
+	'h5',
+	'h6',
+	'hr',
+	'li',
+	'ol',
+	'p',
+	'pre',
+	'strong',
+	'table',
+	'tbody',
+	'td',
+	'th',
+	'thead',
+	'tr',
+	'ul'
+];
+
+function escapeLogMarkdownHtml(value: string) {
+	return value
+		.replaceAll('&', '&amp;')
+		.replaceAll('<', '&lt;')
+		.replaceAll('>', '&gt;')
+		.replaceAll('"', '&quot;')
+		.replaceAll("'", '&#39;');
+}
+
+function LogMarkdown(props: { content: string; collapsed: boolean }) {
+	const html = useMemo(
+		() =>
+			DOMPurify.sanitize(
+				marked.parse(props.content, {
+					async: false,
+					breaks: true,
+					gfm: true,
+					renderer: logMarkdownRenderer
+				}) as string,
+				{
+					ALLOWED_ATTR: [],
+					ALLOWED_TAGS: LOG_MARKDOWN_TAGS
+				}
+			),
+		[props.content]
+	);
+	return (
+		<div
+			className={`log-msg-content log-markdown${props.collapsed ? ' collapsed' : ''}`}
+			dangerouslySetInnerHTML={{ __html: html }}
+		/>
+	);
+}
+
 function LogToolBlock(props: {
-	kind: 'call' | 'result';
+	kind: 'call' | 'result' | 'reasoning';
 	name: string;
-	args?: unknown;
-	content?: string;
+	value?: unknown;
+	isError?: boolean;
 }) {
 	const [open, setOpen] = useState(false);
 	const isCall = props.kind === 'call';
-	const summary = isCall ? summarizeLogValue(props.args) : (props.content ?? '');
+	const summary = summarizeLogValue(props.value);
 	const parsedResult =
-		!isCall && props.content
+		props.kind === 'result' && typeof props.value === 'string'
 			? (() => {
 					try {
-						return JSON.parse(props.content) as unknown;
+						return JSON.parse(props.value) as unknown;
 					} catch {
 						return null;
 					}
 				})()
 			: null;
-	const expandable = isCall
-		? props.args != null && props.args !== '' && summary !== '{}'
-		: summary.length > 120 || parsedResult != null;
+	const copyValue = summary;
 	return (
-		<div className={open ? 'log-tool-block open' : 'log-tool-block'}>
-			<button
-				className="log-tool-head"
-				type="button"
-				disabled={!expandable}
-				aria-expanded={open}
-				onClick={() => setOpen(current => !current)}
-			>
-				{isCall ? <Wrench size={13} /> : <Braces size={13} />}
-				<span className="log-tool-kind">{isCall ? 'tool call' : 'result'}</span>
-				<code className="log-tool-name">{props.name}</code>
-				{!open ? (
-					<span className="log-tool-summary">
-						{summary || (isCall ? 'no args' : 'empty result')}
+		<div
+			className={`log-tool-block ${props.kind}${props.isError ? ' error' : ''}${open ? ' open' : ''}`}
+		>
+			<div className="log-tool-head">
+				<button
+					className="log-tool-toggle"
+					type="button"
+					aria-expanded={open}
+					onClick={() => setOpen(current => !current)}
+				>
+					{isCall ? <Wrench size={13} /> : <Braces size={13} />}
+					<span className="log-tool-kind">
+						{isCall ? 'tool call' : props.kind === 'reasoning' ? 'reasoning' : 'result'}
 					</span>
-				) : null}
-				{expandable ? <ChevronDown className="log-tool-chevron" size={14} /> : null}
-			</button>
+					{props.kind !== 'reasoning' ? <code className="log-tool-name">{props.name}</code> : null}
+					{!open ? (
+						<span className="log-tool-summary">
+							{summary || (isCall ? 'no args' : 'empty result')}
+						</span>
+					) : null}
+					<ChevronDown className="log-tool-chevron" size={14} />
+				</button>
+				{copyValue ? <CopyButton value={copyValue} /> : null}
+			</div>
 			{open ? (
 				<div className="log-tool-body">
-					{isCall ? (
-						<JsonBlock value={props.args} />
+					{typeof props.value === 'string' && parsedResult == null ? (
+						<pre className="log-tool-text">{props.value || 'empty result'}</pre>
 					) : parsedResult != null ? (
 						<JsonBlock value={parsedResult} />
+					) : props.value != null ? (
+						<JsonBlock value={props.value} />
 					) : (
-						<pre className="log-tool-text">{props.content}</pre>
+						<pre className="log-tool-text">{isCall ? 'no arguments' : 'empty result'}</pre>
 					)}
 				</div>
 			) : null}
@@ -1880,11 +2057,61 @@ function messageFromUnknown(value: unknown): RenderedLogMessage[] {
 	if (typeof value !== 'object' || Array.isArray(value))
 		return [{ role: 'user', content: contentText(value) }];
 	const record = value as Record<string, unknown>;
+	if (Array.isArray(record.parts)) return [messageFromNormalizedParts(record)];
 	const role = normalizeRole(record.role);
 	const content = contentText(record.content ?? record.text ?? record.message ?? '');
 	const toolCalls = toolCallsFromUnknown(record.tool_calls ?? record.toolCalls);
 	const name = typeof record.name === 'string' ? record.name : undefined;
 	return [{ role, content, name, toolCalls }];
+}
+
+function messageFromNormalizedParts(record: Record<string, unknown>): RenderedLogMessage {
+	const text: string[] = [];
+	const parts: RenderedLogMessagePart[] = [];
+	const toolCalls: NonNullable<RenderedLogMessage['toolCalls']> = [];
+	const toolResults: NonNullable<RenderedLogMessage['toolResults']> = [];
+	const reasoning: unknown[] = [];
+	for (const part of record.parts as unknown[]) {
+		if (!part || typeof part !== 'object') continue;
+		const value = part as Record<string, unknown>;
+		switch (value.type) {
+			case 'text':
+				if (typeof value.text === 'string') {
+					text.push(value.text);
+					parts.push({ type: 'text', text: value.text });
+				}
+				break;
+			case 'toolCall':
+				toolCalls.push({
+					id: typeof value.id === 'string' ? value.id : undefined,
+					name: typeof value.name === 'string' ? value.name : 'unknown',
+					arguments: value.arguments
+				});
+				parts.push({ type: 'toolCall', ...toolCalls[toolCalls.length - 1] });
+				break;
+			case 'toolResult':
+				toolResults.push({
+					id: typeof value.id === 'string' ? value.id : undefined,
+					name: typeof value.name === 'string' ? value.name : undefined,
+					content: value.content,
+					isError: typeof value.isError === 'boolean' ? value.isError : undefined
+				});
+				parts.push({ type: 'toolResult', ...toolResults[toolResults.length - 1] });
+				break;
+			case 'reasoning':
+				reasoning.push(value.content);
+				parts.push({ type: 'reasoning', content: value.content });
+				break;
+		}
+	}
+	return {
+		role: normalizeRole(record.role),
+		content: text.join('\n'),
+		parts,
+		toolCalls: toolCalls.length ? toolCalls : undefined,
+		toolResults: toolResults.length ? toolResults : undefined,
+		reasoning: reasoning.length ? reasoning : undefined
+	};
 }
 
 function normalizeRole(value: unknown): RenderedLogMessage['role'] {
@@ -1903,7 +2130,8 @@ function toolCallsFromUnknown(value: unknown): RenderedLogMessage['toolCalls'] {
 				? (record.function as Record<string, unknown>)
 				: record;
 		const name = typeof fn.name === 'string' ? fn.name : 'unknown';
-		return [{ name, arguments: parseMaybeJson(fn.arguments) }];
+		const id = typeof record.id === 'string' ? record.id : undefined;
+		return [{ id, name, arguments: parseMaybeJson(fn.arguments) }];
 	});
 	return calls.length ? calls : undefined;
 }

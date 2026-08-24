@@ -23,12 +23,18 @@ importers:
       '@tanstack/react-router':
         specifier: '=1.170.18'
         version: 1.170.18(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      dompurify:
+        specifier: 3.4.13
+        version: 3.4.13
       js-yaml:
         specifier: '=5.2.3'
         version: 5.2.3
       lucide-react:
         specifier: '=1.28.0'
         version: 1.28.0(react@19.2.8)
+      marked:
+        specifier: '=14.0.0'
+        version: 14.0.0
       monaco-editor:
         specifier: '=0.56.0'
         version: 0.56.0
