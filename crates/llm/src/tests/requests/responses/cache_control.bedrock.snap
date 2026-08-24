@@ -42,11 +42,21 @@ info:
             "text": "Cached user input"
           },
           {
+            "cachePoint": {
+              "type": "default"
+            }
+          },
+          {
             "image": {
               "format": "png",
               "source": {
                 "bytes": "aGVsbG8="
               }
+            }
+          },
+          {
+            "cachePoint": {
+              "type": "default"
             }
           },
           {
@@ -57,6 +67,11 @@ info:
                 "bytes": "aGVsbG8="
               }
             }
+          },
+          {
+            "cachePoint": {
+              "type": "default"
+            }
           }
         ]
       }
@@ -64,6 +79,11 @@ info:
     "system": [
       {
         "text": "Cached system input"
+      },
+      {
+        "cachePoint": {
+          "type": "default"
+        }
       },
       {
         "text": "Cached developer input"

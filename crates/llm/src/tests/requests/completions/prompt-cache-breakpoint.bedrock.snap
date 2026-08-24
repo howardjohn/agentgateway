@@ -65,11 +65,21 @@ info:
             "text": "What is prompt caching?"
           },
           {
+            "cachePoint": {
+              "type": "default"
+            }
+          },
+          {
             "image": {
               "format": "png",
               "source": {
                 "bytes": "aGVsbG8="
               }
+            }
+          },
+          {
+            "cachePoint": {
+              "type": "default"
             }
           }
         ]
@@ -108,7 +118,20 @@ info:
     ],
     "system": [
       {
-        "text": "You are a helpful assistant.\nFollow the developer instructions."
+        "text": "You are a helpful assistant."
+      },
+      {
+        "cachePoint": {
+          "type": "default"
+        }
+      },
+      {
+        "text": "Follow the developer instructions."
+      },
+      {
+        "cachePoint": {
+          "type": "default"
+        }
       }
     ],
     "inferenceConfig": {

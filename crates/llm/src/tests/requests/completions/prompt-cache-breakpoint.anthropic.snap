@@ -63,7 +63,10 @@ info:
         "content": [
           {
             "type": "text",
-            "text": "What is prompt caching?"
+            "text": "What is prompt caching?",
+            "cache_control": {
+              "type": "ephemeral"
+            }
           },
           {
             "type": "image",
@@ -71,6 +74,9 @@ info:
               "type": "base64",
               "media_type": "image/png",
               "data": "aGVsbG8="
+            },
+            "cache_control": {
+              "type": "ephemeral"
             }
           }
         ]
@@ -80,7 +86,10 @@ info:
         "content": [
           {
             "type": "text",
-            "text": "I will look that up."
+            "text": "I will look that up.",
+            "cache_control": {
+              "type": "ephemeral"
+            }
           },
           {
             "type": "tool_use",
@@ -99,14 +108,32 @@ info:
             "content": [
               {
                 "type": "text",
-                "text": "Prompt caching reuses a prompt prefix."
+                "text": "Prompt caching reuses a prompt prefix.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
               }
             ]
           }
         ]
       }
     ],
-    "system": "You are a helpful assistant.\nFollow the developer instructions.",
+    "system": [
+      {
+        "type": "text",
+        "text": "You are a helpful assistant.",
+        "cache_control": {
+          "type": "ephemeral"
+        }
+      },
+      {
+        "type": "text",
+        "text": "Follow the developer instructions.",
+        "cache_control": {
+          "type": "ephemeral"
+        }
+      }
+    ],
     "model": "claude-sonnet-4-6",
     "max_tokens": 4096,
     "tools": [
