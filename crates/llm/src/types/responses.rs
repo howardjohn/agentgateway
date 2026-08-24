@@ -631,7 +631,7 @@ fn normalized_response_item(item: &Value) -> Option<NormalizedMessage> {
 				.flatten()
 				.filter_map(crate::types::normalized_tool_call),
 		);
-		return Some(NormalizedMessage {
+		return (!parts.is_empty()).then(|| NormalizedMessage {
 			role: strng::new(role),
 			parts,
 		});

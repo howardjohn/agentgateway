@@ -1774,12 +1774,7 @@ function LogMessageView(props: { message: RenderedLogMessage }) {
 					: null}
 				{!message.parts && hasReasoning
 					? message.reasoning!.map((reasoning, index) => (
-							<LogToolBlock
-								kind="reasoning"
-								name="reasoning"
-								value={reasoning}
-								key={`reasoning-${index}`}
-							/>
+							<LogReasoningBlock content={reasoning} key={`reasoning-${index}`} />
 						))
 					: null}
 				{!content && !hasToolCalls && !hasToolResults && !hasReasoning ? (
@@ -1807,7 +1802,52 @@ function LogMessagePartView(props: { part: RenderedLogMessagePart; collapsed: bo
 				/>
 			);
 		case 'reasoning':
-			return <LogToolBlock kind="reasoning" name="reasoning" value={part.content} />;
+			return <LogReasoningBlock content={part.content} />;
+	}
+}
+
+function LogReasoningBlock(props: { content: unknown }) {
+	return (
+		<LogToolBlock kind="reasoning" name="reasoning" value={reasoningDisplayText(props.content)} />
+	);
+}
+
+function reasoningDisplayText(content: unknown) {
+	if (!content || typeof content !== 'object') {
+		return typeof content === 'string' && content.trim()
+			? content
+			: 'Reasoning details unavailable';
+	}
+	const record = content as Record<string, unknown>;
+	const summary = reasoningSummaryText(record.summary);
+	if (summary) return summary;
+
+	const encrypted = record.encrypted_content ?? record.encryptedContent;
+	if (typeof encrypted !== 'string' || !encrypted) return 'Reasoning details unavailable';
+	const bytes = decodedBase64UrlLength(encrypted);
+	return bytes == null ? 'Encrypted' : `Encrypted (${formatNumber(bytes)} bytes)`;
+}
+
+function reasoningSummaryText(value: unknown): string {
+	if (typeof value === 'string') return value.trim();
+	if (Array.isArray(value)) return value.map(reasoningSummaryText).filter(Boolean).join('\n');
+	if (!value || typeof value !== 'object') return '';
+	const record = value as Record<string, unknown>;
+	return reasoningSummaryText(record.text ?? record.content);
+}
+
+function decodedBase64UrlLength(value: string) {
+	if (!/^[A-Za-z0-9_-]+={0,2}$/.test(value)) return null;
+	const unpadded = value.replace(/=+$/, '');
+	if (unpadded.length % 4 === 1) return null;
+	const padded = unpadded
+		.replaceAll('-', '+')
+		.replaceAll('_', '/')
+		.padEnd(unpadded.length + ((4 - (unpadded.length % 4)) % 4), '=');
+	try {
+		return atob(padded).length;
+	} catch {
+		return null;
 	}
 }
 

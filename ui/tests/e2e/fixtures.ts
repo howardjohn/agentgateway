@@ -396,7 +396,17 @@ ${Array.from({ length: 24 }, (_, index) => `/workspace/path-${index + 1}`).join(
 									name: 'lookup',
 									arguments: 'line one\nline two'
 								},
-								{ type: 'reasoning', content: { summary: 'Checking the source' } }
+								{
+									type: 'reasoning',
+									content: {
+										summary: [{ type: 'summary_text', text: 'Checking the source' }],
+										encrypted_content: 'ignored-when-summary-is-present'
+									}
+								},
+								{
+									type: 'reasoning',
+									content: { summary: [], encrypted_content: 'AQIDBA' }
+								}
 							]
 						},
 						{

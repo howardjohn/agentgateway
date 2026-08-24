@@ -52,7 +52,13 @@ test('log detail renders the normalized conversation', async ({ page }) => {
 	await expect(page.locator('.log-msg.system .log-markdown')).toContainText('docs [image: probe]');
 	await expect(page.locator('.log-tool-block.call')).toHaveCount(1);
 	await expect(page.locator('.log-tool-block.result')).toHaveCount(1);
-	await expect(page.locator('.log-tool-block.reasoning')).toHaveCount(1);
+	await expect(page.locator('.log-tool-block.reasoning')).toHaveCount(2);
+	await expect(page.locator('.log-tool-block.reasoning').nth(0)).toContainText(
+		'Checking the source'
+	);
+	await expect(page.locator('.log-tool-block.reasoning').nth(1)).toContainText(
+		'Encrypted (4 bytes)'
+	);
 
 	await page.locator('.log-tool-block.call .log-tool-toggle').click();
 	await expect(page.locator('.log-tool-block.call .log-tool-text')).toHaveText(

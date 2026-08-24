@@ -588,6 +588,10 @@ mod requests {
 			"requests/responses/parallel-tool-call.json",
 			"get-messages-v2-responses",
 		);
+		extract::<types::responses::Request>(
+			"requests/responses/empty-message.json",
+			"get-messages-v2-responses",
+		);
 		extract::<types::gemini::Request>("requests/gemini/tools.json", "get-messages-v2-gemini");
 	}
 }
