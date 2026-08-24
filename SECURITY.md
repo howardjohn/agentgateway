@@ -20,9 +20,9 @@ A CVE is not simply "anything with security impact." We want CVEs to remain a us
 ### Core principles
 
 * **A vulnerability is something users reasonably need to be urgently informed about.** Hypothetical, highly contrived edge cases are generally bugs rather than vulnerabilities.
-* **A vulnerability defeats a promised security boundary.** An attacker must be able to defeat a security boundary that agentgateway claims to enforce without already possessing equivalent authority. Outcomes caused by user configuration, user-written CEL, trusted extensions or services, documented behavior, or already-privileged access are generally bugs, limitations, or user error.
+* **A vulnerability defeats a promised security boundary.** An attacker must be able to defeat a security boundary that Agentgateway claims to enforce without already possessing equivalent authority. Outcomes caused solely by user configuration, user-written CEL, trusted extensions or services, documented behavior, or already-privileged access are generally bugs, limitations, or user error. However, crossing a boundary between tenants, namespaces, or operator personas may still be a vulnerability when the attacker lacks authority on the affected side of that boundary.
 * **Maintainer discretion ultimately applies.** Classification is based on what best helps users, balancing actual risk against CVE and scanner signal-to-noise ratio.
-* **User-written policy is the user's responsibility.** If a user writes an incorrect policy, even if it was a reasonable mistake, it is their responsibility to fix it.
+* **User-written policy is the user's responsibility.** If a user writes an incorrect policy, even if it was a reasonable mistake, it is their responsibility to fix it. This does not excuse Agentgateway from correctly enforcing who may create or modify policy and the tenants, namespaces, or personas to which that policy may apply.
 * **Poor or ambiguous documentation is not itself a vulnerability.** We may fix documentation and call out in release notes that users should review affected configurations, without issuing a CVE.
 * **External policy components are trusted, at least in part.** ext-auth, ext-proc, external rate limiting, and similar configured services are expected to behave correctly. A malicious or incorrectly implemented external policy service is generally not an agentgateway vulnerability.
 * **Administrative interfaces are privileged.** Interfaces intended for localhost or trusted operators are not designed as an untrusted security boundary. Exposing them publicly is normally a deployment error.
@@ -39,11 +39,13 @@ Issues that are generally more likely to be considered vulnerabilities include:
 * A request that reliably crashes the gateway.
 * A remotely supplied request that causes resource consumption disproportionate to the attacker's effort under realistic deployment conditions.
 * Unauthorized cross-namespace Kubernetes writes that violate an intended authorization boundary.
+* A tenant or operator persona accessing or modifying another tenant's resources without the required authority.
 
 Issues that are generally more likely to be considered bugs, limitations, or user error include:
 
 * A dangerous but documented default or behavior.
-* A users CEL expression resulting in an unexpected behavior, including failing to compile/failing to evaluate - the author is required to be aware 
+* A user's CEL expression producing unintended behavior, including failing to compile or evaluate as the author expected.
 * An administrator-supplied configuration that crashes the control plane.
 * A trusted ext-auth, ext-proc, or external rate-limiting component acting maliciously.
+* A user explicitly configuring an administrative interface to listen on a publicly reachable address.
 * LLM Guardrails not applying in the way a user intended.
