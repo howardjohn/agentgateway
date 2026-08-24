@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  dompurify: 3.4.13
-
 importers:
 
   .:
@@ -24,7 +21,7 @@ importers:
         specifier: '=1.170.18'
         version: 1.170.18(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       dompurify:
-        specifier: 3.4.13
+        specifier: '=3.4.13'
         version: 3.4.13
       js-yaml:
         specifier: '=5.2.3'
@@ -566,6 +563,9 @@ packages:
 
   dompurify@3.4.13:
     resolution: {integrity: sha512-2vmYIoqjze2d+kakP8S/nS5shfsl587kzwEjcGlTdiksUVgFHnFCsLYDVj/JNqJVOQZGSYBTmuycv0PodwmnMQ==}
+
+  dompurify@3.4.8:
+    resolution: {integrity: sha512-yb1cEmaOum7wFvOCSQxyfgVlv5D47Rc30iZWoMpbDIWTnJ6grDDQyu2KFJzB2k7u0pMuJcQ1zphH//fFnw2tjQ==}
 
   es-toolkit@1.47.1:
     resolution: {integrity: sha512-5RAqEwf4P4E17p+W75KLOWw/nOvKZzSQpxM32IpI2KZLaVonjTrZ0Ai5ghMaVI9eKC2p8eoQgcBdkEDgzFk6+Q==}
@@ -1282,6 +1282,10 @@ snapshots:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
+  dompurify@3.4.8:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
+
   es-toolkit@1.47.1: {}
 
   eventemitter3@5.0.4: {}
@@ -1397,7 +1401,7 @@ snapshots:
 
   monaco-editor@0.56.0:
     dependencies:
-      dompurify: 3.4.13
+      dompurify: 3.4.8
       marked: 14.0.0
 
   monaco-languageserver-types@0.4.1:

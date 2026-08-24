@@ -8,6 +8,8 @@ import {
 	ChevronRight,
 	Copy,
 	Download,
+	Ellipsis,
+	MessageSquare,
 	RefreshCw,
 	Settings,
 	User,
@@ -42,6 +44,7 @@ import {
 	PageHeader,
 	Panel,
 	StatusBanner,
+	Tooltip,
 	useDismissiblePopover
 } from '@/components/Primitives';
 import { ProviderIcon } from '@/components/ProviderIcon';
@@ -415,6 +418,7 @@ export function LogsPage() {
 								<col className="col-status" />
 								<col className="col-model" />
 								<col className="col-prompt" />
+								<col className="col-turn" />
 								<col className="col-duration" />
 								<col className="col-in" />
 								<col className="col-out" />
@@ -428,6 +432,7 @@ export function LogsPage() {
 									<th className="center">Status</th>
 									<th>Model</th>
 									<th>Prompt</th>
+									<th>Turn</th>
 									<th className="num">Duration</th>
 									<th className="num">In</th>
 									<th className="num">Out</th>
@@ -1109,6 +1114,47 @@ function logMessagePreview(entry: LogEntry) {
 	return text.length > 180 ? `${text.slice(0, 177)}...` : text;
 }
 
+function logTurn(entry: LogEntry) {
+	const labels = {
+		user: 'User',
+		assistant: 'Assistant',
+		toolCall: 'Tool call',
+		toolResult: 'Tool result'
+	};
+	const input = entry.turn?.input ? labels[entry.turn.input] : null;
+	const output = entry.turn?.output ? labels[entry.turn.output] : null;
+	return [input, output].filter(Boolean).join(' → ');
+}
+
+function LogTurnBadge(props: { entry: LogEntry }) {
+	const input = props.entry.turn?.input;
+	const output = props.entry.turn?.output;
+	const label = logTurn(props.entry) || 'Unknown turn';
+	const variant = `${input ?? 'unknown'}-${output ?? 'unknown'}`;
+	const common =
+		(input === 'user' || input === 'toolResult') &&
+		(output === 'assistant' || output === 'toolCall');
+	return (
+		<Tooltip content={label}>
+			<span
+				className={`log-turn-badge ${common ? variant : 'other'}`}
+				aria-label={label}
+				tabIndex={0}
+			>
+				{common ? (
+					<>
+						{input === 'user' ? <User size={13} /> : <Braces size={13} />}
+						<ArrowRight size={10} />
+						{output === 'assistant' ? <MessageSquare size={13} /> : <Wrench size={13} />}
+					</>
+				) : (
+					<Ellipsis size={15} />
+				)}
+			</span>
+		</Tooltip>
+	);
+}
+
 function findLastMessage(
 	messages: RenderedLogMessage[],
 	predicate: (message: RenderedLogMessage) => boolean
@@ -1242,6 +1288,9 @@ function LogCallRow(props: {
 						{preview || '—'}
 					</span>
 				</td>
+				<td className="log-td-turn">
+					<LogTurnBadge entry={props.entry} />
+				</td>
 				<td className="log-td-num">{formatDuration(props.entry.durationMs)}</td>
 				<TokenCells entry={props.entry} />
 				<td className="log-td-num">
@@ -1253,7 +1302,7 @@ function LogCallRow(props: {
 			</tr>
 			{props.expanded ? (
 				<tr className="log-row-detail">
-					<td colSpan={10}>
+					<td colSpan={11}>
 						<div className="expanded-log">
 							{props.loading ? <StatusBanner state="loading" title="Loading log payload" /> : null}
 							<LogDetailView entry={props.detail} onOpenSettings={props.onOpenSettings} />

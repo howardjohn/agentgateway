@@ -3580,6 +3580,10 @@ tbody tr:hover {
 	width: 300px;
 }
 
+.log-table col.col-turn {
+	width: 78px;
+}
+
 .log-table col.col-duration {
 	width: 74px;
 }
@@ -3762,6 +3766,46 @@ tbody tr:hover {
 }
 
 .log-call-preview.empty {
+	color: var(--muted);
+}
+
+.log-td-turn {
+	text-align: center;
+}
+
+.log-turn-badge {
+	display: inline-flex;
+	height: 26px;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+	border-radius: 7px;
+	padding: 0 7px;
+}
+
+.log-turn-badge.user-assistant {
+	background: var(--info-bg);
+	color: var(--info);
+}
+
+.log-turn-badge.user-toolCall {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.log-turn-badge.toolResult-assistant {
+	background: var(--ok-bg);
+	color: var(--ok);
+}
+
+.log-turn-badge.toolResult-toolCall {
+	background: var(--warn-bg);
+	color: var(--warn);
+}
+
+.log-turn-badge.other {
+	background: var(--surface-2);
 	color: var(--muted);
 }
 

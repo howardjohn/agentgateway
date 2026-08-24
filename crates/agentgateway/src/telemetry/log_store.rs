@@ -572,6 +572,7 @@ pub struct LogEntry {
 	pub http_status: Option<i64>,
 	pub error: Option<String>,
 	pub prompt_preview: Option<String>,
+	pub turn: TurnEntry,
 	pub gen_ai: GenAiEntry,
 	pub usage: UsageEntry,
 	pub cost: Option<f64>,
@@ -580,6 +581,22 @@ pub struct LogEntry {
 	pub attributes: Option<Value>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub payload: Option<PayloadEntry>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TurnEntry {
+	pub input: Option<TurnKind>,
+	pub output: Option<TurnKind>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TurnKind {
+	User,
+	Assistant,
+	ToolCall,
+	ToolResult,
 }
 
 fn prompt_preview(prompt: Option<&Value>) -> Option<String> {
@@ -597,7 +614,42 @@ fn prompt_preview(prompt: Option<&Value>) -> Option<String> {
 			.collect::<Vec<_>>()
 			.join("\n");
 		let text = text.trim();
-		(!text.is_empty()).then(|| text.chars().take(180).collect())
+		if text.is_empty() {
+			None
+		} else if text.chars().nth(180).is_some() {
+			Some(format!("{}...", text.chars().take(177).collect::<String>()))
+		} else {
+			Some(text.to_string())
+		}
+	})
+}
+
+fn turn_kind(messages: Option<&Value>) -> Option<TurnKind> {
+	// Classify the final meaningful normalized part; reasoning and system text are not turns.
+	messages?.as_array()?.iter().rev().find_map(|message| {
+		let role = message.get("role").and_then(Value::as_str)?;
+		message
+			.get("parts")?
+			.as_array()?
+			.iter()
+			.rev()
+			.find_map(|part| match part.get("type").and_then(Value::as_str)? {
+				"toolCall" => Some(TurnKind::ToolCall),
+				"toolResult" => Some(TurnKind::ToolResult),
+				"text"
+					if part
+						.get("text")
+						.and_then(Value::as_str)
+						.is_some_and(|text| !text.trim().is_empty()) =>
+				{
+					match role {
+						"user" => Some(TurnKind::User),
+						"assistant" => Some(TurnKind::Assistant),
+						_ => None,
+					}
+				},
+				_ => None,
+			})
 	})
 }
 

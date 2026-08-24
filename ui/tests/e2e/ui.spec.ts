@@ -47,6 +47,10 @@ test('log detail renders the normalized conversation', async ({ page }) => {
 	await page.goto('/llm/logs?log=log-1');
 
 	await expect(page.locator('.log-call-preview')).toHaveText('Summarize the result.');
+	const turn = page.getByLabel('Tool result → Assistant');
+	await expect(turn).toBeVisible();
+	await turn.hover();
+	await expect(page.getByRole('tooltip')).toHaveText('Tool result → Assistant');
 	await page.locator('.log-conversation').getByText('Conversation').click();
 	await expect(page.locator('.log-markdown strong')).toHaveText('pong');
 	await expect(page.locator('.log-markdown a, .log-markdown img')).toHaveCount(0);

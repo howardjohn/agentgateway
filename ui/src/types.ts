@@ -125,6 +125,10 @@ export interface LogEntry {
 	httpStatus?: number | null;
 	error?: string | null;
 	promptPreview?: string | null;
+	turn?: {
+		input?: 'user' | 'assistant' | 'toolCall' | 'toolResult' | null;
+		output?: 'user' | 'assistant' | 'toolCall' | 'toolResult' | null;
+	};
 	genAi: {
 		operationName?: string | null;
 		providerName?: string | null;

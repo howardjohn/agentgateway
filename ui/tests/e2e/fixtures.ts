@@ -330,6 +330,7 @@ export async function mockGateway(page: Page, initialConfig: TestConfig = popula
 					httpStatus: 200,
 					error: null,
 					promptPreview: 'Summarize the result.',
+					turn: { input: 'toolResult', output: 'assistant' },
 					genAi: {
 						providerName: 'anthropic',
 						requestModel: 'resilient',
@@ -359,6 +360,7 @@ export async function mockGateway(page: Page, initialConfig: TestConfig = popula
 				spanId: 'span-1',
 				httpStatus: 200,
 				error: null,
+				turn: { input: 'toolResult', output: 'assistant' },
 				genAi: {
 					providerName: 'anthropic',
 					requestModel: 'resilient',
