@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/yaml"
 )
 
 func Command() *cobra.Command {
@@ -25,6 +26,7 @@ Use subcommands to import catalog data from supported sources.`,
 type importFlags struct {
 	providers []string
 	source    string
+	overlay   string
 	out       string
 	pretty    bool
 	legacy    bool
@@ -61,7 +63,7 @@ func importCmd() *cobra.Command {
 
 Examples:
 	agctl catalog import > catalog.json
-	agctl catalog import --out ./costs/catalog.json
+	agctl catalog import --overlay ./catalog/model-catalog-overrides.yaml --out ./catalog/model-catalog.json --pretty
 	agctl catalog import --source models.dev --providers anthropic,google,openai`,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
@@ -71,6 +73,7 @@ Examples:
 	}
 
 	cmd.Flags().StringVar(&f.source, "source", f.source, "import source ("+importSourceList()+")")
+	cmd.Flags().StringVar(&f.overlay, "overlay", "", "YAML catalog to merge over imported data")
 	cmd.Flags().StringSliceVar(&f.providers, "providers", nil, "source provider ids to import (default: every provider the proxy supports)")
 	cmd.Flags().BoolVar(&f.legacy, "legacy", false, "include deprecated models")
 	cmd.Flags().BoolVar(&f.pretty, "pretty", false, "pretty-print the output JSON")
@@ -96,6 +99,20 @@ func runImport(cmd *cobra.Command, f *importFlags) error {
 	if err != nil {
 		return err
 	}
+	if f.overlay != "" {
+		overlayData, err := os.ReadFile(f.overlay)
+		if err != nil {
+			return fmt.Errorf("read overlay %s: %w", f.overlay, err)
+		}
+		var overlay ModelCatalog
+		if err := yaml.UnmarshalStrict(overlayData, &overlay); err != nil {
+			return fmt.Errorf("parse overlay %s: %w", f.overlay, err)
+		}
+		if err := overlay.Validate(); err != nil {
+			return fmt.Errorf("invalid overlay %s: %w", f.overlay, err)
+		}
+		cat.overlayWith(&overlay)
+	}
 	if err := cat.Validate(); err != nil {
 		return fmt.Errorf("invalid catalog: %w", err)
 	}
@@ -112,7 +129,7 @@ func runImport(cmd *cobra.Command, f *importFlags) error {
 		if _, err := cmd.OutOrStdout().Write(data); err != nil {
 			return err
 		}
-	} else if err := os.WriteFile(dest, data, 0o600); err != nil {
+	} else if err := os.WriteFile(dest, data, 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", dest, err)
 	}
 	fmt.Fprintf(cmd.ErrOrStderr(), "imported %d providers\n", len(cat.Providers))
