@@ -5,12 +5,19 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
 
 type ModelCatalog struct {
+	Metadata  *CatalogMetadata    `json:"metadata,omitempty"`
 	Providers map[string]Provider `json:"providers"`
+}
+
+type CatalogMetadata struct {
+	Source      string    `json:"source"`
+	GeneratedAt time.Time `json:"generatedAt"`
 }
 
 func (c *ModelCatalog) overlayWith(overlay *ModelCatalog) {
@@ -36,6 +43,14 @@ func (c *ModelCatalog) overlayWith(overlay *ModelCatalog) {
 }
 
 func (c *ModelCatalog) Validate() error {
+	if c.Metadata != nil {
+		if c.Metadata.Source == "" {
+			return fmt.Errorf("metadata source is required")
+		}
+		if c.Metadata.GeneratedAt.IsZero() {
+			return fmt.Errorf("metadata generatedAt is required")
+		}
+	}
 	for provider, p := range c.Providers {
 		for model, m := range p.Models {
 			if err := m.validate(); err != nil {

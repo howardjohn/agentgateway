@@ -12,6 +12,9 @@
 |`config.modelCatalog[].file`|string|Path to a file on disk containing the model cost catalog.|
 |`config.modelCatalog[].inline`|string|Model cost catalog provided inline as a string.|
 |`config.modelCatalog[].inline`|object|Model cost catalog provided inline as structured data.|
+|`config.modelCatalog[].inline.metadata`|object|Identifies a generated base catalog and when its contents last changed.|
+|`config.modelCatalog[].inline.metadata.source`|string|Upstream used to generate this base catalog, such as `models.dev`.|
+|`config.modelCatalog[].inline.metadata.generatedAt`|string|Time the generated catalog contents last changed.|
 |`config.modelCatalog[].inline.providers`|object|Map of provider name to its supported models and pricing.|
 |`config.modelCatalog[].inline.providers.*.models`|object|Map of model ID to its pricing rates and tiers.|
 |`config.modelCatalog[].inline.providers.*.models.*.rates`|object|Base pricing rates for this model.|

@@ -536,6 +536,17 @@
     "Catalog": {
       "type": "object",
       "properties": {
+        "metadata": {
+          "description": "Identifies a generated base catalog and when its contents last changed.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatalogMetadata"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "providers": {
           "description": "Map of provider name to its supported models and pricing.",
           "type": "object",
@@ -546,6 +557,25 @@
         }
       },
       "additionalProperties": false
+    },
+    "CatalogMetadata": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "Upstream used to generate this base catalog, such as `models.dev`.",
+          "type": "string"
+        },
+        "generatedAt": {
+          "description": "Time the generated catalog contents last changed.",
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "generatedAt"
+      ]
     },
     "Provider": {
       "type": "object",

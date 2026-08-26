@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use arc_swap::ArcSwap;
-pub use model::{Breakdown, Catalog};
+pub use model::{Breakdown, Catalog, CatalogMetadata};
 use model::{Catalog as CatalogData, Rates, Usage};
 use prometheus_client::encoding::EncodeLabelValue;
 use rust_decimal::Decimal;
@@ -212,9 +212,24 @@ impl CatalogSnapshot {
 	}
 
 	fn from_catalogs(catalogs: impl IntoIterator<Item = CatalogData>) -> Self {
-		let merged = catalogs
+		let mut base: Option<CatalogData> = None;
+		let mut overlays = Vec::new();
+		for catalog in catalogs {
+			let Some(candidate_metadata) = catalog.metadata.as_ref() else {
+				overlays.push(catalog);
+				continue;
+			};
+			let replace = base
+				.as_ref()
+				.and_then(|catalog| catalog.metadata.as_ref())
+				.is_none_or(|current| candidate_metadata.generated_at >= current.generated_at);
+			if replace {
+				base = Some(catalog);
+			}
+		}
+		let merged = overlays
 			.into_iter()
-			.fold(CatalogData::default(), CatalogData::override_with);
+			.fold(base.unwrap_or_default(), CatalogData::override_with);
 		let model_tags = merged
 			.providers
 			.values()
@@ -1121,6 +1136,40 @@ mod tests {
 		assert_eq!(cost, Some(9.0), "later layer's rate wins");
 	}
 
+	#[test]
+	fn newest_generated_base_wins_before_user_overlays() {
+		let generated = |day: u8, rate: &str| {
+			model::from_json(&format!(
+				r#"{{"metadata":{{"source":"models.dev","generatedAt":"2026-08-{day:02}T00:00:00Z"}},"providers":{{"openai":{{"models":{{"my-model":{{"rates":{{"input":"{rate}"}}}}}}}}}}}}"#
+			))
+			.unwrap()
+		};
+		let input_cost = |snapshot: &CatalogSnapshot| {
+			snapshot
+				.price(
+					"openai",
+					"my-model",
+					&LLMResponse {
+						input_tokens: Some(1_000_000),
+						..Default::default()
+					},
+					CacheTokenConvention::InputIncludesCache,
+				)
+				.0
+		};
+
+		let day7 = CatalogSnapshot::from_catalogs([generated(5, "5"), generated(7, "7")]);
+		assert_eq!(input_cost(&day7), Some(7.0));
+
+		let day10 = CatalogSnapshot::from_catalogs([generated(10, "10"), generated(7, "7")]);
+		assert_eq!(input_cost(&day10), Some(10.0));
+
+		let user_override = model::from_json(&test_catalog("12")).unwrap();
+		let overridden =
+			CatalogSnapshot::from_catalogs([generated(10, "10"), generated(7, "7"), user_override]);
+		assert_eq!(input_cost(&overridden), Some(12.0));
+	}
+
 	#[tokio::test]
 	async fn missing_later_layer_is_skipped() {
 		let dir = tempfile::tempdir().unwrap();
@@ -1175,6 +1224,33 @@ mod tests {
 				.is_some(),
 			"built-in catalog remains available"
 		);
+	}
+
+	#[tokio::test]
+	async fn metadata_free_file_is_an_overlay_regardless_of_name() {
+		let dir = tempfile::tempdir().unwrap();
+		let file = dir.path().join("base-costs.json");
+		fs_err::tokio::write(
+			&file,
+			r#"{"providers":{"openai":{"models":{"gpt-4o-mini":{"rates":{"input":"999"}}}}}}"#,
+		)
+		.await
+		.unwrap();
+		let loaded = load_sources(&[ModelCatalogSource::File { file }])
+			.await
+			.unwrap();
+		let (cost, status) = loaded.snapshot.price(
+			"openai",
+			"gpt-4o-mini",
+			&LLMResponse {
+				input_tokens: Some(1_000_000),
+				..Default::default()
+			},
+			CacheTokenConvention::InputIncludesCache,
+		);
+
+		assert_eq!(status, CostLookupStatus::Exact);
+		assert_eq!(cost, Some(999.0));
 	}
 
 	#[test]
