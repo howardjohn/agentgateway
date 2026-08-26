@@ -3,7 +3,7 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{Context, bail};
+use anyhow::Context;
 use arc_swap::ArcSwap;
 pub use model::{Breakdown, Catalog};
 use model::{Catalog as CatalogData, Rates, Usage};
@@ -20,6 +20,7 @@ mod model;
 pub mod refresh;
 
 const TRACE_POLICY_KIND: &str = "llm_cost";
+const BUILTIN_CATALOG_JSON: &str = include_str!("../../../../../catalog/model-catalog.json");
 
 pub struct ModelCatalog {
 	state: ArcSwap<ModelCatalogState>,
@@ -54,16 +55,21 @@ impl Default for ModelCatalog {
 
 impl ModelCatalog {
 	pub async fn new(sources: Vec<ModelCatalogSource>) -> anyhow::Result<Arc<Self>> {
-		let catalog = Arc::new(Self::default());
-		if sources.is_empty() {
-			return Ok(catalog);
-		}
-		catalog.state.store(Arc::new(ModelCatalogState {
-			snapshot: Arc::new(CatalogSnapshot::empty()),
-			sources,
-		}));
-		if let Err(e) = catalog.reload().await {
-			warn!("model catalog load failed; will load when the files become valid: {e:#}")
+		let builtin =
+			model::from_json(BUILTIN_CATALOG_JSON).context("invalid built-in model catalog")?;
+		let catalog = Arc::new(Self {
+			state: ArcSwap::from_pointee(ModelCatalogState {
+				snapshot: Arc::new(CatalogSnapshot::from_catalogs([builtin])),
+				sources,
+			}),
+			file_watch: Mutex::new(None),
+		});
+		if !catalog.state.load().sources.is_empty()
+			&& let Err(e) = catalog.reload().await
+		{
+			warn!(
+				"model catalog overlay load failed; using built-in catalog until the configured sources become valid: {e:#}"
+			)
 		}
 		catalog.update_file_watch()?;
 		Ok(catalog)
@@ -86,14 +92,6 @@ impl ModelCatalog {
 		sources: Vec<ModelCatalogSource>,
 	) -> anyhow::Result<()> {
 		if self.state.load().sources == sources {
-			return Ok(());
-		}
-		if sources.is_empty() {
-			self.state.store(Arc::new(ModelCatalogState {
-				snapshot: Arc::new(CatalogSnapshot::empty()),
-				sources,
-			}));
-			self.update_file_watch()?;
 			return Ok(());
 		}
 		let loaded = load_sources(&sources).await?;
@@ -549,11 +547,9 @@ struct LoadedCatalog {
 }
 
 async fn load_sources(sources: &[ModelCatalogSource]) -> anyhow::Result<LoadedCatalog> {
-	if sources.is_empty() {
-		bail!("no model catalog sources supplied");
-	}
-
-	let mut catalogs = Vec::with_capacity(sources.len());
+	let builtin = model::from_json(BUILTIN_CATALOG_JSON).context("invalid built-in model catalog")?;
+	let mut catalogs = Vec::with_capacity(sources.len() + 1);
+	catalogs.push(builtin);
 	let mut missing = Vec::new();
 	for source in sources {
 		match source {
@@ -581,16 +577,6 @@ async fn load_sources(sources: &[ModelCatalogSource]) -> anyhow::Result<LoadedCa
 				catalogs.push(inline.clone());
 			},
 		}
-	}
-	if catalogs.is_empty() {
-		bail!(
-			"no configured model catalog sources are currently readable; missing files: {}",
-			missing
-				.iter()
-				.map(|p| p.display().to_string())
-				.collect::<Vec<_>>()
-				.join(", ")
-		);
 	}
 	Ok(LoadedCatalog {
 		snapshot: CatalogSnapshot::from_catalogs(catalogs),
@@ -1169,18 +1155,25 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn all_missing_layers_are_not_loaded() {
+	async fn all_missing_layers_fall_back_to_builtin() {
 		let dir = tempfile::tempdir().unwrap();
-		let err = load_sources(&[ModelCatalogSource::File {
+		let loaded = load_sources(&[ModelCatalogSource::File {
 			file: dir.path().join("base.json"),
 		}])
 		.await
-		.unwrap_err();
+		.unwrap();
 
+		assert_eq!(loaded.missing.len(), 1);
+		assert!(loaded.snapshot.catalog.is_some());
 		assert!(
-			err
-				.to_string()
-				.contains("no configured model catalog sources are currently readable")
+			loaded
+				.snapshot
+				.catalog
+				.as_ref()
+				.unwrap()
+				.resolve("openai", "gpt-4o-mini")
+				.is_some(),
+			"built-in catalog remains available"
 		);
 	}
 
