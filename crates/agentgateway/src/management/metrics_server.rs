@@ -50,7 +50,7 @@ async fn handle_metrics(reg: Arc<Mutex<Registry>>, req: Request<Incoming>) -> Re
 	let reg = reg.lock().expect("mutex");
 	let content_type = content_type(&req);
 	let result = match content_type {
-		ContentType::OpenMetrics => {
+		ContentType::PlainText | ContentType::OpenMetrics => {
 			let mut str_buf = String::new();
 			encode_openmetrics(&mut str_buf, &reg)
 				.map(|_| str_buf.into_bytes())
@@ -73,9 +73,10 @@ async fn handle_metrics(reg: Arc<Mutex<Registry>>, req: Request<Incoming>) -> Re
 	.expect("builder with known status code should not fail")
 }
 
-#[derive(Default)]
+#[derive(Copy, Clone, Default)]
 enum ContentType {
 	#[default]
+	PlainText,
 	OpenMetrics,
 	Protobuf,
 }
@@ -83,6 +84,7 @@ enum ContentType {
 impl From<ContentType> for &str {
 	fn from(c: ContentType) -> Self {
 		match c {
+			ContentType::PlainText => "text/plain;charset=utf-8",
 			ContentType::OpenMetrics => "application/openmetrics-text;version=1.0.0;charset=utf-8",
 			ContentType::Protobuf => {
 				"application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited"
@@ -93,6 +95,9 @@ impl From<ContentType> for &str {
 
 fn content_type_from_media_type(m: &MediaType) -> Option<ContentType> {
 	let ty_str: &str = m.ty.as_str();
+	if ty_str == mediatype::names::TEXT.as_str() && m.subty == mediatype::names::PLAIN.as_str() {
+		return Some(ContentType::PlainText);
+	}
 	if ty_str != mediatype::names::APPLICATION.as_str() {
 		return None;
 	}
@@ -103,7 +108,8 @@ fn content_type_from_media_type(m: &MediaType) -> Option<ContentType> {
 	}
 }
 
-const AVAILABLE_MEDIA_TYPES: [MediaType<'static>; 4] = [
+const AVAILABLE_MEDIA_TYPES: [MediaType<'static>; 5] = [
+	MediaType::new(mediatype::names::TEXT, mediatype::names::PLAIN),
 	MediaType::new(
 		mediatype::names::APPLICATION,
 		mediatype::Name::new_unchecked("openmetrics-text"),
@@ -152,7 +158,7 @@ mod test {
 		let plain_text_req = http::Request::new("I want some plain text");
 		assert_eq!(
 			Into::<&str>::into(super::content_type(&plain_text_req)),
-			"application/openmetrics-text;version=1.0.0;charset=utf-8"
+			"text/plain;charset=utf-8"
 		);
 
 		let json_or_text_req = http::Request::builder()
@@ -163,7 +169,7 @@ mod test {
 			.unwrap();
 		assert_eq!(
 			Into::<&str>::into(super::content_type(&json_or_text_req)),
-			"application/openmetrics-text;version=1.0.0;charset=utf-8"
+			"text/plain;charset=utf-8"
 		);
 
 		let openmetrics_req = http::Request::builder()
@@ -192,7 +198,7 @@ mod test {
 		// asking for something we don't support, fall back to plaintext
 		assert_eq!(
 			Into::<&str>::into(super::content_type(&unsupported_req_accept)),
-			"application/openmetrics-text;version=1.0.0;charset=utf-8"
+			"text/plain;charset=utf-8"
 		);
 
 		let q_values_req = http::Request::builder()
@@ -204,7 +210,7 @@ mod test {
 			.unwrap();
 		assert_eq!(
 			Into::<&str>::into(super::content_type(&q_values_req)),
-			"application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited"
+			"text/plain;charset=utf-8"
 		);
 
 		let q_zero_req = http::Request::builder()
@@ -216,7 +222,7 @@ mod test {
 			.unwrap();
 		assert_eq!(
 			Into::<&str>::into(super::content_type(&q_zero_req)),
-			"application/openmetrics-text;version=1.0.0;charset=utf-8"
+			"text/plain;charset=utf-8"
 		);
 
 		let parameterized_protobuf_req = http::Request::builder()
