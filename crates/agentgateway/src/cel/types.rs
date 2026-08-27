@@ -2139,6 +2139,8 @@ pub struct ExecutorSerde {
 	pub jwt: Option<jwt::Claims>,
 
 	/// `apiKey` contains the claims from a verified API Key. This is only present if the API Key policy is enabled.
+	/// In addition to `key`, user-supplied metadata fields are flattened into this object; for example,
+	/// `apiKey.group`. Metadata values are plain JSON and are not treated as secrets.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub api_key: Option<apikey::Claims>,
 

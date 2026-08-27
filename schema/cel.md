@@ -42,8 +42,10 @@
 |`env.gateway`|string|The Gateway we are running as (when running on Kubernetes)|
 |`jwt`|object|`jwt` contains the claims from a verified JWT token. This is only present if the JWT policy is enabled.|
 |`jwt.rawToken`|string|The raw bearer token. Redacted by default; use `jwt.rawToken.unredacted()` to access the actual value.|
-|`apiKey`|object|`apiKey` contains the claims from a verified API Key. This is only present if the API Key policy is enabled.|
+|`jwt.*`|any||
+|`apiKey`|object|`apiKey` contains the claims from a verified API Key. This is only present if the API Key policy is enabled.<br>In addition to `key`, user-supplied metadata fields are flattened into this object; for example,<br>`apiKey.group`. Metadata values are plain JSON and are not treated as secrets.|
 |`apiKey.key`|string|The API key value. Redacted by default; use `apiKey.key.unredacted()` to access the actual value.|
+|`apiKey.*`|any||
 |`basicAuth`|object|`basicAuth` contains the claims from a verified basic authentication Key. This is only present if the Basic authentication policy is enabled.|
 |`basicAuth.username`|string||
 |`llm`|object|`llm` contains attributes about an LLM request or response. This is only present when using an `ai` backend.|
@@ -135,6 +137,7 @@
 |`mcp.tool.target`|string|The target handling the tool call after multiplexing resolution.|
 |`mcp.tool.name`|string|The resolved tool name sent to the upstream target.|
 |`mcp.tool.arguments`|object|The JSON arguments passed to the tool call.|
+|`mcp.tool.arguments.*`|any||
 |`mcp.tool.result`|any|The terminal tool result payload, if available.|
 |`mcp.tool.error`|any|The terminal JSON-RPC error payload, if available.|
 |`mcp.prompt`|object||
@@ -151,8 +154,11 @@
 |`backend.type`|enum|The type of backend.<br>Possible values: `ai`, `mcp`, `static`, `dynamic`, `service`, `unknown`.|
 |`backend.protocol`|enum|The protocol of backend.<br>Possible values: `http`, `tcp`, `a2a`, `mcp`, `llm`.|
 |`extauthz`|object|`extauthz` contains dynamic metadata from ext_authz filters|
+|`extauthz.*`|any||
 |`extproc`|object|`extproc` contains dynamic metadata from ext_proc filters|
+|`extproc.*`|any||
 |`mcpGuardrails`|object|`mcpGuardrails` contains dynamic metadata returned by mcpGuardrails policy processors.|
+|`mcpGuardrails.*`|any||
 |`guardrails`|[]object|`guardrails` contains one entry per prompt-guard guardrail intervention, in either the<br>request or response phase. Only present in CEL that runs after the request completes,<br>such as log and metric fields.|
 |`guardrails[].phase`|string|The phase the guardrail intervened in: `request` or `response`.|
 |`guardrails[].guard`|string|The guard kind that intervened, such as `bedrockGuardrails`.|
@@ -162,3 +168,4 @@
 |`guardrails[].actionReason`|string|The reason the guardrail reported for its action.|
 |`guardrails[].assessments`|array|Assessment detail reported by the guardrail provider, redacted to metadata<br>only. Content-bearing fields (such as the matched text) are never included.|
 |`metadata`|object|`metadata` contains values set by transformation metadata expressions.|
+|`metadata.*`|any||

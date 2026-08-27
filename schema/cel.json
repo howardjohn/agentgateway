@@ -294,7 +294,7 @@
       "additionalProperties": true
     },
     "apiKey": {
-      "description": "`apiKey` contains the claims from a verified API Key. This is only present if the API Key policy is enabled.",
+      "description": "`apiKey` contains the claims from a verified API Key. This is only present if the API Key policy is enabled.\nIn addition to `key`, user-supplied metadata fields are flattened into this object; for example,\n`apiKey.group`. Metadata values are plain JSON and are not treated as secrets.",
       "type": [
         "object",
         "null"
