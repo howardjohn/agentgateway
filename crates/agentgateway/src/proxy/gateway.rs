@@ -13,6 +13,7 @@ use anyhow::anyhow;
 use bytes::Bytes;
 use futures::pin_mut;
 use futures_util::FutureExt;
+use futures_util::future::{self, Either};
 use http::StatusCode;
 use hyper_util::rt::TokioIo;
 use hyper_util::server::conn::auto;
@@ -25,7 +26,7 @@ use tracing::{Instrument, debug, error, event, info, info_span, warn};
 
 use crate::proxy::{ProxyError, WaypointService, dtrace};
 use crate::store::{BindEvent, BindListeners, FrontendPolices};
-use crate::telemetry::metrics::TCPLabels;
+use crate::telemetry::metrics::{AdmissionLabels, TCPLabels};
 use crate::transport::BufferLimit;
 use crate::transport::stream::{
 	ConnectHeaders, Extension, LoggingMode, Socket, TCPConnectionInfo, TLSConnectionInfo,
@@ -256,7 +257,7 @@ impl Gateway {
 		}
 	}
 
-	pub(super) async fn run_bind(
+	pub(crate) async fn run_bind(
 		pi: Arc<ProxyInputs>,
 		drain: DrainWatcher,
 		bind_config: watch::Receiver<Arc<crate::types::agent::Bind>>,
@@ -305,6 +306,14 @@ impl Gateway {
 			let (mut upgrader, weak) = drain.into_weak();
 			let (inner_trigger, inner_drain) = drain::new();
 			drop(inner_drain);
+			let admission = pi.admission.bind(&name);
+			let connection_shed = pi
+				.metrics
+				.downstream_connections_shed
+				.get_or_create(&AdmissionLabels {
+					bind: Some(&name).into(),
+				})
+				.clone();
 			let handle_stream = |stream: TcpStream, upgrader: &DrainUpgrader| {
 				let Ok(mut stream) = Socket::from_tcp(stream) else {
 					// Can fail if they immediately disconnected; not much we can do.
@@ -318,6 +327,13 @@ impl Gateway {
 				let mut force_shutdown = force_shutdown.clone();
 				let name = name.clone();
 				let bind_config = bind_config.clone();
+				let policies = Self::frontend_policies_for_bind(&name, &pi);
+				let max_connections = policies.tcp.and_then(|tcp| tcp.max_connections);
+				let Some(connection_permit) = admission.connections.try_acquire(max_connections) else {
+					connection_shed.inc();
+					debug!(bind = ?name, src.addr = %stream.tcp().peer_addr, "downstream connection rejected: connection limit");
+					return;
+				};
 				tokio::spawn(telemetry::connection_scope(async move {
 					let bind = bind_config.borrow().clone();
 					debug!(bind=?name, "connection started");
@@ -328,6 +344,7 @@ impl Gateway {
 						}
 						_ = Self::handle_tunnel(name.clone(), bind.protocol, bind.tunnel_protocol, stream, pi, drain) => {}
 					}
+					drop(connection_permit);
 					debug!(bind=?name, dur=?start.elapsed(), "connection completed");
 				}));
 			};
@@ -914,8 +931,6 @@ impl Gateway {
 		stream.ext_mut().insert(dst);
 
 		let transport_metrics = inputs.metrics.clone();
-		let _max_dur_metrics = transport_metrics.clone();
-		let _max_dur_labels = transport_labels.clone();
 		let proxy = super::httpproxy::HTTPProxy {
 			bind_name,
 			inputs,
@@ -940,6 +955,19 @@ impl Gateway {
 			.http
 			.as_ref()
 			.and_then(|h| h.max_connection_duration);
+		let max_requests = policies
+			.http
+			.as_ref()
+			.and_then(|h| h.max_concurrent_requests);
+		let request_admission = proxy.inputs.admission.bind(&proxy.bind_name);
+		let request_shed = proxy
+			.inputs
+			.metrics
+			.requests_shed
+			.get_or_create(&AdmissionLabels {
+				bind: Some(&proxy.bind_name).into(),
+			})
+			.clone();
 		let drain_proxy = proxy.clone();
 
 		let serve = server.serve_connection_with_upgrades(
@@ -947,18 +975,35 @@ impl Gateway {
 			hyper::service::service_fn(move |mut req| {
 				let proxy = proxy.clone();
 				let connection = connection.clone();
+
+				// Ensure we have capacity before we allocate the large proxy future.
+				let Some(request_permit) = request_admission.requests.try_acquire(max_requests) else {
+					request_shed.inc();
+					let is_grpc = crate::http::is_grpc_request(&req);
+					debug!(bind = %proxy.bind_name, "request rejected: request limit");
+					return Either::Left(future::ready(Ok::<_, Infallible>(
+						ProxyError::RequestLimitExceeded.into_response_with_grpc(is_grpc),
+					)));
+				};
+
 				req.extensions_mut().insert(BufferLimit::new(buffer));
 				let req = req.map(crate::http::Body::new);
-				telemetry::request_scope(
-					// This is the per-request HTTP flow future. It is the baseline task state
-					// multiplied by concurrent in-flight requests on this connection.
-					dtrace::DebugTracer::maybe_scope(req, |req| async move {
-						proxy.proxy(connection, req).map(Ok::<_, Infallible>).await
-					})
-					.assert_size::<{ 17 * 1024 }>(),
-				)
+
+				Either::Right(async move {
+					let response = telemetry::request_scope(
+						// This is the per-request HTTP flow future. It is the baseline task state
+						// multiplied by concurrent in-flight requests on this connection.
+						dtrace::DebugTracer::maybe_scope(req, |req| async move {
+							proxy.proxy(connection, req).map(Ok::<_, Infallible>).await
+						})
+						.assert_size::<{ 17 * 1024 }>(),
+					)
+					.await?;
+					Ok(response.map(|body| crate::http::DropBody::new(body, request_permit)))
+				})
 			}),
 		);
+
 		let (connection_drain_tx, connection_drain_rx) = drain::new();
 		let parent_drain = drain.clone();
 		let listener_drain = selected_listener.clone().zip(listener_change);
@@ -1610,7 +1655,8 @@ pub fn auto_server(c: Option<&frontend::HTTP>) -> auto::Builder<::hyper_util::rt
 		http2_max_header_size,
 		http2_keepalive_interval,
 		http2_keepalive_timeout,
-		max_connection_duration: _,
+		max_connection_duration: _, // Not handled here
+		max_concurrent_requests: _, // Not handled here
 	} = c.unwrap_or(&def);
 
 	if let Some(m) = http1_max_headers {

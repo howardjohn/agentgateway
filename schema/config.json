@@ -9890,6 +9890,15 @@
             "null"
           ],
           "default": null
+        },
+        "maxConcurrentRequests": {
+          "description": "Maximum number of in-flight HTTP requests across this bind. This includes HTTP/1 requests\nand HTTP/2 streams. Requests over the limit are rejected immediately.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 1
         }
       },
       "additionalProperties": false
@@ -9983,13 +9992,26 @@
       "properties": {
         "keepalives": {
           "description": "TCP keepalive settings for downstream connections.",
-          "$ref": "#/$defs/KeepaliveConfig"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/KeepaliveConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maxConnections": {
+          "description": "Maximum number of active downstream connections on this bind. Connections over the limit\nare closed immediately.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 1
         }
       },
-      "additionalProperties": false,
-      "required": [
-        "keepalives"
-      ]
+      "additionalProperties": false
     },
     "NetworkAuthorization": {
       "description": "CEL authorization rules for downstream network connections.",

@@ -1346,6 +1346,22 @@ impl TestBind {
 
 		addr
 	}
+
+	pub async fn serve_gateway_listener(&self, bind_name: BindKey) -> SocketAddr {
+		let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+		listener.set_nonblocking(true).unwrap();
+		let addr = listener.local_addr().unwrap();
+		let bind = self.pi.stores.read_binds().bind(&bind_name).unwrap().bind;
+		let (_tx, config) = tokio::sync::watch::channel(bind);
+		let pi = self.pi.clone();
+		let drain = self.drain_rx.clone();
+		tokio::spawn(async move {
+			Gateway::run_bind(pi, drain, config, listener)
+				.await
+				.unwrap();
+		});
+		addr
+	}
 }
 
 pub fn setup_proxy_test(cfg: &str) -> anyhow::Result<TestBind> {
@@ -1394,6 +1410,7 @@ pub fn setup_proxy_test_with_config_and_spiffe(
 		spiffe,
 
 		mcp_state: mcp::App::new(stores.clone(), encoder),
+		admission: Default::default(),
 	});
 	TestBind {
 		pi,

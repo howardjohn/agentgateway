@@ -10474,8 +10474,11 @@ type FrontendPolicySpec_HTTP struct {
 	Http2MaxHeaderSize        *uint32                `protobuf:"varint,10,opt,name=http2_max_header_size,json=http2MaxHeaderSize,proto3,oneof" json:"http2_max_header_size,omitempty"`
 	// Controls HTTP/1 request header casing when encoding responses.
 	Http1HeaderCase FrontendPolicySpec_HTTP_HTTPHeaderCase `protobuf:"varint,11,opt,name=http1_header_case,json=http1HeaderCase,proto3,enum=agentgateway.dev.resource.FrontendPolicySpec_HTTP_HTTPHeaderCase" json:"http1_header_case,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Maximum number of in-flight HTTP requests across this bind. This includes
+	// HTTP/1 requests and HTTP/2 streams. Unset means unlimited.
+	MaxConcurrentRequests *uint32 `protobuf:"varint,12,opt,name=max_concurrent_requests,json=maxConcurrentRequests,proto3,oneof" json:"max_concurrent_requests,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *FrontendPolicySpec_HTTP) Reset() {
@@ -10585,6 +10588,13 @@ func (x *FrontendPolicySpec_HTTP) GetHttp1HeaderCase() FrontendPolicySpec_HTTP_H
 	return FrontendPolicySpec_HTTP_LOWERCASE
 }
 
+func (x *FrontendPolicySpec_HTTP) GetMaxConcurrentRequests() uint32 {
+	if x != nil && x.MaxConcurrentRequests != nil {
+		return *x.MaxConcurrentRequests
+	}
+	return 0
+}
+
 type FrontendPolicySpec_TLS struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// TLS handshake timeout
@@ -10682,9 +10692,11 @@ func (x *FrontendPolicySpec_TLS) GetKeyExchangeGroups() []TLSConfig_KeyExchangeG
 type FrontendPolicySpec_TCP struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// TCP keepalive configuration
-	Keepalives    *KeepaliveConfig `protobuf:"bytes,1,opt,name=keepalives,proto3" json:"keepalives,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Keepalives *KeepaliveConfig `protobuf:"bytes,1,opt,name=keepalives,proto3" json:"keepalives,omitempty"`
+	// Maximum number of active downstream connections on this bind. Unset means unlimited.
+	MaxConnections *uint32 `protobuf:"varint,2,opt,name=max_connections,json=maxConnections,proto3,oneof" json:"max_connections,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *FrontendPolicySpec_TCP) Reset() {
@@ -10722,6 +10734,13 @@ func (x *FrontendPolicySpec_TCP) GetKeepalives() *KeepaliveConfig {
 		return x.Keepalives
 	}
 	return nil
+}
+
+func (x *FrontendPolicySpec_TCP) GetMaxConnections() uint32 {
+	if x != nil && x.MaxConnections != nil {
+		return *x.MaxConnections
+	}
+	return 0
 }
 
 type FrontendPolicySpec_NetworkAuthorization struct {
@@ -18122,7 +18141,7 @@ const file_resource_proto_rawDesc = "" +
 	"\binterval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\binterval\x12\x1d\n" +
 	"\aretries\x18\x03 \x01(\rH\x00R\aretries\x88\x01\x01B\n" +
 	"\n" +
-	"\b_retries\"\xcb%\n" +
+	"\b_retries\"\xe7&\n" +
 	"\x12FrontendPolicySpec\x12E\n" +
 	"\x03tcp\x18\x01 \x01(\v21.agentgateway.dev.resource.FrontendPolicySpec.TCPH\x00R\x03tcp\x12E\n" +
 	"\x03tls\x18\x02 \x01(\v21.agentgateway.dev.resource.FrontendPolicySpec.TLSH\x00R\x03tls\x12H\n" +
@@ -18132,7 +18151,7 @@ const file_resource_proto_rawDesc = "" +
 	"\x15network_authorization\x18\x06 \x01(\v2B.agentgateway.dev.resource.FrontendPolicySpec.NetworkAuthorizationH\x00R\x14networkAuthorization\x12d\n" +
 	"\x0eproxy_protocol\x18\a \x01(\v2;.agentgateway.dev.resource.FrontendPolicySpec.ProxyProtocolH\x00R\rproxyProtocol\x12Q\n" +
 	"\ametrics\x18\b \x01(\v25.agentgateway.dev.resource.FrontendPolicySpec.MetricsH\x00R\ametrics\x12Q\n" +
-	"\aconnect\x18\t \x01(\v25.agentgateway.dev.resource.FrontendPolicySpec.ConnectH\x00R\aconnect\x1a\xb4\a\n" +
+	"\aconnect\x18\t \x01(\v25.agentgateway.dev.resource.FrontendPolicySpec.ConnectH\x00R\aconnect\x1a\x8d\b\n" +
 	"\x04HTTP\x12+\n" +
 	"\x0fmax_buffer_size\x18\x01 \x01(\rH\x00R\rmaxBufferSize\x88\x01\x01\x12/\n" +
 	"\x11http1_max_headers\x18\x02 \x01(\rH\x01R\x0fhttp1MaxHeaders\x88\x01\x01\x12G\n" +
@@ -18145,7 +18164,8 @@ const file_resource_proto_rawDesc = "" +
 	"\x17max_connection_duration\x18\t \x01(\v2\x19.google.protobuf.DurationR\x15maxConnectionDuration\x126\n" +
 	"\x15http2_max_header_size\x18\n" +
 	" \x01(\rH\x05R\x12http2MaxHeaderSize\x88\x01\x01\x12m\n" +
-	"\x11http1_header_case\x18\v \x01(\x0e2A.agentgateway.dev.resource.FrontendPolicySpec.HTTP.HTTPHeaderCaseR\x0fhttp1HeaderCase\"-\n" +
+	"\x11http1_header_case\x18\v \x01(\x0e2A.agentgateway.dev.resource.FrontendPolicySpec.HTTP.HTTPHeaderCaseR\x0fhttp1HeaderCase\x12;\n" +
+	"\x17max_concurrent_requests\x18\f \x01(\rH\x06R\x15maxConcurrentRequests\x88\x01\x01\"-\n" +
 	"\x0eHTTPHeaderCase\x12\r\n" +
 	"\tLOWERCASE\x10\x00\x12\f\n" +
 	"\bPRESERVE\x10\x01B\x12\n" +
@@ -18154,7 +18174,8 @@ const file_resource_proto_rawDesc = "" +
 	"\x12_http2_window_sizeB\x1f\n" +
 	"\x1d_http2_connection_window_sizeB\x13\n" +
 	"\x11_http2_frame_sizeB\x18\n" +
-	"\x16_http2_max_header_size\x1a\x8e\x04\n" +
+	"\x16_http2_max_header_sizeB\x1a\n" +
+	"\x18_max_concurrent_requests\x1a\x8e\x04\n" +
 	"\x03TLS\x12F\n" +
 	"\x11handshake_timeout\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x10handshakeTimeout\x123\n" +
 	"\x04alpn\x18\x02 \x01(\v2\x1f.agentgateway.dev.resource.AlpnR\x04alpn\x12U\n" +
@@ -18165,11 +18186,13 @@ const file_resource_proto_rawDesc = "" +
 	"maxVersion\x88\x01\x01\x12e\n" +
 	"\x13key_exchange_groups\x18\x06 \x03(\x0e25.agentgateway.dev.resource.TLSConfig.KeyExchangeGroupR\x11keyExchangeGroupsB\x0e\n" +
 	"\f_min_versionB\x0e\n" +
-	"\f_max_version\x1aQ\n" +
+	"\f_max_version\x1a\x93\x01\n" +
 	"\x03TCP\x12J\n" +
 	"\n" +
 	"keepalives\x18\x01 \x01(\v2*.agentgateway.dev.resource.KeepaliveConfigR\n" +
-	"keepalives\x1aZ\n" +
+	"keepalives\x12,\n" +
+	"\x0fmax_connections\x18\x02 \x01(\rH\x00R\x0emaxConnections\x88\x01\x01B\x12\n" +
+	"\x10_max_connections\x1aZ\n" +
 	"\x14NetworkAuthorization\x12\x14\n" +
 	"\x05allow\x18\x01 \x03(\tR\x05allow\x12\x12\n" +
 	"\x04deny\x18\x02 \x03(\tR\x04deny\x12\x18\n" +
@@ -20071,6 +20094,7 @@ func file_resource_proto_init() {
 	file_resource_proto_msgTypes[88].OneofWrappers = []any{}
 	file_resource_proto_msgTypes[89].OneofWrappers = []any{}
 	file_resource_proto_msgTypes[90].OneofWrappers = []any{}
+	file_resource_proto_msgTypes[91].OneofWrappers = []any{}
 	file_resource_proto_msgTypes[93].OneofWrappers = []any{}
 	file_resource_proto_msgTypes[94].OneofWrappers = []any{}
 	file_resource_proto_msgTypes[101].OneofWrappers = []any{}

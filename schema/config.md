@@ -17578,6 +17578,7 @@
 |`frontendPolicies.http.http2KeepaliveInterval`|string|Interval between HTTP/2 keepalive pings.|
 |`frontendPolicies.http.http2KeepaliveTimeout`|string|Time to wait for an HTTP/2 keepalive ping response.|
 |`frontendPolicies.http.maxConnectionDuration`|string|Maximum time a connection may stay open. After this duration, the connection is gracefully<br>closed after the current in-flight request completes. Useful for even traffic distribution<br>behind load balancers during scaling events.|
+|`frontendPolicies.http.maxConcurrentRequests`|integer|Maximum number of in-flight HTTP requests across this bind. This includes HTTP/1 requests<br>and HTTP/2 streams. Requests over the limit are rejected immediately.|
 |`frontendPolicies.tls`|object|Settings for handling incoming TLS connections.|
 |`frontendPolicies.tls.handshakeTimeout`|string|Maximum time allowed to complete the downstream TLS handshake.|
 |`frontendPolicies.tls.alpn`|array|ALPN protocols advertised to downstream clients.|
@@ -17591,6 +17592,7 @@
 |`frontendPolicies.tcp.keepalives.time`|string|Idle time before the first keepalive probe is sent.|
 |`frontendPolicies.tcp.keepalives.interval`|string|Time between successive keepalive probes.|
 |`frontendPolicies.tcp.keepalives.retries`|integer|Number of unacknowledged probes before the connection is considered dead.|
+|`frontendPolicies.tcp.maxConnections`|integer|Maximum number of active downstream connections on this bind. Connections over the limit<br>are closed immediately.|
 |`frontendPolicies.networkAuthorization`|object|CEL authorization for downstream network connections.|
 |`frontendPolicies.networkAuthorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`frontendPolicies.networkAuthorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
