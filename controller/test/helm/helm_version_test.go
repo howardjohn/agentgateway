@@ -298,6 +298,12 @@ controllerName: example.com/custom-agentgateway
 `,
 		},
 		{
+			name: "istio-disabled",
+			valuesYAML: `istio:
+  enabled: false
+`,
+		},
+		{
 			name: "dns-config",
 			valuesYAML: `dnsConfig:
   options:

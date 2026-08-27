@@ -127,7 +127,6 @@ rules:
 # Discovers Istio services and workloads when Istio integration is enabled.
 - apiGroups: [networking.istio.io]
   resources:
-  - destinationrules
   - serviceentries
   - workloadentries
   verbs: [get, list, watch]
