@@ -1398,15 +1398,11 @@ impl AIProvider {
 			AIProvider::Azure(provider) => Authority::from_str(&provider.get_host())?,
 			AIProvider::Custom(_) => return Ok(()),
 			AIProvider::Bedrock(provider) => {
-				// Store the region in request extensions so AWS signing can use it.
 				return http::modify_req(req, |req| {
 					http::modify_uri(req, |uri| {
 						uri.authority = Some(Authority::from_str(&provider.get_host(route_type))?);
 						Ok(())
 					})?;
-					req.extensions.insert(bedrock::AwsRegion {
-						region: provider.region.as_str().to_string(),
-					});
 					Ok(())
 				});
 			},
@@ -1506,6 +1502,12 @@ impl AIProvider {
 					Ok(())
 				})
 			},
+			AIProvider::Bedrock(provider) => http::modify_req(req, |req| {
+				req.extensions.insert(bedrock::AwsRegion {
+					region: provider.region.as_str().to_string(),
+				});
+				Ok(())
+			}),
 			_ => Ok(()),
 		}
 	}
