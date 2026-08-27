@@ -4632,8 +4632,11 @@
           "type": "string"
         },
         "audiences": {
-          "description": "Accepted token audiences, matched against the JWT `aud` claim.",
-          "type": "array",
+          "description": "Accepted token audiences, matched against the JWT `aud` claim.\nIf unset, audience validation is disabled.",
+          "type": [
+            "array",
+            "null"
+          ],
           "items": {
             "type": "string"
           }
@@ -4701,7 +4704,6 @@
       "additionalProperties": false,
       "required": [
         "issuer",
-        "audiences",
         "resourceMetadata"
       ]
     },

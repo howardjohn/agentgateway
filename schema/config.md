@@ -497,7 +497,7 @@
 |`binds[].listeners[].routes[].policies.authorization.rules[].require`|string|Require this CEL expression to be true.|
 |`binds[].listeners[].routes[].policies.mcpAuthentication`|object|Authenticate MCP clients.|
 |`binds[].listeners[].routes[].policies.mcpAuthentication.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`binds[].listeners[].routes[].policies.mcpAuthentication.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim.|
+|`binds[].listeners[].routes[].policies.mcpAuthentication.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim.<br>If unset, audience validation is disabled.|
 |`binds[].listeners[].routes[].policies.mcpAuthentication.provider`|object|Identity provider type used to derive MCP authorization metadata and default JWKS URLs.|
 |`binds[].listeners[].routes[].policies.mcpAuthentication.provider.auth0`|object||
 |`binds[].listeners[].routes[].policies.mcpAuthentication.provider.keycloak`|object||
@@ -19180,7 +19180,7 @@
 |`policies[].policy.authorization.rules[].require`|string|Require this CEL expression to be true.|
 |`policies[].policy.mcpAuthentication`|object|Authenticate MCP clients.|
 |`policies[].policy.mcpAuthentication.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`policies[].policy.mcpAuthentication.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim.|
+|`policies[].policy.mcpAuthentication.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim.<br>If unset, audience validation is disabled.|
 |`policies[].policy.mcpAuthentication.provider`|object|Identity provider type used to derive MCP authorization metadata and default JWKS URLs.|
 |`policies[].policy.mcpAuthentication.provider.auth0`|object||
 |`policies[].policy.mcpAuthentication.provider.keycloak`|object||
@@ -35044,7 +35044,7 @@
 |`routeGroups[].routes[].policies.authorization.rules[].require`|string|Require this CEL expression to be true.|
 |`routeGroups[].routes[].policies.mcpAuthentication`|object|Authenticate MCP clients.|
 |`routeGroups[].routes[].policies.mcpAuthentication.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`routeGroups[].routes[].policies.mcpAuthentication.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim.|
+|`routeGroups[].routes[].policies.mcpAuthentication.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim.<br>If unset, audience validation is disabled.|
 |`routeGroups[].routes[].policies.mcpAuthentication.provider`|object|Identity provider type used to derive MCP authorization metadata and default JWKS URLs.|
 |`routeGroups[].routes[].policies.mcpAuthentication.provider.auth0`|object||
 |`routeGroups[].routes[].policies.mcpAuthentication.provider.keycloak`|object||
@@ -53536,7 +53536,7 @@
 |`routes[].policies.authorization.rules[].require`|string|Require this CEL expression to be true.|
 |`routes[].policies.mcpAuthentication`|object|Authenticate MCP clients.|
 |`routes[].policies.mcpAuthentication.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`routes[].policies.mcpAuthentication.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim.|
+|`routes[].policies.mcpAuthentication.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim.<br>If unset, audience validation is disabled.|
 |`routes[].policies.mcpAuthentication.provider`|object|Identity provider type used to derive MCP authorization metadata and default JWKS URLs.|
 |`routes[].policies.mcpAuthentication.provider.auth0`|object||
 |`routes[].policies.mcpAuthentication.provider.keycloak`|object||
@@ -77040,7 +77040,7 @@
 |`mcp.policies.authorization.rules[].require`|string|Require this CEL expression to be true.|
 |`mcp.policies.mcpAuthentication`|object|Authenticate MCP clients.|
 |`mcp.policies.mcpAuthentication.issuer`|string|Expected token issuer, matched against the JWT `iss` claim.|
-|`mcp.policies.mcpAuthentication.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim.|
+|`mcp.policies.mcpAuthentication.audiences`|[]string|Accepted token audiences, matched against the JWT `aud` claim.<br>If unset, audience validation is disabled.|
 |`mcp.policies.mcpAuthentication.provider`|object|Identity provider type used to derive MCP authorization metadata and default JWKS URLs.|
 |`mcp.policies.mcpAuthentication.provider.auth0`|object||
 |`mcp.policies.mcpAuthentication.provider.keycloak`|object||
