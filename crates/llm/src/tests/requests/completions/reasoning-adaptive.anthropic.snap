@@ -1,12 +1,12 @@
 ---
 source: crates/llm/src/golden_tests.rs
-description: src/tests/requests/completions/reasoning_max.json
+description: src/tests/requests/completions/reasoning-adaptive.json
 info:
-  model: claude-opus-4-6
+  model: custom-adaptive-model
   messages:
     - role: user
-      content: Deeply analyze quantum gravity
-  reasoning_effort: xhigh
+      content: Think carefully.
+  reasoning_effort: high
 ---
 {
   "request": {
@@ -16,31 +16,31 @@ info:
         "content": [
           {
             "type": "text",
-            "text": "Deeply analyze quantum gravity"
+            "text": "Think carefully."
           }
         ]
       }
     ],
-    "model": "claude-opus-4-6",
+    "model": "custom-adaptive-model",
     "max_tokens": 4096,
     "thinking": {
       "type": "adaptive"
     },
     "output_config": {
-      "effort": "xhigh"
+      "effort": "high"
     }
   },
   "parsed": {
     "input_format": "Completions",
     "cache_convention": "InputIncludesCache",
-    "request_model": "claude-opus-4-6",
+    "request_model": "custom-adaptive-model",
     "provider": "anthropic",
     "streaming": false,
     "params": {},
     "prompt": [
       {
         "role": "user",
-        "content": "Deeply analyze quantum gravity"
+        "content": "Think carefully."
       }
     ]
   }

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generatedAt": "2026-09-01T20:25:15Z"
+    "generatedAt": "2026-09-01T20:55:37Z"
   },
   "providers": {
     "anthropic": {
@@ -11,7 +11,10 @@
             "output": "50",
             "cacheRead": "1",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-fable-5-1": {
           "rates": {
@@ -19,7 +22,10 @@
             "output": "50",
             "cacheRead": "0.25",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-haiku-4-5": {
           "rates": {
@@ -27,7 +33,10 @@
             "output": "5",
             "cacheRead": "0.1",
             "cacheWrite": "1.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-haiku-4-5-20251001": {
           "rates": {
@@ -35,7 +44,10 @@
             "output": "5",
             "cacheRead": "0.1",
             "cacheWrite": "1.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-opus-4-5": {
           "rates": {
@@ -43,7 +55,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-opus-4-5-20251101": {
           "rates": {
@@ -51,7 +66,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-opus-4-6": {
           "rates": {
@@ -59,7 +77,11 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "claude-opus-4-7": {
           "rates": {
@@ -67,7 +89,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-opus-4-8": {
           "rates": {
@@ -75,7 +100,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-opus-5": {
           "rates": {
@@ -83,7 +111,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-sonnet-4-5": {
           "rates": {
@@ -91,7 +122,10 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-sonnet-4-5-20250929": {
           "rates": {
@@ -99,7 +133,10 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-sonnet-4-6": {
           "rates": {
@@ -107,7 +144,11 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "claude-sonnet-5": {
           "rates": {
@@ -115,7 +156,10 @@
             "output": "10",
             "cacheRead": "0.2",
             "cacheWrite": "2.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         }
       }
     },
@@ -154,7 +198,10 @@
             "output": "50",
             "cacheRead": "1",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "anthropic.claude-fable-5-1": {
           "rates": {
@@ -162,7 +209,10 @@
             "output": "50",
             "cacheRead": "0.25",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "anthropic.claude-haiku-4-5-20251001-v1:0": {
           "rates": {
@@ -170,7 +220,10 @@
             "output": "5",
             "cacheRead": "0.1",
             "cacheWrite": "1.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "anthropic.claude-opus-4-5-20251101-v1:0": {
           "rates": {
@@ -178,7 +231,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "anthropic.claude-opus-4-6-v1": {
           "rates": {
@@ -186,7 +242,11 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "anthropic.claude-opus-4-7": {
           "rates": {
@@ -194,7 +254,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "anthropic.claude-opus-4-8": {
           "rates": {
@@ -202,7 +265,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "anthropic.claude-opus-5": {
           "rates": {
@@ -210,7 +276,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "anthropic.claude-sonnet-4-5-20250929-v1:0": {
           "rates": {
@@ -218,7 +287,10 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "anthropic.claude-sonnet-4-6": {
           "rates": {
@@ -226,7 +298,11 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "anthropic.claude-sonnet-5": {
           "rates": {
@@ -234,7 +310,10 @@
             "output": "10",
             "cacheRead": "0.2",
             "cacheWrite": "2.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "au.anthropic.claude-haiku-4-5-20251001-v1:0": {
           "rates": {
@@ -242,7 +321,10 @@
             "output": "5",
             "cacheRead": "0.1",
             "cacheWrite": "1.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "au.anthropic.claude-opus-4-6-v1": {
           "rates": {
@@ -250,7 +332,11 @@
             "output": "82.5",
             "cacheRead": "1.65",
             "cacheWrite": "20.625"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "au.anthropic.claude-opus-4-8": {
           "rates": {
@@ -258,7 +344,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "au.anthropic.claude-opus-5": {
           "rates": {
@@ -266,7 +355,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "au.anthropic.claude-sonnet-4-5-20250929-v1:0": {
           "rates": {
@@ -274,7 +366,10 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "au.anthropic.claude-sonnet-4-6": {
           "rates": {
@@ -282,7 +377,11 @@
             "output": "16.5",
             "cacheRead": "0.33",
             "cacheWrite": "4.125"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "au.anthropic.claude-sonnet-5": {
           "rates": {
@@ -290,7 +389,10 @@
             "output": "10",
             "cacheRead": "0.2",
             "cacheWrite": "2.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "deepseek.r1-v1:0": {
           "rates": {
@@ -316,7 +418,10 @@
             "output": "55",
             "cacheRead": "1.1",
             "cacheWrite": "13.75"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "eu.anthropic.claude-haiku-4-5-20251001-v1:0": {
           "rates": {
@@ -324,7 +429,10 @@
             "output": "5.5",
             "cacheRead": "0.11",
             "cacheWrite": "1.375"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "eu.anthropic.claude-opus-4-5-20251101-v1:0": {
           "rates": {
@@ -332,7 +440,10 @@
             "output": "27.5",
             "cacheRead": "0.55",
             "cacheWrite": "6.875"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "eu.anthropic.claude-opus-4-6-v1": {
           "rates": {
@@ -340,7 +451,11 @@
             "output": "27.5",
             "cacheRead": "0.55",
             "cacheWrite": "6.875"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "eu.anthropic.claude-opus-4-7": {
           "rates": {
@@ -348,7 +463,10 @@
             "output": "27.5",
             "cacheRead": "0.55",
             "cacheWrite": "6.875"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "eu.anthropic.claude-opus-4-8": {
           "rates": {
@@ -356,7 +474,10 @@
             "output": "27.5",
             "cacheRead": "0.55",
             "cacheWrite": "6.875"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "eu.anthropic.claude-opus-5": {
           "rates": {
@@ -364,7 +485,10 @@
             "output": "27.5",
             "cacheRead": "0.55",
             "cacheWrite": "6.875"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "eu.anthropic.claude-sonnet-4-5-20250929-v1:0": {
           "rates": {
@@ -372,7 +496,10 @@
             "output": "16.5",
             "cacheRead": "0.33",
             "cacheWrite": "4.125"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "eu.anthropic.claude-sonnet-4-6": {
           "rates": {
@@ -380,7 +507,11 @@
             "output": "16.5",
             "cacheRead": "0.33",
             "cacheWrite": "4.125"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "eu.anthropic.claude-sonnet-5": {
           "rates": {
@@ -388,7 +519,10 @@
             "output": "11",
             "cacheRead": "0.22",
             "cacheWrite": "2.75"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "global.anthropic.claude-fable-5": {
           "rates": {
@@ -396,7 +530,10 @@
             "output": "50",
             "cacheRead": "1",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "global.anthropic.claude-fable-5-1": {
           "rates": {
@@ -404,7 +541,10 @@
             "output": "50",
             "cacheRead": "0.25",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "global.anthropic.claude-haiku-4-5-20251001-v1:0": {
           "rates": {
@@ -412,7 +552,10 @@
             "output": "5",
             "cacheRead": "0.1",
             "cacheWrite": "1.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "global.anthropic.claude-opus-4-5-20251101-v1:0": {
           "rates": {
@@ -420,7 +563,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "global.anthropic.claude-opus-4-6-v1": {
           "rates": {
@@ -428,7 +574,11 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "global.anthropic.claude-opus-4-7": {
           "rates": {
@@ -436,7 +586,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "global.anthropic.claude-opus-4-8": {
           "rates": {
@@ -444,7 +597,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "global.anthropic.claude-opus-5": {
           "rates": {
@@ -452,7 +608,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "global.anthropic.claude-sonnet-4-5-20250929-v1:0": {
           "rates": {
@@ -460,7 +619,10 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "global.anthropic.claude-sonnet-4-6": {
           "rates": {
@@ -468,7 +630,11 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "global.anthropic.claude-sonnet-5": {
           "rates": {
@@ -476,7 +642,10 @@
             "output": "10",
             "cacheRead": "0.2",
             "cacheWrite": "2.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "global.openai.gpt-5.6-luna": {
           "rates": {
@@ -559,7 +728,10 @@
             "output": "5",
             "cacheRead": "0.1",
             "cacheWrite": "1.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "jp.anthropic.claude-opus-4-7": {
           "rates": {
@@ -567,7 +739,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "jp.anthropic.claude-opus-4-8": {
           "rates": {
@@ -575,7 +750,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "jp.anthropic.claude-opus-5": {
           "rates": {
@@ -583,7 +761,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "jp.anthropic.claude-sonnet-4-5-20250929-v1:0": {
           "rates": {
@@ -591,7 +772,10 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "jp.anthropic.claude-sonnet-4-6": {
           "rates": {
@@ -599,7 +783,11 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "jp.anthropic.claude-sonnet-5": {
           "rates": {
@@ -607,7 +795,10 @@
             "output": "10",
             "cacheRead": "0.2",
             "cacheWrite": "2.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "meta.llama3-1-70b-instruct-v1:0": {
           "rates": {
@@ -902,7 +1093,10 @@
             "output": "50",
             "cacheRead": "1",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "us.anthropic.claude-fable-5-1": {
           "rates": {
@@ -910,7 +1104,10 @@
             "output": "55",
             "cacheRead": "0.275",
             "cacheWrite": "13.75"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
           "rates": {
@@ -918,7 +1115,10 @@
             "output": "5",
             "cacheRead": "0.1",
             "cacheWrite": "1.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "us.anthropic.claude-opus-4-5-20251101-v1:0": {
           "rates": {
@@ -926,7 +1126,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "us.anthropic.claude-opus-4-6-v1": {
           "rates": {
@@ -934,7 +1137,11 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "us.anthropic.claude-opus-4-7": {
           "rates": {
@@ -942,7 +1149,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "us.anthropic.claude-opus-4-8": {
           "rates": {
@@ -950,7 +1160,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "us.anthropic.claude-opus-5": {
           "rates": {
@@ -958,7 +1171,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "us.anthropic.claude-sonnet-4-5-20250929-v1:0": {
           "rates": {
@@ -966,7 +1182,10 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "us.anthropic.claude-sonnet-4-6": {
           "rates": {
@@ -974,7 +1193,11 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "us.anthropic.claude-sonnet-5": {
           "rates": {
@@ -982,7 +1205,10 @@
             "output": "10",
             "cacheRead": "0.2",
             "cacheWrite": "2.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "us.deepseek.r1-v1:0": {
           "rates": {
@@ -1056,7 +1282,10 @@
             "output": "50",
             "cacheRead": "1",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-fable-5-1": {
           "rates": {
@@ -1064,7 +1293,10 @@
             "output": "50",
             "cacheRead": "0.25",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-haiku-4-5": {
           "rates": {
@@ -1072,7 +1304,10 @@
             "output": "5",
             "cacheRead": "0.1",
             "cacheWrite": "1.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-mythos-5": {
           "rates": {
@@ -1080,7 +1315,10 @@
             "output": "50",
             "cacheRead": "1",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-opus-4-1": {
           "rates": {
@@ -1088,7 +1326,10 @@
             "output": "75",
             "cacheRead": "1.5",
             "cacheWrite": "18.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-opus-4-5": {
           "rates": {
@@ -1096,7 +1337,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-opus-4-6": {
           "rates": {
@@ -1115,6 +1359,10 @@
                 "cacheWrite": "12.5"
               }
             }
+          ],
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
           ]
         },
         "claude-opus-4-7": {
@@ -1123,7 +1371,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-opus-4-8": {
           "rates": {
@@ -1142,6 +1393,9 @@
                 "cacheWrite": "12.5"
               }
             }
+          ],
+          "tags": [
+            "adaptive_thinking"
           ]
         },
         "claude-opus-5": {
@@ -1150,7 +1404,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-sonnet-4-5": {
           "rates": {
@@ -1158,7 +1415,10 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-sonnet-4-6": {
           "rates": {
@@ -1166,7 +1426,11 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "claude-sonnet-5": {
           "rates": {
@@ -1174,7 +1438,10 @@
             "output": "10",
             "cacheRead": "0.2",
             "cacheWrite": "2.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "codestral-2501": {
           "rates": {
@@ -1832,7 +2099,10 @@
             "output": "50",
             "cacheRead": "1",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-haiku-4.5": {
           "rates": {
@@ -1840,7 +2110,10 @@
             "output": "5",
             "cacheRead": "0.1",
             "cacheWrite": "1.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-opus-4.5": {
           "rates": {
@@ -1848,7 +2121,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-opus-4.6": {
           "rates": {
@@ -1856,7 +2132,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-opus-4.7": {
           "rates": {
@@ -1864,7 +2143,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-opus-4.8": {
           "rates": {
@@ -1872,7 +2154,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-opus-5": {
           "rates": {
@@ -1880,7 +2165,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-sonnet-4": {
           "rates": {
@@ -1896,7 +2184,10 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-sonnet-4.6": {
           "rates": {
@@ -1904,7 +2195,11 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
+          ]
         },
         "claude-sonnet-5": {
           "rates": {
@@ -1912,7 +2207,10 @@
             "output": "10",
             "cacheRead": "0.2",
             "cacheWrite": "2.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "gemini-3.1-pro-preview": {
           "rates": {
@@ -3072,7 +3370,10 @@
             "output": "50",
             "cacheRead": "0.25",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-fable-5@default": {
           "rates": {
@@ -3080,7 +3381,10 @@
             "output": "50",
             "cacheRead": "1",
             "cacheWrite": "12.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-haiku-4-5@20251001": {
           "rates": {
@@ -3088,7 +3392,10 @@
             "output": "5",
             "cacheRead": "0.1",
             "cacheWrite": "1.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-opus-4-5@20251101": {
           "rates": {
@@ -3096,7 +3403,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-opus-4-6@default": {
           "rates": {
@@ -3115,6 +3425,10 @@
                 "cacheWrite": "12.5"
               }
             }
+          ],
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
           ]
         },
         "claude-opus-4-7@default": {
@@ -3134,6 +3448,9 @@
                 "cacheWrite": "12.5"
               }
             }
+          ],
+          "tags": [
+            "adaptive_thinking"
           ]
         },
         "claude-opus-4-8@default": {
@@ -3153,6 +3470,9 @@
                 "cacheWrite": "12.5"
               }
             }
+          ],
+          "tags": [
+            "adaptive_thinking"
           ]
         },
         "claude-opus-5@default": {
@@ -3161,7 +3481,10 @@
             "output": "25",
             "cacheRead": "0.5",
             "cacheWrite": "6.25"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "claude-sonnet-4-5@20250929": {
           "rates": {
@@ -3169,7 +3492,10 @@
             "output": "15",
             "cacheRead": "0.3",
             "cacheWrite": "3.75"
-          }
+          },
+          "tags": [
+            "legacy_thinking"
+          ]
         },
         "claude-sonnet-4-6@default": {
           "rates": {
@@ -3188,6 +3514,10 @@
                 "cacheWrite": "7.5"
               }
             }
+          ],
+          "tags": [
+            "legacy_thinking",
+            "adaptive_thinking"
           ]
         },
         "claude-sonnet-5@default": {
@@ -3196,7 +3526,10 @@
             "output": "10",
             "cacheRead": "0.2",
             "cacheWrite": "2.5"
-          }
+          },
+          "tags": [
+            "adaptive_thinking"
+          ]
         },
         "gemini-2.5-flash": {
           "rates": {
