@@ -148,6 +148,28 @@
         "null"
       ],
       "properties": {
+        "error": {
+          "description": "The final gateway error when the response was synthesized from a failed request.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "reason": {
+              "description": "Broad classification of the failure, such as `UpstreamFailure` or `Timeout`.",
+              "type": "string"
+            },
+            "message": {
+              "description": "Human-readable failure detail. Exact message is subject to change.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "reason",
+            "message"
+          ]
+        },
         "bind": {
           "description": "The bind that accepted the request.",
           "type": [

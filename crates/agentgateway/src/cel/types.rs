@@ -81,9 +81,22 @@ pub struct Executor<'a> {
 }
 
 #[apply(schema!)]
+#[derive(cel::DynamicType)]
+#[dynamic(rename_all = "camelCase")]
+pub struct ErrorContext {
+	/// Broad classification of the failure, such as `UpstreamFailure` or `Timeout`.
+	pub reason: String,
+	/// Human-readable failure detail. Exact message is subject to change.
+	pub message: String,
+}
+
+#[apply(schema!)]
 #[derive(Default, cel::DynamicType)]
 #[dynamic(rename_all = "camelCase")]
 pub struct ProxyContext {
+	/// The final gateway error when the response was synthesized from a failed request.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub error: Option<ErrorContext>,
 	/// The bind that accepted the request.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub bind: Option<Strng>,
@@ -127,6 +140,7 @@ impl ProxyContext {
 		response_processing_duration: Option<std::time::Duration>,
 	) -> Self {
 		Self {
+			error: None,
 			bind: None,
 			gateway: None,
 			listener: None,
@@ -2333,6 +2347,10 @@ pub fn full_example_executor() -> ExecutorSerde {
 			body_prefix: Some(BufferedBody::complete(Bytes::from(r#"{"ok": true}"#))),
 		}),
 		proxy: Some(ProxyContext {
+			error: Some(ErrorContext {
+				reason: "UpstreamFailure".to_string(),
+				message: "upstream call failed: connection refused".to_string(),
+			}),
 			bind: Some("bind".into()),
 			gateway: Some(ProxyGatewayContext {
 				namespace: "ns-1".into(),

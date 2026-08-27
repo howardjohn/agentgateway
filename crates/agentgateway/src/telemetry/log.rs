@@ -937,6 +937,14 @@ impl From<RequestLog> for DropOnLog {
 
 fn proxy_context(log: &RequestLog) -> cel::ProxyContext {
 	cel::ProxyContext {
+		error: log
+			.error
+			.as_ref()
+			.zip(log.reason)
+			.map(|(message, reason)| cel::ErrorContext {
+				reason: reason.to_string(),
+				message: message.clone(),
+			}),
 		bind: log.bind_name.clone(),
 		gateway: log
 			.listener_name
