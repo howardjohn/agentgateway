@@ -39,8 +39,8 @@ use crate::parser::r#gen::{
 use crate::parser::{r#gen, macros, parse};
 
 pub struct MacroExprHelper<'a> {
-	helper: &'a mut ParserHelper,
-	id: u64,
+	pub(crate) helper: &'a mut ParserHelper,
+	pub(crate) id: u64,
 }
 
 impl MacroExprHelper<'_> {
@@ -1072,8 +1072,8 @@ impl r#gen::CELVisitorCompat<'_> for Parser {
 }
 
 pub struct ParserHelper {
-	source_info: SourceInfo,
-	next_id: u64,
+	pub(crate) source_info: SourceInfo,
+	pub(crate) next_id: u64,
 }
 
 impl Default for ParserHelper {

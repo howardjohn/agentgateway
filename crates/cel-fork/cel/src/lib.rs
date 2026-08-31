@@ -17,7 +17,7 @@ use common::ast::SelectExpr;
 pub use context::Context;
 pub use functions::FunctionContext;
 pub use objects::{ResolveResult, Value};
-use parser::{CallSignature, Expression, ExpressionReferences, Parser};
+use parser::{CallSignature, Expression, ExpressionReferences, PrattParser as Parser};
 pub use parser::{ParseError, ParseErrors};
 pub mod functions;
 mod magic;
