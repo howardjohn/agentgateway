@@ -1379,6 +1379,41 @@ fn gemini_count_tokens_response_reports_total_tokens() {
 }
 
 #[tokio::test]
+async fn anthropic_count_tokens_preserves_upstream_errors() {
+	let provider = AIProvider::bedrock(bedrock::Provider {
+		model: None,
+		region: strng::new("us-east-1"),
+		guardrail_identifier: None,
+		guardrail_version: None,
+	});
+	let req = LLMRequest {
+		input_tokens: None,
+		input_format: InputFormat::CountTokens,
+		cache_convention: CacheTokenConvention::pending(),
+		request_model: "us.anthropic.claude-haiku-4-5-20251001-v1:0".into(),
+		provider: "aws.bedrock".into(),
+		streaming: false,
+		params: Default::default(),
+		prompt: None,
+		provider_state: None,
+	};
+	let body =
+		bytes::Bytes::from_static(br#"{"message":"The provided model does not support CountTokens"}"#);
+	let mut parts = ::http::Response::new(()).into_parts().0;
+	parts.status = ::http::StatusCode::BAD_REQUEST;
+	let buffered = BufferedResponse {
+		parts,
+		bytes: body.clone(),
+	};
+
+	let resp = provider
+		.process_count_tokens_response(req, buffered, None, &Default::default())
+		.expect("error response should process");
+	assert_eq!(resp.status(), ::http::StatusCode::BAD_REQUEST);
+	assert_eq!(resp.into_body().collect().await.unwrap().to_bytes(), body);
+}
+
+#[tokio::test]
 async fn vertex_anthropic_messages_prepares_vertex_body() {
 	use crate::http::auth::BackendInfo;
 	use crate::test_helpers::proxymock::setup_proxy_test;
