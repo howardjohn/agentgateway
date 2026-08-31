@@ -2231,15 +2231,16 @@ async fn build_simple_backend_call(
 #[allow(clippy::too_many_arguments)]
 async fn make_backend_call(
 	inputs: Arc<ProxyInputs>,
-	route_policies: Arc<store::LLMRequestPolicies>,
+	mut route_policies: Arc<store::LLMRequestPolicies>,
 	backend: &Backend,
-	base_policies: Arc<BackendPolicies>,
+	mut base_policies: Arc<BackendPolicies>,
 	route_path: Option<RoutePath<'_>>,
 	mut req: MustSnapshot<'_>,
 	mut log: Option<&mut RequestLog>,
 	response_policies: &mut ResponsePolicies,
 ) -> Result<Response, ProxyResponse> {
-	if let Backend::LLMRouter(_, router) = backend {
+	let resolved_backend;
+	let backend = if let Backend::LLMRouter(_, router) = backend {
 		let resolved = match router.resolve(&mut req).await {
 			model_router::ResolveResult::DirectResponse(resp) => return Ok(resp),
 			model_router::ResolveResult::Backend(resolved) => resolved,
@@ -2251,21 +2252,13 @@ async fn make_backend_call(
 			&selected_backend.inline_policies,
 			route_path.clone(),
 		);
-		let route_policies = route_policies.merge_backend_policies(Some(resolved.llm_policy));
-		let policies = Arc::new(base_policies.as_ref().clone().merge(concrete_policies));
-		let backend = selected_backend.backend.backend;
-		return Box::pin(make_backend_call(
-			inputs,
-			route_policies,
-			&backend,
-			policies,
-			route_path,
-			req,
-			log,
-			response_policies,
-		))
-		.await;
-	}
+		route_policies = route_policies.merge_backend_policies(Some(resolved.llm_policy));
+		base_policies = Arc::new(base_policies.as_ref().clone().merge(concrete_policies));
+		resolved_backend = Box::new(selected_backend.backend.backend);
+		resolved_backend.as_ref()
+	} else {
+		backend
+	};
 
 	let policy_client = PolicyClient::new(inputs.clone()).with_parent(&req);
 	let hbone_source = req
