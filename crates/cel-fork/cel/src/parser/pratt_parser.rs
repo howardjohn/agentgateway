@@ -1131,7 +1131,6 @@ pub struct PrattParser {
 	pub enable_optional_syntax: bool,
 	pub enable_variadic_operator_asts: bool,
 	pub enable_ident_escape_syntax: bool,
-	pub populate_macro_calls: bool,
 }
 
 impl Default for PrattParser {
@@ -1144,7 +1143,6 @@ impl Default for PrattParser {
 			enable_optional_syntax: false,
 			enable_variadic_operator_asts: false,
 			enable_ident_escape_syntax: false,
-			populate_macro_calls: false,
 		}
 	}
 }
@@ -1186,11 +1184,6 @@ impl PrattParser {
 
 	pub fn enable_ident_escape_syntax(mut self, enable: bool) -> Self {
 		self.enable_ident_escape_syntax = enable;
-		self
-	}
-
-	pub fn populate_macro_calls(mut self, populate: bool) -> Self {
-		self.populate_macro_calls = populate;
 		self
 	}
 
