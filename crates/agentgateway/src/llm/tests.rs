@@ -2792,15 +2792,15 @@ fn setup_request_gemini_native_builds_generate_content_path() {
 }
 
 #[test]
-fn setup_request_gemini_native_streaming_adds_alt_sse_and_keeps_client_query() {
+fn setup_request_gemini_native_streaming_adds_alt_sse_and_strips_client_api_keys() {
 	let provider = AIProvider::Gemini(gemini::Provider { model: None });
-	// The client's own alt=sse is dropped in favour of the path-provided one, while any other
-	// parameter such as key survives.
+	// The client's own alt=sse is dropped in favour of the path-provided one. Credential query
+	// parameters are stripped while unrelated parameters survive.
 	let llm_request = native_gemini_llm_request("models/gemini-2.5-flash", true);
 	let mut req = crate::http::tests_common::request(
-		"https://example.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=abc",
+		"https://example.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=abc&%24key=def&keep=yes",
 		http::Method::POST,
-		&[],
+		&[("authorization", "Bearer AIzaOperatorKey")],
 	);
 
 	provider
@@ -2818,26 +2818,30 @@ fn setup_request_gemini_native_streaming_adds_alt_sse_and_keeps_client_query() {
 		req.uri().path(),
 		"/v1beta/models/gemini-2.5-flash:streamGenerateContent"
 	);
-	assert_eq!(req.uri().query(), Some("alt=sse&key=abc"));
+	assert_eq!(req.uri().query(), Some("alt=sse&keep=yes"));
 }
 
 #[test]
-fn setup_request_gemini_native_streaming_keeps_client_alt_with_host_override() {
-	// hostOverride without pathPrefix forwards the client's URI verbatim, so alt=sse must
-	// still be there: the upstream would otherwise answer with the JSON-array variant.
-	for provider in [
-		AIProvider::Gemini(gemini::Provider { model: None }),
-		AIProvider::Vertex(vertex::Provider {
-			model: None,
-			region: None,
-			project_id: strng::new("test-project"),
-		}),
+fn setup_request_strips_query_api_keys_only_for_native_gemini() {
+	for (provider, expected_query) in [
+		(
+			AIProvider::Gemini(gemini::Provider { model: None }),
+			"alt=sse&keep=yes",
+		),
+		(
+			AIProvider::Vertex(vertex::Provider {
+				model: None,
+				region: None,
+				project_id: strng::new("test-project"),
+			}),
+			"alt=sse&key=abc&%24key=def&keep=yes",
+		),
 	] {
 		let llm_request = native_gemini_llm_request("gemini-2.5-flash", true);
 		let mut req = crate::http::tests_common::request(
-			"https://proxy.example.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse",
+			"https://proxy.example.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=abc&%24key=def&keep=yes",
 			http::Method::POST,
-			&[],
+			&[("authorization", "Bearer ya29.operator-token")],
 		);
 
 		provider
@@ -2855,7 +2859,7 @@ fn setup_request_gemini_native_streaming_keeps_client_alt_with_host_override() {
 			req.uri().path(),
 			"/v1beta/models/gemini-2.5-flash:streamGenerateContent"
 		);
-		assert_eq!(req.uri().query(), Some("alt=sse"));
+		assert_eq!(req.uri().query(), Some(expected_query));
 	}
 }
 
@@ -2867,9 +2871,9 @@ fn setup_request_gemini_without_native_state_keeps_compat_path() {
 		..native_gemini_llm_request("gemini-2.5-flash", false)
 	};
 	let mut req = crate::http::tests_common::request(
-		"https://example.com/v1/chat/completions",
+		"https://example.com/v1/chat/completions?key=abc&%24key=def",
 		http::Method::POST,
-		&[],
+		&[("authorization", "Bearer AIzaOperatorKey")],
 	);
 
 	provider
@@ -2884,6 +2888,7 @@ fn setup_request_gemini_without_native_state_keeps_compat_path() {
 		.expect("setup_request should succeed");
 
 	assert_eq!(req.uri().path(), "/v1beta/openai/chat/completions");
+	assert_eq!(req.uri().query(), Some("key=abc&%24key=def"));
 }
 
 #[test]
