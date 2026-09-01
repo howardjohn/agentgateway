@@ -564,8 +564,12 @@
       "type": "object",
       "properties": {
         "source": {
-          "description": "Upstream used to generate this base catalog, such as `models.dev`.",
-          "type": "string"
+          "description": "Legacy provenance field retained for compatibility with older generated catalogs.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "writeOnly": true
         },
         "generatedAt": {
           "description": "Time the generated catalog contents last changed.",
@@ -575,7 +579,6 @@
       },
       "additionalProperties": false,
       "required": [
-        "source",
         "generatedAt"
       ]
     },

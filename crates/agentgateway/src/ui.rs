@@ -682,7 +682,7 @@ async fn refresh_base_costs(State(app): State<App>) -> Result<Json<Value>, Error
 		}
 	});
 	if configured_file.is_none() && app.state.storage.mode == ConfigStoreMode::Hybrid {
-		let refreshed = crate::llm::catalog::refresh::fetch_models_dev_base_catalog().await?;
+		let refreshed = crate::llm::catalog::refresh::fetch_base_catalog().await?;
 		let resources = app
 			.config_resource_store()?
 			.list(None)
@@ -733,7 +733,7 @@ async fn refresh_base_costs(State(app): State<App>) -> Result<Json<Value>, Error
 		dir.join(BASE_COSTS_FILE)
 	};
 
-	let refreshed = crate::llm::catalog::refresh::refresh_models_dev_base_catalog(
+	let refreshed = crate::llm::catalog::refresh::refresh_base_catalog(
 		&base_costs_file,
 		configured_file.map(|_| app.model_catalog.as_ref()),
 	)

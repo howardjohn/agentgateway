@@ -16,7 +16,8 @@ type ModelCatalog struct {
 }
 
 type CatalogMetadata struct {
-	Source      string    `json:"source"`
+	// Source is accepted for compatibility with older catalogs.
+	Source      string    `json:"source,omitempty"`
 	GeneratedAt time.Time `json:"generatedAt"`
 }
 
@@ -44,9 +45,6 @@ func (c *ModelCatalog) overlayWith(overlay *ModelCatalog) {
 
 func (c *ModelCatalog) Validate() error {
 	if c.Metadata != nil {
-		if c.Metadata.Source == "" {
-			return fmt.Errorf("metadata source is required")
-		}
 		if c.Metadata.GeneratedAt.IsZero() {
 			return fmt.Errorf("metadata generatedAt is required")
 		}

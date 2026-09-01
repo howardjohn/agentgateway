@@ -1,7 +1,6 @@
 {
   "metadata": {
-    "source": "models.dev",
-    "generatedAt": "2026-08-31T23:15:21Z"
+    "generatedAt": "2026-09-01T20:25:15Z"
   },
   "providers": {
     "anthropic": {
@@ -11,6 +10,14 @@
             "input": "10",
             "output": "50",
             "cacheRead": "1",
+            "cacheWrite": "12.5"
+          }
+        },
+        "claude-fable-5-1": {
+          "rates": {
+            "input": "10",
+            "output": "50",
+            "cacheRead": "0.25",
             "cacheWrite": "12.5"
           }
         },
@@ -146,6 +153,14 @@
             "input": "10",
             "output": "50",
             "cacheRead": "1",
+            "cacheWrite": "12.5"
+          }
+        },
+        "anthropic.claude-fable-5-1": {
+          "rates": {
+            "input": "10",
+            "output": "50",
+            "cacheRead": "0.25",
             "cacheWrite": "12.5"
           }
         },
@@ -380,6 +395,14 @@
             "input": "10",
             "output": "50",
             "cacheRead": "1",
+            "cacheWrite": "12.5"
+          }
+        },
+        "global.anthropic.claude-fable-5-1": {
+          "rates": {
+            "input": "10",
+            "output": "50",
+            "cacheRead": "0.25",
             "cacheWrite": "12.5"
           }
         },
@@ -881,6 +904,14 @@
             "cacheWrite": "12.5"
           }
         },
+        "us.anthropic.claude-fable-5-1": {
+          "rates": {
+            "input": "11",
+            "output": "55",
+            "cacheRead": "0.275",
+            "cacheWrite": "13.75"
+          }
+        },
         "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
           "rates": {
             "input": "1",
@@ -1024,6 +1055,14 @@
             "input": "10",
             "output": "50",
             "cacheRead": "1",
+            "cacheWrite": "12.5"
+          }
+        },
+        "claude-fable-5-1": {
+          "rates": {
+            "input": "10",
+            "output": "50",
+            "cacheRead": "0.25",
             "cacheWrite": "12.5"
           }
         },
@@ -3027,6 +3066,14 @@
     },
     "gcp.vertex_ai": {
       "models": {
+        "claude-fable-5-1@default": {
+          "rates": {
+            "input": "10",
+            "output": "50",
+            "cacheRead": "0.25",
+            "cacheWrite": "12.5"
+          }
+        },
         "claude-fable-5@default": {
           "rates": {
             "input": "10",
