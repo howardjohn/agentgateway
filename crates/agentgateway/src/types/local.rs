@@ -208,6 +208,11 @@ fn merge_deprecated_frontend_policies(
 	let log = &deprecated.logging;
 	let has_deprecated_log = has_deprecated_frontend_log_fields(log);
 	if has_deprecated_log {
+		for _ in 0..5 {
+			tracing::warn!(
+				"config.logging.filter and config.logging.fields are deprecated; migrate to frontendPolicies.accessLog"
+			);
+		}
 		if frontend_policies.access_log.is_some() {
 			anyhow::bail!(
 				"cannot use deprecated config.logging together with frontendPolicies.accessLog"
@@ -223,6 +228,9 @@ fn merge_deprecated_frontend_policies(
 		});
 	}
 	if let Some(tracing) = deprecated.tracing.clone() {
+		for _ in 0..5 {
+			tracing::warn!("config.tracing is deprecated; migrate to frontendPolicies.tracing");
+		}
 		if frontend_policies.tracing.is_some() {
 			anyhow::bail!("cannot use deprecated config.tracing together with frontendPolicies.tracing");
 		}
