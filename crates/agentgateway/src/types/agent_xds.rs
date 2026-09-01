@@ -2283,6 +2283,15 @@ fn backend_policy_from_proto(
 				failure_mode,
 			})
 		},
+		Some(bps::Kind::SessionAffinity(sa)) => {
+			BackendTrafficPolicy::SessionAffinity(http::sessionaffinity::Policy {
+				source: permissive_cel_expression_arc(
+					diagnostics,
+					"backend.sessionAffinity.source",
+					&sa.source,
+				),
+			})
+		},
 		Some(bps::Kind::BackendHttp(bhttp)) => {
 			let ver = bps::backend_http::HttpVersion::try_from(bhttp.version)?;
 			BackendTrafficPolicy::HTTP(backend::HTTP {

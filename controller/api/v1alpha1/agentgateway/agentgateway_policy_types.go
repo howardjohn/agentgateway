@@ -57,6 +57,7 @@ type AgentgatewayPolicyList struct {
 // +kubebuilder:validation:XValidation:rule="!has(self.backend) || !has(self.backend.mcp) || ((!has(self.targetRefs) || !self.targetRefs.exists(t, t.kind == 'Service')) && (!has(self.targetSelectors) || !self.targetSelectors.exists(t, t.kind == 'Service')))",message="backend.mcp may not be used with a Service target"
 // +kubebuilder:validation:XValidation:rule="!has(self.backend) || !has(self.backend.mcp) || ((!has(self.targetRefs) || !self.targetRefs.exists(t, t.kind == 'AgentgatewayBackend' && has(t.sectionName))) && (!has(self.targetSelectors) || !self.targetSelectors.exists(t, t.kind == 'AgentgatewayBackend' && has(t.sectionName))))",message="backend.mcp may not target an AgentgatewayBackend sectionName"
 // +kubebuilder:validation:XValidation:rule="!has(self.backend) || !has(self.backend.ai) || ((!has(self.targetRefs) || !self.targetRefs.exists(t, t.kind == 'Service')) && (!has(self.targetSelectors) || !self.targetSelectors.exists(t, t.kind == 'Service')))",message="backend.ai may not be used with a Service target"
+// +kubebuilder:validation:XValidation:rule="!has(self.backend) || !has(self.backend.sessionAffinity) || ((!has(self.targetRefs) || !self.targetRefs.exists(t, t.kind == 'AgentgatewayBackend' && has(t.sectionName))) && (!has(self.targetSelectors) || !self.targetSelectors.exists(t, t.kind == 'AgentgatewayBackend' && has(t.sectionName))))",message="backend.sessionAffinity must target the whole AgentgatewayBackend, not an individual AI provider"
 // +kubebuilder:validation:XValidation:rule="!(has(self.traffic) && has(self.traffic.jwtAuthentication) && has(self.backend) && has(self.backend.mcp) && has(self.backend.mcp.authentication))",message="traffic.jwtAuthentication may not be used with backend.mcp.authentication in the same policy"
 // +kubebuilder:validation:XValidation:rule="has(self.frontend) && has(self.targetRefs) ? self.targetRefs.all(t, t.kind == 'Gateway') : true",message="the 'frontend' field can only target a Gateway"
 // +kubebuilder:validation:XValidation:rule="has(self.frontend) && has(self.targetSelectors) ? self.targetSelectors.all(t, t.kind == 'Gateway') : true",message="the 'frontend' field can only target a Gateway"
@@ -202,6 +203,14 @@ type BackendSimple struct {
 	// Settings for managing authentication to the backend
 	// +optional
 	Auth *BackendAuth `json:"auth,omitempty"`
+}
+
+// Configures best-effort session affinity using an existing request attribute.
+type SessionAffinity struct {
+	// CEL expression evaluated against request state. It must return a string or bytes value.
+	// For example, `request.headers["x-session-id"]` or `string(source.address)`.
+	// +required
+	Source CELExpression `json:"source"`
 }
 
 // PolicyBackendEndpoint identifies a backend used by policy features.
@@ -385,6 +394,12 @@ type BackendWithAI struct {
 // +kubebuilder:validation:AtLeastOneFieldSet
 type BackendFull struct {
 	BackendSimple `json:",inline"`
+
+	// Configures best-effort session affinity using an existing request attribute.
+	// For AI backends, this applies across the backend's provider groups and must not
+	// be configured on an individual provider.
+	// +optional
+	SessionAffinity *SessionAffinity `json:"sessionAffinity,omitempty"`
 
 	// Settings for AI workloads. This is only applicable when
 	// connecting to a `Backend` of type `ai`.

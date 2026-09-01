@@ -15967,6 +15967,22 @@ spec:
                         guardrails] must be set
                       rule: '[has(self.authentication),has(self.authorization),has(self.guardrails)].filter(x,x==true).size()
                         >= 1'
+                  sessionAffinity:
+                    description: |-
+                      Configures best-effort session affinity using an existing request attribute.
+                      For AI backends, this applies across the backend's provider groups and must not
+                      be configured on an individual provider.
+                    properties:
+                      source:
+                        description: |-
+                          CEL expression evaluated against request state. It must return a string or bytes value.
+                          For example, `request.headers["x-session-id"]` or `string(source.address)`.
+                        maxLength: 16384
+                        minLength: 1
+                        type: string
+                    required:
+                    - source
+                    type: object
                   tcp:
                     description: Settings for managing TCP connections to the backend
                     properties:
@@ -16494,8 +16510,8 @@ spec:
                 type: object
                 x-kubernetes-validations:
                 - message: at least one of the fields in [ai auth extAuth health http
-                    mcp tcp tls transformation tunnel] must be set
-                  rule: '[has(self.ai),has(self.auth),has(self.extAuth),has(self.health),has(self.http),has(self.mcp),has(self.tcp),has(self.tls),has(self.transformation),has(self.tunnel)].filter(x,x==true).size()
+                    mcp sessionAffinity tcp tls transformation tunnel] must be set
+                  rule: '[has(self.ai),has(self.auth),has(self.extAuth),has(self.health),has(self.http),has(self.mcp),has(self.sessionAffinity),has(self.tcp),has(self.tls),has(self.transformation),has(self.tunnel)].filter(x,x==true).size()
                     >= 1'
               static:
                 description: Static hostname, IP address, or Unix Domain Socket backend.
