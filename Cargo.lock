@@ -374,6 +374,7 @@ dependencies = [
  "anyhow",
  "clap",
  "fs-err",
+ "include_dir",
  "libc",
  "mimalloc",
  "pprof-alloc",

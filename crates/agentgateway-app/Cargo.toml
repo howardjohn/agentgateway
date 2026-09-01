@@ -27,6 +27,7 @@ crypto-aws-lc = ["agentgateway/crypto-aws-lc"]
 fips = ["agentgateway/fips"]
 crypto-symcrypt = ["agentgateway/crypto-symcrypt"]
 schema = ["agentgateway/schema"]
+ui = ["agentgateway/ui", "dep:include_dir"]
 
 [dependencies]
 pprof-alloc.workspace = true
@@ -36,6 +37,7 @@ anyhow.workspace = true
 clap.workspace = true
 fs-err = { workspace = true, features = ["tokio"] }
 libc.workspace = true
+include_dir = { workspace = true, optional = true }
 mimalloc = { workspace = true, optional = true }
 tokio.workspace = true
 tracing.workspace = true
