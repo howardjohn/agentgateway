@@ -416,6 +416,7 @@ impl ProxyError {
 				| http::oidc::Error::ProviderCallback(_) => StatusCode::BAD_REQUEST,
 				http::oidc::Error::SessionCookieTooLarge
 				| http::oidc::Error::TokenExchangeFailed(_)
+				| http::oidc::Error::TokenEndpointRejected(_)
 				| http::oidc::Error::MissingIdToken
 				| http::oidc::Error::InvalidIdToken(_)
 				| http::oidc::Error::Config(_)
