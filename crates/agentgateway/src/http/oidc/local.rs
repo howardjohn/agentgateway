@@ -89,7 +89,9 @@ pub struct LocalOidcConfig {
 	#[serde(rename = "redirectURI")]
 	pub redirect_uri: String,
 
-	/// Additional OAuth2 scopes to request. `openid` is always included.
+	/// Additional OAuth2 scopes to request. `openid` is always included. Add `offline_access` when
+	/// the provider requires it to issue a refresh token; returned refresh tokens are used
+	/// automatically.
 	#[serde(default)]
 	pub scopes: Vec<String>,
 }
@@ -316,7 +318,8 @@ impl PreparedOidcPolicy {
 		policy_id: PolicyId,
 		oidc_cookie_encoder: &crate::http::sessionpersistence::Encoder,
 	) -> Result<OidcPolicy, Error> {
-		let (cookie_name, transaction_cookie_prefix) = session::derive_cookie_names(&policy_id);
+		let (cookie_name, refresh_cookie_name, transaction_cookie_prefix) =
+			session::derive_cookie_names(&policy_id);
 		let PreparedOidcPolicy {
 			provider,
 			client_id,
@@ -339,6 +342,7 @@ impl PreparedOidcPolicy {
 			redirect_uri,
 			session: SessionConfig {
 				cookie_name,
+				refresh_cookie_name,
 				transaction_cookie_prefix,
 				same_site: SameSiteMode::Lax,
 				secure: CookieSecureMode::Auto,
