@@ -264,8 +264,7 @@ impl Error {
 // guardrail rejections. anything we can't extract a request id for keeps the plain error.
 pub(crate) async fn maybe_convert_mcp_error<T>(
 	res: Result<T, crate::proxy::ProxyResponse>,
-	inputs: &crate::ProxyInputs,
-	backend: Option<&crate::types::agent::RouteBackendReference>,
+	request_protocol: crate::proxy::httpproxy::RequestProtocol,
 	req: &mut crate::http::Request,
 ) -> Result<T, crate::proxy::ProxyResponse> {
 	use crate::proxy::ProxyResponse;
@@ -280,23 +279,7 @@ pub(crate) async fn maybe_convert_mcp_error<T>(
 	) {
 		return Err(ProxyResponse::Error(err));
 	}
-	// avoid converting errors for non-JSON RPC requests
-	// best effort; worst case scenario we find no request id
-	// at the MCP layer and fallback to the origial HTTP error
-	let path = req.uri().path();
-	if req.method() != ::http::Method::POST
-		|| path == "/sse"
-		|| auth::is_well_known_endpoint(path)
-		|| path.ends_with("client-registration")
-		|| crate::http::is_grpc_request(req)
-	{
-		return Err(ProxyResponse::Error(err));
-	}
-	let is_mcp = backend
-		.cloned()
-		.and_then(|b| crate::proxy::httpproxy::resolve_backend(b, inputs).ok())
-		.is_some_and(|b| matches!(b.backend.backend, crate::types::agent::Backend::MCP(_, _)));
-	if !is_mcp {
+	if request_protocol != crate::proxy::httpproxy::RequestProtocol::MCP {
 		return Err(ProxyResponse::Error(err));
 	}
 	let limit = crate::http::buffer_limit(req);

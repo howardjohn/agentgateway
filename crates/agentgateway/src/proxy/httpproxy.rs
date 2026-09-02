@@ -71,6 +71,31 @@ struct SelectedRouteChain {
 	backend: Option<RouteBackendReference>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RequestProtocol {
+	HTTP,
+	MCP,
+	AI,
+}
+
+fn classify_request_protocol(req: &Request, backend: &Backend) -> RequestProtocol {
+	match backend {
+		// Only JSON-RPC traffic is handled as MCP; transport and discovery endpoints
+		// continue through the ordinary HTTP path.
+		Backend::MCP(_, _)
+			if req.method() == ::http::Method::POST
+				&& req.uri().path() != "/sse"
+				&& !mcp::auth::is_well_known_endpoint(req.uri().path())
+				&& !req.uri().path().ends_with("client-registration")
+				&& !crate::http::is_grpc_request(req) =>
+		{
+			RequestProtocol::MCP
+		},
+		Backend::AI(_, _) | Backend::LLMRouter(_, _) => RequestProtocol::AI,
+		_ => RequestProtocol::HTTP,
+	}
+}
+
 fn select_route_chain(
 	inputs: &ProxyInputs,
 	target_address: SocketAddr,
@@ -942,9 +967,14 @@ impl HTTPProxy {
 		// must still be allowed to terminate the request successfully.
 		let selected_backend = selected_route_chain
 			.backend
-			.clone()
 			.map(|backend| resolve_backend(backend, self.inputs.as_ref()))
 			.transpose();
+		let request_protocol = selected_backend
+			.as_ref()
+			.ok()
+			.and_then(Option::as_ref)
+			.map(|backend| classify_request_protocol(&req, &backend.backend.backend))
+			.unwrap_or(RequestProtocol::HTTP);
 
 		let policy_client = self.policy_client().with_parent(&req);
 		let route_retry = apply_request_policies(
@@ -955,13 +985,7 @@ impl HTTPProxy {
 			response_policies,
 		)
 		.await;
-		let route_retry = mcp::maybe_convert_mcp_error(
-			route_retry,
-			self.inputs.as_ref(),
-			selected_route_chain.backend.as_ref(),
-			&mut req,
-		)
-		.await;
+		let route_retry = mcp::maybe_convert_mcp_error(route_retry, request_protocol, &mut req).await;
 		let route_retry = route_retry.snapshot_on_err(log, &mut req)?;
 		dtrace::snapshot!(Request, "route policies", &req);
 		// With no explicit retry policy, Substrate only retries stale actor assignments.
