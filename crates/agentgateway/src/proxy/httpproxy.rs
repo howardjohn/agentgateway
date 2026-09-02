@@ -96,6 +96,17 @@ fn classify_request_protocol(req: &Request, backend: &Backend) -> RequestProtoco
 	}
 }
 
+async fn set_mcp_cel_context(req: &mut Request, backend: &McpBackend) {
+	let Ok(http::BodyInspection::Complete(body)) = http::inspect_body(req).await else {
+		return;
+	};
+	let Ok(message) = serde_json::from_slice::<rmcp::model::ClientJsonRpcMessage>(&body) else {
+		return;
+	};
+	let info = mcp::MCPInfo::from_request(req.headers(), &message, backend);
+	req.extensions_mut().insert(info);
+}
+
 fn select_route_chain(
 	inputs: &ProxyInputs,
 	target_address: SocketAddr,
@@ -975,6 +986,23 @@ impl HTTPProxy {
 			.and_then(Option::as_ref)
 			.map(|backend| classify_request_protocol(&req, &backend.backend.backend))
 			.unwrap_or(RequestProtocol::HTTP);
+		if let Ok(Some(selected_backend)) = selected_backend.as_ref() {
+			let backend = &selected_backend.backend.backend;
+			let info = backend.backend_info();
+			req.extensions_mut().insert(BackendContext {
+				name: info.backend_name,
+				backend_type: info.backend_type,
+				protocol: backend
+					.backend_protocol()
+					.unwrap_or(cel::BackendProtocol::http),
+			});
+			if request_protocol == RequestProtocol::MCP
+				&& log.cel.ctx().needs_mcp()
+				&& let Backend::MCP(_, backend) = backend
+			{
+				set_mcp_cel_context(&mut req, backend).await;
+			}
+		}
 
 		let policy_client = self.policy_client().with_parent(&req);
 		let route_retry = apply_request_policies(
@@ -1007,6 +1035,16 @@ impl HTTPProxy {
 			Some(route_path.clone()),
 		));
 		backend_policies.register_cel_expressions(log.cel.ctx());
+		// Backend-policy expressions are registered only after route policies run, so they may
+		// introduce an MCP dependency that was not known at the earlier parsing point. Avoid
+		// parsing again when a route-policy expression already required MCP context.
+		if request_protocol == RequestProtocol::MCP
+			&& log.cel.ctx().needs_mcp()
+			&& req.extensions().get::<mcp::MCPInfo>().is_none()
+			&& let Backend::MCP(_, backend) = &selected_backend.backend.backend
+		{
+			set_mcp_cel_context(&mut req, backend).await;
+		}
 		log.cel.ctx().maybe_buffer_request_body(&mut req).await;
 		log.health_policy = backend_policies.health.clone();
 		log.backend_info = Some(selected_backend.backend.backend.backend_info());

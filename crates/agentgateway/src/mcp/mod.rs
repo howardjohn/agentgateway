@@ -458,6 +458,75 @@ pub struct MCPInfo {
 }
 
 impl MCPInfo {
+	/// Builds the MCP information available to HTTP request policies. Response-derived
+	/// fields are populated later by MCP processing.
+	pub(crate) fn from_request(
+		headers: &crate::http::HeaderMap,
+		message: &rmcp::model::ClientJsonRpcMessage,
+		backend: &crate::types::agent::McpBackend,
+	) -> Self {
+		use rmcp::model::{ClientJsonRpcMessage, ClientRequest};
+		use rmcp::transport::common::http_header::HEADER_SESSION_ID;
+
+		let mut info = Self {
+			method_name: streamablehttp::message_method(message).map(Into::into),
+			session_id: headers
+				.get(HEADER_SESSION_ID)
+				.and_then(|value| value.to_str().ok())
+				.map(str::to_owned),
+			..Default::default()
+		};
+		let ClientJsonRpcMessage::Request(request) = message else {
+			return info;
+		};
+
+		match &request.request {
+			ClientRequest::CallToolRequest(request) => {
+				if let Some((target, name)) = mcp_request_name(backend, &request.params.name) {
+					info.set_tool(target, name);
+					info.capture_call_arguments(request.params.arguments.clone());
+				}
+			},
+			ClientRequest::GetPromptRequest(request) => {
+				if let Some((target, name)) = mcp_request_name(backend, &request.params.name) {
+					info.set_prompt(target, name);
+				}
+			},
+			ClientRequest::ReadResourceRequest(request) => {
+				if let Some((target, uri)) = mcp_request_uri(backend, &request.params.uri) {
+					info.set_resource(target, uri);
+				}
+			},
+			ClientRequest::SubscribeRequest(request) => {
+				if let Some((target, uri)) = mcp_request_uri(backend, &request.params.uri) {
+					info.set_resource(target, uri);
+				}
+			},
+			ClientRequest::UnsubscribeRequest(request) => {
+				if let Some((target, uri)) = mcp_request_uri(backend, &request.params.uri) {
+					info.set_resource(target, uri);
+				}
+			},
+			ClientRequest::GetTaskRequest(request) => {
+				if let Some((target, id)) = mcp_request_task(backend, &request.params.task_id) {
+					info.set_task(target, id);
+				}
+			},
+			ClientRequest::UpdateTaskRequest(request) => {
+				if let Some((target, id)) = mcp_request_task(backend, &request.params.task_id) {
+					info.set_task(target, id);
+				}
+			},
+			ClientRequest::CancelTaskRequest(request) => {
+				if let Some((target, id)) = mcp_request_task(backend, &request.params.task_id) {
+					info.set_task(target, id);
+				}
+			},
+			_ => {},
+		}
+		info
+	}
+
 	pub fn is_empty(&self) -> bool {
 		self.method_name.is_none()
 			&& self.session_id.is_none()
@@ -579,6 +648,72 @@ impl MCPInfo {
 			tool.error = serde_json::to_value(error).ok();
 		}
 	}
+}
+
+fn mcp_request_name(
+	backend: &crate::types::agent::McpBackend,
+	name: &str,
+) -> Option<(String, String)> {
+	use crate::types::agent::McpPrefixMode;
+
+	if backend.targets.len() == 1 && !matches!(backend.prefix_mode, McpPrefixMode::Always) {
+		return Some((backend.targets[0].name.to_string(), name.to_owned()));
+	}
+	// With prefixMode=never and multiple targets, the owner is discovered by querying
+	// the upstreams later in MCP processing. Preserve the name for request policies,
+	// but leave the target empty until that resolution happens.
+	if matches!(backend.prefix_mode, McpPrefixMode::Never) {
+		return Some((String::new(), name.to_owned()));
+	}
+	let (target, name) = name.split_once('_')?;
+	backend
+		.targets
+		.iter()
+		.any(|candidate| candidate.name.as_str() == target)
+		.then(|| (target.to_owned(), name.to_owned()))
+}
+
+fn mcp_request_uri(
+	backend: &crate::types::agent::McpBackend,
+	uri: &str,
+) -> Option<(String, String)> {
+	if backend.targets.len() == 1
+		&& !matches!(
+			backend.prefix_mode,
+			crate::types::agent::McpPrefixMode::Always
+		) {
+		return Some((backend.targets[0].name.to_string(), uri.to_owned()));
+	}
+	let (target, uri) = if apps::is_ui_uri(uri) {
+		apps::decode_ui_uri(uri)?
+	} else {
+		let (target, uri) = uri.split_once('+')?;
+		(target, uri.to_owned())
+	};
+	backend
+		.targets
+		.iter()
+		.any(|candidate| candidate.name.as_str() == target)
+		.then(|| (target.to_owned(), uri))
+}
+
+fn mcp_request_task(
+	backend: &crate::types::agent::McpBackend,
+	id: &str,
+) -> Option<(String, String)> {
+	if backend.targets.len() == 1
+		&& !matches!(
+			backend.prefix_mode,
+			crate::types::agent::McpPrefixMode::Always
+		) {
+		return Some((backend.targets[0].name.to_string(), id.to_owned()));
+	}
+	let (target, id) = id.split_once('+')?;
+	backend
+		.targets
+		.iter()
+		.any(|candidate| candidate.name.as_str() == target)
+		.then(|| (target.to_owned(), id.to_owned()))
 }
 
 impl From<&ResourceType> for MCPInfo {

@@ -396,7 +396,7 @@ pub(crate) fn request_id(message: &ClientJsonRpcMessage) -> Option<RequestId> {
 	}
 }
 
-fn message_method(message: &ClientJsonRpcMessage) -> Option<&str> {
+pub(crate) fn message_method(message: &ClientJsonRpcMessage) -> Option<&str> {
 	match message {
 		ClientJsonRpcMessage::Request(req) => Some(req.request.method()),
 		ClientJsonRpcMessage::Notification(notification) => Some(match &notification.notification {

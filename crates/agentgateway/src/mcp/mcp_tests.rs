@@ -6280,16 +6280,20 @@ async fn mcp_local_ratelimit() {
 		.with_bind(simple_bind())
 		.with_route(basic_route(mock.addr));
 
-	// Attach local rate limit policy
-	// MCP protocol overhead: initialize + notification + SSE GET = 3 requests
-	// Allow 5 total: overhead (3) + tool calls (2), then rate limit the 6th
+	// Only tool calls consume this limit; MCP initialization traffic does not match.
 	t.attach_route_policy(serde_json::json!({
-		"localRateLimit": [{
-			"maxTokens": 5,
-			"tokensPerFill": 1,
-			"fillInterval": "10s",
-			"type": "requests"
-		}]
+		"localRateLimit": {
+			"conditional": [{
+				"condition": format!(
+					"backend.name == '/{}' && backend.type == 'mcp' && mcp.tool.name == 'echo' && mcp.tool.arguments.n > 0",
+					mock.addr,
+				),
+				"maxTokens": 2,
+				"tokensPerFill": 1,
+				"fillInterval": "10s",
+				"type": "requests"
+			}]
+		}
 	}))
 	.await;
 
@@ -6329,7 +6333,7 @@ async fn mcp_local_ratelimit() {
 		"rate limit should map to RESOURCE_EXHAUSTED"
 	);
 	let data = e.data.as_ref().expect("error should carry retry data");
-	assert_eq!(data["limit"], 5);
+	assert_eq!(data["limit"], 2);
 	assert!(data.get("retryAfterSeconds").is_some());
 }
 
