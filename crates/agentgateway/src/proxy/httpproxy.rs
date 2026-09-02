@@ -937,6 +937,15 @@ impl HTTPProxy {
 		let explicit_route_retry = !route_policies.retry.is_empty();
 		log.cel.ctx().maybe_buffer_request_body(&mut req).await;
 
+		// Resolve early so request policies can use the backend protocol. Defer any
+		// error because backendless policies such as redirects and direct responses
+		// must still be allowed to terminate the request successfully.
+		let selected_backend = selected_route_chain
+			.backend
+			.clone()
+			.map(|backend| resolve_backend(backend, self.inputs.as_ref()))
+			.transpose();
+
 		let policy_client = self.policy_client().with_parent(&req);
 		let route_retry = apply_request_policies(
 			&route_policies,
@@ -962,12 +971,11 @@ impl HTTPProxy {
 				.get::<http::substrate::SubstrateRequestState>()
 				.is_some();
 
-		let selected_backend_ref = selected_route_chain
-			.backend
+		// No policy terminated the request, so forwarding now requires a valid backend.
+		let selected_backend = selected_backend
+			.snapshot_on_err(log, &mut req)?
 			.ok_or(ProxyError::NoValidBackends)
 			.snapshot_on_err(log, &mut req)?;
-		let selected_backend =
-			resolve_backend(selected_backend_ref, self.inputs.as_ref()).snapshot_on_err(log, &mut req)?;
 		let backend_policies = Arc::new(get_backend_policies(
 			self.inputs.as_ref(),
 			&selected_backend.backend,
