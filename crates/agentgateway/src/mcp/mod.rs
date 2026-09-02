@@ -53,6 +53,43 @@ pub enum FailureMode {
 
 pub(crate) const DEFAULT_SESSION_IDLE_TTL: Duration = Duration::from_mins(30);
 
+/// An early parse paired with the exact body bytes it represents.
+#[derive(Clone)]
+pub(crate) struct CachedRequest {
+	source_body: bytes::Bytes,
+	message: rmcp::model::ClientJsonRpcMessage,
+}
+
+impl CachedRequest {
+	pub fn new(source_body: bytes::Bytes, message: rmcp::model::ClientJsonRpcMessage) -> Self {
+		Self {
+			source_body,
+			message,
+		}
+	}
+
+	pub fn parse_body(
+		cached: Option<Self>,
+		body: &[u8],
+	) -> serde_json::Result<rmcp::model::ClientJsonRpcMessage> {
+		// Policies may have replaced the body after the early CEL parse. Exact byte equality makes
+		// reuse safe without requiring every possible body mutation to invalidate the cache.
+		match cached {
+			Some(cached) if cached.source_body.as_ref() == body => {
+				tracing::warn!("reusing early MCP request parse");
+				Ok(cached.message)
+			},
+			cached => {
+				tracing::warn!(
+					body_changed = cached.is_some(),
+					"not reusing early MCP request parse"
+				);
+				serde_json::from_slice(body)
+			},
+		}
+	}
+}
+
 /// Application-defined "over quota" code (MCP defines none); shared with the guardrail mapping.
 pub(crate) const RESOURCE_EXHAUSTED: ErrorCode = ErrorCode(-32003);
 
@@ -279,7 +316,7 @@ pub(crate) async fn maybe_convert_mcp_error<T>(
 	) {
 		return Err(ProxyResponse::Error(err));
 	}
-	if request_protocol != crate::proxy::httpproxy::RequestProtocol::MCP {
+	if request_protocol != crate::proxy::httpproxy::RequestProtocol::Mcp {
 		return Err(ProxyResponse::Error(err));
 	}
 	let limit = crate::http::buffer_limit(req);

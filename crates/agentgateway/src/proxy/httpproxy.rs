@@ -73,8 +73,8 @@ struct SelectedRouteChain {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RequestProtocol {
-	HTTP,
-	MCP,
+	Http,
+	Mcp,
 	AI,
 }
 
@@ -89,10 +89,10 @@ fn classify_request_protocol(req: &Request, backend: &Backend) -> RequestProtoco
 				&& !req.uri().path().ends_with("client-registration")
 				&& !crate::http::is_grpc_request(req) =>
 		{
-			RequestProtocol::MCP
+			RequestProtocol::Mcp
 		},
 		Backend::AI(_, _) | Backend::LLMRouter(_, _) => RequestProtocol::AI,
-		_ => RequestProtocol::HTTP,
+		_ => RequestProtocol::Http,
 	}
 }
 
@@ -105,6 +105,9 @@ async fn set_mcp_cel_context(req: &mut Request, backend: &McpBackend) {
 	};
 	let info = mcp::MCPInfo::from_request(req.headers(), &message, backend);
 	req.extensions_mut().insert(info);
+	req
+		.extensions_mut()
+		.insert(mcp::CachedRequest::new(body, message));
 }
 
 fn select_route_chain(
@@ -985,7 +988,7 @@ impl HTTPProxy {
 			.ok()
 			.and_then(Option::as_ref)
 			.map(|backend| classify_request_protocol(&req, &backend.backend.backend))
-			.unwrap_or(RequestProtocol::HTTP);
+			.unwrap_or(RequestProtocol::Http);
 		if let Ok(Some(selected_backend)) = selected_backend.as_ref() {
 			let backend = &selected_backend.backend.backend;
 			let info = backend.backend_info();
@@ -996,7 +999,7 @@ impl HTTPProxy {
 					.backend_protocol()
 					.unwrap_or(cel::BackendProtocol::http),
 			});
-			if request_protocol == RequestProtocol::MCP
+			if request_protocol == RequestProtocol::Mcp
 				&& log.cel.ctx().needs_mcp()
 				&& let Backend::MCP(_, backend) = backend
 			{
@@ -1038,7 +1041,7 @@ impl HTTPProxy {
 		// Backend-policy expressions are registered only after route policies run, so they may
 		// introduce an MCP dependency that was not known at the earlier parsing point. Avoid
 		// parsing again when a route-policy expression already required MCP context.
-		if request_protocol == RequestProtocol::MCP
+		if request_protocol == RequestProtocol::Mcp
 			&& log.cel.ctx().needs_mcp()
 			&& req.extensions().get::<mcp::MCPInfo>().is_none()
 			&& let Backend::MCP(_, backend) = &selected_backend.backend.backend

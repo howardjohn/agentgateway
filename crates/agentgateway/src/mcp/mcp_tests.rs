@@ -6338,6 +6338,55 @@ async fn mcp_local_ratelimit() {
 }
 
 #[tokio::test]
+async fn mcp_cached_request_reparsed_after_body_transformation() {
+	let mock = mock_streamable_http_server(true).await;
+	let mut t = setup_proxy_test("{}")
+		.unwrap()
+		.with_mcp_backend(mock.addr, true, false)
+		.with_bind(simple_bind())
+		.with_route(basic_route(mock.addr));
+
+	t.attach_route_policy(serde_json::json!({
+		"transformations": {
+			"conditional": [{
+				"condition": "mcp.tool.name == 'echo'",
+				"request": {
+					"body": r#"{
+						"jsonrpc": "2.0",
+						"id": json(request.body).id,
+						"method": "tools/call",
+						"params": {
+							"name": mcp.tool.name,
+							"arguments": {"after": true}
+						}
+					}"#
+				}
+			}]
+		}
+	}))
+	.await;
+
+	let io = t.serve_real_listener(BIND_KEY).await;
+	let client = mcp_streamable_client(io).await;
+	let result = client
+		.call_tool(
+			rmcp::model::CallToolRequestParams::new("echo").with_arguments(
+				serde_json::json!({"before": true})
+					.as_object()
+					.cloned()
+					.unwrap(),
+			),
+		)
+		.await
+		.expect("transformed tool call should succeed");
+
+	assert_eq!(
+		&result.content[0].as_text().unwrap().text,
+		r#"{"after":true}"#
+	);
+}
+
+#[tokio::test]
 async fn mcp_extauth_deny() {
 	struct DenyAllAuthz;
 
