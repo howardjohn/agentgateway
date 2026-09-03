@@ -567,9 +567,11 @@ impl<'a> VariableResolver<'a> for ExecutorResolver<'a> {
 }
 
 impl<'a> Executor<'a> {
-	fn set_request<B>(&mut self, req: &'a ::http::Request<B>) {
+	fn set_request(&mut self, req: &'a crate::http::Request) {
 		self.request = Some(req.into());
-		let ext = req.extensions();
+		self.set_request_extensions(req.extensions());
+	}
+	fn set_request_extensions(&mut self, ext: &'a Extensions) {
 		self.api_key = ExtensionOrDirect::Extension(ext);
 		self.jwt = ExtensionOrDirect::Extension(ext);
 		self.llm = ExtensionOrDirect::Extension(ext);
@@ -630,9 +632,10 @@ impl<'a> Executor<'a> {
 		this.mcp = Some(mcp);
 		this
 	}
-	pub fn new_mcp_request<B>(req: &'a ::http::Request<B>, mcp: &'a MCPInfo) -> Self {
+	pub fn new_mcp_request(req: &'a ::http::request::Parts, mcp: &'a MCPInfo) -> Self {
 		let mut this = Self::new_empty();
-		this.set_request(req);
+		this.request = Some(req.into());
+		this.set_request_extensions(&req.extensions);
 		this.mcp = Some(mcp);
 		this
 	}
@@ -644,7 +647,7 @@ impl<'a> Executor<'a> {
 		this.llm_request = Some(llm_body);
 		this
 	}
-	pub fn new_llm_request<B>(req: &'a ::http::Request<B>, llm_body: &'a serde_json::Value) -> Self {
+	pub fn new_llm_request(req: &'a crate::http::Request, llm_body: &'a serde_json::Value) -> Self {
 		let mut this = Self::new_empty();
 		this.set_request(req);
 		this.llm_request = Some(llm_body);
@@ -1138,8 +1141,8 @@ impl<'a> From<&'a RequestSnapshot> for RequestRef<'a> {
 		}
 	}
 }
-impl<'a, B> From<&'a ::http::Request<B>> for RequestRef<'a> {
-	fn from(req: &'a ::http::Request<B>) -> Self {
+impl<'a> From<&'a crate::http::Request> for RequestRef<'a> {
+	fn from(req: &'a crate::http::Request) -> Self {
 		Self {
 			method: req.method(),
 			uri: query::QueryAccessor::uri_from_uri(req.uri()),
@@ -1152,6 +1155,26 @@ impl<'a, B> From<&'a ::http::Request<B>> for RequestRef<'a> {
 			body: BodyExtensionOrDirect::Extension(req.extensions()),
 			body_prefix: BodyPrefixExtensionOrDirect(BodyExtensionOrDirect::Extension(req.extensions())),
 			start_time: req.extensions().into(),
+			// Only known in snapshot phase...
+			end_time: None,
+		}
+	}
+}
+
+impl<'a> From<&'a ::http::request::Parts> for RequestRef<'a> {
+	fn from(req: &'a ::http::request::Parts) -> Self {
+		Self {
+			method: &req.method,
+			uri: query::QueryAccessor::uri_from_uri(&req.uri),
+			path: req.uri.path(),
+			path_and_query: query::QueryAccessor::path_and_query_from_uri(&req.uri),
+			host: req.uri.authority(),
+			scheme: req.uri.scheme(),
+			version: req.version,
+			headers: Headers::new(&req.headers),
+			body: BodyExtensionOrDirect::Extension(&req.extensions),
+			body_prefix: BodyPrefixExtensionOrDirect(BodyExtensionOrDirect::Extension(&req.extensions)),
+			start_time: (&req.extensions).into(),
 			// Only known in snapshot phase...
 			end_time: None,
 		}

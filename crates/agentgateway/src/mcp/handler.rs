@@ -1275,7 +1275,7 @@ impl Relay {
 		};
 		let guardrails = self.build_guardrails_ctx(&r, &ctx, vec![service_name.to_string()]);
 		let mcp_log = mcp_log.or_else(|| ctx.extensions().get::<AsyncLog<MCPInfo>>().cloned());
-		let cel = CelExecWrapper::new(ctx.as_request().map(|_| ()));
+		let cel = CelExecWrapper::new(ctx.as_request());
 		let stream = self.rewrite_outbound_server_messages(
 			service_name,
 			Box::pin(
@@ -1350,7 +1350,7 @@ impl Relay {
 
 		let fut_results = futures::future::join_all(futs).await;
 
-		let cel = CelExecWrapper::new(ctx.as_request().map(|_| ()));
+		let cel = CelExecWrapper::new(ctx.as_request());
 		for (name, result) in fut_results {
 			match result {
 				Ok(s) => {
@@ -1438,7 +1438,7 @@ impl Relay {
 			.fanout_open_streams(&r, &mut ctx, target_names, |_, r| r.clone())
 			.await?;
 
-		let cel = CelExecWrapper::new(ctx.as_request().map(|_| ()));
+		let cel = CelExecWrapper::new(ctx.as_request());
 		let streams = streams
 			.into_iter()
 			.map(|(name, s)| {
@@ -1641,7 +1641,10 @@ pub fn setup_request_log(http: Parts) -> (AsyncLog<MCPInfo>, CelExecWrapper) {
 		.cloned()
 		.unwrap_or_default();
 
-	let cel = CelExecWrapper::new(::http::Request::from_parts(http, ()));
+	let cel = CelExecWrapper::new(::http::Request::from_parts(
+		http,
+		crate::http::Body::empty(),
+	));
 	(log, cel)
 }
 

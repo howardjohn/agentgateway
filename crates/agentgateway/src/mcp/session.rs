@@ -288,7 +288,7 @@ impl Session {
 			.relay
 			.maybe_run_guardrails_call_request(backend, method, params, ctx)
 			.await?;
-		let cel = rbac::CelExecWrapper::new(ctx.as_request().map(|_| ()));
+		let cel = rbac::CelExecWrapper::new(ctx.as_request());
 		if self.relay.policies.validate(&res, method, &cel) {
 			Ok(())
 		} else {

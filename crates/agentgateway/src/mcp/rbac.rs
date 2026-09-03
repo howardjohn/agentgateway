@@ -28,11 +28,11 @@ impl McpAuthorization {
 
 /// Cheap clone via Arc; this API treats the request as read-only after construction.
 #[derive(Clone)]
-pub struct CelExecWrapper(Arc<::http::Request<()>>);
+pub struct CelExecWrapper(Arc<::http::request::Parts>);
 
 impl CelExecWrapper {
-	pub fn new(req: ::http::Request<()>) -> CelExecWrapper {
-		CelExecWrapper(Arc::new(req))
+	pub fn new(req: crate::http::Request) -> CelExecWrapper {
+		CelExecWrapper(Arc::new(req.into_parts().0))
 	}
 }
 #[derive(Clone, Debug, Serialize)]
@@ -142,11 +142,11 @@ mod tests {
 		ResourceType::Tool(ResourceId::new(target.to_string(), name.to_string()))
 	}
 
-	fn req_with_claims(claims: serde_json::Value) -> ::http::Request<()> {
+	fn req_with_claims(claims: serde_json::Value) -> crate::http::Request {
 		let mut req = ::http::Request::builder()
 			.method(::http::Method::POST)
 			.uri("http://example.com/mcp")
-			.body(())
+			.body(crate::http::Body::empty())
 			.unwrap();
 		let serde_json::Value::Object(claims) = claims else {
 			panic!("claims must be a JSON object");
@@ -158,11 +158,11 @@ mod tests {
 		req
 	}
 
-	fn req_without_claims() -> ::http::Request<()> {
+	fn req_without_claims() -> crate::http::Request {
 		::http::Request::builder()
 			.method(::http::Method::POST)
 			.uri("http://example.com/mcp")
-			.body(())
+			.body(crate::http::Body::empty())
 			.unwrap()
 	}
 
