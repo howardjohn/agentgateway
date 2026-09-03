@@ -4616,6 +4616,7 @@ async fn convert_llm_config(
 						.map(|target| llm::model_router::ConditionalTarget {
 							model: target.model.clone(),
 							when: target.when.clone(),
+							invalid: false,
 						})
 						.collect(),
 				)
@@ -4631,6 +4632,7 @@ async fn convert_llm_config(
 						.map(|target| llm::model_router::WeightedTarget {
 							model: target.model.clone(),
 							weight: target.weight,
+							invalid: false,
 						})
 						.collect(),
 				)
