@@ -221,6 +221,29 @@ output:
     Name: public-gateway
     Namespace: default
   resource:
+    backend:
+      ai:
+        providerGroups:
+        - providers:
+          - custom:
+              formats:
+              - format: COMPLETIONS
+              model: local-llama
+              providerOverride: team-a
+            name: local-llama
+            providerBackend:
+              port: 8000
+              service:
+                hostname: llama-pool.default.inference.cluster.local
+                namespace: default
+      key: default/resilient-model/failover.llm
+      name:
+        name: resilient-model
+        namespace: default
+- gateway:
+    Name: public-gateway
+    Namespace: default
+  resource:
     bind:
       key: 80/default/public-gateway
       port: 80
@@ -236,6 +259,19 @@ output:
         gatewayNamespace: default
         listenerName: llm
       protocol: HTTP
+- gateway:
+    Name: public-gateway
+    Namespace: default
+  resource:
+    modelRoute:
+      key: default/resilient-model.llm
+      listenerKey: default/public-gateway.llm
+      match:
+        model: resilient-model
+      virtualModel:
+        failover:
+          backend:
+            backend: default/resilient-model/failover.llm
 - gateway:
     Name: public-gateway
     Namespace: default

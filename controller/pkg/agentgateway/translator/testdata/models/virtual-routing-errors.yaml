@@ -125,6 +125,53 @@ output:
     Namespace: default
   resource:
     modelRoute:
+      key: default/conditional-missing-model-target.llm
+      listenerKey: default/virtual-model-errors.llm
+      match:
+        model: conditional-missing-model-target
+      virtualModel:
+        conditional:
+          targets:
+          - invalid: true
+            model: does-not-exist
+            when: request.headers["x-use-missing"] == "true"
+          - model: gpt-working
+- gateway:
+    Name: virtual-model-errors
+    Namespace: default
+  resource:
+    modelRoute:
+      key: default/missing-model-target.llm
+      listenerKey: default/virtual-model-errors.llm
+      match:
+        model: missing-model-target
+      virtualModel:
+        weighted:
+          targets:
+          - invalid: true
+            model: does-not-exist
+            weight: 20
+          - model: gpt-working
+            weight: 80
+- gateway:
+    Name: virtual-model-errors
+    Namespace: default
+  resource:
+    modelRoute:
+      key: default/wildcard-model-target-without-model.llm
+      listenerKey: default/virtual-model-errors.llm
+      match:
+        model: wildcard-model-target-without-model
+      virtualModel:
+        weighted:
+          targets:
+          - invalid: true
+            model: wildcard-model
+- gateway:
+    Name: virtual-model-errors
+    Namespace: default
+  resource:
+    modelRoute:
       concreteModel:
         backend:
           backend: default/wildcard-model/backend.llm
