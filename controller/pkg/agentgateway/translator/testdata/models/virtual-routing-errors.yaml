@@ -44,6 +44,11 @@ spec:
       targets:
       - modelRef:
           name: does-not-exist
+        weight: 20
+      - modelRef:
+          name: wildcard-model
+        model: gpt-working
+        weight: 80
 ---
 apiVersion: agentgateway.dev/v1alpha1
 kind: AgentgatewayModel
@@ -59,6 +64,25 @@ spec:
       targets:
       - modelRef:
           name: wildcard-model
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayModel
+metadata:
+  name: conditional-missing-model-target
+  namespace: default
+spec:
+  parentRefs:
+  - name: virtual-model-errors
+    sectionName: llm
+  virtualModel:
+    conditional:
+      targets:
+      - modelRef:
+          name: does-not-exist
+        when: request.headers["x-use-missing"] == "true"
+      - modelRef:
+          name: wildcard-model
+        model: gpt-working
 
 ---
 # Output
@@ -110,6 +134,32 @@ output:
       match:
         model: gpt-*
 status:
+- apiVersion: agentgateway.dev/v1alpha1
+  kind: AgentgatewayModel
+  metadata:
+    name: conditional-missing-model-target
+    namespace: default
+  spec: null
+  status:
+    parents:
+    - conditions:
+      - lastTransitionTime: fake
+        message: Successfully accepted AgentgatewayModel
+        reason: Accepted
+        status: "True"
+        type: Accepted
+      - lastTransitionTime: fake
+        message: model target default/does-not-exist not found
+        reason: Invalid
+        status: "False"
+        type: ResolvedRefs
+      controllerName: agentgateway.dev/agentgateway
+      parentRef:
+        group: gateway.networking.k8s.io
+        kind: Gateway
+        name: virtual-model-errors
+        namespace: default
+        sectionName: llm
 - apiVersion: agentgateway.dev/v1alpha1
   kind: AgentgatewayModel
   metadata:
@@ -209,7 +259,7 @@ status:
       status: "True"
       type: Programmed
     listeners:
-    - attachedRoutes: 3
+    - attachedRoutes: 4
       conditions:
       - lastTransitionTime: fake
         message: No errors found
