@@ -644,6 +644,7 @@ impl HTTPProxy {
 		connection.copy::<cel::SourceContext>(req.extensions_mut());
 		connection.copy::<cel::DestinationContext>(req.extensions_mut());
 		connection.copy::<WaypointService>(req.extensions_mut());
+		connection.copy::<agent_hbone::LatestMetadata>(req.extensions_mut());
 		req
 			.extensions_mut()
 			.insert(RequestTime(start.as_datetime()));
@@ -752,6 +753,7 @@ impl HTTPProxy {
 		response_policies: &mut ResponsePolicies,
 	) -> Result<Response, SnapshottedProxyResponse> {
 		log.tls_info = req.extensions().get::<TLSConnectionInfo>().cloned();
+		log.snapshot_hbone_metadata(&req);
 		log.backend_protocol = Some(cel::BackendProtocol::http);
 
 		let selected_listener = self.selected_listener.clone();

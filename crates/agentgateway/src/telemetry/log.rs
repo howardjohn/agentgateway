@@ -13,7 +13,7 @@ use agent_core::telemetry::{
 	quoted,
 };
 use agent_core::{Timestamp, strng};
-use bytes::Buf;
+use bytes::{Buf, Bytes};
 use crossbeam::atomic::AtomicCell;
 use frozen_collections::FzHashSet;
 use http_body::{Body, Frame, SizeHint};
@@ -1114,12 +1114,20 @@ impl RequestLog {
 			ate_actor_id: None,
 			ate_atespace: None,
 			ate_router_resume: None,
+			hbone_metadata: None,
 			request_handle: None,
 			request_snapshot: None,
 			response_snapshot: None,
 			source_context: None,
 			response_bytes: 0,
 		}
+	}
+
+	pub(crate) fn snapshot_hbone_metadata(&mut self, req: &Request) {
+		self.hbone_metadata = req
+			.extensions()
+			.get::<agent_hbone::LatestMetadata>()
+			.and_then(agent_hbone::LatestMetadata::load);
 	}
 
 	pub fn span_writer(&self) -> SpanWriter {
@@ -1292,6 +1300,9 @@ pub struct RequestLog {
 	pub ate_actor_id: Option<String>,
 	pub ate_atespace: Option<String>,
 	pub ate_router_resume: Option<&'static str>,
+
+	/// METADATA payload observed before this request was parsed from an HBONE tunnel.
+	pub hbone_metadata: Option<Bytes>,
 
 	pub request_handle: Option<ActiveHandle>,
 	pub request_snapshot: Option<Arc<cel::RequestSnapshot>>,
@@ -1712,6 +1723,7 @@ impl Drop for DropOnLog {
 				("ate.actor.id", log.ate_actor_id.display()),
 				(ateattr::ATE_ATESPACE, log.ate_atespace.display()),
 				(ateattr::ATE_ROUTER_RESUME, log.ate_router_resume.display()),
+				("hbone.metadata", log.hbone_metadata.as_ref().map(debug)),
 				// OpenTelemetry Gen AI Semantic Conventions v1.40.0
 				(
 					"gen_ai.operation.name",

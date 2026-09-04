@@ -3,8 +3,8 @@ use std::hash::Hash;
 use std::io::Error;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
@@ -21,6 +21,25 @@ pub mod server;
 
 /// Default HBONE mTLS port used when no explicit port is configured.
 pub const DEFAULT_HBONE_PORT: u16 = 15008;
+
+/// Frame type assigned to METADATA by the HTTP/2 metadata draft.
+pub const METADATA_FRAME_TYPE: u8 = 0x4d;
+
+/// Shared state containing the latest METADATA frame payload observed on an
+/// HBONE stream.
+#[derive(Clone, Debug, Default)]
+pub struct LatestMetadata(Arc<Mutex<Option<Bytes>>>);
+
+impl LatestMetadata {
+	/// Returns a snapshot of the latest METADATA frame payload.
+	pub fn load(&self) -> Option<Bytes> {
+		self.0.lock().unwrap().clone()
+	}
+
+	fn store(&self, metadata: Bytes) {
+		*self.0.lock().unwrap() = Some(metadata);
+	}
+}
 
 pub trait Key: Display + Clone + Hash + Debug + PartialEq + Eq + Send + Sync + 'static {
 	fn dest(&self) -> SocketAddr;
@@ -172,6 +191,7 @@ pub struct H2Stream {
 
 pub struct H2StreamReadHalf {
 	recv_stream: h2::RecvStream,
+	metadata: LatestMetadata,
 	_dropped: Option<DropCounter>,
 }
 
@@ -210,6 +230,21 @@ impl copy::BufferedSplitter for H2Stream {
 	fn split_into_buffered_reader(self) -> (H2StreamReadHalf, H2StreamWriteHalf) {
 		let H2Stream { read, write } = self;
 		(read, write)
+	}
+}
+
+impl H2Stream {
+	/// Returns a restricted handle that can send extension frames concurrently.
+	pub fn extension_sender(&self) -> h2::ExtensionSender<Bytes> {
+		self.write.send_stream.extension_sender()
+	}
+
+	/// Returns shared state containing the latest observed metadata.
+	///
+	/// The normal [`AsyncRead`](tokio::io::AsyncRead) path updates this state before
+	/// yielding DATA that followed the metadata on the wire.
+	pub fn metadata(&self) -> LatestMetadata {
+		self.read.metadata.clone()
 	}
 }
 
@@ -298,12 +333,29 @@ impl tokio::io::AsyncWrite for TokioH2Stream {
 
 impl copy::ResizeBufRead for H2StreamReadHalf {
 	fn poll_bytes(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<Bytes>> {
+		self.poll_data(cx)
+	}
+
+	fn resize(self: Pin<&mut Self>, _new_size: usize) {
+		// NOP, we don't need to resize as we are abstracting the h2 buffer
+	}
+}
+
+impl H2StreamReadHalf {
+	fn poll_data(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<Bytes>> {
 		let this = self.get_mut();
 		loop {
-			match ready!(this.recv_stream.poll_data(cx)) {
+			match ready!(this.recv_stream.poll_frame(cx)) {
 				None => return Poll::Ready(Ok(Bytes::new())),
-				Some(Ok(buf)) if buf.is_empty() && !this.recv_stream.is_end_stream() => continue,
-				Some(Ok(buf)) => {
+				Some(Ok(frame)) if frame.frame_type() == METADATA_FRAME_TYPE => {
+					this.metadata.store(frame.into_payload());
+				},
+				Some(Ok(frame)) if frame.is_extension() => {},
+				Some(Ok(frame)) => {
+					let buf = frame.into_payload();
+					if buf.is_empty() && !this.recv_stream.is_end_stream() {
+						continue;
+					}
 					// TODO: Hyper and Go make their pinging data aware and don't send pings when data is received
 					// Pingora, and our implementation, currently don't do this.
 					// We may want to; if so, modify here.
@@ -322,10 +374,6 @@ impl copy::ResizeBufRead for H2StreamReadHalf {
 				},
 			}
 		}
-	}
-
-	fn resize(self: Pin<&mut Self>, _new_size: usize) {
-		// NOP, we don't need to resize as we are abstracting the h2 buffer
 	}
 }
 

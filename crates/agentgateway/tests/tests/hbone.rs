@@ -637,3 +637,191 @@ async fn start_hbone_forward_server(
 	});
 	actual_port
 }
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct MetadataTestKey(SocketAddr);
+
+impl std::fmt::Display for MetadataTestKey {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		self.0.fmt(f)
+	}
+}
+
+impl agent_hbone::Key for MetadataTestKey {
+	fn dest(&self) -> SocketAddr {
+		self.0
+	}
+}
+
+#[tokio::test]
+async fn test_hbone_metadata_in_access_log() -> anyhow::Result<()> {
+	use bytes::Bytes;
+	use http::{Method, Request, Version, header};
+	use http_body_util::{BodyExt, Empty};
+	use hyper_util::rt::TokioIo;
+	use rcgen::{
+		CertificateParams, ExtendedKeyUsagePurpose, Issuer, KeyPair, KeyUsagePurpose, SanType,
+	};
+	use rustls_pki_types::ServerName;
+	use tokio::net::{TcpListener, TcpStream};
+	use tokio::sync::watch;
+	use tokio_rustls::TlsConnector;
+	use wiremock::{Mock, ResponseTemplate};
+
+	const END_METADATA: u8 = 0x04;
+	const METADATA: &[u8] = b"\x00\x05state\x01A";
+	const FIRST_PATH: &str = "/before-hbone-metadata";
+	const SECOND_PATH: &str = "/after-hbone-metadata";
+
+	agent_core::telemetry::testing::setup_test_logging();
+	let ca_addr = start_mock_ca_server().await?;
+
+	let backend = wiremock::MockServer::start().await;
+	Mock::given(wiremock::matchers::path_regex("/.*"))
+		.respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+		.mount(&backend)
+		.await;
+
+	// The CONNECT authority selects this target bind by port.
+	let inner_listener = TcpListener::bind("127.0.0.1:0").await?;
+	let inner_addr = inner_listener.local_addr()?;
+	drop(inner_listener);
+	let outer_listener = TcpListener::bind("127.0.0.1:0").await?;
+	let outer_addr = outer_listener.local_addr()?;
+	drop(outer_listener);
+
+	let gateway = AgentGateway::new(format!(
+		r#"config:
+  namespace: default
+  serviceAccount: default
+  trustDomain: cluster.local
+  caAddress: "http://{ca_addr}"
+binds:
+- port: {outer_port}
+  tunnelProtocol: hboneGateway
+  listeners:
+  - name: hbone
+    protocol: HBONE
+- port: {inner_port}
+  listeners:
+  - name: inner
+    protocol: HTTP
+    routes:
+    - name: default
+      backends:
+      - host: {backend_addr}
+"#,
+		outer_port = outer_addr.port(),
+		inner_port = inner_addr.port(),
+		backend_addr = backend.address(),
+	))
+	.await?;
+
+	let shared_ca = crate::common::shared_ca::get_shared_ca();
+	let issuer = Issuer::from_ca_cert_pem(shared_ca.ca_cert_pem.as_str(), &*shared_ca.ca_key)?;
+	let client_key = KeyPair::generate()?;
+	let mut client_params = CertificateParams::default();
+	client_params.key_usages = vec![
+		KeyUsagePurpose::DigitalSignature,
+		KeyUsagePurpose::KeyEncipherment,
+	];
+	client_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ClientAuth];
+	client_params.subject_alt_names = vec![SanType::URI(
+		"spiffe://cluster.local/ns/default/sa/metadata-client".try_into()?,
+	)];
+	let client_cert = client_params.signed_by(&client_key, &issuer)?;
+
+	let client_tls = agentgateway::http::backendtls::ResolvedBackendTLS {
+		cert: Some(client_cert.pem().into_bytes()),
+		key: Some(client_key.serialize_pem().into_bytes()),
+		root: Some(crate::common::shared_ca::TEST_ROOT.to_vec()),
+		hostname: Some("localhost".to_string()),
+		insecure_host: true,
+		alpn: Some(vec!["h2".to_string()]),
+		..Default::default()
+	}
+	.try_into()?;
+	let tcp = TcpStream::connect(outer_addr).await?;
+	let tls = TlsConnector::from(client_tls.base_config().config)
+		.connect(ServerName::try_from("localhost").unwrap(), tcp)
+		.await?;
+
+	let (_driver_tx, driver_rx) = watch::channel(false);
+	let key = MetadataTestKey(inner_addr);
+	let mut hbone =
+		agent_hbone::client::spawn_connection(&agent_hbone::H2Config::default(), tls, driver_rx, key)
+			.await?;
+	let uri = http::Uri::builder()
+		.scheme(http::uri::Scheme::HTTPS)
+		.authority(inner_addr.to_string())
+		.path_and_query("/")
+		.build()?;
+	let connect = Request::builder()
+		.method(Method::CONNECT)
+		.uri(uri)
+		.version(Version::HTTP_2)
+		.body(())?;
+	let stream = hbone.send_request(connect).await?;
+	let extension_sender = stream.extension_sender();
+	let tunnel = agent_hbone::TokioH2Stream::new(stream);
+
+	let (mut http, connection) = hyper::client::conn::http1::handshake(TokioIo::new(tunnel)).await?;
+	let connection = tokio::spawn(connection);
+
+	let first = http
+		.send_request(
+			Request::builder()
+				.method(Method::GET)
+				.uri(FIRST_PATH)
+				.header(header::HOST, "metadata.test")
+				.body(Empty::<Bytes>::new())?,
+		)
+		.await?;
+	assert_eq!(first.status(), 200);
+	first.into_body().collect().await?;
+
+	extension_sender.send_extension(
+		agent_hbone::METADATA_FRAME_TYPE,
+		END_METADATA,
+		Bytes::from_static(METADATA),
+	)?;
+
+	let second = http
+		.send_request(
+			Request::builder()
+				.method(Method::GET)
+				.uri(SECOND_PATH)
+				.header(header::HOST, "metadata.test")
+				.body(Empty::<Bytes>::new())?,
+		)
+		.await?;
+	assert_eq!(second.status(), 200);
+	second.into_body().collect().await?;
+
+	let first_log = agent_core::telemetry::testing::eventually_find(&[
+		("scope", "request"),
+		("http.path", FIRST_PATH),
+	])
+	.await
+	.unwrap();
+	let second_log = agent_core::telemetry::testing::eventually_find(&[
+		("scope", "request"),
+		("http.path", SECOND_PATH),
+	])
+	.await
+	.unwrap();
+	println!("request before METADATA: {first_log}");
+	println!("request after METADATA:  {second_log}");
+	assert!(first_log.get("hbone.metadata").is_none());
+	let expected_metadata = format!("{:?}", Bytes::from_static(METADATA));
+	assert_eq!(
+		second_log
+			.get("hbone.metadata")
+			.and_then(serde_json::Value::as_str),
+		Some(expected_metadata.as_str()),
+	);
+
+	connection.abort();
+	gateway.shutdown().await;
+	Ok(())
+}

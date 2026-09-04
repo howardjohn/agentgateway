@@ -1672,20 +1672,16 @@ impl Gateway {
 			warn!("failed to send response");
 			return;
 		};
+		let metadata = resp.metadata();
 		let con = agent_hbone::RWStream {
 			stream: resp,
 			buf: Bytes::new(),
 			drain_tx: None,
 		};
 
-		Self::proxy_bind(
-			bind.key.clone(),
-			bind.protocol,
-			Socket::from_hbone(ext, socket_addr, con),
-			pi,
-			drain,
-		)
-		.await
+		let mut socket = Socket::from_hbone(ext, socket_addr, con);
+		socket.ext_mut().insert(metadata);
+		Self::proxy_bind(bind.key.clone(), bind.protocol, socket, pi, drain).await
 	}
 }
 

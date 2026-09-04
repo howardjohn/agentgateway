@@ -42,6 +42,7 @@ impl H2Request {
 		let send = send.send_response(resp, false)?;
 		let read = crate::H2StreamReadHalf {
 			recv_stream: recv,
+			metadata: Default::default(),
 			_dropped: None, // We do not need to track on the server
 		};
 		let write = crate::H2StreamWriteHalf {
@@ -107,6 +108,7 @@ where
 		.max_send_buffer_size(1024 * 400)
 		// default from hyper
 		.max_concurrent_streams(200)
+		.accept_unknown_frame_types([crate::METADATA_FRAME_TYPE])
 		.handshake(s)
 		.await?;
 

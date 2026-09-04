@@ -111,7 +111,7 @@ google-cloud-auth = { version = "1.15", default-features = false, features = [
     "default-rustls-provider",
 ] }
 hashbrown = "0.17"
-h2 = "0.4"
+h2 = { path = "/home/john/git/h2" }
 headers = "0.4"
 hex = "0.4"
 hickory-resolver = { version = "0.26", features = ["serde"] }

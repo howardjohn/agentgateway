@@ -90,6 +90,7 @@ impl<K: Key> H2ConnectClient<K> {
 		let (dropped1, dropped2) = crate::DropCounter::new(self.stream_count.clone());
 		let read = crate::H2StreamReadHalf {
 			recv_stream: recv,
+			metadata: Default::default(),
 			_dropped: dropped1,
 		};
 		let write = crate::H2StreamWriteHalf {
@@ -138,6 +139,7 @@ pub async fn spawn_connection<K>(
 		.max_header_list_size(1024 * 16)
 		// 4mb. Aligned with window_size such that we can fill up the buffer, then flush it all in one go, without buffering up too much.
 		.max_send_buffer_size(cfg.window_size as usize)
+		.accept_unknown_frame_types([crate::METADATA_FRAME_TYPE])
 		.enable_push(false);
 
 	let (send_req, connection) = builder
