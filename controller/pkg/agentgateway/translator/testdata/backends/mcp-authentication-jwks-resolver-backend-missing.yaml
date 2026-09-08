@@ -30,6 +30,7 @@ output:
     backend:
       inlinePolicies:
       - mcpAuthentication:
+          jwksInline: '{"keys":[]}'
           mode: STRICT
           resourceMetadata: {}
       key: default/mcp-backend
