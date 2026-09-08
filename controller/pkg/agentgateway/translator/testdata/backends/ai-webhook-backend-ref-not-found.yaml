@@ -37,7 +37,13 @@ output:
             name: backend
       inlinePolicies:
       - ai:
-          promptGuard: {}
+          promptGuard:
+            request:
+            - webhook:
+                action: REJECT_AUDIT_ACTION_REJECT
+            response:
+            - webhook:
+                action: REJECT_AUDIT_ACTION_REJECT
       key: default/anthropic-backend
       name:
         name: anthropic-backend
