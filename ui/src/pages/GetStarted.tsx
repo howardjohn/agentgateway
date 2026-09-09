@@ -2,18 +2,14 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { Bot, Network, Server } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { refreshBaseCosts } from '@/api/costsApi';
 import { gatewayOptions } from '@/components/GatewayBindingEditor';
 import { Dropdown, FieldGroup, PageHeader, Panel, StatusBanner } from '@/components/Primitives';
-import {
-	enableTrafficConfig,
-	ensureLlmFrontendDefaults,
-	startupGatewayRefs,
-	startupLlmConfig,
-	startupMcpConfig
-} from '@/config';
+import { startupGatewayRefs } from '@/config';
 import { refreshBaseCostsAndConfigure } from '@/costs';
 import {
 	useEffectiveGatewayConfig,
+	useEnableSurface,
 	useMcpConfigData,
 	useTrafficConfigData,
 	useUpdateConfig
@@ -80,6 +76,7 @@ function GetStartedPage(props: { surface: SurfaceKind }) {
 	const mcpData = useMcpConfigData();
 	const trafficData = useTrafficConfigData();
 	const update = useUpdateConfig();
+	const enableSurface = useEnableSurface();
 	const navigate = useNavigate();
 	const surface = surfaceConfig[props.surface];
 	const Icon = surface.icon;
@@ -117,22 +114,18 @@ function GetStartedPage(props: { surface: SurfaceKind }) {
 			return;
 		}
 		try {
-			await update.mutateAsync(next => {
-				if (props.surface === 'llm') {
-					next.llm = next.llm ?? startupLlmConfig(next, gateway || undefined);
-					ensureLlmFrontendDefaults(next);
-				} else if (props.surface === 'mcp') {
-					next.mcp = next.mcp ?? startupMcpConfig(next, gateway || undefined);
-				} else {
-					enableTrafficConfig(next);
-				}
+			const { hybrid } = await enableSurface.mutateAsync({
+				surface: props.surface,
+				gateway: gateway || undefined
 			});
 			void navigate({ to: surface.destination });
 			if (props.surface === 'llm') {
-				void refreshBaseCostsAndConfigure(update).catch(() => undefined);
+				void (hybrid ? refreshBaseCosts() : refreshBaseCostsAndConfigure(update)).catch(
+					() => undefined
+				);
 			}
 		} catch {
-			// useUpdateConfig exposes the save error through update.isError.
+			// The enable mutation exposes the save error.
 		}
 	}
 
@@ -154,9 +147,9 @@ function GetStartedPage(props: { surface: SurfaceKind }) {
 					{configError.message}
 				</StatusBanner>
 			) : null}
-			{update.isError ? (
+			{enableSurface.isError || update.isError ? (
 				<StatusBanner state="bad" title="Save failed">
-					{update.error.message}
+					{enableSurface.error?.message ?? update.error?.message}
 				</StatusBanner>
 			) : null}
 
@@ -209,7 +202,7 @@ function GetStartedPage(props: { surface: SurfaceKind }) {
 						<button
 							className="button primary"
 							type="button"
-							disabled={loading || update.isPending}
+							disabled={loading || enableSurface.isPending || update.isPending}
 							onClick={() => void enable()}
 						>
 							Enable
