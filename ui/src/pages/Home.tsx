@@ -229,6 +229,12 @@ export function HomePage() {
 		<div className="page-stack">
 			<PageHeader title="Gateway Overview" />
 
+			{update.isError ? (
+				<StatusBanner state="bad" title="Save failed">
+					{update.error.message}
+				</StatusBanner>
+			) : null}
+
 			{pageDataLoading ? (
 				<StatusBanner state="loading" title="Loading gateway configuration" />
 			) : pageDataError ? (
