@@ -195,12 +195,7 @@ export function startupLlmConfig(
 	gateways = startupGatewayRefs(config)
 ): LlmConfig {
 	ensureStartupGateway(config, gateways);
-	return {
-		gateways,
-		models: [],
-		providers: [],
-		virtualModels: []
-	};
+	return { gateways };
 }
 
 export function startupMcpConfig(
@@ -208,7 +203,7 @@ export function startupMcpConfig(
 	gateways = startupGatewayRefs(config)
 ): McpConfig {
 	ensureStartupGateway(config, gateways);
-	return { gateways, targets: [] };
+	return { gateways };
 }
 
 export function upsertModel(config: GatewayConfig, model: LlmModel, previousId?: string) {
@@ -295,6 +290,7 @@ export function setLlmGuardrails(config: GatewayConfig, guardrails: LlmGuardrail
 
 export function upsertMcpTarget(config: GatewayConfig, target: McpTarget, previousName?: string) {
 	const mcp = ensureMcp(config);
+	mcp.targets ??= [];
 	const index = mcp.targets.findIndex(item => item.name === (previousName ?? target.name));
 	if (index >= 0) {
 		mcp.targets[index] = target;
