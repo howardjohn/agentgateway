@@ -100,10 +100,10 @@ export function HomePage() {
 		try {
 			await update.mutateAsync(next => {
 				if (surface === 'llm') {
-					next.llm = startupLlmConfig(next, 4000);
+					next.llm = startupLlmConfig(next);
 					ensureLlmFrontendDefaults(next);
 				} else if (surface === 'mcp') {
-					next.mcp = startupMcpConfig(next, 3000);
+					next.mcp = startupMcpConfig(next);
 				} else {
 					enableTrafficConfig(next);
 				}

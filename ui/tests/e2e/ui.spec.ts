@@ -169,8 +169,8 @@ test('onboards all surfaces from a completely empty config', async ({ page }) =>
 
 	await page.getByRole('button', { name: /LLM/ }).click();
 	await expect.poll(() => gateway.postedConfigs.length).toBe(2);
-	expect(gateway.postedConfigs[1].llm).toMatchObject({
-		port: 4000,
+	expect(gateway.postedConfigs[1].llm).toEqual({
+		gateways: 'public',
 		models: [],
 		providers: [],
 		virtualModels: []
@@ -179,8 +179,8 @@ test('onboards all surfaces from a completely empty config', async ({ page }) =>
 
 	await page.getByRole('button', { name: /MCP/ }).click();
 	await expect.poll(() => gateway.postedConfigs.length).toBe(3);
-	expect(gateway.postedConfigs[2].mcp).toMatchObject({
-		port: 3000,
+	expect(gateway.postedConfigs[2].mcp).toEqual({
+		gateways: 'public',
 		targets: []
 	});
 	await expect(page.getByRole('heading', { name: 'Welcome to Agentgateway' })).toBeVisible();
