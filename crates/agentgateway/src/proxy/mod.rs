@@ -375,8 +375,10 @@ impl ProxyError {
 		}
 	}
 
+	/// A client-safe message. Keep Display and Debug for logs and diagnostics.
 	pub fn external_message(&self) -> &'static str {
 		match self {
+			ProxyError::MCP(e) => e.external_message(),
 			ProxyError::StaleAssignment => "service unavailable",
 			ProxyError::AIRequest(_) => "failed to process LLM request",
 			ProxyError::AIResponse(_) => "failed to process LLM response",
@@ -387,18 +389,6 @@ impl ProxyError {
 			ProxyError::GuardrailRejected { .. } => "request rejected by guardrail",
 			ProxyError::BudgetExceeded(_) => "budget exceeded",
 			ProxyError::RemoteRateLimitExceeded { .. } => "rate limit exceeded",
-			ProxyError::MCP(mcp::Error::GetStreamNotSupported) => "GET event stream is not supported",
-			ProxyError::MCP(mcp::Error::UnsupportedVersion { .. }) => "unsupported MCP protocol version",
-			ProxyError::MCP(mcp::Error::VersionMismatch(_)) => {
-				"MCP protocol version header/body mismatch"
-			},
-			ProxyError::MCP(mcp::Error::HeaderBodyMismatch(_, _)) => "header/body mismatch",
-			ProxyError::MCP(mcp::Error::InvalidRoutingHeader(_, _)) => "invalid MCP routing header",
-			ProxyError::MCP(mcp::Error::MethodNotFound(_, _)) => "method not found",
-			ProxyError::MCP(mcp::Error::InvalidParams(_, _)) => "invalid request parameters",
-			ProxyError::MCP(mcp::Error::Unavailable(_, _)) => "service unavailable",
-			ProxyError::MCP(mcp::Error::McpGuardrails(_, _)) => "request rejected by guardrail",
-			ProxyError::MCP(mcp::Error::RateLimited { .. }) => "rate limit exceeded",
 			ProxyError::BindNotFound => "bind not found",
 			ProxyError::ListenerNotFound => "listener not found",
 			ProxyError::RouteNotFound => "route not found",
@@ -408,8 +398,7 @@ impl ProxyError {
 			| ProxyError::NoHealthyEndpoints
 			| ProxyError::BackendDoesNotExist
 			| ProxyError::ServiceNotFound
-			| ProxyError::InvalidBackendType
-			| ProxyError::MCP(mcp::Error::NoBackends) => "no backends available",
+			| ProxyError::InvalidBackendType => "no backends available",
 			ProxyError::DnsResolution => "dns resolution failed",
 			ProxyError::FilterError(_) => "filter failed",
 			ProxyError::BackendUnsupportedMirror
@@ -437,26 +426,6 @@ impl ProxyError {
 			ProxyError::InvalidRequest => "invalid request",
 			ProxyError::UpgradeFailed(_, _) => "request upgrade failed",
 			ProxyError::MethodNotAllowed => "method not allowed",
-			ProxyError::MCP(mcp::Error::MethodNotAllowed) => "method not allowed",
-			ProxyError::MCP(mcp::Error::InvalidAccept) => "invalid accept header",
-			ProxyError::MCP(mcp::Error::InvalidAcceptGet) => "invalid accept header",
-			ProxyError::MCP(mcp::Error::InvalidContentType) => "invalid content type",
-			ProxyError::MCP(mcp::Error::Deserialize(_)) => "invalid request body",
-			ProxyError::MCP(mcp::Error::StartSession(_)) => "failed to create session",
-			ProxyError::MCP(mcp::Error::UnknownSession) => "session not found",
-			ProxyError::MCP(mcp::Error::MissingSessionHeader) => "session header is required",
-			ProxyError::MCP(mcp::Error::SessionIdRequired) => "session id is required",
-			ProxyError::MCP(mcp::Error::InvalidSessionIdHeader) => "invalid session id header",
-			ProxyError::MCP(mcp::Error::InvalidProtocolVersion) => "invalid protocol version",
-			ProxyError::MCP(mcp::Error::Stdio(_)) => "failed to start stdio server",
-			ProxyError::MCP(mcp::Error::SendError(_, _)) => "failed to send message",
-			ProxyError::MCP(mcp::Error::Authorization(_, _, _)) => "unknown resource",
-			ProxyError::MCP(mcp::Error::InvalidSessionIdQuery) => "invalid session id query",
-			ProxyError::MCP(mcp::Error::EstablishGetStream(_)) => "failed to establish stream",
-			ProxyError::MCP(mcp::Error::ForwardLegacySse(_)) => "failed to forward message",
-			ProxyError::MCP(mcp::Error::CreateSseUrl(_)) => "failed to create sse url",
-			ProxyError::MCP(mcp::Error::OpenAPI(_)) => "failed to parse openapi",
-			ProxyError::MCP(mcp::Error::UpstreamError(_)) => "upstream error",
 		}
 	}
 
@@ -641,7 +610,7 @@ impl ProxyError {
 				.header("grpc-status", i32::from(grpc_status).to_string())
 				.header(
 					"grpc-message",
-					utf8_percent_encode(&msg, GRPC_MESSAGE_ENCODE_SET).to_string(),
+					utf8_percent_encode(msg, GRPC_MESSAGE_ENCODE_SET).to_string(),
 				)
 				.body(http::Body::empty())
 				.unwrap();
@@ -654,7 +623,7 @@ impl ProxyError {
 				.body(http::Body::from(
 					serde_json::json!({
 						"error": {
-							"message": exceeded.to_string(),
+							"message": msg,
 							"type": "rate_limit_error",
 							"code": "budget_exceeded",
 						}
@@ -1062,36 +1031,68 @@ mod tests {
 		);
 	}
 
-	#[test]
-	fn display_keeps_internal_error_detail() {
-		let err = ProxyError::ProcessingString("secret backend detail".to_string());
-
-		assert_eq!(err.to_string(), "processing failed: secret backend detail");
-		assert_eq!(err.external_message(), "internal error");
-	}
-
 	#[tokio::test]
-	async fn http_error_response_uses_external_message() {
-		let response = ProxyError::ProcessingString("secret backend detail".to_string())
-			.into_response_with_grpc(false);
+	async fn error_responses_keep_details_internal() {
+		use rmcp::model::RequestId;
 
-		assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-		let body = crate::http::read_body_with_limit(response.into_body(), 100)
-			.await
-			.unwrap();
-		assert_eq!(body.as_ref(), b"internal error");
-	}
-
-	#[test]
-	fn grpc_error_response_uses_external_message() {
-		let response = ProxyError::ProcessingString("secret backend detail".to_string())
-			.into_response_with_grpc(true);
-
-		assert_eq!(response.status(), StatusCode::OK);
-		assert_eq!(
-			response.headers().get("grpc-message").unwrap(),
-			"internal%20error"
-		);
+		for grpc in [false, true] {
+			for error in [
+				ProxyError::ProcessingString("secret backend detail".into()),
+				ProxyError::Processing(anyhow::anyhow!("secret backend detail")),
+				ProxyError::Body(http::Error::new(std::io::Error::other(
+					"secret backend detail",
+				))),
+				ProxyError::UpstreamTCPCallFailed(http::Error::new(std::io::Error::other(
+					"secret backend detail",
+				))),
+				ProxyError::SubstrateIngressFailed(StatusCode::BAD_GATEWAY, "secret backend detail".into()),
+				ProxyError::SubstrateEgressDenied("secret backend detail".into()),
+				ProxyError::MCP(mcp::Error::SendError(None, "secret backend detail".into())),
+				ProxyError::MCP(mcp::Error::SendError(
+					Some(RequestId::Number(7)),
+					"secret backend detail".into(),
+				)),
+				ProxyError::MCP(mcp::Error::Unavailable(
+					Some(RequestId::Number(7)),
+					"secret backend detail".into(),
+				)),
+				ProxyError::MCP(mcp::Error::InvalidParams(
+					Some(RequestId::Number(7)),
+					"secret backend detail".into(),
+				)),
+				ProxyError::MCP(mcp::Error::Authorization(
+					RequestId::Number(7),
+					"tool".into(),
+					"secret backend detail".into(),
+				)),
+			] {
+				assert!(error.to_string().contains("secret backend detail"));
+				let external = error.external_message();
+				assert!(!external.contains("secret"));
+				let response = error.into_response_with_grpc(grpc);
+				if grpc {
+					assert_eq!(response.status(), StatusCode::OK);
+					assert_eq!(
+						response.headers()["grpc-message"],
+						utf8_percent_encode(external, GRPC_MESSAGE_ENCODE_SET).to_string()
+					);
+					assert!(http::read_resp_body(response).await.unwrap().is_empty());
+				} else {
+					assert!(response.status().is_client_error() || response.status().is_server_error());
+					let json = response.headers()[hyper::header::CONTENT_TYPE] == "application/json";
+					let body = http::read_resp_body(response).await.unwrap();
+					if json {
+						let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+						assert_eq!(body["jsonrpc"], "2.0");
+						assert_eq!(body["id"], 7);
+						assert_eq!(body["error"]["message"], external);
+						assert!(body["error"].get("data").is_none());
+					} else {
+						assert_eq!(body.as_ref(), external.as_bytes());
+					}
+				}
+			}
+		}
 	}
 
 	#[test]
