@@ -43,6 +43,14 @@ use crate::cel::{Executor, LLMContext, RequestSnapshot};
 use crate::proxy::dtrace;
 use crate::store;
 
+// The router and provider reader share the JSON tree. Keep its source bytes so any
+// intervening body mutation makes the cache miss, including mutations outside our helpers.
+#[derive(Clone, Debug)]
+struct ParsedRequestBody {
+	bytes: bytes::Bytes,
+	value: Arc<serde_json::Value>,
+}
+
 pub const LOCAL_LISTENER_NAME: &str = "llm";
 
 #[cfg(test)]
@@ -2858,11 +2866,24 @@ impl AIProvider {
 			parts.headers.remove(header::TRANSFER_ENCODING);
 		}
 
+		let parsed = parts
+			.extensions
+			.remove::<ParsedRequestBody>()
+			.filter(|cached| {
+				cached.bytes.len() == bytes.len()
+					&& (cached.bytes.as_ptr() == bytes.as_ptr() || cached.bytes == bytes)
+			})
+			.map(|cached| Arc::unwrap_or_clone(cached.value));
+
 		if self.override_model().is_none()
 			&& types::detect::extract_model_from_path(parts.uri.path()).is_none()
 			&& !policies.is_some_and(Policy::has_request_body_mutations)
 		{
-			let mut req: T = serde_json::from_slice(bytes.as_ref()).map_err(AIError::RequestParsing)?;
+			let mut req: T = match parsed {
+				Some(value) => serde_json::from_value(value),
+				None => serde_json::from_slice(bytes.as_ref()),
+			}
+			.map_err(AIError::RequestParsing)?;
 			let model = req.model();
 			if model.as_deref().is_none() {
 				return Err(AIError::MissingField("model not specified".into()));
@@ -2870,8 +2891,10 @@ impl AIProvider {
 			return Ok((parts, req));
 		}
 
-		let mut request: serde_json::Value =
-			serde_json::from_slice(bytes.as_ref()).map_err(AIError::RequestParsing)?;
+		let mut request = match parsed {
+			Some(value) => value,
+			None => serde_json::from_slice(bytes.as_ref()).map_err(AIError::RequestParsing)?,
+		};
 		self.set_provider_request_model(&parts, &mut request, path_model_wins)?;
 		let mut request = if let Some(p) = policies {
 			p.apply_request_body_mutations(request, log)?

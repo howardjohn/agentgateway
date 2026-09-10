@@ -148,7 +148,7 @@ struct RequestedModel {
 }
 
 enum RequestedModelLocation {
-	Body(Value),
+	Body(Arc<Value>),
 	Multipart,
 	Path,
 }
@@ -508,7 +508,7 @@ async fn requested_model(req: &mut Request) -> RouterResult<RequestedModel> {
 			location: RequestedModelLocation::Multipart,
 		});
 	}
-	let body: Value = serde_json::from_slice(&body).map_err(|err| {
+	let parsed: Value = serde_json::from_slice(&body).map_err(|err| {
 		tracing::debug!(%err, "failed to parse LLM request body");
 		Box::new(llm_error_response(
 			::http::StatusCode::BAD_REQUEST,
@@ -516,7 +516,12 @@ async fn requested_model(req: &mut Request) -> RouterResult<RequestedModel> {
 			"invalid_request_body",
 		))
 	})?;
-	let model = body
+	let parsed = Arc::new(parsed);
+	req.extensions_mut().insert(super::ParsedRequestBody {
+		bytes: body,
+		value: parsed.clone(),
+	});
+	let model = parsed
 		.get("model")
 		.and_then(Value::as_str)
 		.map(ToString::to_string)
@@ -529,7 +534,7 @@ async fn requested_model(req: &mut Request) -> RouterResult<RequestedModel> {
 		})?;
 	Ok(RequestedModel {
 		model,
-		location: RequestedModelLocation::Body(body),
+		location: RequestedModelLocation::Body(parsed),
 	})
 }
 
@@ -539,7 +544,10 @@ async fn rewrite_request_model(
 	target: &str,
 ) -> RouterResult<()> {
 	match location {
-		RequestedModelLocation::Body(body) => rewrite_body_model(req, body, target),
+		RequestedModelLocation::Body(body) => {
+			req.extensions_mut().remove::<super::ParsedRequestBody>();
+			rewrite_body_model(req, Arc::unwrap_or_clone(body), target)
+		},
 		RequestedModelLocation::Path => rewrite_uri_model(req, target),
 		RequestedModelLocation::Multipart => rewrite_multipart_request_model(req, target).await,
 	}
@@ -550,7 +558,7 @@ fn rewrite_body_model(req: &mut Request, mut body: Value, target: &str) -> Route
 		return Ok(());
 	};
 	obj.insert("model".to_string(), Value::String(target.to_string()));
-	let body = serde_json::to_vec(&body).map_err(|err| {
+	let bytes = serde_json::to_vec(&body).map_err(|err| {
 		tracing::debug!(%err, "failed to serialize rewritten LLM request body");
 		Box::new(llm_error_response(
 			::http::StatusCode::BAD_REQUEST,
@@ -558,7 +566,12 @@ fn rewrite_body_model(req: &mut Request, mut body: Value, target: &str) -> Route
 			"request_body_rewrite_failed",
 		))
 	})?;
-	http::replace_body_bytes(req, body.into());
+	let bytes = Bytes::from(bytes);
+	http::replace_body_bytes(&mut *req, bytes.clone());
+	req.extensions_mut().insert(super::ParsedRequestBody {
+		bytes,
+		value: Arc::new(body),
+	});
 	Ok(())
 }
 
