@@ -27,9 +27,15 @@ use tower_http::cors::CorsLayer;
 use tracing::{info, warn};
 use tracing_subscriber::filter;
 
-use super::hyper_helpers::{Server, plaintext_response};
+use super::hyper_helpers::Server;
 use crate::Config;
-use crate::http::{Request, Response};
+use agent_http::{Body, RawBody};
+type Request = ::http::Request<RawBody>;
+type Response = ::http::Response<RawBody>;
+
+fn plaintext_response(code: hyper::StatusCode, body: String) -> Response {
+	super::hyper_helpers::plaintext_response(code, body).map(Body::into_boxed)
+}
 #[cfg(test)]
 #[path = "admin_tests.rs"]
 mod tests;
@@ -166,7 +172,7 @@ impl Service {
 
 	pub fn spawn(self) {
 		self.s.spawn(move |service, req| async move {
-			Ok(service.handle(req.map(crate::http::Body::new)).await)
+			Ok(service.handle(req.map(agent_http::Body::new)).await)
 		})
 	}
 }
@@ -178,8 +184,14 @@ impl fmt::Debug for AdminService {
 }
 
 impl AdminService {
-	pub async fn handle(&self, req: Request) -> Response {
-		self.router.clone().oneshot(req).await.unwrap()
+	pub async fn handle(&self, req: agent_http::Request) -> agent_http::Response {
+		self
+			.router
+			.clone()
+			.oneshot(req.map(Body::into_boxed))
+			.await
+			.unwrap()
+			.map(Body::new)
 	}
 }
 
@@ -387,10 +399,8 @@ pub async fn handle_debug_trace(req: Request) -> Response {
 	};
 	let sse_stream = trace_sse_stream(rx);
 	let body = match max_duration {
-		Some(max_duration) => {
-			crate::http::Body::from_stream(sse_stream.take_until(time::sleep(max_duration)))
-		},
-		None => crate::http::Body::from_stream(sse_stream),
+		Some(max_duration) => RawBody::from_stream(sse_stream.take_until(time::sleep(max_duration))),
+		None => RawBody::from_stream(sse_stream),
 	};
 	::http::Response::builder()
 		.status(hyper::StatusCode::OK)

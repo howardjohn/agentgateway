@@ -12,7 +12,7 @@ use http_body::{Body, Frame, SizeHint};
 use parking_lot::Mutex;
 use thiserror::Error;
 
-use crate::http::buflist::BufList;
+use agent_http::BufList;
 
 #[cfg(test)]
 #[path = "body_tests.rs"]

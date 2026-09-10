@@ -16,7 +16,7 @@ use prometheus_client::registry::Registry;
 
 use super::hyper_helpers;
 use crate::Address;
-use crate::http::Response;
+use agent_http::Response;
 
 pub struct Server {
 	s: hyper_helpers::Server<Registry>,

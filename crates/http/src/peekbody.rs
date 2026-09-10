@@ -4,48 +4,50 @@ use std::task::{Context, Poll};
 
 use bytes::{Buf, Bytes};
 use http::HeaderMap;
-use http_body::{Frame, SizeHint};
-use http_body_util::BodyExt;
+use http_body::{Body as _, Frame, SizeHint};
 use pin_project_lite::pin_project;
 
-use crate::http::Body;
-use crate::http::buflist::BufList;
+use crate::{BufList, RawBody};
 
 pin_project! {
-	struct PartiallyBufferedBody {
-		buffer: BufList,
+	struct PrefixBody {
+		prefix: Option<Bytes>,
+		overflow: Option<Bytes>,
 		trailers: Option<HeaderMap>,
-		// Some streams panic if polled again after returning `None`.
-		inner_eof: bool,
 		#[pin]
-		inner: Body,
+		inner: RawBody,
 	}
 }
 
-impl http_body::Body for PartiallyBufferedBody {
+impl http_body::Body for PrefixBody {
 	type Data = Bytes;
-	type Error = crate::http::Error;
+	type Error = axum_core::Error;
 
 	fn poll_frame(
 		mut self: Pin<&mut Self>,
 		cx: &mut Context<'_>,
 	) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
-		if let Some(br) = self.buffer.pop_front() {
+		if let Some(br) = self.prefix.take()
+			&& !br.is_empty()
+		{
+			return Poll::Ready(Some(Ok(Frame::data(br))));
+		}
+		if let Some(br) = self.overflow.take()
+			&& !br.is_empty()
+		{
 			return Poll::Ready(Some(Ok(Frame::data(br))));
 		}
 		if let Some(br) = self.trailers.take() {
 			return Poll::Ready(Some(Ok(Frame::trailers(br))));
-		}
-		if self.inner_eof {
-			return Poll::Ready(None);
 		}
 		let this = self.project();
 		this.inner.poll_frame(cx)
 	}
 
 	fn is_end_stream(&self) -> bool {
-		!self.buffer.has_remaining()
-			&& (self.inner_eof || self.inner.is_end_stream())
+		self.prefix.as_ref().is_none_or(Bytes::is_empty)
+			&& self.overflow.as_ref().is_none_or(Bytes::is_empty)
+			&& self.inner.is_end_stream()
 			&& self.trailers.is_none()
 	}
 
@@ -54,7 +56,11 @@ impl http_body::Body for PartiallyBufferedBody {
 	/// When the **exact** remaining length of the stream is known, the upper bound will be set and
 	/// will equal the lower bound.
 	fn size_hint(&self) -> SizeHint {
-		let rem = self.buffer.remaining();
+		if self.trailers.is_some() {
+			return SizeHint::default();
+		}
+		let rem =
+			self.prefix.as_ref().map_or(0, Bytes::len) + self.overflow.as_ref().map_or(0, Bytes::len);
 		let mut rest = self.inner.size_hint();
 		if let Some(upper) = rest.upper() {
 			rest.set_upper(upper.saturating_add(rem as u64));
@@ -64,26 +70,73 @@ impl http_body::Body for PartiallyBufferedBody {
 	}
 }
 
-/// inspect_body inspects up to `limit` bytes from the Body. The original body (should be) unchanged.
-/// Warning: you MUST poll the returned future to completion, or the original body will be missing data.
-pub async fn inspect_body(body: &mut Body, limit: usize) -> anyhow::Result<Bytes> {
-	let mut orig = std::mem::replace(body, Body::empty());
+/// Bytes read for inspection, including trailers when the whole body was read.
+pub struct InspectedBody {
+	pub bytes: Bytes,
+	pub complete: bool,
+	pub trailers: Option<HeaderMap>,
+}
+
+// Installed before inspection takes ownership of the stream. If reading fails or
+// is cancelled, later consumers must fail too, not observe a successful empty body.
+struct FailedInspection;
+
+impl http_body::Body for FailedInspection {
+	type Data = Bytes;
+	type Error = std::io::Error;
+
+	fn poll_frame(
+		self: Pin<&mut Self>,
+		_cx: &mut Context<'_>,
+	) -> Poll<Option<Result<Frame<Bytes>, Self::Error>>> {
+		Poll::Ready(Some(Err(std::io::Error::other(
+			"body inspection failed or was cancelled",
+		))))
+	}
+}
+
+pub async fn inspect_body(
+	body: &mut RawBody,
+	limit: usize,
+	mut idle_timeout: Option<&mut crate::idle_timeout::IdleTimeout>,
+) -> anyhow::Result<InspectedBody> {
+	let mut orig = std::mem::replace(body, RawBody::new(FailedInspection));
 	let mut buffer = BufList::default();
-	let mut trailers: Option<HeaderMap> = None;
+	let mut trailers = None;
 	let mut inner_eof = false;
+	let mut overflow = None;
 	let mut want = limit;
 	loop {
-		match orig.frame().await {
+		if want == 0 {
+			break;
+		}
+		let frame = std::future::poll_fn(|cx| {
+			if let Some(timeout) = idle_timeout.as_mut()
+				&& timeout.poll_expired(cx)
+			{
+				return Poll::Ready(Some(Err(axum_core::Error::new(crate::BodyTimeoutError))));
+			}
+			let frame = Pin::new(&mut orig).poll_frame(cx);
+			if let Poll::Ready(Some(Ok(frame))) = &frame
+				&& let Some(timeout) = idle_timeout.as_mut()
+			{
+				timeout.on_frame(frame);
+			}
+			frame
+		})
+		.await;
+		match frame {
 			Some(Ok(frame)) => {
 				if let Some(data) = frame.data_ref() {
 					let want_this_read = cmp::min(data.len(), want);
 					if want_this_read == 0 {
-						break;
+						// Skip empty frames.
+						continue;
 					}
-					buffer.push(data.clone());
-					want -= cmp::max(want_this_read, 0);
-					if want == 0 {
-						break;
+					buffer.push(data.slice(..want_this_read));
+					want -= want_this_read;
+					if want_this_read < data.len() {
+						overflow = Some(data.slice(want_this_read..));
 					}
 				} else {
 					trailers = Some(frame.into_trailers().unwrap())
@@ -99,18 +152,27 @@ pub async fn inspect_body(body: &mut Body, limit: usize) -> anyhow::Result<Bytes
 		}
 	}
 
-	// Despite the name, 'copy_to_bytes' takes the data, not copies it.
-	// So we send a clone.
-	let mut blc = buffer.clone();
-	let ret = blc.copy_to_bytes(cmp::min(buffer.remaining(), limit));
-	let nb = PartiallyBufferedBody {
-		buffer,
-		trailers,
-		inner_eof,
-		inner: orig,
-	};
-	*body = Body::new(nb);
-	Ok(ret)
+	let total_len = buffer.remaining();
+	let bytes = buffer.copy_to_bytes(total_len);
+	if inner_eof {
+		Ok(InspectedBody {
+			bytes,
+			complete: true,
+			trailers,
+		})
+	} else {
+		*body = RawBody::new(PrefixBody {
+			prefix: Some(bytes.clone()),
+			overflow,
+			trailers,
+			inner: orig,
+		});
+		Ok(InspectedBody {
+			bytes,
+			complete: false,
+			trailers: None,
+		})
+	}
 }
 
 #[cfg(test)]
@@ -121,13 +183,10 @@ mod tests {
 	use http::HeaderMap;
 	use http_body::Body as _;
 
-	use super::*;
-	use crate::http::Body;
+	use crate::{Body, BodyInspection};
 
 	pub async fn read(body: Body) -> Bytes {
-		crate::http::read_body_with_limit(body, 1_097_152)
-			.await
-			.unwrap()
+		crate::read_body_with_limit(body, 1_097_152).await.unwrap()
 	}
 
 	// -----------------------------------------------------------------
@@ -136,7 +195,9 @@ mod tests {
 	#[tokio::test]
 	async fn inspect_empty_body() {
 		let mut original = Body::empty();
-		let inspected = inspect_body(&mut original, 100).await.unwrap();
+		let BodyInspection::Complete(inspected) = original.inspect(100).await.unwrap() else {
+			panic!("expected complete inspection");
+		};
 
 		assert!(inspected.is_empty());
 		assert!(read(original).await.is_empty());
@@ -145,10 +206,12 @@ mod tests {
 	#[tokio::test]
 	async fn inspect_short_body() {
 		let payload = b"hello world";
-		let mut original = Body::from(payload.as_slice());
+		let mut original = Body::from(Bytes::from_static(payload));
 		let hint = original.size_hint();
 
-		let inspected = inspect_body(&mut original, 100).await.unwrap();
+		let BodyInspection::Complete(inspected) = original.inspect(100).await.unwrap() else {
+			panic!("expected complete inspection");
+		};
 
 		assert_eq!(inspected, Bytes::from_static(payload));
 		assert_eq!(hint.lower(), original.size_hint().lower());
@@ -171,7 +234,9 @@ mod tests {
 		});
 		let mut original = Body::new(http_body_util::StreamBody::new(stream));
 
-		let inspected = inspect_body(&mut original, 100).await.unwrap();
+		let BodyInspection::Complete(inspected) = original.inspect(100).await.unwrap() else {
+			panic!("expected complete inspection");
+		};
 
 		assert_eq!(inspected, Bytes::from_static(b"hello"));
 		assert_eq!(read(original).await, Bytes::from_static(b"hello"));
@@ -184,7 +249,9 @@ mod tests {
 		let mut original = Body::from(payload.clone());
 
 		let hint = original.size_hint();
-		let inspected = inspect_body(&mut original, 99).await.unwrap();
+		let BodyInspection::Partial(inspected) = original.inspect(99).await.unwrap() else {
+			panic!("expected partial inspection");
+		};
 		assert_eq!(hint.lower(), original.size_hint().lower());
 		assert_eq!(hint.upper(), original.size_hint().upper());
 
@@ -204,15 +271,15 @@ mod tests {
 			.chain(std::iter::once(Ok::<_, std::io::Error>(
 				http_body::Frame::trailers(trailers.clone()),
 			)));
-		let mut original = crate::http::Body::new(http_body_util::StreamBody::new(
+		let mut original = crate::Body::new(http_body_util::StreamBody::new(
 			futures_util::stream::iter(frames),
 		));
 
-		let hint = original.size_hint();
-		let inspected = inspect_body(&mut original, 99).await.unwrap();
-		// Here we intentionally change the hint, since we have some more info
-		assert_eq!(10, original.size_hint().lower());
-		assert_eq!(hint.upper(), original.size_hint().upper());
+		let BodyInspection::Complete(inspected) = original.inspect(99).await.unwrap() else {
+			panic!("expected complete inspection");
+		};
+		// Exact length would select Content-Length framing and lose HTTP/1 trailers.
+		assert_eq!(None, original.size_hint().exact());
 
 		assert_eq!(inspected, payload);
 
@@ -233,14 +300,16 @@ mod tests {
 			.chain(std::iter::once(Ok::<_, std::io::Error>(
 				http_body::Frame::trailers(trailers.clone()),
 			)));
-		let mut original = crate::http::Body::new(http_body_util::StreamBody::new(
+		let mut original = crate::Body::new(http_body_util::StreamBody::new(
 			futures_util::stream::iter(frames),
 		));
 
 		let hint = original.size_hint();
-		let inspected = inspect_body(&mut original, 99).await.unwrap();
-		// Here we intentionally change the hint, since we have some more info
-		assert_eq!(99, original.size_hint().lower());
+		let BodyInspection::Partial(inspected) = original.inspect(99).await.unwrap() else {
+			panic!("expected partial inspection");
+		};
+		// The replayable stream includes the extra byte read to establish overflow.
+		assert_eq!(100, original.size_hint().lower());
 		assert_eq!(hint.upper(), original.size_hint().upper());
 
 		assert_eq!(inspected, payload.slice(0..99));

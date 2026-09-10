@@ -1,10 +1,10 @@
 use agent_core::strng::Strng;
-use http::{Uri, header};
+use http::Uri;
 use serde::Deserialize;
 use serde_json::Value;
 use tracing::{debug, warn};
 
-use crate::http::{Body, BodyInspection, Request, Response, filters};
+use crate::http::{Body, BodyInspection, Request, Response, ResponseBodyExt, filters};
 use crate::json;
 use crate::types::agent::A2aPolicy;
 
@@ -167,11 +167,13 @@ pub async fn apply_to_response(
 			// For agent card, we need to mutate the request to insert the proper URL to reach it
 			// through the gateway.
 			let buffer_limit = crate::http::response_buffer_limit(resp);
-			let body = std::mem::replace(resp.body_mut(), Body::empty());
-			let body = rewrite_agent_card(body, buffer_limit, uri, backend_path, rewrite).await?;
-
-			resp.headers_mut().remove(header::CONTENT_LENGTH);
-			*resp.body_mut() = Body::from(body);
+			resp
+				.try_modify_body(|body| async move {
+					rewrite_agent_card(body, buffer_limit, uri, backend_path, rewrite)
+						.await
+						.map(Into::into)
+				})
+				.await?;
 			Ok(None)
 		},
 		RequestType::Call(_) => Ok(inspect_call_response(resp).await),

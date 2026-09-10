@@ -8,7 +8,6 @@ use std::time::Instant;
 use agent_core::drain::{DrainTrigger, DrainWatcher};
 use agent_core::strng::Strng;
 use agent_core::{drain, metrics, strng};
-use axum::body::to_bytes;
 use bytes::Bytes;
 use http::{HeaderMap, HeaderName, HeaderValue, Method, Uri};
 use hyper_util::client::legacy::Client;
@@ -25,8 +24,8 @@ use tracing::{info, trace};
 use wiremock::tls_certs::MockTlsCertificates;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+use crate::http::Response;
 use crate::http::backendtls::BackendTLS;
-use crate::http::{Body, Response};
 use crate::llm::{AIBackend, AIProvider, NamedAIProvider, catalog};
 use crate::mcp::FailureMode;
 use crate::proxy::Gateway;
@@ -47,6 +46,7 @@ use crate::types::loadbalancer::EndpointSet;
 use crate::types::local::LocalNamedAIProvider;
 use crate::types::{frontend, local};
 use crate::{ProxyInputs, client, mcp};
+use agent_http::Body;
 
 // Copied from examples/mcp-tls/certs/ca-cert.pem.
 const MOCK_TLS_CA_CERT: &[u8] = b"-----BEGIN CERTIFICATE-----\n\
@@ -1477,11 +1477,11 @@ pub fn setup_proxy_test_with_config_and_spiffe(
 	}
 }
 
-pub async fn read_body_raw(body: axum_core::body::Body) -> Bytes {
-	to_bytes(body, 2_097_152).await.unwrap()
+pub async fn read_body_raw(body: impl Into<crate::http::Body>) -> Bytes {
+	body.into().into_bytes(2_097_152).await.unwrap()
 }
 
-pub async fn read_body(body: axum_core::body::Body) -> RequestDump {
+pub async fn read_body(body: impl Into<crate::http::Body>) -> RequestDump {
 	let b = read_body_raw(body).await;
 	serde_json::from_slice(&b).unwrap()
 }

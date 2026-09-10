@@ -1168,8 +1168,7 @@ impl ExtProcInstance {
 						if let Some(original_body) =
 							BufferedBodyPhase::take_deferred_body(&mut pending_buffered_body)
 						{
-							let (parts, _) = req.into_parts();
-							let req = http::Request::from_parts(parts, original_body);
+							req.body_mut().restore_content(original_body);
 							debug_assert_preserved_request_body(
 								&req,
 								had_body,
@@ -1256,11 +1255,15 @@ impl ExtProcInstance {
 						}
 					});
 				}
-				if request_fsm.expect_body_response
-					&& (request_fsm
-						.body_path
-						.removes_content_length(send_request_headers)
-						|| step.streamed_body_mutation)
+				// Channel-backed output has no exact end-of-stream hint. Content-Length
+				// would let Hyper stop before polling its EOF (including for an empty body),
+				// leaving output recording incomplete. Let Hyper frame the stream instead.
+				if req.body().size_hint().exact().is_none()
+					|| request_fsm.expect_body_response
+						&& (request_fsm
+							.body_path
+							.removes_content_length(send_request_headers)
+							|| step.streamed_body_mutation)
 				{
 					req.headers_mut().remove(http::header::CONTENT_LENGTH);
 				}
@@ -1517,12 +1520,14 @@ impl ExtProcInstance {
 		}
 
 		let tx = self.tx_req.clone();
-		let mut pending_response_body = Some(body);
+		let mut managed_body = body;
+		let mut pending_response_body = Some(managed_body.take_content());
 		let mut pending_response_buffer = None;
 		// Now we need to build the new body. This is going to be streamed in from the ext_proc server.
 		let (mut tx_chunk, rx_chunk) = tokio::sync::mpsc::channel(1);
 		let body = http_body_util::StreamBody::new(ReceiverStream::new(rx_chunk));
-		let mut resp = http::Response::from_parts(parts, http::Body::new(body));
+		managed_body.replace_content(agent_http::RawBody::new(body).into());
+		let mut resp = http::Response::from_parts(parts, managed_body);
 
 		// FULL_DUPLEX_STREAMED sends response body chunks as they arrive. The ext_proc server may
 		// buffer the response headers and complete body before sending any response, so do not wait
@@ -1656,12 +1661,12 @@ impl ExtProcInstance {
 						if let Some(original_body) =
 							BufferedBodyPhase::take_deferred_body(&mut pending_response_buffer)
 						{
-							let (parts, _) = resp.into_parts();
-							return Ok((http::Response::from_parts(parts, original_body), None));
+							resp.body_mut().restore_content(original_body);
+							return Ok((resp, None));
 						}
 						if let Some(original_body) = pending_response_body.take() {
-							let (parts, _) = resp.into_parts();
-							return Ok((http::Response::from_parts(parts, original_body), None));
+							resp.body_mut().restore_content(original_body);
+							return Ok((resp, None));
 						}
 					},
 					_ => {},
@@ -1719,11 +1724,14 @@ impl ExtProcInstance {
 						send_response_headers,
 					));
 				}
-				if response_fsm.send_body
-					&& (response_fsm
-						.body_path
-						.removes_content_length(send_response_headers)
-						|| streamed_body_mutation)
+				// As on the request side, channel-backed output must be polled through EOF
+				// so successful delivery also completes the managed body's recording.
+				if resp.body().size_hint().exact().is_none()
+					|| response_fsm.send_body
+						&& (response_fsm
+							.body_path
+							.removes_content_length(send_response_headers)
+							|| streamed_body_mutation)
 				{
 					resp.headers_mut().remove(http::header::CONTENT_LENGTH);
 				}

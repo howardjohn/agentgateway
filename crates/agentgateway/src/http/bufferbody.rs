@@ -7,8 +7,8 @@ use http_body::{Body as HttpBody, Frame, SizeHint};
 use parking_lot::Mutex;
 use pin_project_lite::pin_project;
 
-use crate::http::buflist::BufList;
 use crate::*;
+use agent_http::BufList;
 
 #[cfg(test)]
 #[path = "bufferbody_tests.rs"]

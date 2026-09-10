@@ -742,7 +742,7 @@ impl Client {
 			);
 			let buffer_limit = http::buffer_limit(&req);
 			let to = req.extensions().get::<BackendRequestTimeout>().cloned();
-			let call = client.request(req);
+			let call = client.request(req.map(http::Body::into_boxed));
 			let map_error = |err: agent_pool::Error| {
 				if err.is_connect_timeout() {
 					ProxyError::UpstreamCallTimeout
@@ -795,7 +795,7 @@ impl Client {
 				.extensions_mut()
 				.insert(transport::BufferLimit::new(buffer_limit));
 			resp.extensions_mut().insert(ResolvedDestination(dest));
-			Ok(resp)
+			Ok(resp.map(http::Body::new))
 		}
 	}
 }

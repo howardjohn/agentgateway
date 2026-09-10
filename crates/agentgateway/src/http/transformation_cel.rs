@@ -359,7 +359,8 @@ impl Transformation {
 		if let Some(b) = &cfg.body {
 			// If it fails, set an empty body
 			let b = eval_body(&r, b, request).unwrap_or_default();
-			r.replace_body_bytes(b);
+			r.body().replace_bytes(b);
+			r.headers().remove(::http::header::CONTENT_LENGTH);
 		}
 	}
 

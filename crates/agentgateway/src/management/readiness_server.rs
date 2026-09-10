@@ -11,7 +11,7 @@ use itertools::Itertools;
 
 use super::hyper_helpers;
 use crate::Address;
-use crate::http::Response;
+use agent_http::Response;
 
 struct State {
 	ready: readiness::Ready,
