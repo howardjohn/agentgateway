@@ -42,7 +42,7 @@ fn reasoning_fields(
 	} else if target_model.contains("openai.") {
 		effort.map(|effort| serde_json::json!({ "reasoning": { "effort": effort } }))
 	} else if target_model.contains("amazon.nova-2-") {
-		match effort {
+		match effort.filter(|effort| effort.as_str() != Some("none")) {
 			Some(effort) => {
 				if !matches!(effort.as_str(), Some("low" | "medium" | "high")) {
 					return Err(AIError::UnsupportedConversion(strng::literal!(
