@@ -80,7 +80,7 @@ info:
             "type": "function",
             "id": "call_1",
             "function": {
-              "name": "js",
+              "name": "mcp__node_repl__js",
               "arguments": "{\"code\":\"1 + 1\"}"
             }
           }
@@ -98,7 +98,7 @@ info:
             "type": "function",
             "id": "call_2",
             "function": {
-              "name": "js",
+              "name": "other_kernel__js",
               "arguments": "{\"code\":\"2 + 2\"}"
             }
           }
@@ -114,6 +114,46 @@ info:
     "max_completion_tokens": 1024,
     "stream": false,
     "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "mcp__node_repl__js",
+          "description": "Run JavaScript in the persistent Node kernel.\n\nRun JavaScript.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          },
+          "strict": false
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "other_kernel__js",
+          "description": "Run JavaScript in another kernel.\n\nRun JavaScript.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          },
+          "strict": false
+        }
+      },
       {
         "type": "function",
         "function": {

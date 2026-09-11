@@ -83,7 +83,7 @@ info:
           {
             "toolUse": {
               "toolUseId": "call_1",
-              "name": "js",
+              "name": "mcp__node_repl__js",
               "input": {
                 "code": "1 + 1"
               }
@@ -113,7 +113,7 @@ info:
           {
             "toolUse": {
               "toolUseId": "call_2",
-              "name": "js",
+              "name": "other_kernel__js",
               "input": {
                 "code": "2 + 2"
               }
@@ -143,6 +143,46 @@ info:
     },
     "toolConfig": {
       "tools": [
+        {
+          "toolSpec": {
+            "name": "mcp__node_repl__js",
+            "description": "Run JavaScript in the persistent Node kernel.\n\nRun JavaScript.",
+            "inputSchema": {
+              "json": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "toolSpec": {
+            "name": "other_kernel__js",
+            "description": "Run JavaScript in another kernel.\n\nRun JavaScript.",
+            "inputSchema": {
+              "json": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         {
           "toolSpec": {
             "name": "finish",
