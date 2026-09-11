@@ -1,6 +1,6 @@
 ---
 source: crates/llm/src/golden_tests.rs
-description: src/tests/response/bedrock/reasoning_unsigned.json
+description: src/tests/response/bedrock/reasoning_redacted.json
 info:
   output:
     message:
@@ -9,6 +9,9 @@ info:
         - reasoningContent:
             reasoningText:
               text: Two plus two is four.
+              signature: SIG-xyz==
+        - reasoningContent:
+            redactedContent: cnNuX2pRenlYWklGSkxscEt5ZmxZa0NmdndJRmVMVjVaYkRXWDRo
         - text: The answer is 4.
   stopReason: end_turn
   usage:
@@ -33,6 +36,13 @@ info:
             "text": "Two plus two is four."
           }
         ],
+        "status": "completed"
+      },
+      {
+        "type": "reasoning",
+        "id": "[id]",
+        "summary": [],
+        "encrypted_content": "cnNuX2pRenlYWklGSkxscEt5ZmxZa0NmdndJRmVMVjVaYkRXWDRo",
         "status": "completed"
       },
       {
