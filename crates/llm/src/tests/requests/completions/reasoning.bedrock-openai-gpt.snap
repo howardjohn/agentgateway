@@ -24,7 +24,9 @@ info:
       "maxTokens": 4096
     },
     "additionalModelRequestFields": {
-      "reasoning_effort": "medium"
+      "reasoning": {
+        "effort": "medium"
+      }
     }
   },
   "parsed": {

@@ -32,6 +32,7 @@ fn snapshot_path_and_name(relative_path: &str, provider: &str) -> (String, Strin
 const ANTHROPIC: &str = "anthropic";
 const BEDROCK: &str = "bedrock";
 const BEDROCK_OPENAI: &str = "bedrock-openai";
+const BEDROCK_OPENAI_GPT: &str = "bedrock-openai-gpt";
 const VERTEX: &str = "vertex";
 const OPENAI: &str = "openai";
 const GEMINI: &str = "gemini";
@@ -66,7 +67,9 @@ mod requests {
 			.to_llm_request(
 				strng::new(match provider {
 					COMPLETIONS => OPENAI,
-					BEDROCK_TITAN | BEDROCK_COHERE | BEDROCK_NOVA | BEDROCK_OPENAI => BEDROCK,
+					BEDROCK_TITAN | BEDROCK_COHERE | BEDROCK_NOVA | BEDROCK_OPENAI | BEDROCK_OPENAI_GPT => {
+						BEDROCK
+					},
 					VERTEX_GEMINI => VERTEX,
 					provider => provider,
 				}),
@@ -273,17 +276,25 @@ mod requests {
 	}
 
 	#[test]
-	fn from_completions_bedrock_openai_reasoning() {
-		let bedrock = bedrock::Provider {
-			model: Some(strng::new("openai.gpt-oss-120b-1:0")),
-			region: strng::new("us-west-2"),
-			guardrail_identifier: None,
-			guardrail_version: None,
-		};
-		test_request(BEDROCK_OPENAI, "requests/completions/reasoning.json", |i| {
-			conversion::bedrock::from_completions::translate(i, &bedrock, None, None, None)
-				.map(|r| r.body)
-		});
+	fn from_completions_bedrock_reasoning() {
+		for (model, provider) in [
+			("openai.gpt-oss-120b-1:0", BEDROCK_OPENAI),
+			("us.openai.gpt-5.6-luna", BEDROCK_OPENAI_GPT),
+			("us.openai.gpt-5.6-sol", BEDROCK_OPENAI_GPT),
+			("deepseek.v3.2", BEDROCK_OPENAI),
+			("us.amazon.nova-2-lite-v1:0", BEDROCK_NOVA),
+		] {
+			let bedrock = bedrock::Provider {
+				model: Some(strng::new(model)),
+				region: strng::new("us-west-2"),
+				guardrail_identifier: None,
+				guardrail_version: None,
+			};
+			test_request(provider, "requests/completions/reasoning.json", |i| {
+				conversion::bedrock::from_completions::translate(i, &bedrock, None, None, None)
+					.map(|r| r.body)
+			});
+		}
 	}
 
 	#[test]

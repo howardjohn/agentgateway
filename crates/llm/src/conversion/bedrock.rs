@@ -24,6 +24,48 @@ pub struct BedrockRequest {
 	pub tool_name_map: BedrockToolNameMap,
 }
 
+fn reasoning_fields(
+	model: &str,
+	provider: &crate::bedrock::Provider,
+	catalog: crate::model_catalog::Catalog<'_>,
+	explicit_budget: Option<u64>,
+	effort: Option<serde_json::Value>,
+	anthropic_effort: Option<messages::typed::ThinkingEffort>,
+) -> Result<(Option<serde_json::Value>, bool), AIError> {
+	let target_model = provider
+		.model
+		.as_deref()
+		.unwrap_or(model)
+		.to_ascii_lowercase();
+	let fields = if target_model.contains("gpt-oss") || target_model.contains("deepseek") {
+		effort.map(|effort| serde_json::json!({ "reasoning_effort": effort }))
+	} else if target_model.contains("openai.") {
+		effort.map(|effort| serde_json::json!({ "reasoning": { "effort": effort } }))
+	} else if target_model.contains("amazon.nova-2-") {
+		match effort {
+			Some(effort) => {
+				if !matches!(effort.as_str(), Some("low" | "medium" | "high")) {
+					return Err(AIError::UnsupportedConversion(strng::literal!(
+						"Nova 2 reasoning_effort must be low, medium, or high"
+					)));
+				}
+				Some(
+					serde_json::json!({ "reasoningConfig": { "type": "enabled", "maxReasoningEffort": effort } }),
+				)
+			},
+			None => None,
+		}
+	} else {
+		return Ok(anthropic_reasoning_fields(
+			model,
+			catalog,
+			explicit_budget,
+			anthropic_effort,
+		));
+	};
+	Ok((fields, false))
+}
+
 fn anthropic_reasoning_fields(
 	model: &str,
 	catalog: crate::model_catalog::Catalog<'_>,
@@ -1006,12 +1048,17 @@ pub mod from_completions {
 			.reasoning_effort
 			.as_ref()
 			.and_then(crate::types::anthropic_effort_for_reasoning_effort);
-		let (mut additional_model_request_fields, manual_thinking) = super::anthropic_reasoning_fields(
+		let (mut additional_model_request_fields, manual_thinking) = super::reasoning_fields(
 			&model_id,
+			provider,
 			catalog,
 			req.vendor_extensions.thinking_budget_tokens,
+			req
+				.reasoning_effort
+				.as_ref()
+				.map(|effort| serde_json::json!(effort)),
 			effort,
-		);
+		)?;
 		// Anthropic manual thinking is incompatible with custom sampling parameters.
 		if !manual_thinking && let Some(top_k) = top_k {
 			additional_model_request_fields
@@ -2925,8 +2972,18 @@ pub mod from_responses {
 				ReasoningEffort::Max => Some(ThinkingEffort::Max),
 			}
 		});
-		let (additional_model_request_fields, _) =
-			super::anthropic_reasoning_fields(&model_id, catalog, explicit_thinking_budget, effort);
+		let (additional_model_request_fields, _) = super::reasoning_fields(
+			&model_id,
+			provider,
+			catalog,
+			explicit_thinking_budget,
+			req
+				.reasoning
+				.as_ref()
+				.and_then(|r| r.effort.as_ref())
+				.map(|effort| serde_json::json!(effort)),
+			effort,
+		)?;
 
 		let tool_config = if !tools.is_empty() {
 			Some(bedrock::ToolConfiguration { tools, tool_choice })
