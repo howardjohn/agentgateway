@@ -3161,7 +3161,9 @@ pub mod from_responses {
 		let mut pending_stop_reason: Option<bedrock::StopReason> = None;
 		let mut pending_usage: Option<bedrock::TokenUsage> = None;
 		let mut seen_blocks: HashSet<i32> = HashSet::new();
-		let mut completion = log_content.completion.then(String::new);
+		// Terminal events must carry the full output even when content logging is disabled.
+		let mut text = String::new();
+		let mut completed_tools: Vec<(u32, OutputItem)> = Vec::new();
 		let mut logged_tool_calls =
 			crate::conversion::messages::StreamingToolCalls::new(log_content.tool_calls);
 
@@ -3314,10 +3316,8 @@ pub mod from_responses {
 
 					if let Some(d) = delta.delta {
 						match d {
-							bedrock::ContentBlockDelta::Text(text) => {
-								if let Some(completion) = completion.as_mut() {
-									completion.push_str(&text);
-								}
+							bedrock::ContentBlockDelta::Text(delta) => {
+								text.push_str(&delta);
 								sequence_number += 1;
 								let delta_event =
 									ResponseStreamEvent::ResponseOutputTextDelta(ResponseTextDeltaEvent {
@@ -3325,7 +3325,7 @@ pub mod from_responses {
 										item_id: message_item_id.clone(),
 										output_index: 0,
 										content_index: 0,
-										delta: text,
+										delta,
 										logprobs: None,
 									});
 								out.push(("event", delta_event));
@@ -3402,21 +3402,23 @@ pub mod from_responses {
 						);
 						events.push(("event", args_done_event));
 
+						let item = OutputItem::FunctionCall(FunctionToolCall {
+							arguments: buffer,
+							call_id: item_id.clone(),
+							namespace: None,
+							name,
+							caller: None,
+							id: Some(item_id),
+							status: Some(OutputStatus::Completed),
+							r#async: None,
+						});
+						completed_tools.push((output_index, item.clone()));
 						sequence_number += 1;
 						let item_done_event =
 							ResponseStreamEvent::ResponseOutputItemDone(ResponseOutputItemDoneEvent {
 								sequence_number,
 								output_index,
-								item: OutputItem::FunctionCall(FunctionToolCall {
-									arguments: buffer,
-									call_id: item_id.clone(),
-									namespace: None,
-									name,
-									caller: None,
-									id: Some(item_id),
-									status: Some(OutputStatus::Completed),
-									r#async: None,
-								}),
+								item,
 							});
 						events.push(("event", item_done_event));
 					} else if was_tracked {
@@ -3427,7 +3429,7 @@ pub mod from_responses {
 								item_id: message_item_id.clone(),
 								output_index: 0,
 								content_index: 0,
-								part: make_output_part(String::new()),
+								part: make_output_part(text.clone()),
 							});
 						events.push(("event", part_done_event));
 					}
@@ -3459,19 +3461,38 @@ pub mod from_responses {
 						.map(responses_output_status)
 						.unwrap_or(OutputStatus::Completed);
 
+					let content = if text.is_empty() {
+						vec![]
+					} else {
+						vec![responses::OutputMessageContent::OutputText(
+							OutputTextContent {
+								annotations: vec![],
+								logprobs: None,
+								text: text.clone(),
+							},
+						)]
+					};
+
+					let item = OutputItem::Message(OutputMessage {
+						content,
+						id: message_item_id.clone(),
+						role: AssistantRole::Assistant,
+						phase: None,
+						status: output_status,
+					});
+					let mut output = Vec::new();
+					if !text.is_empty() {
+						output.push(item.clone());
+					}
 					sequence_number += 1;
 					let message_done_event =
 						ResponseStreamEvent::ResponseOutputItemDone(ResponseOutputItemDoneEvent {
 							sequence_number,
 							output_index: 0,
-							item: OutputItem::Message(OutputMessage {
-								content: Vec::new(),
-								id: message_item_id.clone(),
-								role: AssistantRole::Assistant,
-								phase: None,
-								status: output_status,
-							}),
+							item,
 						});
+					completed_tools.sort_by_key(|(index, _)| *index);
+					output.extend(completed_tools.drain(..).map(|(_, item)| item));
 					out.push(("event", message_done_event));
 
 					let response_status = match stop.as_ref() {
@@ -3486,9 +3507,7 @@ pub mod from_responses {
 					};
 					let finish_reason = crate::types::serialize_str(&response_status);
 					log.update(|r| {
-						if let Some(completion) = completion.take() {
-							r.response.completion = Some(vec![completion]);
-						}
+						r.response.completion = log_content.completion.then(|| vec![text.clone()]);
 						r.response.output_messages =
 							logged_tool_calls.take_output_messages(finish_reason.clone());
 					});
@@ -3507,7 +3526,7 @@ pub mod from_responses {
 					});
 
 					sequence_number += 1;
-					let done_event = match stop {
+					let mut done_event = match stop {
 						Some(bedrock::StopReason::EndTurn) | Some(bedrock::StopReason::StopSequence) | None => {
 							response_builder.completed_event(sequence_number, usage_obj)
 						},
@@ -3533,6 +3552,13 @@ pub mod from_responses {
 							response_builder.completed_event(sequence_number, usage_obj)
 						},
 					};
+
+					match &mut done_event {
+						ResponseStreamEvent::ResponseCompleted(event) => event.response.output = output,
+						ResponseStreamEvent::ResponseIncomplete(event) => event.response.output = output,
+						ResponseStreamEvent::ResponseFailed(event) => event.response.output = output,
+						_ => {},
+					}
 
 					out.push(("event", done_event));
 					out
