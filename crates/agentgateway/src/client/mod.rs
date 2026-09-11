@@ -742,7 +742,10 @@ impl Client {
 			);
 			let buffer_limit = http::buffer_limit(&req);
 			let to = req.extensions().get::<BackendRequestTimeout>().cloned();
+
+			// We are leaving agentgateway code so no longer need our specialized body; Boxing is fine here.
 			let call = client.request(req.map(http::Body::into_boxed));
+
 			let map_error = |err: agent_pool::Error| {
 				if err.is_connect_timeout() {
 					ProxyError::UpstreamCallTimeout

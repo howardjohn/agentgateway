@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 use std::fmt;
 
+use agent_http::Body;
 use http::header::{Entry, OccupiedEntry};
 use http::request::Parts;
 use http::{Extensions, Request as HttpRequest, Version};
@@ -11,7 +12,6 @@ use url::Url;
 
 use crate::http::header::{CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
 use crate::http::{Method, Response};
-use agent_http::Body;
 
 /// A request which can be executed with `Client::execute()`.
 pub struct Request {

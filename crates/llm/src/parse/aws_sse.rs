@@ -177,6 +177,7 @@ pub fn transform_multi<O: Serialize>(
 }
 
 pub fn inspect(b: Body, buffer_limit: usize, mut f: impl FnMut(Message) + Send + 'static) -> Body {
+	// Safety: each original data chunk is returned unchanged and  in order.
 	b.dangerous_wrap_stream_preserving_content(|b| {
 		let mut decoder = EventStreamCodec::with_max_size(buffer_limit);
 		let mut decode_buffer = BytesMut::new();

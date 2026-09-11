@@ -8,6 +8,7 @@ use std::time::Instant;
 use agent_core::drain::{DrainTrigger, DrainWatcher};
 use agent_core::strng::Strng;
 use agent_core::{drain, metrics, strng};
+use agent_http::Body;
 use bytes::Bytes;
 use http::{HeaderMap, HeaderName, HeaderValue, Method, Uri};
 use hyper_util::client::legacy::Client;
@@ -46,7 +47,6 @@ use crate::types::loadbalancer::EndpointSet;
 use crate::types::local::LocalNamedAIProvider;
 use crate::types::{frontend, local};
 use crate::{ProxyInputs, client, mcp};
-use agent_http::Body;
 
 // Copied from examples/mcp-tls/certs/ca-cert.pem.
 const MOCK_TLS_CA_CERT: &[u8] = b"-----BEGIN CERTIFICATE-----\n\

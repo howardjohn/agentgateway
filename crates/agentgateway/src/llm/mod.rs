@@ -854,6 +854,8 @@ enum PreparedRequest {
 struct BufferedResponse {
 	parts: ::http::response::Parts,
 	bytes: Bytes,
+	// Original body owner with its content extracted into `bytes` (and decoded).
+	// Retains body metadata while we translate the response which we install the content back into.
 	managed_body: Body,
 }
 

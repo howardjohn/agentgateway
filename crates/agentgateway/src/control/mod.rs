@@ -290,6 +290,7 @@ impl agent_xds::ClientTrait for GrpcChannel {
 		Box::pin(async move {
 			tower::Service::call(&mut this, req)
 				.await
+				// We are leaving agentgateway code so no longer need our specialized body; Boxing is fine here.
 				.map(|resp| resp.map(http::Body::into_boxed))
 		})
 	}

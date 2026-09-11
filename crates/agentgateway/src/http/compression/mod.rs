@@ -114,10 +114,9 @@ fn detect_encoding(ce: &ContentEncoding) -> EncodingDecision {
 /// If encoding is None or identity, returns the body unchanged.
 /// If encoding is unsupported or multi-encoded, returns an error.
 pub fn decompress_body(
-	body: impl Into<crate::http::Body>,
+	mut body: crate::http::Body,
 	encoding: Option<&ContentEncoding>,
 ) -> Result<(crate::http::Body, Option<&'static str>), Error> {
-	let mut body = body.into();
 	match encoding {
 		None => Ok((body, None)),
 		Some(ce) => match detect_encoding(ce) {
@@ -155,11 +154,10 @@ where
 }
 
 pub async fn to_bytes_with_decompression(
-	body: impl Into<crate::http::Body>,
+	body: crate::http::Body,
 	encoding: Option<&ContentEncoding>,
 	limit: usize,
 ) -> Result<(Option<&'static str>, Bytes), Error> {
-	let body = body.into();
 	match encoding {
 		None => {
 			// No encoding - use optimized direct body read

@@ -10,8 +10,11 @@ use pin_project_lite::pin_project;
 use crate::{BufList, RawBody};
 
 pin_project! {
+	// Replays everything consumed from `inner` before resuming it.
 	struct PrefixBody {
+		// Initial prefix (as returned to the inspection)
 		prefix: Option<Bytes>,
+		// Extra prefix we read but didn't return to the inspection.
 		overflow: Option<Bytes>,
 		trailers: Option<HeaderMap>,
 		#[pin]
@@ -57,6 +60,8 @@ impl http_body::Body for PrefixBody {
 	/// will equal the lower bound.
 	fn size_hint(&self) -> SizeHint {
 		if self.trailers.is_some() {
+			// An exact hint can select HTTP/1 Content-Length framing, which cannot
+			// carry trailers. Do not hide pending trailers behind an exact length.
 			return SizeHint::default();
 		}
 		let rem =
@@ -77,11 +82,11 @@ pub struct InspectedBody {
 	pub trailers: Option<HeaderMap>,
 }
 
-// Installed before inspection takes ownership of the stream. If reading fails or
-// is cancelled, later consumers must fail too, not observe a successful empty body.
-struct FailedInspection;
+// Installed before an operation takes ownership of the content. On failure or
+// cancellation, later consumers must fail too, not observe a successful empty body.
+pub(crate) struct FailedBody(pub &'static str);
 
-impl http_body::Body for FailedInspection {
+impl http_body::Body for FailedBody {
 	type Data = Bytes;
 	type Error = std::io::Error;
 
@@ -89,18 +94,26 @@ impl http_body::Body for FailedInspection {
 		self: Pin<&mut Self>,
 		_cx: &mut Context<'_>,
 	) -> Poll<Option<Result<Frame<Bytes>, Self::Error>>> {
-		Poll::Ready(Some(Err(std::io::Error::other(
-			"body inspection failed or was cancelled",
-		))))
+		Poll::Ready(Some(Err(std::io::Error::other(self.0))))
 	}
 }
 
+/// Read up to `limit` bytes without losing them from subsequent delivery.
+/// `Body::inspect` supplies its caller's limit + 1 to distinguish an exact fit
+/// from an oversized body; this helper's limit is the actual read budget.
+///
+/// On partial reads, `body` becomes prefix + overflow + remaining stream. On EOF,
+/// the caller must install the returned bytes/trailers as a buffered representation;
+/// `body` still contains the failure placeholder.
 pub async fn inspect_body(
 	body: &mut RawBody,
 	limit: usize,
 	mut idle_timeout: Option<&mut crate::idle_timeout::IdleTimeout>,
 ) -> anyhow::Result<InspectedBody> {
-	let mut orig = std::mem::replace(body, RawBody::new(FailedInspection));
+	let mut orig = std::mem::replace(
+		body,
+		RawBody::new(FailedBody("body inspection failed or was cancelled")),
+	);
 	let mut buffer = BufList::default();
 	let mut trailers = None;
 	let mut inner_eof = false;
@@ -108,6 +121,8 @@ pub async fn inspect_body(
 	let mut want = limit;
 	loop {
 		if want == 0 {
+			// Do not wait for EOF after exhausting the budget. Even if the last
+			// frame exactly filled it, completion has not yet been established.
 			break;
 		}
 		let frame = std::future::poll_fn(|cx| {
@@ -130,7 +145,8 @@ pub async fn inspect_body(
 				if let Some(data) = frame.data_ref() {
 					let want_this_read = cmp::min(data.len(), want);
 					if want_this_read == 0 {
-						// Skip empty frames.
+						// Empty frames count as timeout progress above, but use no byte
+						// budget. Continue until data, EOF, an error, or an idle timeout.
 						continue;
 					}
 					buffer.push(data.slice(..want_this_read));
@@ -153,6 +169,8 @@ pub async fn inspect_body(
 	}
 
 	let total_len = buffer.remaining();
+	// CEL/parsers need contiguous bytes. Keep chunks while reading, then coalesce
+	// once and share that allocation with the replay prefix when not at EOF.
 	let bytes = buffer.copy_to_bytes(total_len);
 	if inner_eof {
 		Ok(InspectedBody {

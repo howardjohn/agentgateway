@@ -12,6 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use agent_core::drain::DrainWatcher;
+use agent_http::{Body, Response};
 use futures_util::{StreamExt, TryFutureExt};
 use hyper::Request;
 use hyper::server::conn::http1;
@@ -23,7 +24,6 @@ use tracing::info;
 
 use crate::transport::stream::Socket;
 use crate::types::frontend;
-use agent_http::{Body, Response};
 
 pub fn http1_server() -> http1::Builder {
 	let mut b = http1::Builder::new();

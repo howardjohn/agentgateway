@@ -34,8 +34,8 @@ pub mod transformation_cel;
 
 pub use agent_http::{
 	Body, BodyContent, BodyInspection, BufferLimit, Error, RawBody, RecordedBody, RecordedBodyHandle,
-	Request, Response, ResponseBodyExt, buffer_limit, read_body_with_limit, response_buffer_limit,
-	x_headers,
+	Request, RequestBodyExt, Response, ResponseBodyExt, buffer_limit, read_body_with_limit,
+	response_buffer_limit, x_headers,
 };
 
 pub(crate) fn mark_sensitive_headers(req: &mut Request, configured: &[HeaderName]) {
@@ -144,6 +144,13 @@ impl<'a> From<&'a mut Response> for RequestOrResponse<'a> {
 }
 
 impl RequestOrResponse<'_> {
+	pub fn replace_body_bytes(&mut self, bytes: Bytes) {
+		match self {
+			Self::Request(req) => req.replace_body_bytes(bytes),
+			Self::Response(resp) => resp.replace_body_bytes(bytes),
+		}
+	}
+
 	pub fn headers(&mut self) -> &mut http::HeaderMap {
 		match self {
 			RequestOrResponse::Request(r) => r.headers_mut(),

@@ -9,7 +9,7 @@ use rand::seq::IndexedRandom;
 use serde_json::Value;
 
 use crate::http::transformation_cel::TransformationMetadata;
-use crate::http::{self, Request, Response};
+use crate::http::{self, Request, RequestBodyExt, Response};
 use crate::types::agent::{
 	Authorization, BackendTrafficPolicy, HeaderMatch, RouteBackendReference,
 };
@@ -579,8 +579,7 @@ fn rewrite_body_model(req: &mut Request, mut body: Value, target: &str) -> Route
 			"request_body_rewrite_failed",
 		))
 	})?;
-	req.body_mut().replace_bytes(body.into());
-	req.headers_mut().remove(::http::header::CONTENT_LENGTH);
+	req.replace_body_bytes(body.into());
 	Ok(())
 }
 
@@ -694,8 +693,7 @@ pub(crate) async fn rewrite_multipart_request_model(
 	let Some(body) = rewrite_multipart_body_model(&body, &boundary, target).await? else {
 		return Ok(());
 	};
-	req.body_mut().replace_bytes(body);
-	req.headers_mut().remove(::http::header::CONTENT_LENGTH);
+	req.replace_body_bytes(body);
 	req.headers_mut().remove(::http::header::TRANSFER_ENCODING);
 	Ok(())
 }

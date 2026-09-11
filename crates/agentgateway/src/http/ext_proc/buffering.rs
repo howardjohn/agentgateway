@@ -2,6 +2,7 @@ use std::convert::Infallible;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use agent_http::BufList;
 use bytes::{Buf, Bytes};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
@@ -11,7 +12,6 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use super::{BodySendMode, Error};
 use crate::http::{self, bufferbody};
-use agent_http::BufList;
 
 pub(super) enum BufferedBodyPhase {
 	Deferred {

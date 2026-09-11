@@ -1144,32 +1144,9 @@ impl<'a> From<&'a RequestSnapshot> for RequestRef<'a> {
 		}
 	}
 }
-impl<'a> From<&'a crate::http::Request> for RequestRef<'a> {
-	fn from(req: &'a crate::http::Request) -> Self {
-		Self {
-			method: req.method(),
-			uri: query::QueryAccessor::uri_from_uri(req.uri()),
-			path: req.uri().path(),
-			path_and_query: query::QueryAccessor::path_and_query_from_uri(req.uri()),
-			host: req.uri().authority(),
-			scheme: req.uri().scheme(),
-			version: req.version(),
-			headers: Headers::new(req.headers()),
-			body: BodyView::managed(req.body()),
-			body_prefix: BodyPrefix(BodyView::managed(req.body())),
-			start_time: req.extensions().into(),
-			// Only known in snapshot phase...
-			end_time: None,
-		}
-	}
-}
 
-impl<'a> From<&'a ::http::Request<Option<Bytes>>> for RequestRef<'a> {
-	fn from(req: &'a ::http::Request<Option<Bytes>>) -> Self {
-		let body = BodyView {
-			inspection: req.body().clone().map(BodyInspection::Complete),
-			recorded: None,
-		};
+impl<'a> RequestRef<'a> {
+	fn from_request<B>(req: &'a ::http::Request<B>, body: BodyView<'a>) -> Self {
 		Self {
 			method: req.method(),
 			uri: query::QueryAccessor::uri_from_uri(req.uri()),
@@ -1185,6 +1162,22 @@ impl<'a> From<&'a ::http::Request<Option<Bytes>>> for RequestRef<'a> {
 			// Only known in snapshot phase...
 			end_time: None,
 		}
+	}
+}
+
+impl<'a> From<&'a crate::http::Request> for RequestRef<'a> {
+	fn from(req: &'a crate::http::Request) -> Self {
+		Self::from_request(req, BodyView::managed(req.body()))
+	}
+}
+
+impl<'a> From<&'a ::http::Request<Option<Bytes>>> for RequestRef<'a> {
+	fn from(req: &'a ::http::Request<Option<Bytes>>) -> Self {
+		let body = BodyView {
+			inspection: req.body().clone().map(BodyInspection::Complete),
+			recorded: None,
+		};
+		Self::from_request(req, body)
 	}
 }
 
@@ -1266,10 +1259,24 @@ impl DynamicType for BufferedBody {
 	}
 }
 
+/// CEL's body view combines two independent sources, not mutually exclusive variants:
+/// inspection captures content available at evaluation/snapshot time; recording observes
+/// bytes subsequently delivered and is exposed only to access-log evaluation.
+///
+/// Both can be present: a policy may inspect only a prefix, then forwarding records
+/// the rest. The logger retains the inspection and adds the recording handle rather
+/// than replacing one with the other. Complete inspection wins; otherwise recording
+/// supplies `body` unless its limit was exceeded, and can always supply `body_prefix`.
+/// Recorded bytes may be partial if delivery stopped early; observing EOF is not
+/// required for logging (Hyper can stop polling after Content-Length bytes).
+/// A complete snapshot is not necessarily the final wire content if a
+/// later policy rewrites the body.
 #[derive(Debug, Clone, Default)]
 pub struct BodyView<'a> {
+	// An owned snapshot of inspected bytes; it does not grow as forwarding proceeds.
 	inspection: Option<BodyInspection>,
-	// Populated only by new_logger; policy evaluation sees inspection alone.
+	// A live handle to passive recording, populated only by new_logger. Policies
+	// must not depend on how much of the body happens to have been forwarded yet.
 	recorded: Option<&'a RecordedBodyHandle>,
 }
 
@@ -1288,7 +1295,7 @@ impl BodyView<'_> {
 		}
 		self
 			.recorded
-			.filter(|recorded| recorded.is_complete() && !recorded.exceeded_limit())
+			.filter(|recorded| !recorded.exceeded_limit())
 			.map(RecordedBodyHandle::bytes)
 	}
 

@@ -24,6 +24,8 @@ where
 	D::Error: Send + Into<axum_core::BoxError> + 'static,
 	F: FnMut(D::Item) + Send + 'static,
 {
+	// Safe: parsing consumes a separate copy of the data; original frames,
+	// including trailers, are forwarded unchanged and in order.
 	body.dangerous_wrap_stream_preserving_content(|body| {
 		AxumBody::new(PassthroughBody {
 			body,
@@ -136,6 +138,7 @@ where
 	D::Error: Send + Into<axum_core::BoxError> + 'static,
 	F: FnMut(D::Item) + Send + 'static,
 {
+	// Safe: the decoder only reads copied bytes and invokes observational callbacks.
 	body.dangerous_wrap_stream_preserving_content(|body| {
 		AxumBody::new(FullPassthroughBody {
 			body,

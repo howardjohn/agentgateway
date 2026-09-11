@@ -1,12 +1,12 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-
-use crate::idle_timeout::IdleTimeout;
-use bytes::Bytes;
-use http_body::{Frame, SizeHint};
 use std::time::Duration;
 
+use bytes::Bytes;
+use http_body::{Frame, SizeHint};
+
+use crate::idle_timeout::IdleTimeout;
 use crate::{BodyInspection, RawBody, RecordedBodyHandle};
 
 #[cfg(test)]
@@ -62,6 +62,8 @@ pub struct Body(Box<BodyInner>);
 // deliberately private: callers cannot bypass the content replacement APIs.
 #[derive(Debug)]
 struct BodyInner {
+	// Sticky inspection intent, independent of whether content happens to be bytes.
+	needs_inspection: bool,
 	representation: Representation,
 	recorded: Option<RecordedBodyHandle>,
 	observers: BodyObservers,
@@ -71,6 +73,7 @@ struct BodyInner {
 /// State shared across sequential delivery attempts of the same original content.
 /// Recording is per-attempt; lifecycle observers live until all attempts are dropped.
 pub struct ReplayBodyState {
+	needs_inspection: bool,
 	inspection: Option<BodyInspection>,
 	record_limit: Option<usize>,
 	observers: std::sync::Arc<parking_lot::Mutex<BodyObservers>>,
@@ -111,12 +114,15 @@ impl ReplayBodyState {
 			},
 		};
 		let mut body = Body(Box::new(BodyInner {
+			needs_inspection: self.needs_inspection,
 			representation,
 			recorded: None,
 			observers: BodyObservers::default(),
 			idle_timeout: self.idle_timeout.clone(),
-		}))
-		.with_observer(ReplayObservers(self.observers.clone()));
+		}));
+		if !self.observers.lock().0.is_empty() {
+			body = body.with_observer(ReplayObservers(self.observers.clone()));
+		}
 		if let Some(limit) = self.record_limit {
 			body.record(limit);
 		}
@@ -186,6 +192,7 @@ impl Body {
 	/// with the returned state, so parsing input never records as forwarded output.
 	pub fn into_replay_parts(mut self) -> (Body, ReplayBodyState) {
 		let state = ReplayBodyState {
+			needs_inspection: self.0.needs_inspection,
 			inspection: self.inspection(),
 			record_limit: self.0.recorded.as_ref().map(RecordedBodyHandle::limit),
 			observers: std::sync::Arc::new(parking_lot::Mutex::new(std::mem::take(
@@ -203,6 +210,7 @@ impl Body {
 		B::Error: Into<axum_core::BoxError>,
 	{
 		Body(Box::new(BodyInner {
+			needs_inspection: false,
 			representation: Representation::Streaming {
 				body: RawBody::new(body),
 				inspected_prefix: None,
@@ -358,6 +366,7 @@ impl Body {
 			recorded.reset();
 		}
 		Body(Box::new(BodyInner {
+			needs_inspection: self.0.needs_inspection,
 			representation,
 			recorded: None,
 			observers: BodyObservers::default(),
@@ -368,13 +377,22 @@ impl Body {
 
 	/// Replace this body's content asynchronously. The input retains state derived
 	/// from the old content, while the state-free result invalidates that state.
-	/// On error or cancellation, the content is left empty; observers remain attached.
+	/// On error or cancellation, the body remains terminally failed; observers remain attached.
 	pub async fn try_modify<F, Fut, E>(&mut self, f: F) -> Result<(), E>
 	where
 		F: FnOnce(Body) -> Fut,
 		Fut: Future<Output = Result<BodyContent, E>>,
 	{
-		let replacement = f(self.take_content()).await?;
+		let content = self.take_content();
+		// Install before invoking/awaiting the closure so cancellation cannot leave
+		// a successful empty body. Only a successful result replaces this sentinel.
+		self.replace_content(
+			RawBody::new(crate::peekbody::FailedBody(
+				"body modification failed or was cancelled",
+			))
+			.into(),
+		);
+		let replacement = f(content).await?;
 		self.replace_content(replacement);
 		Ok(())
 	}
@@ -383,7 +401,7 @@ impl Body {
 	/// its inspection and remaining delivery state. The owner's observers and timeout
 	/// remain attached. This is not a replacement API for unrelated request/response bodies.
 	pub fn restore_content(&mut self, mut content: Body) {
-		assert!(content.0.recorded.is_none() && content.0.observers.0.is_empty());
+		debug_assert!(content.0.recorded.is_none() && content.0.observers.0.is_empty());
 		self.0.representation = std::mem::take(&mut content.0.representation);
 		if let Some(recorded) = &self.0.recorded {
 			recorded.reset();
@@ -396,6 +414,8 @@ impl Body {
 	/// Install new content, invalidating inspection and recording while retaining
 	/// lifecycle observers and the idle timeout.
 	pub fn replace_content(&mut self, replacement: BodyContent) {
+		// TODO: centralize fulfilling retained inspection requirements after streaming
+		// replacement; callers must currently re-inspect before body-dependent CEL.
 		self.0.representation = match replacement {
 			BodyContent::Streaming(body) => Representation::Streaming {
 				body,
@@ -454,6 +474,18 @@ impl Body {
 			}
 			self.0.recorded = Some(recorded);
 		}
+	}
+
+	/// Whether a consumer requires inspection to remain available across replacements.
+	/// Neither constructing buffered content nor a one-time `inspect()` sets this.
+	pub fn needs_inspection(&self) -> bool {
+		self.0.needs_inspection
+	}
+
+	/// Retain an inspection requirement for downstream evaluation. This does not read
+	/// the body; callers must still inspect it, including after streaming replacement.
+	pub fn require_inspection(&mut self) {
+		self.0.needs_inspection = true;
 	}
 
 	pub async fn inspect(&mut self, limit: usize) -> anyhow::Result<BodyInspection> {
@@ -568,6 +600,7 @@ impl From<Vec<u8>> for Body {
 impl From<Bytes> for Body {
 	fn from(bytes: Bytes) -> Self {
 		Body(Box::new(BodyInner {
+			needs_inspection: false,
 			representation: Representation::Buffered {
 				bytes,
 				emitted: false,

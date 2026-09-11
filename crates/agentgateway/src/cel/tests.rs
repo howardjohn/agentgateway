@@ -153,8 +153,10 @@ async fn log_only_request_body_records_without_buffering() {
 	assert!(req.body().recorded().is_some());
 
 	let snapshot = cb.maybe_snapshot_request(&mut req, false).unwrap();
-	let body = std::mem::replace(req.body_mut(), Body::empty());
-	let sent = body.collect().await.unwrap().to_bytes();
+	let mut body = std::mem::replace(req.body_mut(), Body::empty());
+	// Content-Length consumers can stop after the data frame without polling EOF.
+	let sent = body.frame().await.unwrap().unwrap().into_data().unwrap();
+	assert!(!body.recorded().unwrap().is_complete());
 	assert_eq!(sent, bytes::Bytes::from_static(b"hello"));
 
 	let exec = Executor::new_logger(Some(&snapshot), None, None, None, None, None, None);

@@ -1,4 +1,3 @@
-use http_body_util::BodyExt as _;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -14,6 +13,7 @@ use agent_core::version::BuildInfo;
 use anyhow::anyhow;
 use futures_util::StreamExt;
 use headers::HeaderMapExt;
+use http_body_util::BodyExt as _;
 use rmcp::model::{
 	ClientInfo, ClientJsonRpcMessage, ClientNotification, ClientRequest, ConstString, GetMeta,
 	Implementation, InitializeRequest, JsonRpcRequest, ProtocolVersion, Reference, RequestId,

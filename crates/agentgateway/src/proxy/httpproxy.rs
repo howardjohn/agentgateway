@@ -1151,6 +1151,9 @@ impl HTTPProxy {
 						.expect("body size was checked before separating replay state"),
 				)
 			} else {
+				if attempts > 1 {
+					debug!("initial body is too large to retry, disabling retries");
+				}
 				Err(body)
 			};
 		let mut substrate_state = None;

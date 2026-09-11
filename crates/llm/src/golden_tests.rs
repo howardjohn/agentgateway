@@ -1499,7 +1499,7 @@ data: {"type":"message_stop"}
 			LLMResponse::default(),
 		)));
 		let reporter = TestStreamingReporter { info: info.clone() };
-		let response = http::Response::new(axum_core::body::Body::from(input_bytes));
+		let response = http::Response::new(agent_http::Body::from(input_bytes));
 		let response = crate::conversion::completions::passthrough_stream(
 			StreamingUsageGuard::new(Box::new(reporter)),
 			crate::LogContentFields::default(),

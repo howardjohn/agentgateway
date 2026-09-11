@@ -11,6 +11,7 @@ use std::time::Duration;
 use agent_core::drain::DrainWatcher;
 use agent_core::version::BuildInfo;
 use agent_core::{signal, telemetry};
+use agent_http::{Body, RawBody};
 use axum::Router;
 use axum::extract::State as AxumState;
 use axum::response::IntoResponse;
@@ -29,7 +30,6 @@ use tracing_subscriber::filter;
 
 use super::hyper_helpers::Server;
 use crate::Config;
-use agent_http::{Body, RawBody};
 type Request = ::http::Request<RawBody>;
 type Response = ::http::Response<RawBody>;
 
@@ -190,7 +190,7 @@ impl AdminService {
 			.clone()
 			.oneshot(req.map(Body::into_boxed))
 			.await
-			.unwrap()
+			.unwrap_or_else(|never| match never {})
 			.map(Body::new)
 	}
 }

@@ -241,6 +241,7 @@ impl ContextBuilder {
 	}
 	pub async fn maybe_buffer_request_body(&self, req: &mut crate::http::Request) {
 		if self.before_log_has(Attributes::RequestBody) {
+			req.body_mut().require_inspection();
 			let _ = crate::http::inspect_body(req).await;
 		} else if self.log_only_has(Attributes::RequestBody) {
 			if req.body().known_bytes().is_some() {
@@ -253,6 +254,7 @@ impl ContextBuilder {
 	}
 	pub async fn maybe_buffer_response_body(&self, resp: &mut crate::http::Response) {
 		if self.before_log_has(Attributes::ResponseBody) {
+			resp.body_mut().require_inspection();
 			let _ = crate::http::inspect_response_body(resp).await;
 		} else if self.log_only_has(Attributes::ResponseBody) {
 			if resp.body().known_bytes().is_some() {

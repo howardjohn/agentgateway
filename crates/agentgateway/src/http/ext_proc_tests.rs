@@ -236,7 +236,10 @@ mod body_modes {
 		assert_eq!(res.status(), 200);
 		let body = read_body(res.into_body()).await;
 		assert_eq!(body.body.as_ref(), b"rewritten-request");
-		assert!(body.headers.get("content-length").is_none());
+		assert_eq!(
+			body.headers.get("content-length").unwrap(),
+			&b"rewritten-request".len().to_string()
+		);
 	}
 
 	#[tokio::test]
@@ -564,7 +567,10 @@ mod body_modes {
 
 		let res = send_request(io, Method::GET, "http://lo").await;
 		assert_eq!(res.status(), 200);
-		assert!(res.headers().get(http::header::CONTENT_LENGTH).is_none());
+		assert_eq!(
+			res.headers().get(http::header::CONTENT_LENGTH).unwrap(),
+			&b"rewritten-response".len().to_string()
+		);
 		let body = read_body_raw(res.into_body()).await;
 		assert_eq!(body.as_ref(), b"rewritten-response");
 	}
@@ -5084,7 +5090,7 @@ mod body_streaming_and_trailers {
 	use super::*;
 
 	#[tokio::test]
-	async fn buffered_noop_recording_completes_over_http1() {
+	async fn buffered_noop_preserves_content_length_and_records_over_http1() {
 		for bytes in ["original", ""] {
 			let processor = ExtProcMock::new(|| {
 				ModeAwareBodyExtProc::new(BufferedBodyMode::Noop, BufferedBodyMode::Noop)
@@ -5121,8 +5127,8 @@ mod body_streaming_and_trailers {
 			let response_recording = resp.body().recorded().unwrap().clone();
 			let _ = ext_proc.mutate_response(&mut resp, None).await.unwrap();
 
-			// Exercise Hyper's real framing decisions: collecting the bodies directly
-			// always polls EOF and misses the Content-Length regression.
+			// Exercise real Content-Length framing, where Hyper may stop without
+			// polling EOF. Recording must retain the bytes without requiring completion.
 			let (client_io, server_io) = tokio::io::duplex(65536);
 			let response = Arc::new(Mutex::new(Some(resp)));
 			let server = tokio::spawn(async move {
@@ -5132,6 +5138,10 @@ mod body_streaming_and_trailers {
 						hyper::service::service_fn(move |req: hyper::Request<hyper::body::Incoming>| {
 							let resp = response.lock().unwrap().take().unwrap();
 							async move {
+								assert_eq!(
+									req.headers()[http::header::CONTENT_LENGTH],
+									bytes.len().to_string()
+								);
 								assert_eq!(req.into_body().collect().await.unwrap().to_bytes(), bytes);
 								Ok::<_, Infallible>(resp)
 							}
@@ -5147,15 +5157,17 @@ mod body_streaming_and_trailers {
 			let connection = tokio::spawn(connection);
 			let received = client.send_request(req).await.unwrap();
 			assert_eq!(
+				received.headers()[http::header::CONTENT_LENGTH],
+				bytes.len().to_string()
+			);
+			assert_eq!(
 				received.into_body().collect().await.unwrap().to_bytes(),
 				bytes
 			);
 			drop(client);
 			connection.await.unwrap().unwrap();
 			server.await.unwrap();
-			assert!(request_recording.is_complete(), "request: {bytes:?}");
 			assert_eq!(request_recording.bytes(), bytes);
-			assert!(response_recording.is_complete(), "response: {bytes:?}");
 			assert_eq!(response_recording.bytes(), bytes);
 		}
 	}

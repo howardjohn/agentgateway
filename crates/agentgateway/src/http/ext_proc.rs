@@ -880,13 +880,12 @@ impl ExtProcInstance {
 		&mut self,
 		req: http::Request,
 	) -> Result<(http::Request, Option<PolicyResponse>), Error> {
-		let rebuffer = req.extensions().get::<cel::BufferedBody>().is_some();
+		let rebuffer = req.body().needs_inspection();
 		let (mut req, response) = self.mutate_request_inner(req).await?;
 		if rebuffer && self.mode_state.request_body_mode != BodySendMode::None {
-			let body = http::inspect_body(&mut req)
+			let _ = http::inspect_body(&mut req)
 				.await
 				.map_err(|error| Error::BodyBuffer(error.to_string()))?;
-			req.extensions_mut().insert(cel::BufferedBody::from(body));
 		}
 		Ok((req, response))
 	}
@@ -1255,15 +1254,11 @@ impl ExtProcInstance {
 						}
 					});
 				}
-				// Channel-backed output has no exact end-of-stream hint. Content-Length
-				// would let Hyper stop before polling its EOF (including for an empty body),
-				// leaving output recording incomplete. Let Hyper frame the stream instead.
-				if req.body().size_hint().exact().is_none()
-					|| request_fsm.expect_body_response
-						&& (request_fsm
-							.body_path
-							.removes_content_length(send_request_headers)
-							|| step.streamed_body_mutation)
+				if request_fsm.expect_body_response
+					&& (request_fsm
+						.body_path
+						.removes_content_length(send_request_headers)
+						|| step.streamed_body_mutation)
 				{
 					req.headers_mut().remove(http::header::CONTENT_LENGTH);
 				}
@@ -1420,17 +1415,14 @@ impl ExtProcInstance {
 		request: Option<&RequestSnapshot>,
 		resolved_destination_metadata: Option<SocketAddr>,
 	) -> Result<(http::Response, Option<PolicyResponse>), Error> {
-		let rebuffer = response.extensions().get::<cel::BufferedBody>().is_some();
+		let rebuffer = response.body().needs_inspection();
 		let (mut response, policy_response) = self
 			.mutate_response_inner(response, request, resolved_destination_metadata)
 			.await?;
 		if rebuffer && self.mode_state.response_body_mode != BodySendMode::None {
-			let body = http::inspect_response_body(&mut response)
+			let _ = http::inspect_response_body(&mut response)
 				.await
 				.map_err(|error| Error::BodyBuffer(error.to_string()))?;
-			response
-				.extensions_mut()
-				.insert(cel::BufferedBody::from(body));
 		}
 		Ok((response, policy_response))
 	}
@@ -1724,14 +1716,11 @@ impl ExtProcInstance {
 						send_response_headers,
 					));
 				}
-				// As on the request side, channel-backed output must be polled through EOF
-				// so successful delivery also completes the managed body's recording.
-				if resp.body().size_hint().exact().is_none()
-					|| response_fsm.send_body
-						&& (response_fsm
-							.body_path
-							.removes_content_length(send_response_headers)
-							|| streamed_body_mutation)
+				if response_fsm.send_body
+					&& (response_fsm
+						.body_path
+						.removes_content_length(send_response_headers)
+						|| streamed_body_mutation)
 				{
 					resp.headers_mut().remove(http::header::CONTENT_LENGTH);
 				}

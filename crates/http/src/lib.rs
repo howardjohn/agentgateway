@@ -14,6 +14,9 @@ pub type Request = http::Request<Body>;
 pub type Response = http::Response<Body>;
 
 pub trait ResponseBodyExt {
+	/// Replace content and discard the old length.
+	fn replace_body_bytes(&mut self, bytes: bytes::Bytes);
+
 	fn try_modify_body<F, Fut, E>(&mut self, f: F) -> impl Future<Output = Result<(), E>>
 	where
 		F: FnOnce(Body) -> Fut,
@@ -21,6 +24,11 @@ pub trait ResponseBodyExt {
 }
 
 impl ResponseBodyExt for Response {
+	fn replace_body_bytes(&mut self, bytes: bytes::Bytes) {
+		self.body_mut().replace_bytes(bytes);
+		self.headers_mut().remove(http::header::CONTENT_LENGTH);
+	}
+
 	async fn try_modify_body<F, Fut, E>(&mut self, f: F) -> Result<(), E>
 	where
 		F: FnOnce(Body) -> Fut,
@@ -29,6 +37,18 @@ impl ResponseBodyExt for Response {
 		self.body_mut().try_modify(f).await?;
 		self.headers_mut().remove(http::header::CONTENT_LENGTH);
 		Ok(())
+	}
+}
+
+pub trait RequestBodyExt {
+	/// Replace content and discard the old length.
+	fn replace_body_bytes(&mut self, bytes: bytes::Bytes);
+}
+
+impl RequestBodyExt for Request {
+	fn replace_body_bytes(&mut self, bytes: bytes::Bytes) {
+		self.body_mut().replace_bytes(bytes);
+		self.headers_mut().remove(http::header::CONTENT_LENGTH);
 	}
 }
 
