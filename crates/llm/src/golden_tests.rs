@@ -193,6 +193,7 @@ mod requests {
 		("basic", &[BEDROCK, GEMINI]),
 		("instructions", &[BEDROCK, GEMINI]),
 		("input-list", &[BEDROCK, GEMINI]),
+		("codex-assistant-history", &[BEDROCK, GEMINI]),
 		("parallel-tool-call", &[BEDROCK, GEMINI]),
 		("structured-output", &[BEDROCK]),
 		("input-media", &[BEDROCK]),
