@@ -839,6 +839,7 @@ mod responses {
 		MESSAGES_TO_DETECT,
 	];
 	const ANTHROPIC_RESPONSES: &[(&str, &[&str])] = &[
+		("images", &[MESSAGES_TO_COMPLETIONS]),
 		("basic", ALL_ANTHROPIC),
 		("tool", ALL_ANTHROPIC),
 		("thinking", ALL_ANTHROPIC),
@@ -851,6 +852,7 @@ mod responses {
 		COMPLETIONS_TO_DETECT,
 	];
 	const COMPLETIONS_RESPONSES: &[(&str, &[&str])] = &[
+		("images", &[COMPLETIONS_TO_MESSAGES]),
 		("basic", ALL_COMPLETIONS),
 		("stop_sequence", &[COMPLETIONS_TO_MESSAGES]),
 		("audio", ALL_COMPLETIONS),
@@ -927,6 +929,7 @@ mod responses {
 		("reasoning", ALL_BEDROCK),
 	];
 	const ANTHROPIC_STREAM_RESPONSES: &[(&str, &[&str])] = &[
+		("stream_images", &[MESSAGES_TO_COMPLETIONS]),
 		("stream_basic", ALL_ANTHROPIC),
 		("stream_thinking", ALL_ANTHROPIC),
 		(
@@ -943,6 +946,7 @@ mod responses {
 		),
 	];
 	const COMPLETIONS_STREAM_RESPONSES: &[(&str, &[&str])] = &[
+		("stream_images", &[COMPLETIONS_TO_MESSAGES]),
 		("stream", ALL_COMPLETIONS),
 		(
 			"stream_tool_empty_content",

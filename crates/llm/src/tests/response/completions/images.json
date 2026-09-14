@@ -1,0 +1,35 @@
+{
+  "id": "chatcmpl-images",
+  "object": "chat.completion",
+  "created": 123,
+  "model": "image-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "images": [
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,aW1hZ2U="
+            }
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "https://example.com/image.jpg"
+            }
+          }
+        ]
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 8,
+    "completion_tokens": 2240,
+    "total_tokens": 2248
+  }
+}

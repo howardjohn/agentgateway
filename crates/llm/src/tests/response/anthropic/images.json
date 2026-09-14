@@ -1,0 +1,29 @@
+{
+  "id": "msg_images",
+  "type": "message",
+  "role": "assistant",
+  "model": "image-model",
+  "content": [
+    {
+      "type": "image",
+      "source": {
+        "type": "base64",
+        "media_type": "image/png",
+        "data": "aW1hZ2U="
+      }
+    },
+    {
+      "type": "image",
+      "source": {
+        "type": "url",
+        "url": "https://example.com/image.jpg"
+      }
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 2240
+  }
+}

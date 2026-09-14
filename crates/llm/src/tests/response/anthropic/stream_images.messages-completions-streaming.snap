@@ -1,0 +1,25 @@
+---
+source: crates/llm/src/golden_tests.rs
+description: src/tests/response/anthropic/stream_images.json
+---
+data: {"id":"msg_images","choices":[{"index":0,"delta":{"content":null,"role":"assistant","images":[{"type":"image_url","image_url":{"url":"data:image/png;base64,aW1hZ2U="}}]}}],"created":123,"model":"image-model","service_tier":null,"system_fingerprint":null,"object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_images","choices":[{"index":0,"delta":{"content":"Here is another image."}}],"created":123,"model":"image-model","service_tier":null,"system_fingerprint":null,"object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_images","choices":[{"index":0,"delta":{"content":null,"images":[{"type":"image_url","image_url":{"url":"https://example.com/image.jpg"}}]}}],"created":123,"model":"image-model","service_tier":null,"system_fingerprint":null,"object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_images","choices":[{"index":0,"delta":{"content":null},"finish_reason":"stop"}],"created":123,"model":"image-model","service_tier":null,"system_fingerprint":null,"object":"chat.completion.chunk","usage":{"prompt_tokens":8,"completion_tokens":2240,"total_tokens":2248}}
+
+data: [DONE]
+
+
+
+{
+  "input_tokens": 8,
+  "output_tokens": 2240,
+  "total_tokens": 2248,
+  "provider_model": "image-model",
+  "completion": [
+    "Here is another image."
+  ]
+}

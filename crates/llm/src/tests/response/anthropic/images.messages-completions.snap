@@ -1,0 +1,66 @@
+---
+source: crates/llm/src/golden_tests.rs
+description: src/tests/response/anthropic/images.json
+info:
+  id: msg_images
+  type: message
+  role: assistant
+  model: image-model
+  content:
+    - type: image
+      source:
+        type: base64
+        media_type: image/png
+        data: aW1hZ2U=
+    - type: image
+      source:
+        type: url
+        url: "https://example.com/image.jpg"
+  stop_reason: end_turn
+  stop_sequence: ~
+  usage:
+    input_tokens: 8
+    output_tokens: 2240
+---
+{
+  "response": {
+    "model": "image-model",
+    "usage": {
+      "prompt_tokens": 8,
+      "completion_tokens": 2240,
+      "total_tokens": 2248
+    },
+    "choices": [
+      {
+        "message": {
+          "role": "assistant",
+          "images": [
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "data:image/png;base64,aW1hZ2U="
+              }
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "https://example.com/image.jpg"
+              }
+            }
+          ]
+        },
+        "index": 0,
+        "finish_reason": "stop"
+      }
+    ],
+    "id": "[id]",
+    "created": "[date]",
+    "object": "chat.completion"
+  },
+  "parsed": {
+    "input_tokens": 8,
+    "output_tokens": 2240,
+    "total_tokens": 2248,
+    "provider_model": "image-model"
+  }
+}

@@ -1,0 +1,63 @@
+---
+source: crates/llm/src/golden_tests.rs
+description: src/tests/response/completions/images.json
+info:
+  id: chatcmpl-images
+  object: chat.completion
+  created: 123
+  model: image-model
+  choices:
+    - index: 0
+      message:
+        role: assistant
+        content: ~
+        images:
+          - type: image_url
+            image_url:
+              url: "data:image/png;base64,aW1hZ2U="
+          - type: image_url
+            image_url:
+              url: "https://example.com/image.jpg"
+      finish_reason: stop
+  usage:
+    prompt_tokens: 8
+    completion_tokens: 2240
+    total_tokens: 2248
+---
+{
+  "response": {
+    "id": "[id]",
+    "type": "message",
+    "role": "assistant",
+    "content": [
+      {
+        "type": "image",
+        "source": {
+          "type": "base64",
+          "media_type": "image/png",
+          "data": "aW1hZ2U="
+        }
+      },
+      {
+        "type": "image",
+        "source": {
+          "type": "url",
+          "url": "https://example.com/image.jpg"
+        }
+      }
+    ],
+    "model": "image-model",
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "usage": {
+      "input_tokens": 8,
+      "output_tokens": 2240
+    }
+  },
+  "parsed": {
+    "input_tokens": 8,
+    "output_tokens": 2240,
+    "total_tokens": 2248,
+    "provider_model": "image-model"
+  }
+}

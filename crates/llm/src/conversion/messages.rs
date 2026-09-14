@@ -86,6 +86,7 @@ pub mod from_completions {
 	use axum_core::body::Body;
 	use bytes::Bytes;
 
+	use crate::conversion::completions::from_messages::anthropic_source_to_url;
 	use crate::conversion::completions::parse_data_url;
 	use crate::types::ResponseType;
 	use crate::types::completions::typed as completions;
@@ -538,6 +539,7 @@ pub mod from_completions {
 		// Convert Anthropic content blocks to OpenAI message content
 		let mut tool_calls: Vec<completions::MessageToolCalls> = Vec::new();
 		let mut content = None;
+		let mut images = Vec::new();
 		let mut reasoning_content: Option<String> = None;
 		let mut reasoning_signatures = Vec::new();
 		for block in resp.content {
@@ -587,8 +589,11 @@ pub mod from_completions {
 				},
 				messages::ContentBlock::RedactedThinking { .. } => {},
 
-				// not currently supported
-				messages::ContentBlock::Image { .. } => continue,
+				messages::ContentBlock::Image(image) => {
+					if let Some(url) = anthropic_source_to_url(&image.source) {
+						images.push(serde_json::json!({"type": "image_url", "image_url": {"url": url}}));
+					}
+				},
 				messages::ContentBlock::Document(_) => continue,
 				messages::ContentBlock::SearchResult(_) => continue,
 				messages::ContentBlock::WebSearchToolResult { .. } => continue,
@@ -612,7 +617,7 @@ pub mod from_completions {
 				[signature] if !signature.is_empty() => Some(signature.clone()),
 				_ => None,
 			},
-			extra: None,
+			extra: (!images.is_empty()).then(|| serde_json::json!({"images": images})),
 		};
 		let finish_reason = resp.stop_reason.as_ref().map(super::translate_stop_reason);
 		// Only one choice for anthropic
@@ -762,6 +767,24 @@ pub mod from_completions {
 					index,
 					content_block,
 				} => match content_block {
+					messages::ContentBlock::Image(image) => {
+						let url = anthropic_source_to_url(&image.source)?;
+						mk(
+							vec![completions::ChatChoiceStream {
+								rest: Default::default(),
+								index: 0,
+								logprobs: None,
+								delta: completions::StreamResponseDelta {
+									extra: Some(
+										serde_json::json!({"images": [{"type": "image_url", "image_url": {"url": url}}]}),
+									),
+									..Default::default()
+								},
+								finish_reason: None,
+							}],
+							None,
+						)
+					},
 					messages::ContentBlock::ToolUse {
 						id, name, input, ..
 					}

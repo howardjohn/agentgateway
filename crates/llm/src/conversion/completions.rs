@@ -173,6 +173,7 @@ pub mod from_messages {
 				cache_control: None,
 			}));
 		}
+		content.extend(image_blocks(choice.message.extra.as_ref()));
 		if let Some(tool_calls) = choice.message.tool_calls {
 			content.extend(tool_calls.into_iter().filter_map(|tc| match tc {
 				completions::MessageToolCalls::Function(f) => {
@@ -659,6 +660,26 @@ pub mod from_messages {
 							);
 						}
 
+						for content_block in image_blocks(choice.delta.extra.as_ref()) {
+							close_text_block(&mut state, &mut events);
+							close_thinking_block(&mut state, &mut events);
+							close_all_tool_blocks(&mut state, &mut events);
+							maybe_set_first_token(&mut state, &log);
+							let index = state.next_block_index;
+							state.next_block_index += 1;
+							push_event(
+								&mut events,
+								messages::MessagesStreamEvent::ContentBlockStart {
+									index,
+									content_block,
+								},
+							);
+							push_event(
+								&mut events,
+								messages::MessagesStreamEvent::ContentBlockStop { index },
+							);
+						}
+
 						if let Some(tool_calls) = &choice.delta.tool_calls {
 							for tool_call in tool_calls {
 								let tool_index = tool_call.index;
@@ -771,7 +792,7 @@ pub mod from_messages {
 
 	/// Convert an Anthropic image source JSON value into an OpenAI-compatible URL string.
 	/// Base64 sources become `data:` URIs; URL sources pass through directly.
-	fn anthropic_source_to_url(source: &serde_json::Value) -> Option<String> {
+	pub(crate) fn anthropic_source_to_url(source: &serde_json::Value) -> Option<String> {
 		let source_type = source.get("type")?.as_str()?;
 		match source_type {
 			"base64" => {
@@ -785,6 +806,28 @@ pub mod from_messages {
 			},
 			_ => None,
 		}
+	}
+
+	// OpenRouter/LiteLLM-style generated images live beside content in both messages and deltas.
+	fn image_blocks(extra: Option<&Value>) -> Vec<messages::ContentBlock> {
+		extra
+			.and_then(|extra| extra.get("images"))
+			.and_then(Value::as_array)
+			.into_iter()
+			.flatten()
+			.filter_map(|image| {
+				let url = image.get("image_url")?.get("url")?.as_str()?;
+				let source = if let Some((media_type, data)) = super::parse_data_url(url) {
+					serde_json::json!({"type": "base64", "media_type": media_type, "data": data})
+				} else {
+					serde_json::json!({"type": "url", "url": url})
+				};
+				Some(messages::ContentBlock::Image(messages::ContentImageBlock {
+					source,
+					cache_control: None,
+				}))
+			})
+			.collect()
 	}
 
 	#[allow(deprecated)]
