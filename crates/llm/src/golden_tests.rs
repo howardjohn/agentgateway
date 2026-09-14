@@ -1011,6 +1011,7 @@ mod responses {
 						1024 * 1024,
 						reporter,
 						"input-model",
+						"message-id",
 						LogContentFields {
 							completion: true,
 							tool_calls: true,
@@ -1348,6 +1349,7 @@ mod responses {
 								BUFFER_LIMIT,
 								reporter,
 								"input-model",
+								&message_id,
 								LOG_CONTENT,
 								None,
 								None,

@@ -527,28 +527,25 @@ impl ChatTranslation {
 		req: types::ChatRequest,
 		ctx: &ChatRequestContext<'_>,
 	) -> Result<RenderedChatRequest, AIError> {
-		match self.output {
-			ChatFormat::OpenAICompletions => render_openai_completions(req, ctx),
-			ChatFormat::BedrockConverse => render_bedrock_converse(req, ctx),
-			ChatFormat::OpenAIResponses => Ok(RenderedChatRequest {
-				body: render_openai_responses(req, ctx)?,
-				provider_state: None,
-			}),
-			ChatFormat::AnthropicMessages => {
-				let mut body = render_anthropic_messages(req, ctx.catalog)?;
-				if matches!(ctx.provider, AIProvider::Vertex(_)) {
-					body = vertex::prepare_anthropic_message_body(body)?;
-				}
-				Ok(RenderedChatRequest {
-					body,
-					provider_state: None,
-				})
+		let body = match self.output {
+			ChatFormat::OpenAICompletions => return render_openai_completions(req, ctx),
+			ChatFormat::OpenAIResponses => render_openai_responses(req, ctx),
+			ChatFormat::AnthropicMessages if matches!(ctx.provider, AIProvider::Vertex(_)) => {
+				vertex::prepare_anthropic_message_body(render_anthropic_messages(req, ctx.catalog)?)
 			},
-			ChatFormat::VertexGemini => Ok(RenderedChatRequest {
-				body: render_vertex_gemini(req, ctx)?,
-				provider_state: Some(ProviderState::VertexGemini),
-			}),
-		}
+			ChatFormat::AnthropicMessages => render_anthropic_messages(req, ctx.catalog),
+			ChatFormat::BedrockConverse => return render_bedrock_converse(req, ctx),
+			ChatFormat::VertexGemini => {
+				return Ok(RenderedChatRequest {
+					body: render_vertex_gemini(req, ctx)?,
+					provider_state: Some(ProviderState::VertexGemini),
+				});
+			},
+		}?;
+		Ok(RenderedChatRequest {
+			body,
+			provider_state: None,
+		})
 	}
 
 	fn render_response(
@@ -723,6 +720,7 @@ impl ChatTranslation {
 					})
 				},
 				InputFormat::Responses => {
+					let msg = conversion::bedrock::message_id(&resp);
 					let tool_name_map = ctx.tool_name_map.clone();
 					resp.map(move |b| {
 						conversion::bedrock::from_responses::translate_stream(
@@ -730,6 +728,7 @@ impl ChatTranslation {
 							ctx.buffer_limit,
 							ctx.logger,
 							&ctx.model,
+							&msg,
 							ctx.log_content,
 							tool_name_map,
 							ctx.namespaces,

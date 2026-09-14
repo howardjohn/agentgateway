@@ -3157,11 +3157,13 @@ pub mod from_responses {
 		))
 	}
 
+	#[allow(clippy::too_many_arguments)]
 	pub fn translate_stream(
 		b: Body,
 		buffer_limit: usize,
 		log: StreamingUsageGuard,
 		model: &str,
+		_message_id: &str,
 		log_content: crate::LogContentFields,
 		tool_name_map: Option<super::BedrockToolNameMap>,
 		namespaces: Option<std::sync::Arc<crate::conversion::namespace_tools::NamespaceToolMap>>,
