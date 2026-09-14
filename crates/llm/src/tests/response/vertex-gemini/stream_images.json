@@ -1,0 +1,6 @@
+data: {"responseId":"gemini-images","modelVersion":"gemini-2.5-flash-image","candidates":[{"content":{"role":"model","parts":[{"text":"Here are two images."}]}}]}
+
+data: {"responseId":"gemini-images","candidates":[{"content":{"role":"model","parts":[{"inlineData":{"mimeType":"image/png","data":"Zmlyc3Q="}},{"inlineData":{"mimeType":"image/jpeg","data":"c2Vjb25k"}}]}}],"usageMetadata":{"promptTokenCount":8,"candidatesTokenCount":2240,"totalTokenCount":2248}}
+
+data: {"responseId":"gemini-images","candidates":[{"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":8,"candidatesTokenCount":2240,"totalTokenCount":2248}}
+

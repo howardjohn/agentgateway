@@ -1,0 +1,99 @@
+---
+source: crates/llm/src/golden_tests.rs
+assertion_line: 707
+description: src/tests/response/vertex-gemini/images.json
+info:
+  candidates:
+    - content:
+        role: model
+        parts:
+          - inlineData:
+              mimeType: image/png
+              data: aW1hZ2U=
+      finishReason: STOP
+      index: 0
+    - content:
+        role: model
+        parts:
+          - text: Here are two images.
+          - inlineData:
+              mimeType: image/png
+              data: Zmlyc3Q=
+          - inlineData:
+              mimeType: image/jpeg
+              data: c2Vjb25k
+          - thought: true
+            inlineData:
+              mimeType: image/png
+              data: dGhvdWdodA==
+          - inlineData:
+              mimeType: audio/wav
+              data: YXVkaW8=
+      finishReason: STOP
+      index: 1
+  usageMetadata:
+    promptTokenCount: 8
+    candidatesTokenCount: 3360
+    totalTokenCount: 3368
+  modelVersion: gemini-2.5-flash-image
+  responseId: resp-images-1
+---
+{
+  "response": {
+    "model": "gemini-2.5-flash-image",
+    "usage": {
+      "prompt_tokens": 8,
+      "completion_tokens": 3360,
+      "total_tokens": 3368
+    },
+    "choices": [
+      {
+        "message": {
+          "content": "",
+          "role": "assistant",
+          "images": [
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "data:image/png;base64,aW1hZ2U="
+              }
+            }
+          ]
+        },
+        "index": 0,
+        "finish_reason": "stop"
+      },
+      {
+        "message": {
+          "content": "Here are two images.",
+          "role": "assistant",
+          "images": [
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "data:image/png;base64,Zmlyc3Q="
+              }
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "data:image/jpeg;base64,c2Vjb25k"
+              }
+            }
+          ]
+        },
+        "index": 1,
+        "finish_reason": "stop"
+      }
+    ],
+    "id": "[id]",
+    "created": "[date]",
+    "object": "chat.completion"
+  },
+  "parsed": {
+    "input_tokens": 8,
+    "output_tokens": 3360,
+    "total_tokens": 3368,
+    "provider_model": "gemini-2.5-flash-image"
+  }
+}

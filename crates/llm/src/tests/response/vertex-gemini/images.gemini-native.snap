@@ -1,0 +1,111 @@
+---
+source: crates/llm/src/golden_tests.rs
+assertion_line: 707
+description: src/tests/response/vertex-gemini/images.json
+info:
+  candidates:
+    - content:
+        role: model
+        parts:
+          - inlineData:
+              mimeType: image/png
+              data: aW1hZ2U=
+      finishReason: STOP
+      index: 0
+    - content:
+        role: model
+        parts:
+          - text: Here are two images.
+          - inlineData:
+              mimeType: image/png
+              data: Zmlyc3Q=
+          - inlineData:
+              mimeType: image/jpeg
+              data: c2Vjb25k
+          - thought: true
+            inlineData:
+              mimeType: image/png
+              data: dGhvdWdodA==
+          - inlineData:
+              mimeType: audio/wav
+              data: YXVkaW8=
+      finishReason: STOP
+      index: 1
+  usageMetadata:
+    promptTokenCount: 8
+    candidatesTokenCount: 3360
+    totalTokenCount: 3368
+  modelVersion: gemini-2.5-flash-image
+  responseId: resp-images-1
+---
+{
+  "response": {
+    "candidates": [
+      {
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "inlineData": {
+                "mimeType": "image/png",
+                "data": "aW1hZ2U="
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "index": 0
+      },
+      {
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Here are two images."
+            },
+            {
+              "inlineData": {
+                "mimeType": "image/png",
+                "data": "Zmlyc3Q="
+              }
+            },
+            {
+              "inlineData": {
+                "mimeType": "image/jpeg",
+                "data": "c2Vjb25k"
+              }
+            },
+            {
+              "inlineData": {
+                "mimeType": "image/png",
+                "data": "dGhvdWdodA=="
+              },
+              "thought": true
+            },
+            {
+              "inlineData": {
+                "mimeType": "audio/wav",
+                "data": "YXVkaW8="
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "index": 1
+      }
+    ],
+    "usageMetadata": {
+      "promptTokenCount": 8,
+      "candidatesTokenCount": 3360,
+      "totalTokenCount": 3368
+    },
+    "responseId": "resp-images-1",
+    "modelVersion": "gemini-2.5-flash-image"
+  },
+  "parsed": {
+    "input_tokens": 8,
+    "output_tokens": 3360,
+    "total_tokens": 3368,
+    "provider_model": "gemini-2.5-flash-image"
+  }
+}

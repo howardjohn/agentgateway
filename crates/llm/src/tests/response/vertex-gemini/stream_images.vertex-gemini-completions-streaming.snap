@@ -1,0 +1,24 @@
+---
+source: crates/llm/src/golden_tests.rs
+assertion_line: 799
+description: src/tests/response/vertex-gemini/stream_images.json
+---
+data: {"id":"gemini-images","choices":[{"index":0,"delta":{"content":"Here are two images.","role":"assistant"}}],"created":123,"model":"gemini-2.5-flash-image","service_tier":null,"system_fingerprint":null,"object":"chat.completion.chunk","usage":null}
+
+data: {"id":"gemini-images","choices":[{"index":0,"delta":{"content":null,"images":[{"type":"image_url","image_url":{"url":"data:image/png;base64,Zmlyc3Q="}},{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,c2Vjb25k"}}]}}],"created":123,"model":"gemini-2.5-flash-image","service_tier":null,"system_fingerprint":null,"object":"chat.completion.chunk","usage":null}
+
+data: {"id":"gemini-images","choices":[{"index":0,"delta":{"content":null},"finish_reason":"stop"}],"created":123,"model":"gemini-2.5-flash-image","service_tier":null,"system_fingerprint":null,"object":"chat.completion.chunk","usage":{"prompt_tokens":8,"completion_tokens":2240,"total_tokens":2248}}
+
+data: [DONE]
+
+
+
+{
+  "input_tokens": 8,
+  "output_tokens": 2240,
+  "total_tokens": 2248,
+  "provider_model": "gemini-2.5-flash-image",
+  "completion": [
+    "Here are two images."
+  ]
+}

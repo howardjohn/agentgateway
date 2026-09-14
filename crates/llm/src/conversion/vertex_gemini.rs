@@ -1126,6 +1126,7 @@ pub mod to_completions {
 		content: String,
 		reasoning: String,
 		calls: Vec<DecodedCall<'a>>,
+		images: Vec<Value>,
 	}
 
 	/// Borrows the function-call fields from the source content; the callers own the single
@@ -1146,6 +1147,18 @@ pub mod to_completions {
 			match part {
 				vg::Part::Text(t) if t.thought == Some(true) => out.reasoning.push_str(&t.text),
 				vg::Part::Text(t) => out.content.push_str(&t.text),
+				vg::Part::InlineData(p)
+					if p.inline_data.mime_type.starts_with("image/")
+						&& p.rest.get("thought").and_then(Value::as_bool) != Some(true) =>
+				{
+					// OpenRouter/LiteLLM expose generated images alongside the text content.
+					out.images.push(serde_json::json!({
+						"type": "image_url",
+						"image_url": {
+							"url": format!("data:{};base64,{}", p.inline_data.mime_type, p.inline_data.data)
+						}
+					}));
+				},
 				vg::Part::FunctionCall(fc) => out.calls.push(DecodedCall {
 					id: fc.function_call.id.as_deref(),
 					name: &fc.function_call.name,
@@ -1276,11 +1289,15 @@ pub mod to_completions {
 		};
 		let reasoning = (!decoded.reasoning.is_empty()).then_some(decoded.reasoning);
 		let tool_calls = has_tool_calls.then_some(tool_calls);
+		let mut message = assistant_message(content, reasoning, tool_calls);
+		if !decoded.images.is_empty() {
+			message.extra = Some(serde_json::json!({"images": decoded.images}));
+		}
 
 		completions::ChatChoice {
 			rest: Default::default(),
 			index,
-			message: assistant_message(content, reasoning, tool_calls),
+			message,
 			finish_reason: Some(finish),
 			logprobs: None,
 		}
@@ -1423,11 +1440,15 @@ pub mod to_completions {
 			if !tool_calls.is_empty() {
 				delta.tool_calls = Some(tool_calls);
 			}
+			if !decoded.images.is_empty() {
+				delta.extra = Some(serde_json::json!({"images": decoded.images}));
+			}
 
 			let has_delta = delta.role.is_some()
 				|| delta.content.is_some()
 				|| delta.reasoning_content.is_some()
-				|| delta.tool_calls.is_some();
+				|| delta.tool_calls.is_some()
+				|| delta.extra.is_some();
 			// Gemini attaches cumulative usageMetadata to interim content chunks too; only surface it
 			// on a terminal chunk (one carrying finish_reason, or a usage-only chunk with no delta) so
 			// the client sees a single OpenAI-style final usage rather than a growing total on every

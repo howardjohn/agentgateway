@@ -909,7 +909,7 @@ mod responses {
 		("response/vertex/rerank-no-details.json", VERTEX),
 		("response/cohere/rerank.json", COHERE),
 	];
-	const VERTEX_GEMINI_RESPONSES: &[&str] = &["basic", "tool", "reasoning", "blocked"];
+	const VERTEX_GEMINI_RESPONSES: &[&str] = &["basic", "tool", "reasoning", "blocked", "images"];
 	const DETECT_RESPONSES: &[(&str, &str)] = &[
 		("response/detect/bedrock-invoke.bin", BEDROCK_TO_DETECT),
 		("response/detect/bedrock-basic.bin", BEDROCK_TO_DETECT),
@@ -949,7 +949,7 @@ mod responses {
 			&[COMPLETIONS_TO_MESSAGES, COMPLETIONS_TO_RESPONSES],
 		),
 	];
-	const VERTEX_GEMINI_STREAM_RESPONSES: &[&str] = &["stream_tool"];
+	const VERTEX_GEMINI_STREAM_RESPONSES: &[&str] = &["stream_tool", "stream_images"];
 	const RESPONSES_STREAM_RESPONSES: &[(&str, &[&str])] = &[
 		("stream", &[RESPONSES_TO_RESPONSES, RESPONSES_TO_DETECT]),
 		("stream-custom-tool", &[RESPONSES_TO_RESPONSES]),

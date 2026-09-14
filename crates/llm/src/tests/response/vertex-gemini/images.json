@@ -1,0 +1,35 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {"inlineData": {"mimeType": "image/png", "data": "aW1hZ2U="}}
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    },
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {"text": "Here are two images."},
+          {"inlineData": {"mimeType": "image/png", "data": "Zmlyc3Q="}},
+          {"inlineData": {"mimeType": "image/jpeg", "data": "c2Vjb25k"}},
+          {"thought": true, "inlineData": {"mimeType": "image/png", "data": "dGhvdWdodA=="}},
+          {"inlineData": {"mimeType": "audio/wav", "data": "YXVkaW8="}}
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 1
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 8,
+    "candidatesTokenCount": 3360,
+    "totalTokenCount": 3368
+  },
+  "modelVersion": "gemini-2.5-flash-image",
+  "responseId": "resp-images-1"
+}
