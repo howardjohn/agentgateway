@@ -108,7 +108,7 @@ output:
       concreteModel:
         backend:
           backend: default/gpt-5-mini/backend.default.tenant1.models
-      key: default/gpt-5-mini.default.tenant1.models
+      key: default/gpt-5-mini.default.tenant1.models.http
       listenerKey: default/model-gateway.http
       match:
         model: gpt-5-mini
@@ -146,9 +146,9 @@ status:
     parents:
     - conditions:
       - lastTransitionTime: fake
-        message: Successfully accepted AgentgatewayModel
-        reason: Accepted
-        status: "True"
+        message: HTTPRoute rule "missing" not found
+        reason: NoMatchingParent
+        status: "False"
         type: Accepted
       - lastTransitionTime: fake
         message: ""
