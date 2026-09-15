@@ -36,8 +36,6 @@ info:
               source:
                 type: url
                 url: "https://example.com/weather.png"
-              cache_control:
-                type: ephemeral
             - type: image
               source:
                 type: base64
@@ -45,8 +43,6 @@ info:
                 data: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2ioAAAAASUVORK5CYII=
             - type: text
               text: Describe the weather chart.
-          cache_control:
-            type: ephemeral
 ---
 {
   "request": {
