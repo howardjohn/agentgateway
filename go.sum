@@ -362,10 +362,6 @@ github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 h1:n6/
 github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00/go.mod h1:Pm3mSP3c5uWn86xMLZ5Sa7JB9GsEZySvHYXCTK4E9q4=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/nxadm/tail v1.4.11 h1:8feyoE3OzPrcshW5/MJ4sGESc5cqmGkGCWlco4l0bqY=
-github.com/nxadm/tail v1.4.11/go.mod h1:OTaG3NK980DZzxbRq6lEuzgU+mug70nY11sMd4JXXHc=
-github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
-github.com/onsi/ginkgo v1.16.5/go.mod h1:+E8gABHa3K6zRBolWtd+ROzc/U5bkGt0FwiG042wbpU=
 github.com/onsi/ginkgo/v2 v2.32.1 h1:6tlvcDm/3sE8lGJbZ4+d4mO3RLy24/tQWOFzVSQNIfw=
 github.com/onsi/ginkgo/v2 v2.32.1/go.mod h1:+aXOY+vzZ5mu2iI2HpTZUPmM//oQfsNFX6gU9kNcA44=
 github.com/onsi/gomega v1.43.0 h1:VlG/1FxqNxhSO+lq/OHBNaaqwiBK/mO8JbVkX9Y+FeU=
@@ -752,10 +748,10 @@ sigs.k8s.io/controller-tools v0.22.0 h1:eG3FAVja/KnlXKIWg95udIFz1cMyAtMjP11cqBh3
 sigs.k8s.io/controller-tools v0.22.0/go.mod h1:VizwUStoZK7rReCj704czGGrB7mLxXTiJSJt7wN5ilI=
 sigs.k8s.io/gateway-api v1.6.1 h1:mock6phZbI6rvZerwrVNk7hVNymQgHo+6sJ81Ia7ftY=
 sigs.k8s.io/gateway-api v1.6.1/go.mod h1:FVfx3t389ybeXOqvDghLbdvJdSCfI/PReqCUI3lu3mY=
-sigs.k8s.io/gateway-api-inference-extension v1.6.0 h1:cjtwMJYcTnLXBYE5ffR1/hHhn7U1aIFfe2RITYmOXVA=
-sigs.k8s.io/gateway-api-inference-extension v1.6.0/go.mod h1:/2qXfsk/+TVl6JEnxxUIjFY5VsiB67Uxo1rnPxWHSIU=
-sigs.k8s.io/gateway-api-inference-extension/conformance v1.6.0 h1:IHzyGYgGKMf7bYGDY59K72tIpng1jVohBi32RXOrFxE=
-sigs.k8s.io/gateway-api-inference-extension/conformance v1.6.0/go.mod h1:5V5kOP9TOm5EbMbPJ3qxgHEBziFhkzh2NwES1QBEmR8=
+sigs.k8s.io/gateway-api-inference-extension v1.6.1 h1:EjcFww9P096btMpkFSVjBI0IVkg06ZKoU62ZY4vbme4=
+sigs.k8s.io/gateway-api-inference-extension v1.6.1/go.mod h1:/2qXfsk/+TVl6JEnxxUIjFY5VsiB67Uxo1rnPxWHSIU=
+sigs.k8s.io/gateway-api-inference-extension/conformance v1.6.1 h1:1mxkrv6/4XadbZMMh/kkVEujFCcwm9KCQ820F7Na4yU=
+sigs.k8s.io/gateway-api-inference-extension/conformance v1.6.1/go.mod h1:P5ktO0qV8+da5mZ2rn6PWWomerpcAjMe6S1ctPZNAx4=
 sigs.k8s.io/gateway-api/conformance v1.6.1 h1:hjJJBYhGlLLDAkpbiL8wYP2JmTbc5D6t/DromATFXbI=
 sigs.k8s.io/gateway-api/conformance v1.6.1/go.mod h1:JD6CHFrpzVyvgivIzhu0My27sOk3I3IphxJe4CIjGb4=
 sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 h1:IpInykpT6ceI+QxKBbEflcR5EXP7sU1kvOlxwZh5txg=

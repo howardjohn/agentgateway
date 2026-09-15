@@ -59,13 +59,11 @@ require (
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/controller-tools v0.22.0
 	sigs.k8s.io/gateway-api v1.6.1
-	sigs.k8s.io/gateway-api-inference-extension v1.6.0
-	sigs.k8s.io/gateway-api-inference-extension/conformance v1.6.0
+	sigs.k8s.io/gateway-api-inference-extension v1.6.1
+	sigs.k8s.io/gateway-api-inference-extension/conformance v1.6.1
 	sigs.k8s.io/gateway-api/conformance v1.6.1
 	sigs.k8s.io/yaml v1.6.0
 )
-
-replace sigs.k8s.io/gateway-api-inference-extension/conformance => github.com/howardjohn/gateway-api-inference-extension/conformance v0.0.0-20260610234253-d7447d7420de
 
 require (
 	cel.dev/expr v0.25.2 // indirect
@@ -175,7 +173,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
