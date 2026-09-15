@@ -27,7 +27,56 @@ info:
       content: Continue.
 ---
 {
-  "error": "unsupported conversion: messages system content block cannot be represented by responses",
+  "request": {
+    "input": [
+      {
+        "type": "message",
+        "role": "system",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "Be concise."
+          }
+        ]
+      },
+      {
+        "type": "message",
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "hello"
+          }
+        ]
+      },
+      {
+        "type": "message",
+        "id": "msg_redacted",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "Hello!",
+            "annotations": []
+          }
+        ],
+        "status": "completed"
+      },
+      {
+        "type": "message",
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "Continue."
+          }
+        ]
+      }
+    ],
+    "model": "gpt-5.6-luna",
+    "max_output_tokens": 64,
+    "stream": false
+  },
   "parsed": {
     "input_format": "Messages",
     "cache_convention": "InputIncludesCache",
