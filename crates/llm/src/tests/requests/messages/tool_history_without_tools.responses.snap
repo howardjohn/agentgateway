@@ -23,7 +23,6 @@ info:
     "input": [
       {
         "type": "function_call",
-        "id": "call_1",
         "call_id": "call_1",
         "name": "get_weather",
         "arguments": "{\"location\":\"Seattle\"}",

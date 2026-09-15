@@ -47,7 +47,6 @@ info:
       },
       {
         "type": "function_call",
-        "id": "toolu_01",
         "call_id": "toolu_01",
         "name": "get_weather",
         "arguments": "{\"location\":\"San Francisco, CA\"}",
