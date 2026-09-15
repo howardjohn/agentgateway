@@ -983,7 +983,17 @@ fn openai_inline_moderation_injected_after_messages_translation() {
   {
     "format": "OpenAIResponses",
     "moderation_configured": true,
-    "moderation": null
+    "moderation": {
+      "model": "omni-moderation-latest",
+      "policy": {
+        "input": {
+          "mode": "block"
+        },
+        "output": {
+          "mode": "score"
+        }
+      }
+    }
   }
 ]
 "#);
