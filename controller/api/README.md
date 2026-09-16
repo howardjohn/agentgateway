@@ -25,7 +25,7 @@ These are the steps required to add a new CRD to be used in the Kubernetes Gatew
 - For optional fields:
     - Use the `+optional` marker.
     - Use the `omitempty` json struct tag.
-    - Use pointer types (e.g. `*string`), unless the type has a nil zero value (e.g. slices/maps). A non-pointer type is acceptable when omission and the zero value have the same meaning, or validation rejects the zero value. Use pointers when an explicit zero, false, or empty string must be distinguished from omission, even if the field has a `+kubebuilder:default` marker.
+    - Use pointer types (e.g. `*string`), unless the type has a nil zero value (e.g. slices/maps). A non-pointer type is acceptable when omission and the zero value have the same meaning, or validation rejects the zero value. Use pointers when an explicit zero, false, or empty string must be distinguished from omission.
 - For required fields:
     - Use the `+required` marker.
     - Required fields MUST NOT set the `omitempty` json struct tag.
