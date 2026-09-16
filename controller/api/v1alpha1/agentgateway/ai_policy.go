@@ -208,7 +208,7 @@ type CustomResponse struct {
 	// `The request was rejected due to inappropriate content`.
 	// +kubebuilder:default="The request was rejected due to inappropriate content"
 	// +optional
-	Message string `json:"message,omitempty"`
+	Message *string `json:"message,omitempty"`
 
 	// Status code to return to the client. Defaults to 403.
 	// +kubebuilder:default=403
@@ -476,19 +476,19 @@ type FieldTransformation struct {
 // - Without caching: 10,000 tokens × $3/MTok = $0.03
 // - With caching (90% cached): 1,000 × $3/MTok + 9,000 × $0.30/MTok = $0.0057 (81% savings)
 type PromptCachingConfig struct {
-	// Enables caching for system prompts.
+	// Enables caching for system prompts. Defaults to true.
 	// Inserts a cache point after all system messages.
 	// +optional
 	// +kubebuilder:default=true
-	CacheSystem bool `json:"cacheSystem,omitempty"`
+	CacheSystem *bool `json:"cacheSystem,omitempty"`
 
-	// Enables caching for conversation messages.
+	// Enables caching for conversation messages. Defaults to true.
 	// Caches all messages in the conversation for cost savings.
 	// +optional
 	// +kubebuilder:default=true
-	CacheMessages bool `json:"cacheMessages,omitempty"`
+	CacheMessages *bool `json:"cacheMessages,omitempty"`
 
-	// Enables caching for tool definitions.
+	// Enables caching for tool definitions. Defaults to false.
 	// Inserts a cache point after all tool specifications.
 	// +optional
 	// +kubebuilder:default=false
@@ -496,11 +496,11 @@ type PromptCachingConfig struct {
 
 	// Minimum estimated token count
 	// before caching is enabled. Uses rough heuristic (word count × 1.3) to estimate tokens.
-	// Bedrock requires at least 1,024 tokens for caching to be effective.
+	// Defaults to 1024. Bedrock requires at least 1,024 tokens for caching to be effective.
 	// +optional
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default=1024
-	MinTokens int `json:"minTokens,omitempty"`
+	MinTokens *int `json:"minTokens,omitempty"`
 
 	// Shifts the message cache point further back in the
 	// conversation. 0 (default) places it at the second-to-last message.

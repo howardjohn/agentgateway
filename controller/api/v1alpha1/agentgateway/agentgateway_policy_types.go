@@ -1206,7 +1206,7 @@ type AuthorizationCookieLocation struct {
 // +kubebuilder:validation:XValidation:rule="!has(self.mcp) || size(self.providers) == 1",message="jwtAuthentication.mcp requires exactly one provider"
 // +kubebuilder:validation:XValidation:rule="!has(self.mcp) || !has(self.mode) || self.mode == 'Strict'",message="jwtAuthentication.mcp requires mode Strict"
 type JWTAuthentication struct {
-	// Validation mode for JWT authentication.
+	// Validation mode for JWT authentication. Defaults to `Strict`.
 	// +kubebuilder:default=Strict
 	// +optional
 	Mode JWTAuthenticationMode `json:"mode,omitempty"`
@@ -1326,6 +1326,7 @@ type RemoteJWKS struct {
 	// +optional
 	JwksPath *LongString `json:"jwksPath,omitempty"`
 	// How long a fetched `jwks` document is used before it is re-fetched from the IdP.
+	// Defaults to `5m`.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="duration(self) >= duration('5m')",message="cacheDuration must be at least 5m."
 	// +kubebuilder:default="5m"
@@ -1348,7 +1349,7 @@ const (
 
 // +kubebuilder:validation:ExactlyOneOf=users;secretRef
 type BasicAuthentication struct {
-	// Validation mode for basic authentication.
+	// Validation mode for basic authentication. Defaults to `Strict`.
 	// +kubebuilder:default=Strict
 	// +optional
 	Mode BasicAuthenticationMode `json:"mode,omitempty"`
@@ -1422,7 +1423,7 @@ const (
 
 // +kubebuilder:validation:ExactlyOneOf=secretRef;secretSelector;configMapSelector
 type APIKeyAuthentication struct {
-	// Validation mode for API key authentication.
+	// Validation mode for API key authentication. Defaults to `Strict`.
 	// +kubebuilder:default=Strict
 	// +optional
 	Mode APIKeyAuthenticationMode `json:"mode,omitempty"`
@@ -2549,7 +2550,7 @@ type MCPAuthentication struct {
 	// +required
 	JWKS RemoteJWKS `json:"jwks"`
 
-	// Validation mode for JWT authentication.
+	// Validation mode for JWT authentication. Defaults to `Strict`.
 	// +kubebuilder:default=Strict
 	// +optional
 	Mode JWTAuthenticationMode `json:"mode,omitempty"`
@@ -3518,7 +3519,7 @@ type OtlpAccessLog struct {
 	// +optional
 	Attributes *LogTracingAttributes `json:"attributes,omitempty"`
 
-	// OTLP protocol variant to use.
+	// OTLP protocol variant to use. Defaults to `GRPC`.
 	// +kubebuilder:default=GRPC
 	// +optional
 	Protocol OTLPProtocol `json:"protocol,omitempty"`
@@ -3597,7 +3598,7 @@ type Tracing struct {
 	// Supported types: `Service` and `AgentgatewayBackend`.
 	// +optional
 	PolicyBackendEndpoint `json:",inline"`
-	// OTLP protocol variant to use.
+	// OTLP protocol variant to use. Defaults to `GRPC`.
 	// +kubebuilder:default=GRPC
 	// +optional
 	Protocol OTLPProtocol `json:"protocol,omitempty"`

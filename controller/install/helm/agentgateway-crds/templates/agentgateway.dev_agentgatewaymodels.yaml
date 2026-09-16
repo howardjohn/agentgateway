@@ -116,7 +116,7 @@ spec:
                     default: RuntimePreferred
                     description: |-
                       EndpointPreference selects which Bedrock API surface to prefer.
-                      Defaults to preferring runtime over mantle.
+                      Defaults to `RuntimePreferred`, preferring runtime over mantle.
                       Decides which endpoint to pick mainly based on the catalog tags
                       `mantle` and `runtime`.
                     enum:
@@ -170,7 +170,7 @@ spec:
                         default: ""
                         description: |-
                           API group of the referenced resource. For example, `gateway.networking.k8s.io`.
-                          When unspecified or empty string, core API group is inferred.
+                          Defaults to the empty string, which identifies the core API group.
                         maxLength: 253
                         pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string

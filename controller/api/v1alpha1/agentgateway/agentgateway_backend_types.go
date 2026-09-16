@@ -285,7 +285,7 @@ type LLMProvider struct {
 // +kubebuilder:validation:XValidation:rule="(size(self.group) == 0 && self.kind == 'Service') ? has(self.port) : true",message="Must have port for Service reference"
 type LocalBackendObjectReference struct {
 	// API group of the referenced resource. For example, `gateway.networking.k8s.io`.
-	// When unspecified or empty string, core API group is inferred.
+	// Defaults to the empty string, which identifies the core API group.
 	// +kubebuilder:default=""
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=`^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
@@ -570,7 +570,7 @@ type BedrockSettings struct {
 	Guardrail *AWSGuardrailConfig `json:"guardrail,omitempty"`
 
 	// EndpointPreference selects which Bedrock API surface to prefer.
-	// Defaults to preferring runtime over mantle.
+	// Defaults to `RuntimePreferred`, preferring runtime over mantle.
 	// Decides which endpoint to pick mainly based on the catalog tags
 	// `mantle` and `runtime`.
 	// +kubebuilder:default=RuntimePreferred
