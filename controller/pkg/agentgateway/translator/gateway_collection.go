@@ -252,7 +252,6 @@ func GatewayTransformationFunc(cfg GatewayCollectionConfig) func(ctx krt.Handler
 		gwReporter := statusReporter.Gateway(obj)
 		logger.Debug("translating Gateway", "gw_name", obj.GetName(), "resource_version", obj.GetResourceVersion())
 
-		var result []*GatewayListener
 		kgw := obj.Spec
 		status := obj.Status.DeepCopy()
 
@@ -269,6 +268,9 @@ func GatewayTransformationFunc(cfg GatewayCollectionConfig) func(ctx krt.Handler
 			})
 			return rm.BuildGWStatus(context.Background(), *obj, 0), nil
 		}
+
+		listenersFromSets := krt.Fetch(ctx, cfg.ListenerSets, krt.FilterIndex(cfg.listenerIndex, config.NamespacedName(obj)))
+		result := make([]*GatewayListener, 0, len(kgw.Listeners)+len(listenersFromSets))
 
 		// Ports whose bind should be internal, from the gateway's internal-ports annotation.
 		// May only reference this gateway's own listener ports.
@@ -353,7 +355,6 @@ func GatewayTransformationFunc(cfg GatewayCollectionConfig) func(ctx krt.Handler
 				Message: "invalid " + annotations.InternalPorts + " annotation: " + strings.Join(internalErrs, "; "),
 			})
 		}
-		listenersFromSets := krt.Fetch(ctx, cfg.ListenerSets, krt.FilterIndex(cfg.listenerIndex, config.NamespacedName(obj)))
 		// Sort by listener precedence
 		// Ref: https://gateway-api.sigs.k8s.io/geps/gep-1713/#listener-precedence
 		// - ListenerSet ordered by creation time (oldest first)
