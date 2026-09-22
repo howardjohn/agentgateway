@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use agentgateway::http::{Body, Response};
 use agentgateway::proxy::request_builder::RequestBuilder;
-use agentgateway::yamlviajson;
+use agentgateway::yaml;
 use http::Method;
 use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
@@ -47,7 +47,7 @@ impl AgentGateway {
 		// Use port 0 for $PORT so the OS assigns a free port at bind time
 		let config = raw_config.replace("$PORT", "0");
 		let mut js: Value =
-			yamlviajson::from_str(&config).unwrap_or_else(|_| panic!("invalid yaml: {config}"));
+			yaml::from_str(&config).unwrap_or_else(|_| panic!("invalid yaml: {config}"));
 		let config = js.pointer_mut("/config").unwrap();
 		config.as_object_mut().unwrap().insert(
 			"adminAddr".to_string(),

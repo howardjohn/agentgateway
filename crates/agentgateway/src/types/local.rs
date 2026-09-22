@@ -85,7 +85,7 @@ impl NormalizedLocalConfig {
 		// Avoid shell expanding the comment for schema. Probably there are better ways to do this!
 		let s = s.replace("# yaml-language-server: $schema", "#");
 		let s = shellexpand::full(&s)?;
-		let local_config: LocalConfig = serdes::yamlviajson::from_str(&s)?;
+		let local_config: LocalConfig = serdes::yaml::from_str(&s)?;
 		let mut registration_config = config.clone();
 		let registration_policy = Arc::new(config.budget_policy.registration_policy());
 		registration_config.budget_policy = registration_policy.clone();
@@ -105,9 +105,9 @@ impl NormalizedLocalConfig {
 }
 
 pub fn migrate_deprecated_local_config(s: &str) -> anyhow::Result<String> {
-	let cfg: serde_json::Value = serdes::yamlviajson::from_str(s)?;
+	let cfg: serde_json::Value = serdes::yaml::from_str(s)?;
 	let cfg = migrate_deprecated_frontend_policies(cfg)?;
-	serdes::yamlviajson::to_string(&cfg)
+	serdes::yaml::to_string(&cfg)
 }
 
 fn migrate_deprecated_frontend_policies(
@@ -139,8 +139,7 @@ fn migrate_deprecated_frontend_policies(
 		"config".to_string(),
 		serde_json::Value::Object(deprecated_config),
 	);
-	let deprecated_cfg_yaml =
-		serdes::yamlviajson::to_string(&serde_json::Value::Object(deprecated_root))?;
+	let deprecated_cfg_yaml = serdes::yaml::to_string(&serde_json::Value::Object(deprecated_root))?;
 	let deprecated_cfg = crate::config::parse_config(deprecated_cfg_yaml, None)?;
 
 	let mut frontend_policies: LocalFrontendPolicies = serde_json::from_value(

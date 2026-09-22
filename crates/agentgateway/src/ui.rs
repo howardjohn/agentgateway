@@ -23,7 +23,7 @@ use crate::config_store::{
 	ConfigResourceUpsertRequest, ConfigResourcesResponse, PreparedResource,
 };
 use crate::llm::catalog::ModelCatalog;
-use crate::{Config, ConfigSource, ConfigStoreMode, yamlviajson};
+use crate::{Config, ConfigSource, ConfigStoreMode, yaml};
 
 const BASE_COSTS_FILE: &str = "base-costs.json";
 const CONFIG_SCHEMA_HEADER: &str =
@@ -431,7 +431,7 @@ async fn get_effective_config(State(app): State<App>) -> Result<Json<Value>, Err
 	} else {
 		base
 	};
-	let value = yamlviajson::from_str(&config).map_err(ErrorResponse::Anyhow)?;
+	let value = yaml::from_str(&config).map_err(ErrorResponse::Anyhow)?;
 	Ok(Json(value))
 }
 
@@ -457,7 +457,7 @@ async fn persist_file_config(app: &App, config_json: &Value) -> Result<(), Error
 			));
 		},
 	};
-	let yaml_content = yamlviajson::to_string(&config_json).map_err(ErrorResponse::Anyhow)?;
+	let yaml_content = yaml::to_string(&config_json).map_err(ErrorResponse::Anyhow)?;
 	let yaml_file_content = format!("{CONFIG_SCHEMA_HEADER}{yaml_content}");
 
 	if let Err(e) = validate_config_in_task(app, yaml_content).await {
@@ -508,7 +508,7 @@ async fn list_stored_config_resources(
 
 async fn read_file_config(app: &App) -> Result<Value, ErrorResponse> {
 	let config = app.cfg()?.read_to_string().await?;
-	yamlviajson::from_str(&config).map_err(ErrorResponse::Anyhow)
+	yaml::from_str(&config).map_err(ErrorResponse::Anyhow)
 }
 
 async fn upsert_config_resources_by_kind(
