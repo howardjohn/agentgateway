@@ -835,6 +835,7 @@
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -1112,6 +1113,7 @@
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -1391,6 +1393,7 @@
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -2257,6 +2260,7 @@
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`binds[].listeners[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -2536,6 +2540,7 @@
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`binds[].listeners[].routes[].policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -8548,6 +8553,7 @@
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -8825,6 +8831,7 @@
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -9104,6 +9111,7 @@
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -9970,6 +9978,7 @@
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -10249,6 +10258,7 @@
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -12507,6 +12517,7 @@
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -12784,6 +12795,7 @@
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -13063,6 +13075,7 @@
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -13929,6 +13942,7 @@
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -14208,6 +14222,7 @@
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -16428,6 +16443,7 @@
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -16705,6 +16721,7 @@
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -16984,6 +17001,7 @@
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -17850,6 +17868,7 @@
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -18129,6 +18148,7 @@
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -22562,6 +22582,7 @@
 |`policies[].policy.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`policies[].policy.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`policies[].policy.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`policies[].policy.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`policies[].policy.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`policies[].policy.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`policies[].policy.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -22839,6 +22860,7 @@
 |`policies[].policy.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`policies[].policy.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`policies[].policy.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`policies[].policy.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`policies[].policy.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`policies[].policy.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`policies[].policy.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -23118,6 +23140,7 @@
 |`policies[].policy.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`policies[].policy.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`policies[].policy.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`policies[].policy.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`policies[].policy.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`policies[].policy.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`policies[].policy.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -23984,6 +24007,7 @@
 |`policies[].policy.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`policies[].policy.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`policies[].policy.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`policies[].policy.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`policies[].policy.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`policies[].policy.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`policies[].policy.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -24263,6 +24287,7 @@
 |`policies[].policy.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`policies[].policy.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`policies[].policy.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`policies[].policy.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`policies[].policy.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`policies[].policy.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`policies[].policy.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -30275,6 +30300,7 @@
 |`backends[].ai.policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].ai.policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`backends[].ai.policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`backends[].ai.policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -30552,6 +30578,7 @@
 |`backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -30831,6 +30858,7 @@
 |`backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].ai.policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -31697,6 +31725,7 @@
 |`backends[].ai.policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -31976,6 +32005,7 @@
 |`backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].ai.policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -34234,6 +34264,7 @@
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -34511,6 +34542,7 @@
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -34790,6 +34822,7 @@
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -35656,6 +35689,7 @@
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -35935,6 +35969,7 @@
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -38153,6 +38188,7 @@
 |`backends[].policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`backends[].policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`backends[].policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -38430,6 +38466,7 @@
 |`backends[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`backends[].policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`backends[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`backends[].policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -38709,6 +38746,7 @@
 |`backends[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`backends[].policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`backends[].policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`backends[].policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -39575,6 +39613,7 @@
 |`backends[].policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`backends[].policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`backends[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`backends[].policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -39854,6 +39893,7 @@
 |`backends[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`backends[].policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`backends[].policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`backends[].policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -41147,6 +41187,7 @@
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`routeGroups[].routes[].policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -41424,6 +41465,7 @@
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routeGroups[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -41703,6 +41745,7 @@
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`routeGroups[].routes[].policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -42569,6 +42612,7 @@
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routeGroups[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -42848,6 +42892,7 @@
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`routeGroups[].routes[].policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -48860,6 +48905,7 @@
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -49137,6 +49183,7 @@
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -49416,6 +49463,7 @@
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -50282,6 +50330,7 @@
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -50561,6 +50610,7 @@
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -52819,6 +52869,7 @@
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -53096,6 +53147,7 @@
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -53375,6 +53427,7 @@
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -54241,6 +54294,7 @@
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -54520,6 +54574,7 @@
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -56740,6 +56795,7 @@
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -57017,6 +57073,7 @@
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -57296,6 +57353,7 @@
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -58162,6 +58220,7 @@
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -58441,6 +58500,7 @@
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -62403,6 +62463,7 @@
 |`routes[].policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`routes[].policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`routes[].policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -62680,6 +62741,7 @@
 |`routes[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routes[].policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routes[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routes[].policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -62959,6 +63021,7 @@
 |`routes[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`routes[].policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routes[].policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routes[].policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -63825,6 +63888,7 @@
 |`routes[].policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routes[].policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routes[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routes[].policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -64104,6 +64168,7 @@
 |`routes[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`routes[].policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routes[].policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routes[].policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -70116,6 +70181,7 @@
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -70393,6 +70459,7 @@
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -70672,6 +70739,7 @@
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -71538,6 +71606,7 @@
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -71817,6 +71886,7 @@
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -74075,6 +74145,7 @@
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -74352,6 +74423,7 @@
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -74631,6 +74703,7 @@
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -75497,6 +75570,7 @@
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -75776,6 +75850,7 @@
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -77996,6 +78071,7 @@
 |`routes[].backends[].policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -78273,6 +78349,7 @@
 |`routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -78552,6 +78629,7 @@
 |`routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -79418,6 +79496,7 @@
 |`routes[].backends[].policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -79697,6 +79776,7 @@
 |`routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -82367,6 +82447,7 @@
 |`llm.models[].guardrails.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.models[].guardrails.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`llm.models[].guardrails.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`llm.models[].guardrails.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.models[].guardrails.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`llm.models[].guardrails.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`llm.models[].guardrails.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -82644,6 +82725,7 @@
 |`llm.models[].guardrails.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`llm.models[].guardrails.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`llm.models[].guardrails.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`llm.models[].guardrails.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.models[].guardrails.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`llm.models[].guardrails.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`llm.models[].guardrails.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -82923,6 +83005,7 @@
 |`llm.models[].guardrails.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`llm.models[].guardrails.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`llm.models[].guardrails.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`llm.models[].guardrails.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.models[].guardrails.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`llm.models[].guardrails.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`llm.models[].guardrails.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -83789,6 +83872,7 @@
 |`llm.models[].guardrails.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.models[].guardrails.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`llm.models[].guardrails.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`llm.models[].guardrails.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.models[].guardrails.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`llm.models[].guardrails.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`llm.models[].guardrails.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -84068,6 +84152,7 @@
 |`llm.models[].guardrails.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`llm.models[].guardrails.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`llm.models[].guardrails.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`llm.models[].guardrails.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.models[].guardrails.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`llm.models[].guardrails.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`llm.models[].guardrails.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -86282,6 +86367,7 @@
 |`llm.policies.guardrails.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.policies.guardrails.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`llm.policies.guardrails.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`llm.policies.guardrails.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.policies.guardrails.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`llm.policies.guardrails.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`llm.policies.guardrails.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -86559,6 +86645,7 @@
 |`llm.policies.guardrails.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`llm.policies.guardrails.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`llm.policies.guardrails.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`llm.policies.guardrails.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.policies.guardrails.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`llm.policies.guardrails.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`llm.policies.guardrails.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -86838,6 +86925,7 @@
 |`llm.policies.guardrails.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`llm.policies.guardrails.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`llm.policies.guardrails.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`llm.policies.guardrails.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.policies.guardrails.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`llm.policies.guardrails.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`llm.policies.guardrails.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -87704,6 +87792,7 @@
 |`llm.policies.guardrails.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.policies.guardrails.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`llm.policies.guardrails.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`llm.policies.guardrails.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.policies.guardrails.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`llm.policies.guardrails.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`llm.policies.guardrails.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -87983,6 +88072,7 @@
 |`llm.policies.guardrails.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`llm.policies.guardrails.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`llm.policies.guardrails.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`llm.policies.guardrails.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.policies.guardrails.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`llm.policies.guardrails.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`llm.policies.guardrails.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -89849,6 +89939,7 @@
 |`mcp.policies.ai.promptGuard.request[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`mcp.policies.ai.promptGuard.request[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`mcp.policies.ai.promptGuard.request[].openAIModeration`|object|Use OpenAI moderation to evaluate the prompt.|
+|`mcp.policies.ai.promptGuard.request[].openAIModeration.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`mcp.policies.ai.promptGuard.request[].openAIModeration.model`|string|Moderation model to use. Defaults to `omni-moderation-latest`.|
 |`mcp.policies.ai.promptGuard.request[].openAIModeration.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`mcp.policies.ai.promptGuard.request[].openAIModeration.policies`|object|Backend policies used when calling the moderation provider.|
@@ -90126,6 +90217,7 @@
 |`mcp.policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`mcp.policies.ai.promptGuard.request[].openAIModeration.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`mcp.policies.ai.promptGuard.request[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the prompt.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`mcp.policies.ai.promptGuard.request[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`mcp.policies.ai.promptGuard.request[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`mcp.policies.ai.promptGuard.request[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`mcp.policies.ai.promptGuard.request[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -90405,6 +90497,7 @@
 |`mcp.policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`mcp.policies.ai.promptGuard.request[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`mcp.policies.ai.promptGuard.request[].googleModelArmor`|object|Use Google Model Armor to evaluate the prompt.<br>Configuration for Google Cloud Model Armor integration.|
+|`mcp.policies.ai.promptGuard.request[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`mcp.policies.ai.promptGuard.request[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`mcp.policies.ai.promptGuard.request[].googleModelArmor.projectId`|string|The GCP project ID|
 |`mcp.policies.ai.promptGuard.request[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
@@ -91271,6 +91364,7 @@
 |`mcp.policies.ai.promptGuard.response[].webhook.failureMode`|enum|Behavior when the webhook is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`mcp.policies.ai.promptGuard.response[].webhook.action`|enum|Whether to enforce the webhook's verdict or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`mcp.policies.ai.promptGuard.response[].bedrockGuardrails`|object|Use AWS Bedrock Guardrails to evaluate the response.<br>Configuration for AWS Bedrock Guardrails integration.|
+|`mcp.policies.ai.promptGuard.response[].bedrockGuardrails.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`mcp.policies.ai.promptGuard.response[].bedrockGuardrails.guardrailIdentifier`|string|The unique identifier of the guardrail|
 |`mcp.policies.ai.promptGuard.response[].bedrockGuardrails.guardrailVersion`|string|The version of the guardrail|
 |`mcp.policies.ai.promptGuard.response[].bedrockGuardrails.region`|string|AWS region where the guardrail is deployed|
@@ -91550,6 +91644,7 @@
 |`mcp.policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`mcp.policies.ai.promptGuard.response[].bedrockGuardrails.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`mcp.policies.ai.promptGuard.response[].googleModelArmor`|object|Use Google Model Armor to evaluate the response.<br>Configuration for Google Cloud Model Armor integration.|
+|`mcp.policies.ai.promptGuard.response[].googleModelArmor.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`mcp.policies.ai.promptGuard.response[].googleModelArmor.templateId`|string|The template ID for the Model Armor configuration|
 |`mcp.policies.ai.promptGuard.response[].googleModelArmor.projectId`|string|The GCP project ID|
 |`mcp.policies.ai.promptGuard.response[].googleModelArmor.location`|string|The GCP region (default: us-central1)|
