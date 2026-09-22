@@ -5583,6 +5583,10 @@
       "description": "Configuration for Azure Content Safety integration.\n\nUses the Azure AI Content Safety APIs to detect harmful content\nand jailbreak attempts. The endpoint and authentication are shared\nacross all enabled features.",
       "type": "object",
       "properties": {
+        "failureMode": {
+          "description": "Behavior when the provider is unreachable or returns an error.\nDefaults to `failClosed`.",
+          "$ref": "#/$defs/WebhookFailureMode"
+        },
         "endpoint": {
           "description": "The Azure Content Safety endpoint hostname (e.g., \"<resource-name>.cognitiveservices.azure.com\")",
           "type": "string"

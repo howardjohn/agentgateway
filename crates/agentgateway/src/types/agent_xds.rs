@@ -975,6 +975,7 @@ fn convert_backend_ai_policy(
 						llm::policy::RequestGuardKind::AzureContentSafety(llm::policy::AzureContentSafety {
 							endpoint: strng::new(&acs.endpoint),
 							action: convert_reject_audit(acs.action),
+							failure_mode: Default::default(),
 							policies: pols,
 							cached_azure_auth: Default::default(),
 							analyze_text: Some(llm::policy::AnalyzeTextConfig {
@@ -1067,6 +1068,7 @@ fn convert_backend_ai_policy(
 					llm::policy::ResponseGuardKind::AzureContentSafety(llm::policy::AzureContentSafety {
 						endpoint: strng::new(&acs.endpoint),
 						action: convert_reject_audit(acs.action),
+						failure_mode: Default::default(),
 						policies: pols,
 						cached_azure_auth: Default::default(),
 						analyze_text: Some(llm::policy::AnalyzeTextConfig {

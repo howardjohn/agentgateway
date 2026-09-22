@@ -1673,6 +1673,7 @@
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`binds[].listeners[].routes[].policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -2820,6 +2821,7 @@
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`binds[].listeners[].routes[].policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -9391,6 +9393,7 @@
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -10538,6 +10541,7 @@
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -13355,6 +13359,7 @@
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -14502,6 +14507,7 @@
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -17281,6 +17287,7 @@
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -18428,6 +18435,7 @@
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`binds[].listeners[].routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -23420,6 +23428,7 @@
 |`policies[].policy.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`policies[].policy.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`policies[].policy.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`policies[].policy.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`policies[].policy.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`policies[].policy.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`policies[].policy.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -24567,6 +24576,7 @@
 |`policies[].policy.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`policies[].policy.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`policies[].policy.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`policies[].policy.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`policies[].policy.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`policies[].policy.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`policies[].policy.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -31138,6 +31148,7 @@
 |`backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].ai.policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -32285,6 +32296,7 @@
 |`backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].ai.policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -35102,6 +35114,7 @@
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -36249,6 +36262,7 @@
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -39026,6 +39040,7 @@
 |`backends[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`backends[].policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`backends[].policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -40173,6 +40188,7 @@
 |`backends[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`backends[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`backends[].policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`backends[].policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`backends[].policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`backends[].policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`backends[].policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -42025,6 +42041,7 @@
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routeGroups[].routes[].policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -43172,6 +43189,7 @@
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routeGroups[].routes[].policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -49743,6 +49761,7 @@
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -50890,6 +50909,7 @@
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -53707,6 +53727,7 @@
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -54854,6 +54875,7 @@
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -57633,6 +57655,7 @@
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -58780,6 +58803,7 @@
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routeGroups[].routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -63301,6 +63325,7 @@
 |`routes[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routes[].policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routes[].policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -64448,6 +64473,7 @@
 |`routes[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routes[].policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routes[].policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -71019,6 +71045,7 @@
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -72166,6 +72193,7 @@
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].ai.policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -74983,6 +75011,7 @@
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -76130,6 +76159,7 @@
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].ai.groups[].providers[].policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -78909,6 +78939,7 @@
 |`routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -80056,6 +80087,7 @@
 |`routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`routes[].backends[].policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`routes[].backends[].policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -83285,6 +83317,7 @@
 |`llm.models[].guardrails.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`llm.models[].guardrails.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`llm.models[].guardrails.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`llm.models[].guardrails.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.models[].guardrails.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`llm.models[].guardrails.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`llm.models[].guardrails.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -84432,6 +84465,7 @@
 |`llm.models[].guardrails.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`llm.models[].guardrails.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`llm.models[].guardrails.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`llm.models[].guardrails.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.models[].guardrails.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`llm.models[].guardrails.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`llm.models[].guardrails.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -87205,6 +87239,7 @@
 |`llm.policies.guardrails.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`llm.policies.guardrails.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`llm.policies.guardrails.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`llm.policies.guardrails.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.policies.guardrails.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`llm.policies.guardrails.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`llm.policies.guardrails.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -88352,6 +88387,7 @@
 |`llm.policies.guardrails.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`llm.policies.guardrails.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`llm.policies.guardrails.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`llm.policies.guardrails.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`llm.policies.guardrails.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`llm.policies.guardrails.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`llm.policies.guardrails.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -90777,6 +90813,7 @@
 |`mcp.policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`mcp.policies.ai.promptGuard.request[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`mcp.policies.ai.promptGuard.request[].azureContentSafety`|object|Use Azure Content Safety to evaluate the prompt.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`mcp.policies.ai.promptGuard.request[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`mcp.policies.ai.promptGuard.request[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`mcp.policies.ai.promptGuard.request[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`mcp.policies.ai.promptGuard.request[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|
@@ -91924,6 +91961,7 @@
 |`mcp.policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.mode`|enum|How requests are sent through the proxy.<br>Possible values: `auto`, `connect`.|
 |`mcp.policies.ai.promptGuard.response[].googleModelArmor.policies.backendTunnel.policies`|any|Policies to connect to the proxy backend|
 |`mcp.policies.ai.promptGuard.response[].azureContentSafety`|object|Use Azure Content Safety to evaluate the response.<br>Configuration for Azure Content Safety integration.<br><br>Uses the Azure AI Content Safety APIs to detect harmful content<br>and jailbreak attempts. The endpoint and authentication are shared<br>across all enabled features.|
+|`mcp.policies.ai.promptGuard.response[].azureContentSafety.failureMode`|enum|Behavior when the provider is unreachable or returns an error.<br>Defaults to `failClosed`.<br>Possible values: `failClosed`, `failOpen`.|
 |`mcp.policies.ai.promptGuard.response[].azureContentSafety.endpoint`|string|The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")|
 |`mcp.policies.ai.promptGuard.response[].azureContentSafety.action`|enum|Whether to reject flagged content or only observe it.<br>Defaults to `reject` (enforce).<br>Possible values: `reject`, `audit`.|
 |`mcp.policies.ai.promptGuard.response[].azureContentSafety.policies`|object|Backend policies for Azure authentication (optional, defaults to implicit Azure auth)|

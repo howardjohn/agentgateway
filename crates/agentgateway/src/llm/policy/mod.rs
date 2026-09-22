@@ -2010,6 +2010,7 @@ impl RequestGuard {
 			RequestGuardKind::OpenAIModeration(m) => m.failure_mode,
 			RequestGuardKind::BedrockGuardrails(bg) => bg.failure_mode,
 			RequestGuardKind::GoogleModelArmor(gma) => gma.failure_mode,
+			RequestGuardKind::AzureContentSafety(acs) => acs.failure_mode,
 			_ => FailureMode::FailClosed,
 		}
 	}
@@ -2264,6 +2265,10 @@ pub struct GoogleModelArmor {
 /// across all enabled features.
 #[apply(schema!)]
 pub struct AzureContentSafety {
+	/// Behavior when the provider is unreachable or returns an error.
+	/// Defaults to `failClosed`.
+	#[serde(default, skip_serializing_if = "crate::serdes::is_default")]
+	pub failure_mode: FailureMode,
 	/// The Azure Content Safety endpoint hostname (e.g., "<resource-name>.cognitiveservices.azure.com")
 	pub endpoint: Strng,
 	/// Whether to reject flagged content or only observe it.
@@ -2390,6 +2395,7 @@ impl ResponseGuard {
 			ResponseGuardKind::Webhook(wh) => wh.failure_mode,
 			ResponseGuardKind::BedrockGuardrails(bg) => bg.failure_mode,
 			ResponseGuardKind::GoogleModelArmor(gma) => gma.failure_mode,
+			ResponseGuardKind::AzureContentSafety(acs) => acs.failure_mode,
 			_ => FailureMode::FailClosed,
 		}
 	}
