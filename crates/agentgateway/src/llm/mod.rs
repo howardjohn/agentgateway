@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use ::http::request::Parts;
 use ::http::uri::{Authority, PathAndQuery};
@@ -335,11 +335,18 @@ struct ChatStreamContext {
 /// For a client `InputFormat`, pick the first entry whose `ChatFormat` is
 /// supported by the selected provider/model. Put cheaper or more native
 /// translations before broader fallbacks.
-const CHAT_TRANSLATIONS: &[ChatTranslation] = {
+static CHAT_TRANSLATIONS: LazyLock<Vec<ChatTranslation>> = LazyLock::new(|| {
 	const fn chat(input: InputFormat, output: ChatFormat) -> ChatTranslation {
 		ChatTranslation { input, output }
 	}
-	&[
+	// AGENTGATEWAY_MESSAGES_PREFER_COMPLETIONS will be removed in v1.7.
+	let [messages_primary, messages_fallback] =
+		if std::env::var("AGENTGATEWAY_MESSAGES_PREFER_COMPLETIONS").is_ok_and(|v| v == "true") {
+			[ChatFormat::OpenAICompletions, ChatFormat::OpenAIResponses]
+		} else {
+			[ChatFormat::OpenAIResponses, ChatFormat::OpenAICompletions]
+		};
+	vec![
 		// Direct passthrough
 		chat(InputFormat::Responses, ChatFormat::OpenAIResponses),
 		chat(InputFormat::Gemini, ChatFormat::VertexGemini),
@@ -356,15 +363,15 @@ const CHAT_TRANSLATIONS: &[ChatTranslation] = {
 		chat(InputFormat::Completions, ChatFormat::AnthropicMessages),
 		chat(InputFormat::Completions, ChatFormat::BedrockConverse),
 		// Messages
-		chat(InputFormat::Messages, ChatFormat::OpenAICompletions),
-		chat(InputFormat::Messages, ChatFormat::OpenAIResponses),
+		chat(InputFormat::Messages, messages_primary),
+		chat(InputFormat::Messages, messages_fallback),
 		chat(InputFormat::Messages, ChatFormat::BedrockConverse),
 		// Responses
 		chat(InputFormat::Responses, ChatFormat::OpenAICompletions),
 		chat(InputFormat::Responses, ChatFormat::BedrockConverse),
 		// Missing: Responses -> Messages
 	]
-};
+});
 
 fn render_openai_completions(
 	req: types::ChatRequest,

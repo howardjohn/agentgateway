@@ -1749,10 +1749,7 @@ async fn messages_to_completions_final_transformation() {
 	use crate::llm::policy::Policy;
 
 	async fn create_llm_request(vec_body: Vec<u8>, policy: Option<&Policy>) -> (Request, RouteType) {
-		let provider = AIProvider::OpenAI(openai::Provider {
-			model_override: None,
-			moderation: None,
-		});
+		let provider = custom_provider(custom::ProviderFormat::Completions);
 		let backend_info = openai_test_backend_info();
 		let req = ::http::Request::builder()
 			.uri("/v1/messages")
@@ -2574,10 +2571,7 @@ async fn upstream_encoding_is_applied_after_messages_response_translation() {
 	use crate::proxy::httpproxy::PolicyClient;
 	use crate::test_helpers::proxymock::setup_proxy_test;
 
-	let provider = AIProvider::OpenAI(openai::Provider {
-		model_override: None,
-		moderation: None,
-	});
+	let provider = custom_provider(custom::ProviderFormat::Completions);
 	let mut req = llm_request_with_tokens(None);
 	req.input_format = InputFormat::Messages;
 	req.request_model = "gpt-4o".into();
@@ -2647,10 +2641,7 @@ async fn upstream_encoding_is_applied_after_messages_response_translation() {
 
 #[test]
 fn openai_completions_error_translates_to_messages_client() {
-	let provider = AIProvider::OpenAI(openai::Provider {
-		model_override: None,
-		moderation: None,
-	});
+	let provider = custom_provider(custom::ProviderFormat::Completions);
 	let mut req = llm_request_with_tokens(None);
 	req.input_format = InputFormat::Messages;
 	req.request_model = "gpt-4o".into();
@@ -2684,10 +2675,7 @@ async fn context_overflow_reaches_messages_client_with_status_and_request_id() {
 			"capability_rejected: prompt_too_long Your input exceeds the context window of this model. Please adjust your input and try again.",
 		),
 		(
-			AIProvider::OpenAI(openai::Provider {
-				model_override: None,
-				moderation: None,
-			}),
+			custom_provider(custom::ProviderFormat::Completions),
 			"gpt-4o",
 			ChatFormat::OpenAICompletions,
 			json!({"type": "invalid_request_error", "code": "context_length_exceeded", "message": "input rejected"}),
