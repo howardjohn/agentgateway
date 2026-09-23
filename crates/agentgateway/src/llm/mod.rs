@@ -38,6 +38,7 @@ pub use agent_llm::{azure, bedrock, vertex};
 pub const DEFAULT_BUFFER_LIMIT: usize = 32 * 1024 * 1024;
 
 pub mod catalog;
+pub mod discovery;
 pub mod policy;
 
 use policy::streaming_guardrails::GuardedSseBody;

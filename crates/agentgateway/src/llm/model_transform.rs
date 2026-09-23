@@ -1,15 +1,59 @@
+use std::borrow::Cow;
+
 use cel::common::ast::{Expr, operators};
 use cel::common::value::CelVal;
 
-/// Recover a public model name from a provider model and a supported CEL transformation.
-/// Supports `llmRequest.model`, literal prefix/suffix addition and stripping, and chains
-/// of these operations. Stripping is reversed by restoring the affix; callers must
-/// check the resulting candidate against the configured model pattern.
-/// Returns `None` for unsupported expressions or a mismatched added affix.
+/// Operations applied to a provider model to recover its public name.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub enum ModelTransformation {
+	Identity,
+	Prefix(String),
+	Suffix(String),
+	StripPrefix(String),
+	StripSuffix(String),
+	/// Operations in execution order, from the outermost CEL expression inward.
+	Chain(Vec<ModelTransformation>),
+}
+
+impl ModelTransformation {
+	pub fn apply<'a>(&self, model: impl Into<Cow<'a, str>>) -> Option<Cow<'a, str>> {
+		let model = model.into();
+		match self {
+			Self::Identity => Some(model),
+			Self::Prefix(prefix) => Some(Cow::Owned(format!("{prefix}{model}"))),
+			Self::Suffix(suffix) => {
+				let mut model = model.into_owned();
+				model.push_str(suffix);
+				Some(Cow::Owned(model))
+			},
+			Self::StripPrefix(prefix) => match model {
+				Cow::Borrowed(model) => model.strip_prefix(prefix.as_str()).map(Cow::Borrowed),
+				Cow::Owned(mut model) => model.starts_with(prefix.as_str()).then(|| {
+					model.drain(..prefix.len());
+					Cow::Owned(model)
+				}),
+			},
+			Self::StripSuffix(suffix) => match model {
+				Cow::Borrowed(model) => model.strip_suffix(suffix.as_str()).map(Cow::Borrowed),
+				Cow::Owned(mut model) => model.ends_with(suffix.as_str()).then(|| {
+					model.truncate(model.len() - suffix.len());
+					Cow::Owned(model)
+				}),
+			},
+			Self::Chain(steps) => steps
+				.iter()
+				.try_fold(model, |model, step| step.apply(model)),
+		}
+	}
+}
+
+/// Compile a supported CEL model transformation into reverse operations during
+/// config normalization. Callers must check recovered names against the model pattern.
 pub fn reverse_model_transformation(
 	expression: &crate::cel::Expression,
-	model: &str,
-) -> Option<String> {
+) -> Option<ModelTransformation> {
 	fn literal(expr: &Expr) -> Option<&str> {
 		// CEL compilation turns string literals into Inline values during optimization.
 		match expr {
@@ -19,10 +63,10 @@ pub fn reverse_model_transformation(
 		}
 	}
 
-	fn reverse(expr: &Expr, model: &str) -> Option<String> {
+	fn reverse(expr: &Expr, steps: &mut Vec<ModelTransformation>) -> Option<()> {
 		// Undo the outer operation first, then recurse toward llmRequest.model.
-		// For "vendor/" + llmRequest.model.stripPrefix("public/"), this removes
-		// "vendor/" from the provider model before restoring "public/".
+		// "vendor/" + llmRequest.model.stripPrefix("public/") compiles to
+		// [StripPrefix("vendor/"), Prefix("public/")].
 		match expr {
 			// llmRequest.model: the identity transformation and recursion's base case.
 			Expr::Select(select)
@@ -30,30 +74,36 @@ pub fn reverse_model_transformation(
 					&& select.field == "model"
 					&& matches!(&select.operand.expr, Expr::Ident(name) if name == "llmRequest") =>
 			{
-				Some(model.to_owned())
+				Some(())
 			},
 			Expr::Call(call) => match (
 				call.func_name.as_str(),
 				call.target.as_deref(),
 				call.args.as_slice(),
 			) {
-				// llmRequest.model.stripPrefix("openai/"): "gpt-4o" -> "openai/gpt-4o".
+				// llmRequest.model.stripPrefix("openai/"): restore "openai/".
 				("stripPrefix", Some(target), [affix]) => {
-					let prefix = literal(&affix.expr)?;
-					reverse(&target.expr, &format!("{prefix}{model}"))
+					steps.push(ModelTransformation::Prefix(
+						literal(&affix.expr)?.to_owned(),
+					));
+					reverse(&target.expr, steps)
 				},
-				// llmRequest.model.stripSuffix("-public"): "gpt-4o" -> "gpt-4o-public".
+				// llmRequest.model.stripSuffix("-public"): restore "-public".
 				("stripSuffix", Some(target), [affix]) => {
-					let suffix = literal(&affix.expr)?;
-					reverse(&target.expr, &format!("{model}{suffix}"))
+					steps.push(ModelTransformation::Suffix(
+						literal(&affix.expr)?.to_owned(),
+					));
+					reverse(&target.expr, steps)
 				},
 				// "openai/" + llmRequest.model, or llmRequest.model + "-latest".
 				// Reversal removes the added literal; a missing affix means no match.
 				(operators::ADD, None, [left, right]) => {
 					if let Some(prefix) = literal(&left.expr) {
-						reverse(&right.expr, model.strip_prefix(prefix)?)
+						steps.push(ModelTransformation::StripPrefix(prefix.to_owned()));
+						reverse(&right.expr, steps)
 					} else if let Some(suffix) = literal(&right.expr) {
-						reverse(&left.expr, model.strip_suffix(suffix)?)
+						steps.push(ModelTransformation::StripSuffix(suffix.to_owned()));
+						reverse(&left.expr, steps)
 					} else {
 						None
 					}
@@ -63,7 +113,7 @@ pub fn reverse_model_transformation(
 					if matches!(&object.expr, Expr::Ident(name) if name == "llmRequest")
 						&& literal(&field.expr) == Some("model") =>
 				{
-					Some(model.to_owned())
+					Some(())
 				},
 				_ => None,
 			},
@@ -71,7 +121,13 @@ pub fn reverse_model_transformation(
 		}
 	}
 
-	reverse(&expression.ast().expr, model)
+	let mut steps = Vec::new();
+	reverse(&expression.ast().expr, &mut steps)?;
+	Some(match steps.len() {
+		0 => ModelTransformation::Identity,
+		1 => steps.pop().unwrap(),
+		_ => ModelTransformation::Chain(steps),
+	})
 }
 
 #[cfg(test)]
@@ -140,7 +196,10 @@ mod tests {
 		#[case] expected: Option<&str>,
 	) {
 		let expression = crate::cel::Expression::new_strict(expression).unwrap();
-		let reversed = reverse_model_transformation(&expression, upstream_model);
+		let transformation = reverse_model_transformation(&expression);
+		let reversed = transformation
+			.as_ref()
+			.and_then(|t| t.apply(upstream_model));
 		assert_eq!(reversed.as_deref(), expected);
 
 		if let Some(public_model) = reversed {

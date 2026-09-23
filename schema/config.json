@@ -11856,6 +11856,11 @@
     "LocalLLMConfig": {
       "type": "object",
       "properties": {
+        "discovery": {
+          "description": "discovery controls wildcard expansion in the models endpoint. Defaults to the local catalog.",
+          "$ref": "#/$defs/Discovery",
+          "default": "catalog"
+        },
         "pathPrefix": {
           "description": "pathPrefix mounts the standard LLM endpoints under this path, for example /foo/v1/messages.\nDefaults to the root. A non-empty prefix must start with `/`. Trailing slashes are ignored.\nThe prefix is removed before model routing.",
           "type": "string",
@@ -11921,6 +11926,20 @@
         }
       },
       "additionalProperties": false
+    },
+    "Discovery": {
+      "oneOf": [
+        {
+          "description": "Expand wildcard model names using the local model catalog.",
+          "type": "string",
+          "const": "catalog"
+        },
+        {
+          "description": "List configured model names without expanding wildcards.",
+          "type": "string",
+          "const": "disabled"
+        }
+      ]
     },
     "LocalLLMProvider": {
       "type": "object",
