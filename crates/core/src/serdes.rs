@@ -289,8 +289,16 @@ pub fn ser_string_or_bytes<S: Serializer, T: AsRef<[u8]>>(
 	if let Ok(s) = std::str::from_utf8(b) {
 		serializer.serialize_str(s)
 	} else {
-		serializer.serialize_bytes(b)
+		serde::Serialize::serialize(b, serializer)
 	}
+}
+
+pub fn de_string_or_bytes<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+	D: Deserializer<'de>,
+	T: From<Vec<u8>>,
+{
+	serde_with::As::<serde_with::BytesOrString>::deserialize(deserializer).map(T::from)
 }
 
 pub fn ser_string_or_bytes_option<S: Serializer, T: AsRef<[u8]>>(

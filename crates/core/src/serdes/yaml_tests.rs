@@ -4,6 +4,30 @@ use serde::{Deserialize, Serialize};
 
 use super::yaml;
 
+#[test]
+fn string_or_bytes_roundtrip() {
+	#[derive(Debug, PartialEq, Serialize, Deserialize)]
+	struct Body {
+		#[serde(
+			serialize_with = "super::ser_string_or_bytes",
+			deserialize_with = "super::de_string_or_bytes"
+		)]
+		body: Vec<u8>,
+	}
+
+	for (input, bytes) in [
+		("body: hello", b"hello".to_vec()),
+		("body: [255, 0]", vec![255, 0]),
+	] {
+		let expected = Body { body: bytes };
+		assert_eq!(yaml::from_str::<Body>(input).unwrap(), expected);
+		let output = yaml::to_string(&expected).unwrap();
+		assert_eq!(yaml::from_str::<Body>(&output).unwrap(), expected);
+		let json = serde_json::to_string(&expected).unwrap();
+		assert_eq!(serde_json::from_str::<Body>(&json).unwrap(), expected);
+	}
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 enum Policy {
