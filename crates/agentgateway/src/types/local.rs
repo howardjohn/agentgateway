@@ -105,9 +105,10 @@ impl NormalizedLocalConfig {
 }
 
 pub fn migrate_deprecated_local_config(s: &str) -> anyhow::Result<String> {
-	let cfg: serde_json::Value = serdes::yaml::from_str(s)?;
-	let cfg = migrate_deprecated_frontend_policies(cfg)?;
-	serdes::yaml::to_string(&cfg)
+	let mut document = yaml_serde_edit::YamlObject::<serde_json::Value>::parse(s)?;
+	let cfg = migrate_deprecated_frontend_policies(document.get().clone())?;
+	document.set(cfg)?;
+	Ok(document.get_string().to_owned())
 }
 
 fn migrate_deprecated_frontend_policies(
