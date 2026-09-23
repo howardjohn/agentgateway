@@ -980,6 +980,22 @@
             "null"
           ]
         },
+        "target": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "name": {
+              "description": "The MCP target for the current target-scoped operation.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ]
+        },
         "tool": {
           "type": [
             "object",

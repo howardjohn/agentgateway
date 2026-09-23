@@ -342,8 +342,11 @@ pub struct RelayInputs {
 }
 
 impl RelayInputs {
-	pub fn build_new_connections(self) -> Result<Relay, mcp::Error> {
-		let r = Relay::new(self.backend, self.policies, self.client)?;
+	pub fn build_new_connections(
+		self,
+		ctx: &upstream::IncomingRequestContext,
+	) -> Result<Relay, mcp::Error> {
+		let r = Relay::new_for_request(self.backend, self.policies, self.client, ctx)?;
 		Ok(Relay {
 			mcp_guardrails: self.mcp_guardrails,
 			..r
@@ -352,14 +355,19 @@ impl RelayInputs {
 }
 
 impl Relay {
-	pub fn new(
+	pub fn new_for_request(
 		backend: McpBackendGroup,
 		policies: McpAuthorizationSet,
 		client: PolicyClient,
+		ctx: &upstream::IncomingRequestContext,
 	) -> Result<Self, mcp::Error> {
 		let client = PolicyClient::new(client.inputs.clone());
 		Ok(Self {
-			upstreams: Arc::new(upstream::UpstreamGroup::new(client.clone(), backend)?),
+			upstreams: Arc::new(upstream::UpstreamGroup::new_for_request(
+				client.clone(),
+				backend,
+				ctx,
+			)?),
 			policies,
 			mcp_guardrails: None,
 			policy_client: client,
@@ -1093,7 +1101,7 @@ impl Relay {
 					.is_none_or(|targets| targets.iter().any(|target| target == name.as_str()))
 			})
 			.collect::<Vec<_>>();
-		if selected_upstreams.is_empty() {
+		if selected_upstreams.is_empty() && !self.upstreams.all_targets_conditioned_out() {
 			return Err(UpstreamError::Unavailable(
 				"no upstreams available".to_string(),
 			));
@@ -1184,7 +1192,7 @@ impl Relay {
 				},
 			}
 		}
-		if streams.is_empty() {
+		if streams.is_empty() && !self.upstreams.all_targets_conditioned_out() {
 			// Request fanout has no transport fallback or generic synthetic success.
 			return Err(
 				last_error
@@ -1550,6 +1558,17 @@ impl Relay {
 			.await?;
 
 		let cel = CelExecWrapper::from(ctx.clone());
+		if streams.is_empty() {
+			let result = merge(Vec::new(), &cel)?;
+			return respond_with_guardrails(
+				id,
+				Messages::from_result(r.id.clone(), result),
+				service_names.and_then(|sn| self.build_guardrails_ctx(&r, &ctx, sn)),
+				ctx.extensions().get::<AsyncLog<MCPInfo>>().cloned(),
+				&ctx,
+				self.upstreams.sse_keep_alive,
+			);
+		}
 		let streams = streams
 			.into_iter()
 			.map(|(name, s)| {
