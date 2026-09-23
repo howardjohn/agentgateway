@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::future::pending;
@@ -70,6 +71,7 @@ pub struct ResourceFetcher {
 	// Populated only while a ResourceFetchScope is active for managed fetchers.
 	// It records the resources the successful config should retain.
 	tracking: Arc<std::sync::Mutex<Option<HashSet<ResourceRef>>>>,
+	reject_http: bool,
 }
 
 pub struct ResourceFetchScope<'a> {
@@ -91,6 +93,7 @@ impl ResourceFetcher {
 		Self {
 			mode: ResourceFetcherMode::Managed(manager),
 			tracking: Default::default(),
+			reject_http: false,
 		}
 	}
 
@@ -99,6 +102,7 @@ impl ResourceFetcher {
 		Self {
 			mode: ResourceFetcherMode::CachedOrDirect(manager),
 			tracking: Default::default(),
+			reject_http: false,
 		}
 	}
 
@@ -107,6 +111,7 @@ impl ResourceFetcher {
 		Self {
 			mode: ResourceFetcherMode::Direct(Box::new(client)),
 			tracking: Default::default(),
+			reject_http: false,
 		}
 	}
 
@@ -115,12 +120,18 @@ impl ResourceFetcher {
 		Self {
 			mode: ResourceFetcherMode::FilesOnly,
 			tracking: Default::default(),
+			reject_http: false,
 		}
 	}
 
 	/// Loads a normalized resource according to this fetcher's mode.
 	pub async fn fetch(&self, resource: ResourceRef) -> anyhow::Result<Bytes> {
 		let normalized = normalize_resource(resource)?;
+		if self.reject_http
+			&& let ResourceRef::Http { url, .. } = &normalized
+		{
+			return Err(anyhow!("resource fetcher cannot fetch HTTP resource {url}"));
+		}
 		match &self.mode {
 			ResourceFetcherMode::Managed(manager) => {
 				self.track_resource(normalized.clone());
@@ -184,6 +195,37 @@ impl ResourceFetcher {
 			tracking.insert(resource);
 		}
 	}
+}
+
+thread_local! {
+	static PARSE_FETCHER: RefCell<Option<ResourceFetcher>> = const { RefCell::new(None) };
+}
+
+/// Runs a synchronous config parse with `fetcher` available to serde hooks
+/// through [`parse_fetcher`].
+pub fn with_parse_fetcher<T>(fetcher: &ResourceFetcher, parse: impl FnOnce() -> T) -> T {
+	struct Restore(Option<ResourceFetcher>);
+	impl Drop for Restore {
+		fn drop(&mut self) {
+			let previous = self.0.take();
+			PARSE_FETCHER.with(|f| f.replace(previous));
+		}
+	}
+	let _restore = Restore(PARSE_FETCHER.with(|f| f.replace(Some(fetcher.clone()))));
+	parse()
+}
+
+/// The fetcher of the enclosing [`with_parse_fetcher`], or a files-only fetcher
+/// outside one. HTTP resources are rejected either way: serde hooks block on
+/// the fetch, and on a current-thread runtime nothing would drive the request.
+pub fn parse_fetcher() -> ResourceFetcher {
+	PARSE_FETCHER.with(|f| match f.borrow().as_ref() {
+		Some(fetcher) => ResourceFetcher {
+			reject_http: true,
+			..fetcher.clone()
+		},
+		None => ResourceFetcher::files_only(),
+	})
 }
 
 impl ResourceFetchScope<'_> {
@@ -387,12 +429,24 @@ impl ResourceManager {
 	}
 
 	pub fn retain_resources(&self, retained: HashSet<ResourceRef>) {
-		*self
-			.inner
-			.active_resources
-			.lock()
-			.expect("resource active set mutex poisoned") = retained.clone();
+		let previous = std::mem::replace(
+			&mut *self
+				.inner
+				.active_resources
+				.lock()
+				.expect("resource active set mutex poisoned"),
+			retained.clone(),
+		);
 		self.retain_cached_and_watched_resources(&retained);
+		// refresh_file ignores watch events for files that are not active yet, so a
+		// change between a new file's first read and this commit would be lost.
+		for resource in retained.difference(&previous) {
+			if let ResourceRef::File(path) = resource {
+				let manager = self.clone();
+				let path = path.clone();
+				tokio::spawn(async move { manager.refresh_file(path).await });
+			}
+		}
 	}
 
 	fn retain_active_resources(&self) {
@@ -1030,5 +1084,105 @@ mod tests {
 			scheduled_retry < far_future,
 			"failed refresh should reschedule sooner than the stale next_refresh from the last success"
 		);
+	}
+
+	#[tokio::test]
+	async fn parse_fetcher_reads_through_the_enclosing_managed_fetcher() {
+		let dir = tempfile::tempdir().unwrap();
+		let file = dir.path().join("root.pem");
+		fs_err::write(&file, "cert").unwrap();
+		let resource = normalize_resource(ResourceRef::File(file.clone())).unwrap();
+		let ResourceRef::File(abspath) = resource.clone() else {
+			unreachable!()
+		};
+		let manager = ResourceManager::new(test_client()).unwrap();
+		let resources = ResourceFetcher::managed(manager.clone());
+
+		scoped(&resources, || async {
+			let content = with_parse_fetcher(&resources, || {
+				futures::executor::block_on(parse_fetcher().fetch(ResourceRef::File(file.clone())))
+			})?;
+			assert_eq!(content, Bytes::from("cert"));
+			Ok(())
+		})
+		.await
+		.unwrap();
+
+		assert_eq!(manager.cached(&resource), Some(Bytes::from("cert")));
+		assert!(manager.is_active(&resource));
+		assert!(manager.inner.watched_files.contains(&abspath));
+		PARSE_FETCHER.with(|f| assert!(f.borrow().is_none()));
+	}
+
+	#[tokio::test]
+	async fn parse_fetcher_rejects_http() {
+		let manager = ResourceManager::new(test_client()).unwrap();
+		let resources = ResourceFetcher::managed(manager);
+		let http = ResourceRef::Http {
+			url: "http://127.0.0.1:1/jwks".parse().unwrap(),
+			kind: ResourceKind::Generic,
+		};
+		let inside = with_parse_fetcher(&resources, || {
+			futures::executor::block_on(parse_fetcher().fetch(http.clone()))
+		});
+		let outside = futures::executor::block_on(parse_fetcher().fetch(http));
+		for result in [inside, outside] {
+			let err = result.unwrap_err().to_string();
+			assert!(err.contains("cannot fetch HTTP resource"), "{err}");
+		}
+	}
+
+	#[test]
+	fn with_parse_fetcher_restores_the_previous_fetcher_on_panic() {
+		let outer = ResourceFetcher::files_only();
+		with_parse_fetcher(&outer, || {
+			let inner = ResourceFetcher::direct(test_client());
+			let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+				with_parse_fetcher(&inner, || panic!("parse failed"))
+			}));
+			assert!(panicked.is_err());
+			PARSE_FETCHER.with(|f| {
+				assert!(matches!(
+					f.borrow().as_ref().map(|f| &f.mode),
+					Some(ResourceFetcherMode::FilesOnly)
+				))
+			});
+		});
+		PARSE_FETCHER.with(|f| assert!(f.borrow().is_none()));
+	}
+
+	#[tokio::test]
+	async fn a_change_after_the_parse_read_is_published() {
+		let dir = tempfile::tempdir().unwrap();
+		let file = dir.path().join("root.pem");
+		fs_err::write(&file, "old").unwrap();
+		let resource = normalize_resource(ResourceRef::File(file.clone())).unwrap();
+		let manager = ResourceManager::new(test_client()).unwrap();
+		let resources = ResourceFetcher::managed(manager.clone());
+		let mut changes = manager.subscribe_changes();
+
+		scoped(&resources, || async {
+			let content = with_parse_fetcher(&resources, || {
+				futures::executor::block_on(parse_fetcher().fetch(ResourceRef::File(file.clone())))
+			})?;
+			assert_eq!(content, Bytes::from("old"));
+			// The rest of the computation runs after the parse read.
+			fs_err::write(&file, "new").unwrap();
+			tokio::time::sleep(Duration::from_millis(500)).await;
+			Ok(())
+		})
+		.await
+		.unwrap();
+
+		tokio::time::timeout(Duration::from_secs(10), async {
+			loop {
+				if manager.cached(&resource) == Some(Bytes::from("new")) {
+					return;
+				}
+				changes.changed().await.unwrap();
+			}
+		})
+		.await
+		.expect("a change made after the parse read reaches the cache and is published");
 	}
 }

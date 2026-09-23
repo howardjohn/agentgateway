@@ -2729,3 +2729,51 @@ binds:
 		.expect("a change to the key file should notify the resource manager")
 		.expect("resource change channel should stay open");
 }
+
+/// A backend TLS file resolved by a serde hook during the parse is watched like a
+/// file the load fetched itself.
+#[tokio::test]
+async fn parse_time_backend_tls_files_become_managed_dependencies() {
+	let root = tempfile::NamedTempFile::new().unwrap();
+	fs_err::write(
+		root.path(),
+		include_bytes!("../../tests/common/testdata/root-cert.pem"),
+	)
+	.unwrap();
+	let manager = crate::resource_manager::ResourceManager::new(test_client()).unwrap();
+	let resources = crate::resource_manager::ResourceFetcher::managed(manager.clone());
+	let yaml = format!(
+		r#"
+frontendPolicies:
+  substrateEgressActorResolution:
+    host: 127.0.0.1:6443
+    policies:
+      backendTLS:
+        root: {}
+"#,
+		root.path().display()
+	);
+	NormalizedLocalConfig::from(
+		&test_config(),
+		&resources,
+		ListenerTarget {
+			gateway_name: "name".into(),
+			gateway_namespace: "ns".into(),
+			listener_name: None,
+			port: None,
+		},
+		&yaml,
+	)
+	.await
+	.unwrap();
+	let mut changes = manager.subscribe_changes();
+	fs_err::write(
+		root.path(),
+		include_bytes!("../../../../examples/mcp-tls/certs/cert.pem"),
+	)
+	.unwrap();
+	tokio::time::timeout(std::time::Duration::from_secs(10), changes.changed())
+		.await
+		.expect("a rotation of the root certificate is published")
+		.unwrap();
+}

@@ -85,17 +85,15 @@ impl NormalizedLocalConfig {
 		// Avoid shell expanding the comment for schema. Probably there are better ways to do this!
 		let s = s.replace("# yaml-language-server: $schema", "#");
 		let s = shellexpand::full(&s)?;
-		let local_config: LocalConfig = serdes::yaml::from_str(&s)?;
 		let mut registration_config = config.clone();
 		let registration_policy = Arc::new(config.budget_policy.registration_policy());
 		registration_config.budget_policy = registration_policy.clone();
 		let scope = resources.scope_full_computation();
-		let result = Box::pin(convert(
-			resources,
-			gateway_name,
-			&registration_config,
-			local_config,
-		))
+		let result = Box::pin(async {
+			let local_config: LocalConfig =
+				crate::resource_manager::with_parse_fetcher(resources, || serdes::yaml::from_str(&s))?;
+			convert(resources, gateway_name, &registration_config, local_config).await
+		})
 		.await;
 		scope.finish(result.is_ok());
 		let mut t = result?;
@@ -5833,10 +5831,9 @@ where
 	D: Deserializer<'de>,
 {
 	let s = SimpleLocalBackendPolicies::deserialize(deserializer)?;
-	let resources = crate::resource_manager::ResourceFetcher::files_only();
-	// This serde hook has no runtime resource manager, but backend TLS policy
-	// compatibility can still resolve local file references.
+	// Serde hooks cannot take arguments; the fetcher comes from the enclosing parse.
 	// Not ideal but greatly simplifies the code
+	let resources = crate::resource_manager::parse_fetcher();
 	futures::executor::block_on(
 		LocalBackendPolicies {
 			simple: s,
