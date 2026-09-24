@@ -40,13 +40,13 @@ func init() {
 		if resp.StatusCode != http.StatusOK {
 			return nil, nil, fmt.Errorf("fetch Vertex pricing: HTTP %d", resp.StatusCode)
 		}
-		return vertexParsePricing(resp.Body)
+		return vertexParsePricing(resp.Body, time.Now())
 	}
 }
 
 // vertexParsePricing imports Global prices. The catalog cannot select by region yet.
 // Flex and Batch share a table; Batch-only models get a harmless flex tier.
-func vertexParsePricing(r io.Reader) (*ModelCatalog, []string, error) {
+func vertexParsePricing(r io.Reader, now time.Time) (*ModelCatalog, []string, error) {
 	doc, err := html.Parse(r)
 	if err != nil {
 		return nil, nil, err
@@ -99,10 +99,27 @@ func vertexParsePricing(r io.Reader) (*ModelCatalog, []string, error) {
 			}
 			if row[0] != "" {
 				id, usage = "", ""
-				// Future prices are listed as "<model> starting <date>"; current ones as "<model> through <date>".
+				// Scheduled price changes are listed as "<model> through <date>" and "<model> starting <date>".
 				name := strings.ToLower(row[0])
-				if !strings.Contains(name, "starting") {
-					name, _, _ = strings.Cut(name, "through")
+				active := true
+				for _, kw := range []string{"through", "starting"} {
+					before, date, ok := strings.Cut(name, kw)
+					if !ok {
+						continue
+					}
+					d, err := time.Parse("January 2, 2006", strings.TrimSpace(date))
+					if err != nil {
+						return nil, nil, fmt.Errorf("Vertex %s model %q: %w", service, row[0], err)
+					}
+					if kw == "through" {
+						active = now.Before(d.AddDate(0, 0, 1))
+					} else {
+						active = !now.Before(d)
+					}
+					name = before
+					break
+				}
+				if active {
 					name, _, _ = strings.Cut(name, "(")
 					id = strings.Join(strings.Fields(strings.Trim(name, " *")), "-")
 				}
