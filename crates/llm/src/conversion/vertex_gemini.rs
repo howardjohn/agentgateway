@@ -1261,7 +1261,10 @@ pub mod to_completions {
 			model,
 			choices,
 			usage: resp.usage_metadata.as_ref().map(build_usage),
-			service_tier: None,
+			service_tier: resp
+				.usage_metadata
+				.as_ref()
+				.and_then(|um| um.service_tier.clone().or_else(|| um.traffic_type.clone())),
 			system_fingerprint: None,
 		}
 	}

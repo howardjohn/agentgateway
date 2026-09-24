@@ -34,47 +34,51 @@ pub enum PricingTier {
 }
 
 impl PricingTier {
-	fn detect(provider: &str, service_tier: Option<&str>) -> Self {
-		match (provider, service_tier) {
+	/// Normalizes a provider-reported service tier. Unknown tiers are None.
+	pub fn detect(provider: &str, service_tier: &str) -> Option<Self> {
+		let tier = match (provider, service_tier) {
 			// https://docs.cloud.google.com/gemini-enterprise-agent-platform/reference/rest/v1/GenerateContentResponse#TrafficType
-			(provider, Some(tier)) if provider == vertex::Provider::NAME.as_str() => match tier {
+			(provider, tier) if provider == vertex::Provider::NAME.as_str() => match tier {
 				"ON_DEMAND" => Self::Standard,
 				"ON_DEMAND_FLEX" => Self::Flex,
 				"ON_DEMAND_PRIORITY" => Self::Priority,
-				_ => Self::Standard,
+				"PROVISIONED_THROUGHPUT" => Self::Reserved,
+				_ => return None,
 			},
 			// https://ai.google.dev/api/generate-content#ServiceTier
-			(provider, Some(tier)) if provider == gemini::Provider::NAME.as_str() => match tier {
+			(provider, tier) if provider == gemini::Provider::NAME.as_str() => match tier {
 				"standard" => Self::Standard,
 				"flex" => Self::Flex,
 				"priority" => Self::Priority,
-				_ => Self::Standard,
+				_ => return None,
 			},
 			// https://developers.openai.com/api/docs/guides/fast-mode
 			// https://developers.openai.com/api/docs/guides/flex-processing
-			(provider, Some(tier)) if provider == openai::Provider::NAME.as_str() => match tier {
+			// https://openai.com/api-scale-tier/
+			(provider, tier) if provider == openai::Provider::NAME.as_str() => match tier {
 				"default" => Self::Standard,
 				"flex" => Self::Flex,
-				"fast" => Self::Priority,
-				"priority" => Self::Priority,
-				_ => Self::Standard,
+				"fast" | "priority" => Self::Priority,
+				"scale" => Self::Reserved,
+				_ => return None,
 			},
 			// https://platform.claude.com/docs/en/api/service-tiers
-			(provider, Some(tier)) if provider == anthropic::Provider::NAME.as_str() => match tier {
+			(provider, tier) if provider == anthropic::Provider::NAME.as_str() => match tier {
 				"standard" => Self::Standard,
 				"priority" => Self::Priority,
-				_ => Self::Standard,
+				_ => return None,
 			},
 			// https://docs.aws.amazon.com/bedrock/latest/userguide/service-tiers-inference.html
-			(provider, Some(tier)) if provider == bedrock::Provider::NAME.as_str() => match tier {
+			(provider, tier) if provider == bedrock::Provider::NAME.as_str() => match tier {
 				"default" => Self::Standard,
 				"flex" => Self::Flex,
 				"priority" => Self::Priority,
 				"reserved" => Self::Reserved,
-				_ => Self::Standard,
+				_ => return None,
 			},
-			_ => Self::Standard,
-		}
+			_ => return None,
+		};
+		Some(tier)
 	}
 }
 
@@ -404,7 +408,11 @@ impl CatalogSnapshot {
 		};
 
 		let provisional_usage = usage_for(convention, resp, true, true);
-		let pricing_tier = PricingTier::detect(provider, resp.service_tier.as_deref());
+		let pricing_tier = resp
+			.service_tier
+			.as_deref()
+			.and_then(|tier| PricingTier::detect(provider, tier))
+			.unwrap_or(PricingTier::Standard);
 		// Tier selection must be invariant to cache repricing below: cache tokens
 		// may move between input and their cache buckets, but their sum is stable.
 		let context_tokens = provisional_usage.context_tokens();
