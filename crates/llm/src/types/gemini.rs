@@ -543,6 +543,7 @@ impl ResponseType for Response {
 			total_tokens: counts.map(|c| c.2),
 			reasoning_tokens: um.and_then(|u| u.thoughts_token_count),
 			cached_input_tokens: um.and_then(|u| u.cached_content_token_count),
+			service_tier: um.and_then(|u| u.traffic_type.as_deref()).map(strng::new),
 			provider_model: self.0.model_version.as_deref().map(strng::new),
 			completion: log_content.completion.then(|| {
 				self
