@@ -61,14 +61,18 @@ func TestOverlayWithInsertsNewProviderAndFillsEmptyRates(t *testing.T) {
 
 func TestOverlayWithReplacesTiersWhenOverlayHasThem(t *testing.T) {
 	base := &ModelCatalog{Providers: map[string]Provider{
-		"p": {Models: map[string]Model{"m": {Tiers: []Tier{{ContextOver: 1000, Rates: Rates{Input: "1"}}}}}},
+		"p": {Models: map[string]Model{"m": {Tiers: []Tier{
+			{ContextOver: 1000, Rates: Rates{Input: "1"}},
+			{ServiceTier: "priority", Rates: Rates{Input: "3"}},
+		}}}},
 	}}
 	base.overlayWith(&ModelCatalog{Providers: map[string]Provider{
 		"p": {Models: map[string]Model{"m": {Tiers: []Tier{{ContextOver: 2000, Rates: Rates{Input: "2"}}}}}},
 	}})
 	tiers := base.Providers["p"].Models["m"].Tiers
-	if len(tiers) != 1 || tiers[0].ContextOver != 2000 {
-		t.Errorf("tiers = %+v, want single tier ContextOver=2000", tiers)
+	want := []Tier{{ServiceTier: "priority", Rates: Rates{Input: "3"}}, {ContextOver: 2000, Rates: Rates{Input: "2"}}}
+	if !slices.Equal(tiers, want) {
+		t.Errorf("tiers = %+v, want %+v", tiers, want)
 	}
 }
 

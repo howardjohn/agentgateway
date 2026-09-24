@@ -97,7 +97,11 @@ func (p *Provider) overlayWith(overlay Provider, addExactModels bool) {
 func (m *Model) overlayWith(overlay Model) {
 	m.Rates.overlayWith(overlay.Rates)
 	if len(overlay.Tiers) > 0 {
-		m.Tiers = overlay.Tiers
+		// Replace each supplied service tier while preserving other service tiers.
+		m.Tiers = slices.DeleteFunc(m.Tiers, func(t Tier) bool {
+			return slices.ContainsFunc(overlay.Tiers, func(o Tier) bool { return o.ServiceTier == t.ServiceTier })
+		})
+		m.Tiers = append(m.Tiers, overlay.Tiers...)
 	}
 	for _, tag := range overlay.Tags {
 		if !slices.Contains(m.Tags, tag) {
