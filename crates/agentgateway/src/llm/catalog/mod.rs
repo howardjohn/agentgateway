@@ -24,8 +24,9 @@ pub mod refresh;
 const TRACE_POLICY_KIND: &str = "llm_cost";
 const BUILTIN_CATALOG_JSON: &str = include_str!("../../../../../catalog/model-catalog.json");
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PricingTier {
+#[apply(schema!)]
+#[derive(Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PricingTier {
 	Standard,
 	Flex,
 	Priority,
@@ -407,7 +408,7 @@ impl CatalogSnapshot {
 		// Tier selection must be invariant to cache repricing below: cache tokens
 		// may move between input and their cache buckets, but their sum is stable.
 		let context_tokens = provisional_usage.context_tokens();
-		let rates = entry.effective_rates(context_tokens);
+		let rates = entry.effective_rates(context_tokens, pricing_tier);
 		if rates.is_empty() {
 			crate::proxy::dtrace::pol_event!(
 				TRACE_POLICY_KIND,
@@ -825,6 +826,39 @@ mod tests {
 	use rust_decimal::prelude::ToPrimitive;
 
 	use super::*;
+
+	#[test]
+	fn ordered_tiers_select_served_tier_and_context() {
+		let catalog = CatalogSnapshot::parse(
+			r#"{"providers":{"gcp.vertex_ai":{"models":{"m":{
+				"rates":{"input":"1"},
+				"tiers":[
+					{"serviceTier":"flex","rates":{"input":"0.5"}},
+					{"serviceTier":"flex","contextOver":200000,"rates":{"input":"0.75"}},
+					{"contextOver":200000,"rates":{"input":"2"}}
+				]
+			}}}}}"#,
+		)
+		.unwrap();
+		let price = |tokens: u64, served_tier: Option<&str>| {
+			catalog
+				.price(
+					vertex::Provider::NAME.as_str(),
+					"m",
+					&LLMResponse {
+						input_tokens: Some(tokens),
+						service_tier: served_tier.map(Into::into),
+						..Default::default()
+					},
+					CacheTokenConvention::InputIncludesCache,
+				)
+				.0
+		};
+		assert_eq!(price(300_000, Some("ON_DEMAND_FLEX")), Some(0.225));
+		assert_eq!(price(100_000, Some("ON_DEMAND_FLEX")), Some(0.05));
+		assert_eq!(price(300_000, Some("ON_DEMAND")), Some(0.6));
+		assert_eq!(price(100_000, None), Some(0.1));
+	}
 
 	fn test_catalog(input_rate: &str) -> String {
 		format!(
