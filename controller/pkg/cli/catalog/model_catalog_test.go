@@ -72,6 +72,26 @@ func TestOverlayWithReplacesTiersWhenOverlayHasThem(t *testing.T) {
 	}
 }
 
+func TestTierOrderValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		tiers []Tier
+		valid bool
+	}{
+		{"legacy ascending", []Tier{{ContextOver: 100}, {ContextOver: 200}}, true},
+		{"legacy descending", []Tier{{ContextOver: 200}, {ContextOver: 100}}, false},
+		{"ordered flex", []Tier{{ServiceTier: "flex"}, {ServiceTier: "flex", ContextOver: 200}}, true},
+		{"descending flex", []Tier{{ServiceTier: "flex", ContextOver: 200}, {ServiceTier: "flex"}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := (&Model{Tiers: tc.tiers}).validate()
+			if (err == nil) != tc.valid {
+				t.Fatalf("validate() error = %v, want valid = %v", err, tc.valid)
+			}
+		})
+	}
+}
+
 func TestOverlayCatalog(t *testing.T) {
 	base := ModelCatalog{Providers: map[string]Provider{
 		"openai": {Models: map[string]Model{
