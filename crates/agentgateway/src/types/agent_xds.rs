@@ -998,9 +998,7 @@ fn convert_backend_ai_policy(
 					kind,
 				};
 
-				// TODO not all guard types properly scan all scopes
-				// avoids silently ignoring configured scopes
-				guard.validate_scope().map_err(ProtoError::Generic)?;
+				guard.validate().map_err(ProtoError::Generic)?;
 
 				Ok(guard)
 			})
@@ -4118,6 +4116,14 @@ fn convert_webhook(
 
 	let failure_mode = convert_guardrail_failure_mode(w.failure_mode);
 
+	let protocol =
+		match proto::agent::backend_policy_spec::ai::webhook::Protocol::try_from(w.protocol) {
+			Ok(proto::agent::backend_policy_spec::ai::webhook::Protocol::Raw) => {
+				llm::policy::WebhookProtocol::Raw
+			},
+			_ => llm::policy::WebhookProtocol::Guardrail,
+		};
+
 	let headers: Vec<(HeaderOrPseudo, Arc<cel::Expression>)> = w
 		.headers
 		.iter()
@@ -4142,6 +4148,7 @@ fn convert_webhook(
 		headers,
 		forward_header_matches,
 		failure_mode,
+		protocol,
 		action: convert_reject_audit(w.action),
 	})
 }
@@ -6129,6 +6136,7 @@ mod tests {
 			headers: Default::default(),
 			forward_header_matches: vec![],
 			failure_mode: 0,
+			protocol: 0,
 			action: 0,
 		};
 		let mut diag = Diagnostics::default();
@@ -6154,6 +6162,7 @@ mod tests {
 			headers,
 			forward_header_matches: vec![],
 			failure_mode: 0,
+			protocol: 0,
 			action: 0,
 		};
 		let mut diag = Diagnostics::default();
@@ -6183,6 +6192,7 @@ mod tests {
 			headers,
 			forward_header_matches: vec![],
 			failure_mode: 0,
+			protocol: 0,
 			action: 0,
 		};
 		let mut diag = Diagnostics::default();
@@ -6209,6 +6219,7 @@ mod tests {
 			headers,
 			forward_header_matches: vec![],
 			failure_mode: 0,
+			protocol: 0,
 			action: 0,
 		};
 		let mut diag = Diagnostics::default();
