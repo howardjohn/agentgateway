@@ -31,12 +31,14 @@ use crate::types::agent::{BackendTrafficPolicy, SimpleBackendReference, Target};
 use crate::types::loadbalancer::{ActiveHandle, EndpointWithInfo};
 use crate::*;
 pub mod model_router;
+pub mod model_transform;
 pub use agent_llm::{azure, bedrock, vertex};
 
 /// Default body buffer limit once a request enters LLM processing.
 pub const DEFAULT_BUFFER_LIMIT: usize = 32 * 1024 * 1024;
 
 pub mod catalog;
+pub mod discovery;
 pub mod policy;
 
 use policy::streaming_guardrails::GuardedSseBody;

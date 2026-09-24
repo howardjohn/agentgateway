@@ -499,6 +499,7 @@ async fn llm_api_key_allowed_models_filters_discovery_and_requests() {
 		r#"
 llm:
   port: 0
+  discovery: disabled
   policies:
     apiKey:
       keys:
@@ -539,6 +540,83 @@ llm:
 	let body: Value = serde_json::from_slice(&read_body_raw(response.into_body()).await).unwrap();
 	assert_eq!(body["error"]["code"], "model_not_allowed");
 	assert_eq!(mock.received_requests().await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn llm_catalog_discovery() {
+	let mut results = serde_json::Map::new();
+	for (name, setting) in [
+		("default", ""),
+		("catalog", "discovery: catalog"),
+		("disabled", "discovery: disabled"),
+	] {
+		let config = format!(
+			r#"
+llm:
+  port: 0
+  {setting}
+  policies:
+    apiKey:
+      mode: strict
+      keys:
+      - key: unrestricted
+        metadata:
+          name: unrestricted
+      - key: restricted
+        metadata:
+          name: restricted
+        allowedModels: ["public/discovery-a", "discovery-*", "alias"]
+  providers:
+  - name: openai
+    provider: openAI
+    defaults:
+      transformation:
+        model: llmRequest.model.stripPrefix("public/")
+  models:
+  - name: public/discovery-*
+    provider:
+      reference: openai
+  - name: public/discovery-a
+    provider:
+      reference: openai
+  - name: discovery-*
+    provider: openAI
+  - name: hidden/*
+    visibility: internal
+    provider: openAI
+  - name: unsafe/*
+    provider: openAI
+    transformation:
+      model: request.headers["x-model"]
+  - name: unknown/*
+    provider:
+      custom:
+        formats:
+        - type: completions
+    params:
+      baseUrl: http://localhost:9999/v1
+  virtualModels:
+  - name: alias
+    routing:
+      weighted:
+        targets:
+        - model: discovery-a
+"#
+		);
+		let mut t = setup_local_llm_config(&config).await;
+		Arc::get_mut(&mut t.pi).unwrap().model_catalog = agentgateway::llm::catalog::ModelCatalog::new(vec![
+			agentgateway::ModelCatalogSource::Inline {
+				inline: r#"{"providers":{"openai":{"models":{"discovery-a":{},"discovery-b":{}}},"anthropic":{"models":{"discovery-other":{}}}}}"#.to_string(),
+			},
+		]).await.unwrap();
+		let io = t.serve_http(strng::literal!("bind/0"));
+		for key in ["unrestricted", "restricted"] {
+			let authorization = format!("Bearer {key}");
+			let models = list_models(io.clone(), &[("authorization", &authorization)]).await;
+			results.insert(format!("{name}/{key}"), serde_json::json!(models));
+		}
+	}
+	insta::assert_json_snapshot!(results);
 }
 
 #[tokio::test]

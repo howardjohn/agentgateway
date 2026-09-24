@@ -426,6 +426,9 @@ pub struct LocalConfig {
 
 #[apply(schema_de!)]
 pub struct LocalLLMConfig {
+	/// discovery controls wildcard expansion in the models endpoint. Defaults to the local catalog.
+	#[serde(default)]
+	discovery: llm::discovery::Discovery,
 	/// pathPrefix mounts the standard LLM endpoints under this path, for example /foo/v1/messages.
 	/// Defaults to the root. A non-empty prefix must start with `/`. Trailing slashes are ignored.
 	/// The prefix is removed before model routing.
@@ -4355,6 +4358,7 @@ async fn convert_llm_config(
 	Vec<BackendWithPolicies>,
 )> {
 	let LocalLLMConfig {
+		discovery,
 		path_prefix,
 		gateways: _,
 		port,
@@ -4566,6 +4570,33 @@ async fn convert_llm_config(
 			pols.push(BackendTrafficPolicy::backend_auth(backend_auth));
 		}
 
+		let discovery = if !model_config.name.contains('*')
+			|| provider.override_model().is_some()
+			|| model_config
+				.overrides
+				.as_ref()
+				.is_some_and(|p| p.contains_key("model"))
+			|| model_config
+				.final_transformation
+				.as_ref()
+				.is_some_and(|p| p.contains_key("model"))
+		{
+			None
+		} else {
+			match model_config
+				.transformation
+				.as_ref()
+				.and_then(|p| p.get("model"))
+			{
+				Some(expression) => llm::model_transform::reverse_model_transformation(expression),
+				None => Some(llm::model_transform::ModelTransformation::Identity),
+			}
+			.map(|transformation| llm::discovery::ModelDiscovery {
+				provider: provider.provider(),
+				transformation,
+			})
+		};
+
 		// Create AI backend
 		let named_provider = NamedAIProvider {
 			name: model_name.clone(),
@@ -4639,6 +4670,7 @@ async fn convert_llm_config(
 		});
 
 		router_models.push(llm::model_router::ModelRoute {
+			discovery,
 			id: model_config.id.clone(),
 			name: model_config.name.clone(),
 			created: startup_timestamp,
@@ -4752,7 +4784,8 @@ async fn convert_llm_config(
 	}
 
 	let router = llm::model_router::ModelRouter::new(router_models, router_virtual_models)
-		.with_path_prefix(path_prefix.to_string());
+		.with_path_prefix(path_prefix.to_string())
+		.with_discovery(discovery);
 	let router_backend_key = strng::new("llm:router");
 	all_backends.push(BackendWithPolicies {
 		backend: Backend::LLMRouter(local_name(router_backend_key.clone()), Arc::new(router)),

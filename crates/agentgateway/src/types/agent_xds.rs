@@ -1696,6 +1696,7 @@ impl ModelRoute {
 						.collect::<Result<Vec<_>, _>>()?,
 				};
 				ModelRouteKind::Concrete(llm::model_router::ModelRoute {
+					discovery: None,
 					id: None,
 					name: model_match.model.clone(),
 					created: s.created,
