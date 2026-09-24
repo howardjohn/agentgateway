@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
+use super::PricingTier;
 use crate::llm::{Provider as _, vertex};
 
 // Unknown fields are captured rather than denied by serde, so catalogs from newer versions can be
@@ -57,25 +58,25 @@ impl Catalog {
 		if let Some(metadata) = &self.metadata {
 			reject_unknown(&"metadata", &metadata.unknown)?;
 		}
-		for (pid, p) in &self.providers {
+		for (provider, entry) in &self.providers {
 			reject_unknown(pid, &p.unknown)?;
-			for (mid, m) in &p.models {
+			for (model, pricing) in &entry.models {
 				reject_unknown(&format_args!("{pid}/{mid}"), &m.unknown)?;
 				reject_unknown(&format_args!("{pid}/{mid} rates"), &m.rates.unknown)?;
-				let mut prev: Option<u64> = None;
-				for (i, t) in m.tiers.iter().enumerate() {
+				let mut previous = BTreeMap::new();
+				for (index, tier) in pricing.tiers.iter().enumerate() {
 					reject_unknown(&format_args!("{pid}/{mid} tier {i}"), &t.unknown)?;
 					reject_unknown(
 						&format_args!("{pid}/{mid} tier {i} rates"),
 						&t.rates.unknown,
 					)?;
-					if prev.is_some_and(|p| t.context_over <= p) {
+					if let Some(prior) = previous.insert(tier.service_tier, tier.context_over)
+						&& tier.context_over <= prior
+					{
 						anyhow::bail!(
-							"{pid}/{mid}: tier {i} threshold {} not strictly greater than previous",
-							t.context_over
+							"{provider}/{model}: tier {index} contextOver must increase within its serviceTier"
 						);
 					}
-					prev = Some(t.context_over);
 				}
 			}
 		}
@@ -158,7 +159,7 @@ pub struct Model {
 	/// Base pricing rates for this model.
 	#[serde(default, skip_serializing_if = "Rates::is_empty")]
 	pub rates: Rates,
-	/// Context-length pricing tiers that override the base rates.
+	/// Pricing rules ordered by increasing context threshold within each service tier.
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub tiers: Vec<Tier>,
 	/// Freeform capability/routing tags for this model.
@@ -231,8 +232,12 @@ impl Rates {
 #[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
 #[serde(rename_all = "camelCase")]
 pub struct Tier {
-	/// Context-token threshold above which this tier's rates apply.
+	/// Context-token threshold above which this rule applies. Defaults to zero.
+	#[serde(default, skip_serializing_if = "crate::serdes::is_default")]
 	pub context_over: u64,
+	/// Normalized served service tier; absent matches any service tier.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub service_tier: Option<PricingTier>,
 	/// Pricing rates for this tier, overlaid on the base model rates.
 	pub rates: Rates,
 	/// Fields not understood by this version.
@@ -367,17 +372,25 @@ impl Model {
 	#[cfg(test)]
 	pub fn breakdown(&self, usage: &Usage) -> Breakdown {
 		self
-			.effective_rates(usage.context_tokens())
+			.effective_rates(usage.context_tokens(), PricingTier::Standard)
 			.breakdown(usage)
 	}
 
-	pub(super) fn effective_rates(&self, context_tokens: u64) -> Rates {
-		match self
+	pub(super) fn effective_rates(&self, context_tokens: u64, service_tier: PricingTier) -> Rates {
+		let context_matches = |tier: &&Tier| context_tokens > tier.context_over;
+		let selected = self
 			.tiers
 			.iter()
-			.filter(|t| context_tokens > t.context_over)
-			.max_by_key(|t| t.context_over)
-		{
+			.rev()
+			.find(|tier| tier.service_tier == Some(service_tier) && context_matches(tier))
+			.or_else(|| {
+				self
+					.tiers
+					.iter()
+					.rev()
+					.find(|tier| tier.service_tier.is_none() && context_matches(tier))
+			});
+		match selected {
 			Some(tier) => self.rates.overlay(&tier.rates),
 			None => self.rates.clone(),
 		}
@@ -415,6 +428,7 @@ mod tests {
 	fn tier(context_over: u64, rates: Rates) -> Tier {
 		Tier {
 			context_over,
+			service_tier: None,
 			rates,
 			unknown: Unknown::new(),
 		}
@@ -459,7 +473,10 @@ mod tests {
 		let mini = catalog.resolve("openai", "gpt-4o-mini");
 		assert!(mini.is_some(), "OpenAI entry resolves");
 		assert!(
-			!mini.unwrap().effective_rates(0).is_empty(),
+			!mini
+				.unwrap()
+				.effective_rates(0, PricingTier::Standard)
+				.is_empty(),
 			"and is priced"
 		);
 	}
@@ -717,7 +734,7 @@ mod tests {
 	}
 
 	#[test]
-	fn highest_applicable_tier_wins() {
+	fn legacy_context_tiers_select_highest_threshold() {
 		let e = entry(
 			Rates {
 				input: Some(m("1")),
@@ -745,6 +762,19 @@ mod tests {
 			..Default::default()
 		};
 		assert_eq!(e.price(&u), d("2.4"));
+	}
+
+	#[test]
+	fn validates_rule_order() {
+		let catalog = |tiers: &str| {
+			from_json(&format!(
+				r#"{{"providers":{{"openai":{{"models":{{"m":{{"tiers":[{tiers}]}}}}}}}}}}"#
+			))
+		};
+		assert!(catalog(r#"{"contextOver":100},{"contextOver":200}"#).is_ok());
+		assert!(catalog(r#"{"contextOver":200},{"contextOver":100}"#).is_err());
+		assert!(catalog(r#"{"serviceTier":"flex"},{"serviceTier":"flex","contextOver":200}"#).is_ok());
+		assert!(catalog(r#"{"serviceTier":"flex","contextOver":200},{"serviceTier":"flex"}"#).is_err());
 	}
 
 	#[test]
@@ -781,22 +811,30 @@ mod tests {
 		};
 		assert!(
 			entry(Rates::default(), vec![])
-				.effective_rates(0)
+				.effective_rates(0, PricingTier::Standard)
 				.is_empty()
 		);
 		assert!(
 			!entry(input_rate.clone(), vec![])
-				.effective_rates(0)
+				.effective_rates(0, PricingTier::Standard)
 				.is_empty()
 		);
 
 		let tier_only = entry(Rates::default(), vec![tier(100_000, input_rate)]);
-		assert!(tier_only.effective_rates(100_000).is_empty());
-		assert!(!tier_only.effective_rates(100_001).is_empty());
+		assert!(
+			tier_only
+				.effective_rates(100_000, PricingTier::Standard)
+				.is_empty()
+		);
+		assert!(
+			!tier_only
+				.effective_rates(100_001, PricingTier::Standard)
+				.is_empty()
+		);
 
 		assert!(
 			entry(Rates::default(), vec![tier(100_000, Rates::default())])
-				.effective_rates(100_001)
+				.effective_rates(100_001, PricingTier::Standard)
 				.is_empty()
 		);
 	}
