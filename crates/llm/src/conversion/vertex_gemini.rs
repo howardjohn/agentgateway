@@ -68,6 +68,7 @@ pub fn passthrough_stream(
 				r.response.total_tokens = Some(total);
 				r.response.cached_input_tokens = um.cached_content_token_count;
 				r.response.reasoning_tokens = um.thoughts_token_count;
+				r.response.service_tier = um.traffic_type.as_deref().map(strng::new);
 			});
 		}
 		if log_content.completion {
@@ -1545,6 +1546,7 @@ pub mod to_completions {
 					r.response.total_tokens = Some(total);
 					r.response.cached_input_tokens = um.cached_content_token_count;
 					r.response.reasoning_tokens = um.thoughts_token_count;
+					r.response.service_tier = um.traffic_type.as_deref().map(strng::new);
 				});
 			}
 
