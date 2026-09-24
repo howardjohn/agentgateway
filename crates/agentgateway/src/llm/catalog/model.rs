@@ -49,7 +49,10 @@ impl Catalog {
 					Some(mut bm) => {
 						bm.rates = bm.rates.overlay(&om.rates);
 						if !om.tiers.is_empty() {
-							bm.tiers = om.tiers;
+							// Replace each supplied service tier while preserving other service tiers.
+							bm.tiers
+								.retain(|t| !om.tiers.iter().any(|o| o.service_tier == t.service_tier));
+							bm.tiers.extend(om.tiers);
 						}
 						bm.tags.extend(om.tags);
 						bm
@@ -649,10 +652,20 @@ mod tests {
 				r#"{{"providers":{{"openai":{{"models":{{"m":{{"tiers":[{tiers}]}}}}}}}}}}"#
 			))
 		};
-		assert!(catalog(r#"{"contextOver":100},{"contextOver":200}"#).is_ok());
-		assert!(catalog(r#"{"contextOver":200},{"contextOver":100}"#).is_err());
-		assert!(catalog(r#"{"serviceTier":"flex"},{"serviceTier":"flex","contextOver":200}"#).is_ok());
-		assert!(catalog(r#"{"serviceTier":"flex","contextOver":200},{"serviceTier":"flex"}"#).is_err());
+		assert!(catalog(r#"{"contextOver":100,"rates":{}},{"contextOver":200,"rates":{}}"#).is_ok());
+		assert!(catalog(r#"{"contextOver":200,"rates":{}},{"contextOver":100,"rates":{}}"#).is_err());
+		assert!(
+			catalog(
+				r#"{"serviceTier":"flex","rates":{}},{"serviceTier":"flex","contextOver":200,"rates":{}}"#
+			)
+			.is_ok()
+		);
+		assert!(
+			catalog(
+				r#"{"serviceTier":"flex","contextOver":200,"rates":{}},{"serviceTier":"flex","rates":{}}"#
+			)
+			.is_err()
+		);
 	}
 
 	#[test]
