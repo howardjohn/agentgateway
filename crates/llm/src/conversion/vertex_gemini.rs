@@ -1490,7 +1490,10 @@ pub mod to_completions {
 				choices,
 				created: self.created,
 				model: self.model_version.clone(),
-				service_tier: None,
+				service_tier: chunk
+					.usage_metadata
+					.as_ref()
+					.and_then(|um| um.service_tier.clone().or_else(|| um.traffic_type.clone())),
 				system_fingerprint: None,
 				object: "chat.completion.chunk".to_string(),
 				usage,
