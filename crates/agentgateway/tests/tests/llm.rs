@@ -366,7 +366,7 @@ async fn llm_model_router_endpoint_classification_and_trace_names(
 	let otel = oteltracemock::OtelTraceMock::new(move || TraceHandler(tx.clone()))
 		.spawn()
 		.await;
-	let mock = body_mock(llm_body!("response/completions/basic.json")).await;
+	let mock = body_mock(llm_body!("response/responses/basic.json")).await;
 	let serving_prefix = if http_route { "" } else { prefix };
 	let config = format!(
 		r#"
@@ -425,7 +425,7 @@ llm:
 	assert_eq!(requests.len(), 3);
 	assert_eq!(
 		&requests[0].url[Position::BeforePath..Position::AfterQuery],
-		"/v1/chat/completions?trace=1"
+		"/v1/responses?trace=1"
 	);
 	assert_eq!(
 		&requests[1].url[Position::BeforePath..Position::AfterQuery],
@@ -1666,14 +1666,14 @@ async fn llm_streaming_remote_rate_limit_cost_amends_response_tokens() {
 #[rstest::rstest]
 #[case::preserves_path(None, None, "/v1/messages?trace=repro")]
 #[case::path_override(Some("/custom/chat/completions"), None, "/custom/chat/completions")]
-#[case::path_prefix(None, Some("/v1/custom/"), "/v1/custom/chat/completions?trace=repro")]
+#[case::path_prefix(None, Some("/v1/custom/"), "/v1/custom/responses?trace=repro")]
 #[tokio::test]
 async fn llm_openai_messages_translation_with_host_override_path_behavior(
 	#[case] path_override: Option<&str>,
 	#[case] path_prefix: Option<&str>,
 	#[case] expected_url: &str,
 ) {
-	let mock = body_mock(llm_body!("response/completions/basic.json")).await;
+	let mock = body_mock(llm_body!("response/responses/basic.json")).await;
 	let provider = agentgateway::test_helpers::proxymock::llm_named_provider(
 		&mock,
 		AIProvider::OpenAI(openai::Provider {
@@ -1717,7 +1717,7 @@ async fn llm_openai_messages_translation_with_host_override_path_behavior(
 
 #[tokio::test]
 async fn llm_final_transformation_applies_after_messages_translation() {
-	let mock = body_mock(llm_body!("response/completions/basic.json")).await;
+	let mock = body_mock(llm_body!("response/responses/basic.json")).await;
 	let (mock, mut bind, io) = setup_llm_mock(
 		mock,
 		AIProvider::OpenAI(openai::Provider {
@@ -1732,10 +1732,10 @@ async fn llm_final_transformation_applies_after_messages_translation() {
 			"ai": {
 				"routes": { "/v1/messages": "messages" },
 				"finalTransformations": {
-					// Drop a field the converter added.
-					"reasoning_effort": r#"fail("remove")"#,
-					// Observe the converted message list.
-					"converted_message_count": "llmRequest.messages.size()"
+					// Drop the converted tools.
+					"tools": r#"fail("remove")"#,
+					// Observe the converted input list.
+					"converted_message_count": "llmRequest.input.size()"
 				}
 			}
 		}))
@@ -1767,14 +1767,14 @@ async fn llm_final_transformation_applies_after_messages_translation() {
 	let request = single_upstream_request(&mock).await;
 	let upstream_body: Value = serde_json::from_slice(&request.body).expect("upstream request JSON");
 
-	// The request really was converted to completions format.
-	assert_eq!(upstream_body["messages"][0]["role"], json!("system"));
+	// The request really was converted to Responses format.
+	assert_eq!(upstream_body["instructions"], json!("be brief"));
 	// Indexing yields Null for a missing key, so assert on key presence.
 	assert!(
-		upstream_body.get("reasoning_effort").is_none(),
-		"reasoning_effort should be removed, got: {upstream_body}"
+		upstream_body.get("tools").is_none(),
+		"tools should be removed, got: {upstream_body}"
 	);
-	assert_eq!(upstream_body["converted_message_count"], json!(2));
+	assert_eq!(upstream_body["converted_message_count"], json!(1));
 }
 
 #[rstest::rstest]
