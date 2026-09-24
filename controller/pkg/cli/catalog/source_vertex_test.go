@@ -3,6 +3,7 @@ package catalog
 import (
 	"os"
 	"testing"
+	"time"
 
 	"istio.io/istio/pilot/test/util"
 )
@@ -14,7 +15,7 @@ func TestVertexPricing(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	cat, _, err := vertexParsePricing(f)
+	cat, _, err := vertexParsePricing(f, time.Date(2026, time.September, 24, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal(err)
 	}
