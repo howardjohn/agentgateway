@@ -530,10 +530,17 @@ pub mod from_completions {
 	pub fn translate_response(bytes: &Bytes) -> Result<Box<dyn ResponseType>, AIError> {
 		let resp = serde_json::from_slice::<messages::MessagesResponse>(bytes)
 			.map_err(logged_response_parsing(bytes))?;
+		let provider_usage = Some((
+			resp.usage.input_tokens as u64,
+			(resp.usage.input_tokens + resp.usage.output_tokens) as u64,
+		));
 		let openai = translate_response_internal(resp);
 		let passthrough = json::convert::<_, types::completions::Response>(&openai)
 			.map_err(AIError::ResponseParsing)?;
-		Ok(Box::new(passthrough))
+		Ok(Box::new(super::super::ResponseWithProviderUsage {
+			response: passthrough,
+			provider_usage,
+		}))
 	}
 
 	fn translate_response_internal(resp: messages::MessagesResponse) -> completions::Response {
