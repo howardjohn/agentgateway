@@ -4042,26 +4042,31 @@ impl ConverseResponseAdapter {
 
 		let usage = self
 			.usage
-			.map(|token_usage| completions::Usage {
-				prompt_tokens: token_usage.input_tokens as u32,
-				completion_tokens: token_usage.output_tokens as u32,
-				total_tokens: token_usage.total_tokens as u32,
-				completion_tokens_details: None,
+			.map(|token_usage| {
+				let input_tokens = token_usage.input_tokens
+					+ token_usage.cache_read_input_tokens.unwrap_or_default()
+					+ token_usage.cache_write_input_tokens.unwrap_or_default();
+				completions::Usage {
+					prompt_tokens: input_tokens as u32,
+					completion_tokens: token_usage.output_tokens as u32,
+					total_tokens: (input_tokens + token_usage.output_tokens) as u32,
+					completion_tokens_details: None,
 
-				cache_read_input_tokens: token_usage.cache_read_input_tokens.map(|i| i as u64),
-				prompt_tokens_details: match (
-					token_usage.cache_read_input_tokens,
-					token_usage.cache_write_input_tokens,
-				) {
-					(None, None) => None,
-					(cached_tokens, cache_write_tokens) => Some(UsagePromptDetails {
-						cached_tokens: cached_tokens.map(|i| i as u64),
-						audio_tokens: None,
-						cache_write_tokens: cache_write_tokens.map(|i| i as u64),
-						rest: Default::default(),
-					}),
-				},
-				cache_creation_input_tokens: token_usage.cache_write_input_tokens.map(|i| i as u64),
+					cache_read_input_tokens: token_usage.cache_read_input_tokens.map(|i| i as u64),
+					prompt_tokens_details: match (
+						token_usage.cache_read_input_tokens,
+						token_usage.cache_write_input_tokens,
+					) {
+						(None, None) => None,
+						(cached_tokens, cache_write_tokens) => Some(UsagePromptDetails {
+							cached_tokens: cached_tokens.map(|i| i as u64),
+							audio_tokens: None,
+							cache_write_tokens: cache_write_tokens.map(|i| i as u64),
+							rest: Default::default(),
+						}),
+					},
+					cache_creation_input_tokens: token_usage.cache_write_input_tokens.map(|i| i as u64),
+				}
 			})
 			.unwrap_or_default();
 
