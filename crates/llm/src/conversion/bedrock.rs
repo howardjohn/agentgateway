@@ -1428,12 +1428,15 @@ pub mod from_completions {
 								logged_tool_calls.take_output_messages(finish_reason.take());
 						});
 
+						let input_tokens = usage.input_tokens
+							+ usage.cache_read_input_tokens.unwrap_or_default()
+							+ usage.cache_write_input_tokens.unwrap_or_default();
 						mk(
 							vec![],
 							Some(completions::Usage {
-								prompt_tokens: usage.input_tokens as u32,
+								prompt_tokens: input_tokens as u32,
 								completion_tokens: usage.output_tokens as u32,
-								total_tokens: usage.total_tokens as u32,
+								total_tokens: (input_tokens + usage.output_tokens) as u32,
 								cache_read_input_tokens: usage.cache_read_input_tokens.map(|i| i as u64),
 								cache_creation_input_tokens: usage.cache_write_input_tokens.map(|i| i as u64),
 								prompt_tokens_details: match (
