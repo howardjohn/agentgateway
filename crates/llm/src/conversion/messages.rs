@@ -628,10 +628,13 @@ pub mod from_completions {
 
 		let choices = vec![choice];
 		// Convert usage from Anthropic format to OpenAI format
+		let input_tokens = resp.usage.input_tokens
+			+ resp.usage.cache_read_input_tokens.unwrap_or_default()
+			+ resp.usage.cache_creation_input_tokens.unwrap_or_default();
 		let usage = completions::Usage {
-			prompt_tokens: resp.usage.input_tokens as u32,
+			prompt_tokens: input_tokens as u32,
 			completion_tokens: resp.usage.output_tokens as u32,
-			total_tokens: (resp.usage.input_tokens + resp.usage.output_tokens) as u32,
+			total_tokens: (input_tokens + resp.usage.output_tokens) as u32,
 			cache_read_input_tokens: resp.usage.cache_read_input_tokens.map(|i| i as u64),
 			prompt_tokens_details: match (
 				resp.usage.cache_read_input_tokens,
