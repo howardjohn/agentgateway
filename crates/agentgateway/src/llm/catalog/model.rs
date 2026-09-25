@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
@@ -44,9 +45,11 @@ impl Catalog {
 		for (pid, op) in overlay.providers {
 			let base = self.providers.entry(pid).or_default();
 			for (mid, om) in op.models {
+				let om = Arc::unwrap_or_clone(om);
 				// Deep-merge per model so an overlay adding only tags keeps the base's costs.
 				let merged = match base.models.remove(&mid) {
-					Some(mut bm) => {
+					Some(bm) => {
+						let mut bm = Arc::unwrap_or_clone(bm);
 						bm.rates = bm.rates.overlay(&om.rates);
 						if !om.tiers.is_empty() {
 							// Replace each supplied service tier while preserving other service tiers.
@@ -59,13 +62,13 @@ impl Catalog {
 					},
 					None => om,
 				};
-				base.models.insert(mid, merged);
+				base.models.insert(mid, Arc::new(merged));
 			}
 		}
 		self
 	}
 
-	pub fn resolve(&self, provider: &str, model: &str) -> Option<&Model> {
+	pub fn resolve(&self, provider: &str, model: &str) -> Option<&Arc<Model>> {
 		self.providers.get(provider)?.models.get(model)
 	}
 }
@@ -93,20 +96,23 @@ pub fn from_json(s: &str) -> anyhow::Result<Catalog> {
 pub struct Provider {
 	/// Map of model ID to its pricing rates and tiers.
 	#[serde(default)]
-	pub models: BTreeMap<String, Model>,
+	pub models: BTreeMap<String, Arc<Model>>,
 }
 
 #[apply(schema!)]
-#[derive(PartialEq, Eq, Default)]
+#[derive(PartialEq, Eq, Default, cel::DynamicType)]
 pub struct Model {
 	/// Base pricing rates for this model.
 	#[serde(default, skip_serializing_if = "Rates::is_empty")]
+	#[dynamic(skip)]
 	pub rates: Rates,
 	/// Pricing rules ordered by increasing context threshold within each service tier.
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	#[dynamic(skip)]
 	pub tiers: Vec<Tier>,
 	/// Freeform capability/routing tags for this model.
 	#[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+	#[dynamic(with_value = "tags_to_value")]
 	pub tags: BTreeSet<String>,
 }
 
@@ -137,6 +143,15 @@ pub struct Rates {
 	/// Cost per page, for document/OCR models.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub per_page: Option<Money>,
+}
+
+fn tags_to_value(tags: &BTreeSet<String>) -> cel::Value<'_> {
+	cel::Value::List(cel::objects::ListValue::PartiallyOwned(
+		tags
+			.iter()
+			.map(|tag| cel::Value::String(tag.as_str().into()))
+			.collect(),
+	))
 }
 
 impl Rates {

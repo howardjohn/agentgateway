@@ -1475,6 +1475,10 @@ impl GuardrailInfo {
 #[apply(schema!)]
 #[derive(cel::DynamicType)]
 pub struct LLMContext {
+	/// Catalog entry for the model. This is resolved against the response model when known, falling back to the request model.
+	#[dynamic(rename = "modelInfo")]
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub model_info: Option<Arc<llm::catalog::Model>>,
 	/// Whether the LLM response is streamed. If it is streamed some fields may be inconsistent based on when accessed during the response flow.
 	pub streaming: bool,
 	/// The model requested for the LLM request. This may differ from the actual model used.
@@ -1604,6 +1608,15 @@ pub struct LLMContext {
 }
 
 impl LLMContext {
+	pub fn from_llm_request(value: LLMRequest, catalog: Option<&llm::catalog::ModelCatalog>) -> Self {
+		let model_info =
+			catalog.and_then(|catalog| catalog.model(&value.provider, &value.request_model));
+		Self {
+			model_info,
+			..Self::from(value)
+		}
+	}
+
 	pub fn from_llm_info(value: LLMInfo, model_catalog: Option<&llm::catalog::ModelCatalog>) -> Self {
 		let projection = model_catalog.map(|catalog| catalog.project(&value));
 		let normalized_input_tokens = value.normalized_input_tokens();
@@ -1672,6 +1685,7 @@ impl LLMContext {
 			base.cost = projection.cost;
 			base.cost_rates = projection.cost_rates;
 			base.cost_status = Some(projection.status);
+			base.model_info = projection.model;
 		}
 
 		base
@@ -1745,6 +1759,7 @@ impl From<llm::LLMRequest> for LLMContext {
 			cost: None,
 			cost_rates: None,
 			cost_status: None,
+			model_info: None,
 		}
 	}
 }
@@ -2488,6 +2503,7 @@ pub fn full_example_executor() -> ExecutorSerde {
 			cost: None,
 			cost_rates: None,
 			cost_status: None,
+			model_info: None,
 		}),
 		mcp: Some(MCPInfo {
 			method_name: Some("tools/call".into()),

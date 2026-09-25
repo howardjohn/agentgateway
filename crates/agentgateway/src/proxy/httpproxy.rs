@@ -575,13 +575,7 @@ async fn apply_llm_request_policies(
 				&& lrl.spec.key.as_ref().is_some_and(|key| key.needs_llm())
 		};
 		let llm_ctx = limits.iter().any(reads_llm).then(|| {
-			cel::LLMContext::from_llm_info(
-				llm::LLMInfo {
-					request: llm_req.clone(),
-					response: Default::default(),
-				},
-				None,
-			)
+			cel::LLMContext::from_llm_request(llm_req.clone(), Some(&client.inputs.model_catalog))
 		});
 		let mut exec = cel::Executor::new_request(req);
 		if let Some(llm_ctx) = llm_ctx.as_ref() {

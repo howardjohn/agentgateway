@@ -147,6 +147,7 @@ fn build_test_request() -> crate::http::Request {
 		cost: None,
 		cost_rates: None,
 		cost_status: None,
+		model_info: None,
 	};
 	req.extensions_mut().insert(llm);
 

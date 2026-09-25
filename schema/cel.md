@@ -52,6 +52,29 @@
 |`basicAuth`|object|`basicAuth` contains the claims from a verified basic authentication Key. This is only present if the Basic authentication policy is enabled.|
 |`basicAuth.username`|string||
 |`llm`|object|`llm` contains attributes about an LLM request or response. This is only present when using an `ai` backend.|
+|`llm.modelInfo`|object|Catalog entry for the model. This is resolved against the response model when known, falling back to the request model.|
+|`llm.modelInfo.rates`|object|Base pricing rates for this model.|
+|`llm.modelInfo.rates.input`|string|Cost per 1M input (prompt) tokens.|
+|`llm.modelInfo.rates.output`|string|Cost per 1M output (completion) tokens.|
+|`llm.modelInfo.rates.cacheRead`|string|Cost per 1M tokens read from cache.|
+|`llm.modelInfo.rates.cacheWrite`|string|Cost per 1M tokens written to cache.|
+|`llm.modelInfo.rates.reasoning`|string|Cost per 1M reasoning tokens. Falls back to the output rate if unset.|
+|`llm.modelInfo.rates.inputAudio`|string|Cost per 1M input audio tokens. Falls back to the input rate if unset.|
+|`llm.modelInfo.rates.outputAudio`|string|Cost per 1M output audio tokens. Falls back to the output rate if unset.|
+|`llm.modelInfo.rates.perPage`|string|Cost per page, for document/OCR models.|
+|`llm.modelInfo.tiers`|[]object|Pricing rules ordered by increasing context threshold within each service tier.|
+|`llm.modelInfo.tiers[].contextOver`|integer|Context-token threshold above which this rule applies. Defaults to zero.|
+|`llm.modelInfo.tiers[].serviceTier`|enum|Normalized served service tier; absent matches any service tier.<br>Possible values: `standard`, `flex`, `priority`, `reserved`, `null`.|
+|`llm.modelInfo.tiers[].rates`|object|Pricing rates for this tier, overlaid on the base model rates.|
+|`llm.modelInfo.tiers[].rates.input`|string|Cost per 1M input (prompt) tokens.|
+|`llm.modelInfo.tiers[].rates.output`|string|Cost per 1M output (completion) tokens.|
+|`llm.modelInfo.tiers[].rates.cacheRead`|string|Cost per 1M tokens read from cache.|
+|`llm.modelInfo.tiers[].rates.cacheWrite`|string|Cost per 1M tokens written to cache.|
+|`llm.modelInfo.tiers[].rates.reasoning`|string|Cost per 1M reasoning tokens. Falls back to the output rate if unset.|
+|`llm.modelInfo.tiers[].rates.inputAudio`|string|Cost per 1M input audio tokens. Falls back to the input rate if unset.|
+|`llm.modelInfo.tiers[].rates.outputAudio`|string|Cost per 1M output audio tokens. Falls back to the output rate if unset.|
+|`llm.modelInfo.tiers[].rates.perPage`|string|Cost per page, for document/OCR models.|
+|`llm.modelInfo.tags`|[]string|Freeform capability/routing tags for this model.|
 |`llm.streaming`|boolean|Whether the LLM response is streamed. If it is streamed some fields may be inconsistent based on when accessed during the response flow.|
 |`llm.requestModel`|string|The model requested for the LLM request. This may differ from the actual model used.|
 |`llm.responseModel`|string|The model that actually served the LLM response.|

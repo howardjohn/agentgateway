@@ -355,6 +355,183 @@
         "null"
       ],
       "properties": {
+        "modelInfo": {
+          "description": "Catalog entry for the model. This is resolved against the response model when known, falling back to the request model.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "rates": {
+              "description": "Base pricing rates for this model.",
+              "type": "object",
+              "properties": {
+                "input": {
+                  "description": "Cost per 1M input (prompt) tokens.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "output": {
+                  "description": "Cost per 1M output (completion) tokens.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "cacheRead": {
+                  "description": "Cost per 1M tokens read from cache.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "cacheWrite": {
+                  "description": "Cost per 1M tokens written to cache.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "reasoning": {
+                  "description": "Cost per 1M reasoning tokens. Falls back to the output rate if unset.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "inputAudio": {
+                  "description": "Cost per 1M input audio tokens. Falls back to the input rate if unset.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "outputAudio": {
+                  "description": "Cost per 1M output audio tokens. Falls back to the output rate if unset.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "perPage": {
+                  "description": "Cost per page, for document/OCR models.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "tiers": {
+              "description": "Pricing rules ordered by increasing context threshold within each service tier.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "contextOver": {
+                    "description": "Context-token threshold above which this rule applies. Defaults to zero.",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0
+                  },
+                  "serviceTier": {
+                    "description": "Normalized served service tier; absent matches any service tier.",
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "standard",
+                      "flex",
+                      "priority",
+                      "reserved",
+                      null
+                    ]
+                  },
+                  "rates": {
+                    "description": "Pricing rates for this tier, overlaid on the base model rates.",
+                    "type": "object",
+                    "properties": {
+                      "input": {
+                        "description": "Cost per 1M input (prompt) tokens.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "output": {
+                        "description": "Cost per 1M output (completion) tokens.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "cacheRead": {
+                        "description": "Cost per 1M tokens read from cache.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "cacheWrite": {
+                        "description": "Cost per 1M tokens written to cache.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "reasoning": {
+                        "description": "Cost per 1M reasoning tokens. Falls back to the output rate if unset.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "inputAudio": {
+                        "description": "Cost per 1M input audio tokens. Falls back to the input rate if unset.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "outputAudio": {
+                        "description": "Cost per 1M output audio tokens. Falls back to the output rate if unset.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "perPage": {
+                        "description": "Cost per page, for document/OCR models.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "rates"
+                ]
+              }
+            },
+            "tags": {
+              "description": "Freeform capability/routing tags for this model.",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
         "streaming": {
           "description": "Whether the LLM response is streamed. If it is streamed some fields may be inconsistent based on when accessed during the response flow.",
           "type": "boolean"

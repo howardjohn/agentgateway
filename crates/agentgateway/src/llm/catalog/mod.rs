@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use arc_swap::ArcSwap;
-pub use model::{Breakdown, Catalog, CatalogMetadata};
+pub use model::{Breakdown, Catalog, CatalogMetadata, Model};
 use model::{Catalog as CatalogData, Rates, Usage};
 use prometheus_client::encoding::EncodeLabelValue;
 use rust_decimal::Decimal;
@@ -207,6 +207,18 @@ impl ModelCatalog {
 				return Ok(());
 			}
 		}
+	}
+
+	/// Share the typed catalog entry with CEL contexts without serializing or copying it.
+	pub fn model(&self, provider: &str, model: &str) -> Option<Arc<Model>> {
+		self
+			.state
+			.load()
+			.snapshot
+			.catalog
+			.as_ref()?
+			.resolve(provider, model)
+			.cloned()
 	}
 
 	pub fn project(&self, info: &LLMInfo) -> CostProjection {
@@ -431,7 +443,10 @@ impl CatalogSnapshot {
 					"usage": &provisional_usage,
 				}),
 			);
-			return CostProjection::unpriced(CostLookupStatus::Unpriced);
+			return CostProjection {
+				model: Some(entry.clone()),
+				..CostProjection::unpriced(CostLookupStatus::Unpriced)
+			};
 		}
 
 		let prices_cache_read = rates.cache_read.is_some();
@@ -465,6 +480,7 @@ impl CatalogSnapshot {
 			status: CostLookupStatus::Exact,
 			cost: Some(breakdown),
 			cost_rates: Some(cost_rates),
+			model: Some(entry.clone()),
 		}
 	}
 }
@@ -488,6 +504,8 @@ pub struct CostProjection {
 	pub status: CostLookupStatus,
 	pub cost: Option<Breakdown>,
 	pub cost_rates: Option<CostRates>,
+	/// Catalog entry the cost was resolved against.
+	pub model: Option<Arc<Model>>,
 }
 
 impl CostProjection {
@@ -496,6 +514,7 @@ impl CostProjection {
 			status,
 			cost: None,
 			cost_rates: None,
+			model: None,
 		}
 	}
 }
