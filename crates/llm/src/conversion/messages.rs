@@ -705,6 +705,10 @@ pub mod from_completions {
 		// role field — it belongs on `choices[].delta`, so hold it until there is a chunk for it.
 		let mut pending_role = None;
 		let mut service_tier = None;
+		let mut input_tokens = 0;
+		let mut output_tokens = 0;
+		let mut cache_read_input_tokens = None;
+		let mut cache_creation_input_tokens = None;
 		let created = chrono::Utc::now().timestamp() as u32;
 		// let mut finish_reason = None;
 		let mut saw_token = false;
@@ -749,6 +753,10 @@ pub mod from_completions {
 					});
 					model = message.model.clone();
 					service_tier = message.usage.service_tier.clone();
+					input_tokens = message.usage.input_tokens;
+					output_tokens = message.usage.output_tokens;
+					cache_read_input_tokens = message.usage.cache_read_input_tokens;
+					cache_creation_input_tokens = message.usage.cache_creation_input_tokens;
 					log.update(|r| {
 						r.response.output_tokens = Some(message.usage.output_tokens as u64);
 						r.response.input_tokens = Some(message.usage.input_tokens as u64);
@@ -908,20 +916,25 @@ pub mod from_completions {
 							finish_reason: Some(finish_reason),
 						}]
 					});
+					input_tokens = usage.input_tokens.unwrap_or(input_tokens);
+					output_tokens = usage.output_tokens.unwrap_or(output_tokens);
+					cache_read_input_tokens = usage.cache_read_input_tokens.or(cache_read_input_tokens);
+					cache_creation_input_tokens = usage
+						.cache_creation_input_tokens
+						.or(cache_creation_input_tokens);
+					let prompt_tokens = input_tokens
+						+ cache_read_input_tokens.unwrap_or_default()
+						+ cache_creation_input_tokens.unwrap_or_default();
 					mk(
 						choices,
 						Some(completions::Usage {
-							prompt_tokens: usage.input_tokens.unwrap_or_default() as u32,
-							completion_tokens: usage.output_tokens.unwrap_or_default() as u32,
+							prompt_tokens: prompt_tokens as u32,
+							completion_tokens: output_tokens as u32,
 
-							total_tokens: (usage.input_tokens.unwrap_or_default()
-								+ usage.output_tokens.unwrap_or_default()) as u32,
+							total_tokens: (prompt_tokens + output_tokens) as u32,
 
-							cache_read_input_tokens: usage.cache_read_input_tokens.map(|i| i as u64),
-							prompt_tokens_details: match (
-								usage.cache_read_input_tokens,
-								usage.cache_creation_input_tokens,
-							) {
+							cache_read_input_tokens: cache_read_input_tokens.map(|i| i as u64),
+							prompt_tokens_details: match (cache_read_input_tokens, cache_creation_input_tokens) {
 								(None, None) => None,
 								(cached_tokens, cache_write_tokens) => Some(UsagePromptDetails {
 									cached_tokens: cached_tokens.map(|i| i as u64),
@@ -930,7 +943,7 @@ pub mod from_completions {
 									rest: Default::default(),
 								}),
 							},
-							cache_creation_input_tokens: usage.cache_creation_input_tokens.map(|i| i as u64),
+							cache_creation_input_tokens: cache_creation_input_tokens.map(|i| i as u64),
 
 							completion_tokens_details: None,
 						}),
