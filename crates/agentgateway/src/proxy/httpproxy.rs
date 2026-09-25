@@ -1321,7 +1321,11 @@ impl HTTPProxy {
 			call_target: backend_call.target.clone(),
 			inputs: self.inputs.clone(),
 		};
-		set_backend_cel_context(req, Some(&log), Some(&backend_call.target));
+		set_backend_cel_context(
+			req,
+			Some(&log),
+			backend_call.static_target.then_some(&backend_call.target),
+		);
 		{
 			let mut maybe_log = Some(&mut *log);
 			apply_backend_policies(
@@ -2664,7 +2668,11 @@ async fn make_backend_call(
 			.backend_policies
 			.register_cel_expressions(log.cel.ctx());
 	}
-	set_backend_cel_context(&mut req, log.as_ref(), Some(&backend_call.target));
+	set_backend_cel_context(
+		&mut req,
+		log.as_ref(),
+		backend_call.static_target.then_some(&backend_call.target),
+	);
 	// Apply auth before LLM request setup, so the providers can assume auth is in standardized header
 	// Apply auth as early as possible so any ext_proc or transformations won't be repeated on retries in case it fails.
 	let backend_info = auth::BackendInfo {
@@ -2704,7 +2712,11 @@ async fn make_backend_call(
 	let llm_request_policies =
 		route_policies.merge_backend_policies(backend_call.backend_policies.llm.clone());
 
-	set_backend_cel_context(&mut req, log.as_ref(), Some(&backend_call.target));
+	set_backend_cel_context(
+		&mut req,
+		log.as_ref(),
+		backend_call.static_target.then_some(&backend_call.target),
+	);
 
 	let (mut req, llm_response_policies, llm_request) =
 		if let Some(llm) = &backend_call.backend_policies.llm_provider {
@@ -3329,6 +3341,7 @@ pub fn build_service_call(
 		&& service_override.destination_passthrough
 	{
 		return Ok(BackendCall {
+			static_target: false,
 			target: Target::Address(destination),
 			span_target: Some(strng::format!("{}:{port}", svc.hostname)),
 			http_version_override,
@@ -3502,6 +3515,7 @@ pub fn build_service_call(
 	};
 
 	Ok(BackendCall {
+		static_target: false,
 		target,
 		span_target: Some(strng::format!("{}:{port}", svc.hostname)),
 		http_version_override,
@@ -4678,6 +4692,7 @@ fn apply_internal_path(req: &mut Request, internal: &InternalBackend) -> Result<
 }
 
 pub struct BackendCall {
+	static_target: bool,
 	pub target: Target,
 	pub span_target: Option<Strng>,
 	pub http_version_override: Option<::http::Version>,
@@ -4700,6 +4715,7 @@ impl BackendCall {
 			Target::Address(_) | Target::UnixSocket(_) => None,
 		};
 		Self {
+			static_target: true,
 			target,
 			span_target,
 			http_version_override: None,

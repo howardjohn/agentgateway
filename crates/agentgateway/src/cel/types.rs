@@ -435,8 +435,8 @@ pub struct BackendContext {
 	/// The name of the backend being used. For example, `my-service` or `service/my-namespace/my-service:8080`.
 	#[serde(default)]
 	pub name: Strng,
-	/// The selected backend call target, including the port for network endpoints. This is available
-	/// once the target has been resolved.
+	/// The resolved target for directly addressed backends, including the port for network endpoints.
+	/// Absent for Service backends, whose workload endpoints are selected separately.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub endpoint: Option<Strng>,
 	/// The type of backend.
