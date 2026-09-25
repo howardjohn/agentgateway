@@ -8,18 +8,26 @@ pub mod responses;
 pub mod vertex;
 pub mod vertex_gemini;
 
-/// Keep provider token counts for accounting when the client format includes cached tokens.
+#[derive(Default)]
+struct ProviderUsage {
+	input_tokens: u64,
+	total_tokens: u64,
+	reasoning_tokens: Option<u64>,
+}
+
+/// Keep provider token counts for accounting when translating client usage conventions.
 struct ResponseWithProviderUsage<T> {
 	response: T,
-	provider_usage: Option<(u64, u64)>,
+	provider_usage: Option<ProviderUsage>,
 }
 
 impl<T: crate::types::ResponseType> crate::types::ResponseType for ResponseWithProviderUsage<T> {
 	fn to_llm_response(&self, log_content: crate::LogContentFields) -> crate::LLMResponse {
 		let mut response = self.response.to_llm_response(log_content);
-		if let Some((input_tokens, total_tokens)) = self.provider_usage {
-			response.input_tokens = Some(input_tokens);
-			response.total_tokens = Some(total_tokens);
+		if let Some(usage) = &self.provider_usage {
+			response.input_tokens = Some(usage.input_tokens);
+			response.total_tokens = Some(usage.total_tokens);
+			response.reasoning_tokens = usage.reasoning_tokens.or(response.reasoning_tokens);
 		}
 		response
 	}
