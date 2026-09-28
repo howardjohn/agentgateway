@@ -172,7 +172,7 @@ export function KeysPage() {
 		<div className="page-stack">
 			<PageHeader
 				title="Virtual API Keys"
-				description="Provision incoming credentials and metadata for callers."
+				description="Issue API keys that callers use to authenticate to the gateway."
 				actions={
 					<div className="button-row">
 						{policy ? (

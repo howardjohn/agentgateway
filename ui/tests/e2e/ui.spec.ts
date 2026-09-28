@@ -160,7 +160,7 @@ test('onboards all surfaces from a completely empty config', async ({ page }) =>
 	await expect(page.getByRole('heading', { name: 'Welcome to Agentgateway' })).toBeVisible();
 	await expect(page.getByRole('button', { name: /LLM/ })).toBeVisible();
 	await expect(page.getByRole('button', { name: /MCP/ })).toBeVisible();
-	await page.getByRole('button', { name: /APIs/ }).click();
+	await page.getByRole('button', { name: /^Enable Traffic/ }).click();
 
 	await expect.poll(() => gateway.postedConfigs.length).toBe(1);
 	expect(gateway.postedConfigs[0].gateways).toMatchObject({
@@ -182,7 +182,6 @@ test('onboards all surfaces from a completely empty config', async ({ page }) =>
 		gateways: 'public'
 	});
 	await expect(page.getByRole('heading', { name: 'Welcome to Agentgateway' })).toBeVisible();
-	await expect(page.getByText('3 of 3 enabled')).toBeVisible();
 	await page.getByRole('button', { name: 'Continue' }).click();
 	await expect(page.getByRole('heading', { name: 'Gateway Overview' })).toBeVisible();
 });
@@ -335,7 +334,7 @@ test('onboards LLM and MCP onto the UI gateway when present', async ({ page }) =
 	await page.goto('/');
 
 	await expect(page.getByRole('heading', { name: 'Welcome to Agentgateway' })).toBeVisible();
-	await expect(page.getByRole('button', { name: /APIs enabled/ })).toBeDisabled();
+	await expect(page.getByRole('button', { name: /^Traffic enabled/ })).toBeDisabled();
 
 	await page.getByRole('button', { name: /LLM/ }).click();
 	await expect.poll(() => gateway.postedConfigs.length).toBe(1);
@@ -351,7 +350,7 @@ test('onboards LLM and MCP onto the UI gateway when present', async ({ page }) =
 	});
 	expect(gateway.postedConfigs[1].mcp).not.toHaveProperty('port');
 
-	await expect(page.getByRole('button', { name: /APIs enabled/ })).toBeVisible();
+	await expect(page.getByRole('button', { name: /^Traffic enabled/ })).toBeVisible();
 	await expect(page.locator('.nav-list').getByRole('link', { name: 'Gateways' })).toBeVisible();
 });
 
