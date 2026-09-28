@@ -300,9 +300,8 @@ a {
 	justify-content: space-between;
 	min-height: 58px;
 	border-bottom: 1px solid var(--line);
-	background: color-mix(in srgb, var(--bg) 92%, transparent);
+	background: var(--bg);
 	padding: 10px 28px;
-	backdrop-filter: blur(10px);
 }
 
 .topbar-controls {
@@ -2447,20 +2446,6 @@ td.row-actions > * + * {
 	font-size: 15px;
 }
 
-.surface-row-title span {
-	border: 1px solid var(--line);
-	border-radius: 999px;
-	color: var(--muted);
-	font-size: 11px;
-	font-weight: 700;
-	padding: 2px 7px;
-}
-
-.surface-row.compact .surface-row-title span {
-	border-color: transparent;
-	padding: 0;
-}
-
 .surface-row-main p {
 	max-width: 620px;
 	color: var(--muted);
@@ -2478,41 +2463,16 @@ td.row-actions > * + * {
 }
 
 .surface-metrics {
-	margin-top: 12px;
-}
-
-.surface-metrics span {
-	border: 1px solid var(--line);
-	border-radius: 6px;
-	background: var(--surface-2);
-	color: var(--text);
-	font-size: 12px;
-	font-weight: 600;
-	padding: 6px 8px;
+	margin-top: 10px;
+	color: var(--muted);
+	font-size: 13px;
+	gap: 6px 18px;
 }
 
 .surface-enable-panel {
 	display: grid;
 	gap: 18px;
 	max-width: 720px;
-}
-
-.surface-enable-heading {
-	display: flex;
-	align-items: flex-start;
-	gap: 12px;
-}
-
-.surface-enable-heading h3 {
-	margin: 0;
-	font-size: 18px;
-}
-
-.surface-enable-heading p {
-	color: var(--muted);
-	font-size: 13px;
-	line-height: 1.55;
-	margin: 6px 0 0;
 }
 
 .warning-list {
@@ -2551,64 +2511,57 @@ td.row-actions > * + * {
 	place-items: center;
 	padding: 40px 18px;
 	background: color-mix(in srgb, var(--text) 28%, transparent);
-	backdrop-filter: blur(2px);
 }
 
 .startup-panel {
-	width: min(760px, 100%);
+	width: min(560px, 100%);
 	border: 1px solid var(--line);
 	border-radius: 8px;
 	background: var(--surface);
-	box-shadow: 0 24px 70px rgb(15 23 42 / 18%);
-	padding: 30px;
+	box-shadow: var(--shadow-popover);
+	padding: 24px;
 }
 
 .startup-copy {
-	max-width: 680px;
-	text-align: center;
-	margin: 0 auto 26px;
+	margin: 0 0 20px;
 }
 
 .startup-copy h2 {
 	margin: 0;
-	font-size: 28px;
+	font-size: 20px;
 	line-height: 1.15;
 }
 
 .startup-copy p {
 	color: var(--muted);
-	font-size: 15px;
-	line-height: 1.6;
-	margin: 12px 0 0;
+	font-size: 14px;
+	line-height: 1.5;
+	margin: 6px 0 0;
 }
 
 .startup-chip-grid {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 14px;
+	gap: 8px;
 }
 
 .startup-chip {
-	display: flex;
-	aspect-ratio: 1;
-	min-height: 172px;
-	flex-direction: column;
-	align-items: flex-start;
-	justify-content: flex-start;
-	gap: 10px;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	grid-template-rows: auto auto;
+	align-items: center;
+	column-gap: 12px;
+	row-gap: 2px;
 	border: 1px solid var(--line-strong);
-	border-radius: 8px;
-	background: var(--surface-2);
+	border-radius: 6px;
+	background: var(--surface);
 	color: var(--text);
-	padding: 18px;
+	padding: 12px 14px;
 	text-align: left;
 	cursor: pointer;
 }
 
 .startup-chip:hover:not(:disabled) {
-	border-color: color-mix(in srgb, var(--primary) 45%, var(--line-strong));
-	background: var(--surface);
-	box-shadow: 0 8px 24px rgb(15 23 42 / 8%);
+	border-color: var(--primary);
 }
 
 .startup-chip.enabled {
@@ -2621,6 +2574,7 @@ td.row-actions > * + * {
 
 /* biome-ignore lint/style/noDescendingSpecificity: Existing lint violation; remove this suppression when the underlying issue is fixed. */
 .startup-chip svg {
+	grid-row: span 2;
 	color: var(--muted);
 }
 
@@ -2630,7 +2584,7 @@ td.row-actions > * + * {
 
 .startup-chip strong {
 	color: inherit;
-	font-size: 16px;
+	font-size: 14px;
 }
 
 .startup-chip span {
@@ -2647,12 +2601,6 @@ td.row-actions > * + * {
 	margin-top: 22px;
 	padding-top: 18px;
 	border-top: 1px solid var(--line);
-}
-
-.startup-actions span {
-	color: var(--muted);
-	font-size: 13px;
-	font-weight: 600;
 }
 
 .table-wrap {
@@ -6049,24 +5997,6 @@ textarea {
 	font-size: 11.5px;
 }
 
-.stream-live-dot {
-	width: 7px;
-	height: 7px;
-	border-radius: 999px;
-	background: var(--ok);
-	animation: stream-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes stream-pulse {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.35;
-	}
-}
-
 /* biome-ignore lint/style/noDescendingSpecificity: Existing lint violation; remove this suppression when the underlying issue is fixed. */
 details summary {
 	cursor: pointer;
@@ -6184,7 +6114,6 @@ details summary {
 		padding: 16px;
 	}
 
-	.startup-chip-grid,
 	.two-column,
 	.two-column.wide-left,
 	.playground-shell,
