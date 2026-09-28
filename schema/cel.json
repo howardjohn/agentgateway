@@ -1118,7 +1118,7 @@
           "default": ""
         },
         "endpoint": {
-          "description": "The selected backend call target, including the port for network endpoints. This is available\nonce the target has been resolved.",
+          "description": "The resolved target for directly addressed backends, including the port for network endpoints.\nAbsent for Service backends, whose workload endpoints are selected separately.",
           "type": [
             "string",
             "null"
