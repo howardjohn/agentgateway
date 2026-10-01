@@ -193,12 +193,22 @@ func ConvertGRPCRouteToAgw(ctx RouteContext, r gwv1.GRPCRouteRule,
 		var path *api.PathMatch
 		if match.Method != nil {
 			// Convert GRPC method to path for routing purposes
-			if match.Method.Service != nil && match.Method.Method != nil {
+			if ptr.OrEmpty(match.Method.Type) == gwv1.GRPCMethodMatchRegularExpression {
+				// An omitted service or method matches any single path segment
+				service, method := "[^/]+", "[^/]+"
+				if match.Method.Service != nil {
+					service = "(?:" + *match.Method.Service + ")"
+				}
+				if match.Method.Method != nil {
+					method = "(?:" + *match.Method.Method + ")"
+				}
+				path = &api.PathMatch{Kind: &api.PathMatch_Regex{Regex: "/" + service + "/" + method}}
+			} else if match.Method.Service != nil && match.Method.Method != nil {
 				pathStr := fmt.Sprintf("/%s/%s", *match.Method.Service, *match.Method.Method)
 				path = &api.PathMatch{Kind: &api.PathMatch_Exact{Exact: pathStr}}
 			} else if match.Method.Service != nil {
 				pathStr := fmt.Sprintf("/%s/", *match.Method.Service)
-				path = &api.PathMatch{Kind: &api.PathMatch_Exact{Exact: pathStr}}
+				path = &api.PathMatch{Kind: &api.PathMatch_PathPrefix{PathPrefix: pathStr}}
 			} else if match.Method.Method != nil {
 				// Convert wildcard to regex: "/*/{method}" becomes "/[^/]+/{method}"
 				pathStr := fmt.Sprintf("/[^/]+/%s", *match.Method.Method)

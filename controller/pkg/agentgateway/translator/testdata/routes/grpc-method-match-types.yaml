@@ -54,15 +54,15 @@ output:
       listenerKey: default/test-gateway.http
       matches:
       - path:
-          exact: /grpc.health.v1.Health/
+          pathPrefix: /grpc.health.v1.Health/
       - path:
           regex: /[^/]+/Check
       - path:
-          exact: /example\.v[0-9]+\.Service/Get.*
+          regex: /(?:example\.v[0-9]+\.Service)/(?:Get.*)
       - path:
-          exact: /foo\.(Bar|Baz)/
+          regex: /(?:foo\.(Bar|Baz))/[^/]+
       - path:
-          regex: /[^/]+/List.*
+          regex: /[^/]+/(?:List.*)
       name:
         kind: GRPCRoute
         name: grpc-method-match-types
