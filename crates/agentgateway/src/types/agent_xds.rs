@@ -2172,7 +2172,12 @@ fn route_match_from_proto(
 		}) => PathMatch::Exact(strng::new(prefix)),
 		Some(proto::agent::PathMatch {
 			kind: Some(Kind::Regex(r)),
-		}) => regex_or_warn_invalid(diagnostics, "route.path", r)
+		}) => PathMatch::regex(r)
+			.inspect_err(|err| {
+				diagnostics.add_warning(format!(
+					"invalid regex for route.path: {err}; replacing {r:?} with a matcher that never matches",
+				));
+			})
 			.map(PathMatch::Regex)
 			.unwrap_or(PathMatch::Invalid),
 		Some(proto::agent::PathMatch { kind: None }) => {
