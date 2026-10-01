@@ -170,6 +170,17 @@ func ConvertTCPRouteToAgw(ctx RouteContext, r gwv1.TCPRouteRule,
 	return res, backendErr
 }
 
+// trimRegexAnchors strips a leading ^ and trailing $ from a field regex. The service and method regexes are
+// anchored to their own field, but are embedded in a larger path regex where the anchors would never match.
+// The path regex is already full-match, so the anchors are redundant.
+func trimRegexAnchors(re string) string {
+	re = strings.TrimPrefix(re, "^")
+	if strings.HasSuffix(re, "$") && !strings.HasSuffix(re, `\$`) {
+		re = strings.TrimSuffix(re, "$")
+	}
+	return re
+}
+
 // ConvertGRPCRouteToAgw converts a GRPCRouteRule to an agentgateway HTTPRoute
 func ConvertGRPCRouteToAgw(ctx RouteContext, r gwv1.GRPCRouteRule,
 	obj *gwv1.GRPCRoute, pos int,
@@ -197,10 +208,10 @@ func ConvertGRPCRouteToAgw(ctx RouteContext, r gwv1.GRPCRouteRule,
 				// An omitted service or method matches any single path segment
 				service, method := "[^/]+", "[^/]+"
 				if match.Method.Service != nil {
-					service = "(?:" + *match.Method.Service + ")"
+					service = "(?:" + trimRegexAnchors(*match.Method.Service) + ")"
 				}
 				if match.Method.Method != nil {
-					method = "(?:" + *match.Method.Method + ")"
+					method = "(?:" + trimRegexAnchors(*match.Method.Method) + ")"
 				}
 				path = &api.PathMatch{Kind: &api.PathMatch_Regex{Regex: "/" + service + "/" + method}}
 			} else if match.Method.Service != nil && match.Method.Method != nil {

@@ -22,6 +22,10 @@ spec:
         - method:
             type: RegularExpression
             method: List.*
+        - method:
+            type: RegularExpression
+            service: ^grpc\.health\.v1\.Health$
+            method: ^Check$
       backendRefs:
         - name: grpc-service
           port: 9090
@@ -63,6 +67,8 @@ output:
           regex: /(?:foo\.(Bar|Baz))/[^/]+
       - path:
           regex: /[^/]+/(?:List.*)
+      - path:
+          regex: /(?:grpc\.health\.v1\.Health)/(?:Check)
       name:
         kind: GRPCRoute
         name: grpc-method-match-types
