@@ -1957,6 +1957,7 @@ message AIBackend {
     PROVIDER_PRESET_TOGETHERAI = 11;
     PROVIDER_PRESET_XAI = 12;
     PROVIDER_PRESET_FIREWORKS = 13;
+    PROVIDER_PRESET_META = 14;
   }
 
   message Provider {

@@ -5196,6 +5196,7 @@ spec:
                 - Gemini
                 - Groq
                 - Huggingface
+                - Meta
                 - Mistral
                 - Ollama
                 - OpenAI

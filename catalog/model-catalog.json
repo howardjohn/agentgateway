@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generatedAt": "2026-10-01T08:39:53Z"
+    "generatedAt": "2026-10-01T22:04:50Z"
   },
   "providers": {
     "anthropic": {
@@ -4535,8 +4535,8 @@
         },
         "google/gemma-4-31B-it": {
           "rates": {
-            "input": "0.13",
-            "output": "0.38"
+            "input": "0.15",
+            "output": "0.4"
           }
         },
         "google/gemma-4-E4B-it": {
@@ -4699,9 +4699,9 @@
       "models": {
         "accounts/fireworks/models/deepseek-v4p1-flash": {
           "rates": {
-            "input": "0.22",
-            "output": "0.66",
-            "cacheRead": "0.007"
+            "input": "0.3",
+            "output": "1.2",
+            "cacheRead": "0.006"
           }
         },
         "accounts/fireworks/models/ember-1": {
@@ -4783,9 +4783,9 @@
         },
         "accounts/fireworks/routers/deepseek-flash-latest": {
           "rates": {
-            "input": "0.22",
-            "output": "0.66",
-            "cacheRead": "0.007"
+            "input": "0.3",
+            "output": "1.2",
+            "cacheRead": "0.006"
           }
         },
         "accounts/fireworks/routers/glm-5p3-fast": {
@@ -6145,6 +6145,45 @@
           "rates": {
             "input": "0.15",
             "output": "0.5"
+          }
+        }
+      }
+    },
+    "meta": {
+      "models": {
+        "muse-spark-1.1": {
+          "rates": {
+            "input": "1.25",
+            "output": "4.25",
+            "cacheRead": "0.15"
+          }
+        },
+        "muse-spark-1.2": {
+          "rates": {
+            "input": "1.25",
+            "output": "4.25",
+            "cacheRead": "0.15"
+          }
+        },
+        "muse-spark-1.2-contributor": {
+          "rates": {
+            "input": "0.1",
+            "output": "0.2",
+            "cacheRead": "0.002"
+          }
+        },
+        "muse-spark-1.3": {
+          "rates": {
+            "input": "1.25",
+            "output": "4.25",
+            "cacheRead": "0.15"
+          }
+        },
+        "muse-spark-1.3-contributor": {
+          "rates": {
+            "input": "0.1",
+            "output": "0.2",
+            "cacheRead": "0.002"
           }
         }
       }
