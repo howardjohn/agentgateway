@@ -376,6 +376,10 @@ type BackendEviction struct {
 type BackendWithAI struct {
 	BackendSimple `json:",inline"`
 
+	// Authorization rules that clients must satisfy after this AI provider is selected.
+	// +optional
+	Authorization *Authorization `json:"authorization,omitempty"`
+
 	// Settings for AI workloads. This is only applicable when
 	// connecting to a `Backend` of type `ai`.
 	// +optional

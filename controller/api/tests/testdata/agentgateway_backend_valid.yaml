@@ -18,6 +18,10 @@ spec:
       - name: openai-gpt4
         openai: {}
         policies:
+          authorization:
+            policy:
+              matchExpressions:
+              - 'request.headers["x-tenant"] == "acme"'
           ai:
             modelAliases:
               fast: gpt-5-nano
