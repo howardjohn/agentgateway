@@ -83,9 +83,9 @@ jobs:
       matrix:
         include:
           - platform: linux/amd64
-            os: blacksmith-4vcpu-ubuntu-2404
+            os: blacksmith-8vcpu-ubuntu-2404
           - platform: linux/arm64
-            os: blacksmith-4vcpu-ubuntu-2404-arm
+            os: blacksmith-8vcpu-ubuntu-2404-arm
     env:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
@@ -213,10 +213,10 @@ jobs:
       matrix:
         include:
           - platform: linux/amd64
-            os: ubuntu-24.04
+            os: blacksmith-8vcpu-ubuntu-2404
             goarch: amd64
           - platform: linux/arm64
-            os: blacksmith-4vcpu-ubuntu-2404-arm
+            os: blacksmith-8vcpu-ubuntu-2404-arm
             goarch: arm64
     defaults:
       run:
@@ -407,10 +407,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: blacksmith-4vcpu-ubuntu-2404
+          - os: blacksmith-8vcpu-ubuntu-2404
             target: x86_64-unknown-linux-musl
             name: linux
-          - os: blacksmith-4vcpu-ubuntu-2404-arm
+          - os: blacksmith-8vcpu-ubuntu-2404-arm
             target: aarch64-unknown-linux-musl
             # arm64 musl fails with jemalloc: https://github.com/tikv/jemallocator/issues/146
             extra_cargo_args: "--no-default-features --features agentgateway-app/mimalloc,agentgateway-app/crypto-aws-lc"
