@@ -305,6 +305,16 @@ fn invalid_request_error(bytes: &[u8]) -> Result<bytes::Bytes, AIError> {
 	))
 }
 
+impl From<bedrock::TokenUsage> for super::ProviderUsage {
+	fn from(u: bedrock::TokenUsage) -> Self {
+		Self {
+			input_tokens: u.input_tokens as u64,
+			total_tokens: u.total_tokens as u64,
+			..Default::default()
+		}
+	}
+}
+
 pub mod from_rerank {
 	use crate::bedrock::Provider;
 	use crate::types::ResponseType;
@@ -1181,11 +1191,7 @@ pub mod from_completions {
 	) -> Result<Box<dyn ResponseType>, AIError> {
 		let resp = serde_json::from_slice::<bedrock::ConverseResponse>(bytes)
 			.map_err(logged_response_parsing(bytes))?;
-		let provider_usage = resp.usage.map(|u| super::super::ProviderUsage {
-			input_tokens: u.input_tokens as u64,
-			total_tokens: u.total_tokens as u64,
-			..Default::default()
-		});
+		let provider_usage = resp.usage.map(super::super::ProviderUsage::from);
 		let openai = translate_response_internal(resp, model, tool_name_map)?;
 		let passthrough = json::convert::<_, types::completions::Response>(&openai)
 			.map_err(AIError::ResponseParsing)?;
@@ -1444,7 +1450,7 @@ pub mod from_completions {
 							Some(completions::Usage {
 								prompt_tokens: input_tokens as u32,
 								completion_tokens: usage.output_tokens as u32,
-								total_tokens: (input_tokens + usage.output_tokens) as u32,
+								total_tokens: usage.total_tokens as u32,
 								cache_read_input_tokens: usage.cache_read_input_tokens.map(|i| i as u64),
 								cache_creation_input_tokens: usage.cache_write_input_tokens.map(|i| i as u64),
 								prompt_tokens_details: match (
@@ -2004,11 +2010,7 @@ pub mod from_messages {
 	) -> Result<Box<dyn ResponseType>, AIError> {
 		let resp = serde_json::from_slice::<bedrock::ConverseResponse>(bytes)
 			.map_err(logged_response_parsing(bytes))?;
-		let provider_usage = resp.usage.map(|u| super::super::ProviderUsage {
-			input_tokens: u.input_tokens as u64,
-			total_tokens: u.total_tokens as u64,
-			..Default::default()
-		});
+		let provider_usage = resp.usage.map(super::super::ProviderUsage::from);
 		let openai = translate_response_internal(resp, model, tool_name_map)?;
 		let passthrough =
 			json::convert::<_, types::messages::Response>(&openai).map_err(AIError::ResponseParsing)?;
@@ -3141,11 +3143,7 @@ pub mod from_responses {
 	) -> Result<Box<dyn ResponseType>, AIError> {
 		let resp = serde_json::from_slice::<bedrock::ConverseResponse>(bytes)
 			.map_err(logged_response_parsing(bytes))?;
-		let provider_usage = resp.usage.map(|u| super::super::ProviderUsage {
-			input_tokens: u.input_tokens as u64,
-			total_tokens: u.total_tokens as u64,
-			..Default::default()
-		});
+		let provider_usage = resp.usage.map(super::super::ProviderUsage::from);
 		let adapter = super::ConverseResponseAdapter::from_response(resp, model)?;
 		let mut typed = adapter.to_responses_typed(tool_name_map);
 		if let Some(namespaces) = namespaces {
@@ -3550,7 +3548,7 @@ pub mod from_responses {
 						ResponseUsage {
 							input_tokens: input_tokens as u32,
 							output_tokens: u.output_tokens as u32,
-							total_tokens: (input_tokens + u.output_tokens) as u32,
+							total_tokens: u.total_tokens as u32,
 							input_tokens_details: InputTokenDetails {
 								cached_tokens: u.cache_read_input_tokens.unwrap_or(0) as u32,
 								cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as u32),
@@ -4081,7 +4079,7 @@ impl ConverseResponseAdapter {
 				completions::Usage {
 					prompt_tokens: input_tokens as u32,
 					completion_tokens: token_usage.output_tokens as u32,
-					total_tokens: (input_tokens + token_usage.output_tokens) as u32,
+					total_tokens: token_usage.total_tokens as u32,
 					completion_tokens_details: None,
 
 					cache_read_input_tokens: token_usage.cache_read_input_tokens.map(|i| i as u64),
@@ -4246,7 +4244,7 @@ impl ConverseResponseAdapter {
 			responsest::ResponseUsage {
 				input_tokens: input_tokens as u32,
 				output_tokens: u.output_tokens as u32,
-				total_tokens: (input_tokens + u.output_tokens) as u32,
+				total_tokens: u.total_tokens as u32,
 				input_tokens_details: responsest::InputTokenDetails {
 					cached_tokens: u.cache_read_input_tokens.unwrap_or(0) as u32,
 					cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as u32),
