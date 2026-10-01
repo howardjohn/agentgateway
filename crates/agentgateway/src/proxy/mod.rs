@@ -299,7 +299,7 @@ fn classify_ai_request(error: &llm::AIError) -> AIErrorClassification {
 		| llm::AIError::UnsupportedModel
 		| llm::AIError::UnsupportedContent
 		| llm::AIError::UnsupportedConversion(_)
-		| llm::AIError::RequestParsing(_) => AIErrorClassification {
+		| llm::AIError::RequestParsing(..) => AIErrorClassification {
 			status: StatusCode::BAD_REQUEST,
 			reason: ProxyResponseReason::InvalidRequest,
 		},
@@ -354,7 +354,7 @@ fn classify_ai_response(error: &llm::AIError) -> AIErrorClassification {
 		| llm::AIError::StreamingUnsupported
 		| llm::AIError::UnsupportedModel
 		| llm::AIError::RequestTooLarge
-		| llm::AIError::RequestParsing(_)
+		| llm::AIError::RequestParsing(..)
 		| llm::AIError::RequestMarshal(_)
 		| llm::AIError::ResponseMarshal(_)
 		| llm::AIError::Encoding(_)

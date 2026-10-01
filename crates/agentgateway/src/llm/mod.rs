@@ -1998,7 +1998,8 @@ impl AIProvider {
 			{
 				p.unmarshal_request(&bytes, log)
 			} else {
-				serde_json::from_slice(bytes.as_ref()).map_err(AIError::RequestParsing)
+				serde_json::from_slice(bytes.as_ref())
+					.map_err(|err| AIError::RequestParsing(InputFormat::Detect, err))
 			}
 			.unwrap_or_else(|_| types::detect::Request::new_raw(bytes))
 		} else {
@@ -3068,7 +3069,7 @@ impl AIProvider {
 				Some(json::ParsedJson(value)) => serde_json::from_value(value),
 				None => serde_json::from_slice(&bytes),
 			}
-			.map_err(AIError::RequestParsing)?;
+			.map_err(|err| AIError::RequestParsing(T::input_format(), err))?;
 			let model = req.model();
 			if model.as_deref().is_none() {
 				return Err(AIError::MissingField("model not specified".into()));
@@ -3078,7 +3079,8 @@ impl AIProvider {
 
 		let mut request = match cached {
 			Some(json::ParsedJson(value)) => value,
-			None => serde_json::from_slice(&bytes).map_err(AIError::RequestParsing)?,
+			None => serde_json::from_slice(&bytes)
+				.map_err(|err| AIError::RequestParsing(T::input_format(), err))?,
 		};
 		self.set_provider_request_model(&parts, &mut request, path_model_wins)?;
 		let mut request = if let Some(p) = policies {
@@ -3087,7 +3089,8 @@ impl AIProvider {
 			request
 		};
 		self.finalize_request_model(&mut request)?;
-		let req: T = serde_json::from_value(request).map_err(AIError::RequestParsing)?;
+		let req: T = serde_json::from_value(request)
+			.map_err(|err| AIError::RequestParsing(T::input_format(), err))?;
 
 		Ok((parts, managed_body, req))
 	}
