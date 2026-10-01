@@ -12177,7 +12177,8 @@
         "openrouter",
         "togetherai",
         "xai",
-        "fireworks"
+        "fireworks",
+        "meta"
       ]
     },
     "LocalLLMProviderDefaults": {
