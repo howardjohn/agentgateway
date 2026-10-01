@@ -2338,12 +2338,12 @@ pub mod from_responses {
 	use helpers::*;
 	use rand::RngExt;
 	use responses::{
-		AssistantRole, ErrorObject, FunctionToolCall, IncompleteDetails, InputTokenDetails,
-		OutputContent, OutputItem, OutputMessage, OutputStatus, OutputTextContent, OutputTokenDetails,
-		ResponseContentPartAddedEvent, ResponseContentPartDoneEvent, ResponseErrorEvent,
-		ResponseFunctionCallArgumentsDeltaEvent, ResponseFunctionCallArgumentsDoneEvent,
-		ResponseOutputItemAddedEvent, ResponseOutputItemDoneEvent, ResponseStreamEvent,
-		ResponseTextDeltaEvent, ResponseUsage,
+		AssistantRole, FunctionToolCall, IncompleteDetails, InputTokenDetails, OutputContent,
+		OutputItem, OutputMessage, OutputStatus, OutputTextContent, OutputTokenDetails,
+		ResponseContentPartAddedEvent, ResponseContentPartDoneEvent, ResponseError, ResponseErrorCode,
+		ResponseErrorEvent, ResponseFunctionCallArgumentsDeltaEvent,
+		ResponseFunctionCallArgumentsDoneEvent, ResponseOutputItemAddedEvent,
+		ResponseOutputItemDoneEvent, ResponseStreamEvent, ResponseTextDeltaEvent, ResponseUsage,
 	};
 	use types::bedrock;
 	use types::responses::typed as responses;
@@ -2528,22 +2528,22 @@ pub mod from_responses {
 			let bedrock_tool_choice = req.tool_choice.as_ref().and_then(|tc| {
 				use responses::{ToolChoiceFunction, ToolChoiceOptions, ToolChoiceParam};
 				match tc {
-					ToolChoiceParam::Mode(ToolChoiceOptions::Auto) => Some(bedrock::ToolChoice::Auto),
-					ToolChoiceParam::Mode(ToolChoiceOptions::Required) => Some(bedrock::ToolChoice::Any),
-					ToolChoiceParam::Mode(ToolChoiceOptions::None) => None,
+					ToolChoiceParam::Option(ToolChoiceOptions::Auto) => Some(bedrock::ToolChoice::Auto),
+					ToolChoiceParam::Option(ToolChoiceOptions::Required) => Some(bedrock::ToolChoice::Any),
+					ToolChoiceParam::Option(ToolChoiceOptions::None) => None,
 					ToolChoiceParam::Function(ToolChoiceFunction { name }) => {
 						Some(bedrock::ToolChoice::Tool {
 							name: tool_name_map.register(name),
 						})
 					},
-					ToolChoiceParam::Hosted(_) => {
+					ToolChoiceParam::BuiltIn(_) => {
 						tracing::warn!("Hosted tool choice not supported for Bedrock");
 						None
 					},
 					ToolChoiceParam::AllowedTools(_)
 					| ToolChoiceParam::Mcp(_)
 					| ToolChoiceParam::Custom(_)
-					| ToolChoiceParam::ProgrammaticToolCalling(_)
+					| ToolChoiceParam::ProgrammaticToolCalling
 					| ToolChoiceParam::ApplyPatch
 					| ToolChoiceParam::Shell => {
 						tracing::warn!("Unsupported tool choice for Bedrock: {:?}", tc);
@@ -3551,7 +3551,7 @@ pub mod from_responses {
 							total_tokens: u.total_tokens as u32,
 							input_tokens_details: InputTokenDetails {
 								cached_tokens: u.cache_read_input_tokens.unwrap_or(0) as u32,
-								cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as u32),
+								cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as i64),
 							},
 							output_tokens_details: OutputTokenDetails {
 								reasoning_tokens: 0,
@@ -3576,8 +3576,8 @@ pub mod from_responses {
 						| Some(bedrock::StopReason::GuardrailIntervened) => response_builder.failed_event(
 							sequence_number,
 							usage_obj,
-							ErrorObject {
-								code: "content_filter".to_string(),
+							ResponseError {
+								code: ResponseErrorCode::Other("content_filter".to_string()),
 								message: "Content filtered by guardrails".to_string(),
 								misalignment: None,
 							},
@@ -4227,8 +4227,8 @@ impl ConverseResponseAdapter {
 
 		let error = match self.stop_reason {
 			bedrock::StopReason::ContentFiltered | bedrock::StopReason::GuardrailIntervened => {
-				Some(responsest::ErrorObject {
-					code: "content_filter".to_string(),
+				Some(responsest::ResponseError {
+					code: responsest::ResponseErrorCode::Other("content_filter".to_string()),
 					message: "Content filtered by guardrails".to_string(),
 					misalignment: None,
 				})
@@ -4247,7 +4247,7 @@ impl ConverseResponseAdapter {
 				total_tokens: u.total_tokens as u32,
 				input_tokens_details: responsest::InputTokenDetails {
 					cached_tokens: u.cache_read_input_tokens.unwrap_or(0) as u32,
-					cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as u32),
+					cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as i64),
 				},
 				output_tokens_details: responsest::OutputTokenDetails {
 					reasoning_tokens: 0,
