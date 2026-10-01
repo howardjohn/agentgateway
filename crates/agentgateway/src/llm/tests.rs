@@ -4064,7 +4064,7 @@ fn custom_provider_override_drives_provider_name() {
 fn vertex_anthropic_model_uses_exclusive_convention() {
 	let provider = vertex_provider("anthropic/claude-sonnet-4-5");
 	assert_eq!(
-		cache_convention_for(&provider, None, None, "anthropic/claude-sonnet-4-5"),
+		cache_convention_for(&provider, None, None, "anthropic/claude-sonnet-4-5", ""),
 		CacheTokenConvention::InputExcludesCache,
 	);
 }
@@ -4073,7 +4073,7 @@ fn vertex_anthropic_model_uses_exclusive_convention() {
 fn vertex_non_anthropic_model_uses_inclusive_convention() {
 	let provider = vertex_provider("gemini-2.0-flash");
 	assert_eq!(
-		cache_convention_for(&provider, None, None, "gemini-2.0-flash"),
+		cache_convention_for(&provider, None, None, "gemini-2.0-flash", ""),
 		CacheTokenConvention::InputIncludesCache,
 	);
 }
@@ -4086,7 +4086,8 @@ fn custom_messages_backend_uses_exclusive_convention() {
 			&provider,
 			Some(custom::ProviderFormat::Messages),
 			None,
-			"some-model"
+			"some-model",
+			""
 		),
 		CacheTokenConvention::InputExcludesCache,
 	);
@@ -4100,7 +4101,8 @@ fn custom_completions_backend_uses_inclusive_convention() {
 			&provider,
 			Some(custom::ProviderFormat::Completions),
 			None,
-			"some-model"
+			"some-model",
+			""
 		),
 		CacheTokenConvention::InputIncludesCache,
 	);
@@ -4115,7 +4117,8 @@ fn fixed_providers_classify_by_family() {
 			}),
 			None,
 			None,
-			"claude-sonnet-4-5"
+			"claude-sonnet-4-5",
+			""
 		),
 		CacheTokenConvention::InputExcludesCache,
 	);
@@ -4127,10 +4130,39 @@ fn fixed_providers_classify_by_family() {
 			}),
 			Some(custom::ProviderFormat::Completions),
 			None,
-			"gpt-4o"
+			"gpt-4o",
+			""
 		),
 		CacheTokenConvention::InputIncludesCache,
 	);
+	let bedrock = AIProvider::Bedrock(BedrockProvider::new(bedrock::Provider {
+		model_override: None,
+		region: strng::new("us-east-1"),
+		guardrail_identifier: None,
+		guardrail_version: None,
+		endpoint_preference: bedrock::BedrockEndpointPreference::MantleOnly,
+	}));
+	for (path, expected) in [
+		(
+			"/v1/chat/completions",
+			CacheTokenConvention::InputIncludesCache,
+		),
+		("/v1/responses", CacheTokenConvention::InputIncludesCache),
+		(
+			"/anthropic/v1/messages",
+			CacheTokenConvention::InputExcludesCache,
+		),
+		(
+			"/model/m/converse",
+			CacheTokenConvention::InputExcludesCache,
+		),
+	] {
+		assert_eq!(
+			cache_convention_for(&bedrock, None, None, "m", path),
+			expected,
+			"{path}"
+		);
+	}
 }
 
 #[test]

@@ -261,6 +261,7 @@ fn cache_convention_for(
 	provider_format: Option<custom::ProviderFormat>,
 	chat_output: Option<ChatFormat>,
 	request_model: &str,
+	path: &str,
 ) -> CacheTokenConvention {
 	use CacheTokenConvention::*;
 	use custom::ProviderFormat::{AnthropicTokenCount, Messages};
@@ -273,7 +274,12 @@ fn cache_convention_for(
 		};
 	}
 	match provider {
-		// Wrong for Mantle OpenAI detect passthrough, which includes cache.
+		// Detect passthrough to Mantle's OpenAI APIs.
+		AIProvider::Bedrock(_)
+			if path.ends_with("/chat/completions") || path.ends_with("/responses") =>
+		{
+			InputIncludesCache
+		},
 		AIProvider::Anthropic(_) | AIProvider::Bedrock(_) => InputExcludesCache,
 		AIProvider::Copilot(_) if copilot::Provider::is_anthropic_model(request_model) => {
 			InputExcludesCache
@@ -2190,8 +2196,13 @@ impl AIProvider {
 		if original_format == InputFormat::Detect {
 			types::detect::amend_request_info(&mut llm_info, parts.uri.path());
 		}
-		llm_info.cache_convention =
-			cache_convention_for(self, provider_format, chat_output, &llm_info.request_model);
+		llm_info.cache_convention = cache_convention_for(
+			self,
+			provider_format,
+			chat_output,
+			&llm_info.request_model,
+			parts.uri.path(),
+		);
 		if let Some(log) = log
 			&& original_format.supports_prompt_guard()
 		{
