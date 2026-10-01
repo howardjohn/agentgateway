@@ -394,6 +394,12 @@ type BackendWithAI struct {
 type BackendFull struct {
 	BackendSimple `json:",inline"`
 
+	// Authorization rules that clients must satisfy after this backend is selected.
+	// Unlike traffic authorization, this policy is evaluated against the request
+	// associated with the selected destination backend.
+	// +optional
+	Authorization *Authorization `json:"authorization,omitempty"`
+
 	// Configures best-effort session affinity using an existing request attribute.
 	// For AI backends, this applies across the backend's provider groups and must not
 	// be configured on an individual provider.

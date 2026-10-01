@@ -101,6 +101,10 @@ spec:
   policies:
     http:
       version: HTTP2
+    authorization:
+      policy:
+        matchExpressions:
+        - 'request.headers["x-tenant"] == "acme"'
   static:
     host: example.com
     port: 443

@@ -1607,6 +1607,11 @@ func (in *BackendEviction) DeepCopy() *BackendEviction {
 func (in *BackendFull) DeepCopyInto(out *BackendFull) {
 	*out = *in
 	in.BackendSimple.DeepCopyInto(&out.BackendSimple)
+	if in.Authorization != nil {
+		in, out := &in.Authorization, &out.Authorization
+		*out = new(Authorization)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SessionAffinity != nil {
 		in, out := &in.SessionAffinity, &out.SessionAffinity
 		*out = new(SessionAffinity)
