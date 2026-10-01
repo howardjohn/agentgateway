@@ -20,44 +20,28 @@ info:
 {
   "response": {
     "id": "[id]",
-    "status": "completed",
-    "output": [
-      {
-        "type": "message",
-        "content": [
-          {
-            "type": "output_text",
-            "annotations": [],
-            "logprobs": null,
-            "text": "ok"
-          }
-        ],
-        "id": "[id]",
-        "role": "assistant",
-        "status": "completed"
-      }
-    ],
+    "type": "message",
+    "role": "assistant",
     "model": "input-model",
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
     "usage": {
-      "input_tokens": 2403,
+      "input_tokens": 16,
       "output_tokens": 9,
-      "input_tokens_details": {
-        "cached_tokens": 0,
-        "cache_write_tokens": 2387
-      },
-      "output_tokens_details": {
-        "reasoning_tokens": 0
-      },
-      "total_tokens": 2412
+      "cache_creation_input_tokens": 2387,
+      "cache_read_input_tokens": 0
     },
-    "created_at": "[date]",
-    "object": "response"
+    "content": [
+      {
+        "text": "ok",
+        "type": "text"
+      }
+    ]
   },
   "parsed": {
     "input_tokens": 16,
     "output_tokens": 9,
     "total_tokens": 2412,
-    "reasoning_tokens": 0,
     "cache_creation_input_tokens": 2387,
     "cached_input_tokens": 0,
     "provider_model": "input-model"

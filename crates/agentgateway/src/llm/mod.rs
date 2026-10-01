@@ -253,14 +253,33 @@ impl AIProvider {
 /// Classify how the upstream reports cached tokens, from the source wire format the
 /// gateway is about to parse — not the provider name, which can carry another
 /// provider's native semantics (e.g. Vertex serving Anthropic models).
+///
+/// For chat, `chat_output` decides: `provider_format` echoes the client format for Bedrock
+/// Converse, so it can't distinguish Converse from Mantle's OpenAI APIs.
 fn cache_convention_for(
 	provider: &AIProvider,
 	provider_format: Option<custom::ProviderFormat>,
+	chat_output: Option<ChatFormat>,
 	request_model: &str,
+	path: &str,
 ) -> CacheTokenConvention {
 	use CacheTokenConvention::*;
 	use custom::ProviderFormat::{AnthropicTokenCount, Messages};
+	if let Some(output) = chat_output {
+		return match output {
+			ChatFormat::AnthropicMessages | ChatFormat::BedrockConverse => InputExcludesCache,
+			ChatFormat::OpenAICompletions | ChatFormat::OpenAIResponses | ChatFormat::VertexGemini => {
+				InputIncludesCache
+			},
+		};
+	}
 	match provider {
+		// Detect passthrough to Mantle's OpenAI APIs.
+		AIProvider::Bedrock(_)
+			if path.ends_with("/chat/completions") || path.ends_with("/responses") =>
+		{
+			InputIncludesCache
+		},
 		AIProvider::Anthropic(_) | AIProvider::Bedrock(_) => InputExcludesCache,
 		AIProvider::Copilot(_) if copilot::Provider::is_anthropic_model(request_model) => {
 			InputExcludesCache
@@ -536,7 +555,7 @@ impl ChatTranslation {
 			ChatFormat::AnthropicMessages => custom::ProviderFormat::Messages,
 			ChatFormat::BedrockConverse => match self.input {
 				// Bedrock chat always renders to Converse. This format is only used for
-				// shared bookkeeping (route type, cache convention, custom-style labels);
+				// shared bookkeeping (route type, custom-style labels);
 				// Bedrock path setup ignores these chat distinctions for Converse.
 				InputFormat::Completions => custom::ProviderFormat::Completions,
 				InputFormat::Messages => custom::ProviderFormat::Messages,
@@ -2138,6 +2157,7 @@ impl AIProvider {
 		req: &mut impl RequestType,
 		parts: &mut Parts,
 		provider_format: Option<custom::ProviderFormat>,
+		chat_output: Option<ChatFormat>,
 		tokenize: bool,
 		log: &mut Option<&mut RequestLog>,
 	) -> Result<PreparedRequest, AIError> {
@@ -2176,8 +2196,13 @@ impl AIProvider {
 		if original_format == InputFormat::Detect {
 			types::detect::amend_request_info(&mut llm_info, parts.uri.path());
 		}
-		llm_info.cache_convention =
-			cache_convention_for(self, provider_format, &llm_info.request_model);
+		llm_info.cache_convention = cache_convention_for(
+			self,
+			provider_format,
+			chat_output,
+			&llm_info.request_model,
+			parts.uri.path(),
+		);
 		if let Some(log) = log
 			&& original_format.supports_prompt_guard()
 		{
@@ -2235,6 +2260,7 @@ impl AIProvider {
 				&mut req,
 				&mut parts,
 				Some(provider_format),
+				Some(chat_translation.output),
 				tokenize,
 				log,
 			)
@@ -2322,6 +2348,7 @@ impl AIProvider {
 				&mut req,
 				&mut parts,
 				provider_format,
+				None,
 				tokenize,
 				log,
 			)

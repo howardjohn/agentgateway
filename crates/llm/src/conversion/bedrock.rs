@@ -305,6 +305,16 @@ fn invalid_request_error(bytes: &[u8]) -> Result<bytes::Bytes, AIError> {
 	))
 }
 
+impl From<bedrock::TokenUsage> for super::ProviderUsage {
+	fn from(u: bedrock::TokenUsage) -> Self {
+		Self {
+			input_tokens: u.input_tokens as u64,
+			total_tokens: u.total_tokens as u64,
+			..Default::default()
+		}
+	}
+}
+
 pub mod from_rerank {
 	use crate::bedrock::Provider;
 	use crate::types::ResponseType;
@@ -1181,10 +1191,14 @@ pub mod from_completions {
 	) -> Result<Box<dyn ResponseType>, AIError> {
 		let resp = serde_json::from_slice::<bedrock::ConverseResponse>(bytes)
 			.map_err(logged_response_parsing(bytes))?;
+		let provider_usage = resp.usage.map(super::super::ProviderUsage::from);
 		let openai = translate_response_internal(resp, model, tool_name_map)?;
 		let passthrough = json::convert::<_, types::completions::Response>(&openai)
 			.map_err(AIError::ResponseParsing)?;
-		Ok(Box::new(passthrough))
+		Ok(Box::new(super::super::ResponseWithProviderUsage {
+			response: passthrough,
+			provider_usage,
+		}))
 	}
 
 	fn translate_response_internal(
@@ -1428,10 +1442,13 @@ pub mod from_completions {
 								logged_tool_calls.take_output_messages(finish_reason.take());
 						});
 
+						let input_tokens = usage.input_tokens
+							+ usage.cache_read_input_tokens.unwrap_or_default()
+							+ usage.cache_write_input_tokens.unwrap_or_default();
 						mk(
 							vec![],
 							Some(completions::Usage {
-								prompt_tokens: usage.input_tokens as u32,
+								prompt_tokens: input_tokens as u32,
 								completion_tokens: usage.output_tokens as u32,
 								total_tokens: usage.total_tokens as u32,
 								cache_read_input_tokens: usage.cache_read_input_tokens.map(|i| i as u64),
@@ -1993,10 +2010,14 @@ pub mod from_messages {
 	) -> Result<Box<dyn ResponseType>, AIError> {
 		let resp = serde_json::from_slice::<bedrock::ConverseResponse>(bytes)
 			.map_err(logged_response_parsing(bytes))?;
+		let provider_usage = resp.usage.map(super::super::ProviderUsage::from);
 		let openai = translate_response_internal(resp, model, tool_name_map)?;
 		let passthrough =
 			json::convert::<_, types::messages::Response>(&openai).map_err(AIError::ResponseParsing)?;
-		Ok(Box::new(passthrough))
+		Ok(Box::new(super::super::ResponseWithProviderUsage {
+			response: passthrough,
+			provider_usage,
+		}))
 	}
 
 	fn translate_response_internal(
@@ -3122,6 +3143,7 @@ pub mod from_responses {
 	) -> Result<Box<dyn ResponseType>, AIError> {
 		let resp = serde_json::from_slice::<bedrock::ConverseResponse>(bytes)
 			.map_err(logged_response_parsing(bytes))?;
+		let provider_usage = resp.usage.map(super::super::ProviderUsage::from);
 		let adapter = super::ConverseResponseAdapter::from_response(resp, model)?;
 		let mut typed = adapter.to_responses_typed(tool_name_map);
 		if let Some(namespaces) = namespaces {
@@ -3129,7 +3151,10 @@ pub mod from_responses {
 		}
 		let passthrough =
 			json::convert::<_, types::responses::Response>(&typed).map_err(AIError::ResponseParsing)?;
-		Ok(Box::new(passthrough))
+		Ok(Box::new(super::super::ResponseWithProviderUsage {
+			response: passthrough,
+			provider_usage,
+		}))
 	}
 
 	pub fn translate_error(bytes: &Bytes) -> Result<Bytes, AIError> {
@@ -3516,17 +3541,22 @@ pub mod from_responses {
 							logged_tool_calls.take_output_messages(finish_reason.clone());
 					});
 
-					let usage_obj = usage_data.map(|u| ResponseUsage {
-						input_tokens: u.input_tokens as u32,
-						output_tokens: u.output_tokens as u32,
-						total_tokens: u.total_tokens as u32,
-						input_tokens_details: InputTokenDetails {
-							cached_tokens: u.cache_read_input_tokens.unwrap_or(0) as u32,
-							cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as u32),
-						},
-						output_tokens_details: OutputTokenDetails {
-							reasoning_tokens: 0,
-						},
+					let usage_obj = usage_data.map(|u| {
+						let input_tokens = u.input_tokens
+							+ u.cache_read_input_tokens.unwrap_or_default()
+							+ u.cache_write_input_tokens.unwrap_or_default();
+						ResponseUsage {
+							input_tokens: input_tokens as u32,
+							output_tokens: u.output_tokens as u32,
+							total_tokens: u.total_tokens as u32,
+							input_tokens_details: InputTokenDetails {
+								cached_tokens: u.cache_read_input_tokens.unwrap_or(0) as u32,
+								cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as u32),
+							},
+							output_tokens_details: OutputTokenDetails {
+								reasoning_tokens: 0,
+							},
+						}
 					});
 
 					sequence_number += 1;
@@ -4042,26 +4072,31 @@ impl ConverseResponseAdapter {
 
 		let usage = self
 			.usage
-			.map(|token_usage| completions::Usage {
-				prompt_tokens: token_usage.input_tokens as u32,
-				completion_tokens: token_usage.output_tokens as u32,
-				total_tokens: token_usage.total_tokens as u32,
-				completion_tokens_details: None,
+			.map(|token_usage| {
+				let input_tokens = token_usage.input_tokens
+					+ token_usage.cache_read_input_tokens.unwrap_or_default()
+					+ token_usage.cache_write_input_tokens.unwrap_or_default();
+				completions::Usage {
+					prompt_tokens: input_tokens as u32,
+					completion_tokens: token_usage.output_tokens as u32,
+					total_tokens: token_usage.total_tokens as u32,
+					completion_tokens_details: None,
 
-				cache_read_input_tokens: token_usage.cache_read_input_tokens.map(|i| i as u64),
-				prompt_tokens_details: match (
-					token_usage.cache_read_input_tokens,
-					token_usage.cache_write_input_tokens,
-				) {
-					(None, None) => None,
-					(cached_tokens, cache_write_tokens) => Some(UsagePromptDetails {
-						cached_tokens: cached_tokens.map(|i| i as u64),
-						audio_tokens: None,
-						cache_write_tokens: cache_write_tokens.map(|i| i as u64),
-						rest: Default::default(),
-					}),
-				},
-				cache_creation_input_tokens: token_usage.cache_write_input_tokens.map(|i| i as u64),
+					cache_read_input_tokens: token_usage.cache_read_input_tokens.map(|i| i as u64),
+					prompt_tokens_details: match (
+						token_usage.cache_read_input_tokens,
+						token_usage.cache_write_input_tokens,
+					) {
+						(None, None) => None,
+						(cached_tokens, cache_write_tokens) => Some(UsagePromptDetails {
+							cached_tokens: cached_tokens.map(|i| i as u64),
+							audio_tokens: None,
+							cache_write_tokens: cache_write_tokens.map(|i| i as u64),
+							rest: Default::default(),
+						}),
+					},
+					cache_creation_input_tokens: token_usage.cache_write_input_tokens.map(|i| i as u64),
+				}
 			})
 			.unwrap_or_default();
 
@@ -4202,17 +4237,22 @@ impl ConverseResponseAdapter {
 		};
 
 		// Build usage
-		let usage = self.usage.map(|u| responsest::ResponseUsage {
-			input_tokens: u.input_tokens as u32,
-			output_tokens: u.output_tokens as u32,
-			total_tokens: u.total_tokens as u32,
-			input_tokens_details: responsest::InputTokenDetails {
-				cached_tokens: u.cache_read_input_tokens.unwrap_or(0) as u32,
-				cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as u32),
-			},
-			output_tokens_details: responsest::OutputTokenDetails {
-				reasoning_tokens: 0,
-			},
+		let usage = self.usage.map(|u| {
+			let input_tokens = u.input_tokens
+				+ u.cache_read_input_tokens.unwrap_or_default()
+				+ u.cache_write_input_tokens.unwrap_or_default();
+			responsest::ResponseUsage {
+				input_tokens: input_tokens as u32,
+				output_tokens: u.output_tokens as u32,
+				total_tokens: u.total_tokens as u32,
+				input_tokens_details: responsest::InputTokenDetails {
+					cached_tokens: u.cache_read_input_tokens.unwrap_or(0) as u32,
+					cache_write_tokens: u.cache_write_input_tokens.map(|tokens| tokens as u32),
+				},
+				output_tokens_details: responsest::OutputTokenDetails {
+					reasoning_tokens: 0,
+				},
+			}
 		});
 
 		let mut response = response_builder.response(status, usage, error, incomplete_details);
