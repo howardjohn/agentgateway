@@ -12178,7 +12178,8 @@
         "togetherai",
         "xai",
         "fireworks",
-        "meta"
+        "meta",
+        "perplexity"
       ]
     },
     "LocalLLMProviderDefaults": {
