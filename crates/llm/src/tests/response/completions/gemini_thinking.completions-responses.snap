@@ -44,7 +44,7 @@ info:
     "model": "input-model",
     "usage": {
       "input_tokens": 19,
-      "output_tokens": 30,
+      "output_tokens": 50,
       "input_tokens_details": {
         "cached_tokens": 0
       },
@@ -58,7 +58,7 @@ info:
   },
   "parsed": {
     "input_tokens": 19,
-    "output_tokens": 30,
+    "output_tokens": 50,
     "total_tokens": 69,
     "reasoning_tokens": 20,
     "cached_input_tokens": 0,

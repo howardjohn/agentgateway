@@ -37,12 +37,12 @@ info:
     "stop_sequence": null,
     "usage": {
       "input_tokens": 19,
-      "output_tokens": 30
+      "output_tokens": 50
     }
   },
   "parsed": {
     "input_tokens": 19,
-    "output_tokens": 30,
+    "output_tokens": 50,
     "total_tokens": 69,
     "reasoning_tokens": 20,
     "provider_model": "google/gemini-3.8-flash"
