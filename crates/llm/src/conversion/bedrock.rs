@@ -1691,10 +1691,54 @@ pub mod from_messages {
 
 		// Convert typed Anthropic messages to Bedrock messages
 		let mut messages: Vec<bedrock::Message> = Vec::new();
+		// Mid-conversation system messages waiting to be placed after the next tool results.
+		let mut pending_reminders = Vec::new();
 		for msg in req.messages {
 			let role = match msg.role {
 				messages::Role::Assistant => bedrock::Role::Assistant,
 				messages::Role::User => bedrock::Role::User,
+				// Converse has no mid-conversation system role. Hoisting these into `system` would change the
+				// cached prefix ahead of every message, so render them in place as user reminders instead.
+				messages::Role::System if !messages.is_empty() => {
+					let mut reminder = Vec::new();
+					for block in msg.content {
+						if let messages::ContentBlock::Text(messages::ContentTextBlock {
+							text,
+							cache_control,
+							..
+						}) = block
+						{
+							reminder.push(bedrock::ContentBlock::Text(format!(
+								"<system-reminder>\n{text}\n</system-reminder>"
+							)));
+							helpers::maybe_insert_cache_point(
+								&mut reminder,
+								cache_control.is_some(),
+								&mut cache_points_used,
+							);
+						}
+					}
+					// Tool results must directly follow their tool use, so defer the reminder until after them.
+					let awaiting_tool_results = messages.last().is_some_and(|m| {
+						m.role == bedrock::Role::Assistant
+							&& m
+								.content
+								.iter()
+								.any(|b| matches!(b, bedrock::ContentBlock::ToolUse(_)))
+					});
+					if awaiting_tool_results {
+						pending_reminders.extend(reminder);
+					} else if !reminder.is_empty() {
+						helpers::push_or_merge_message(
+							&mut messages,
+							bedrock::Message {
+								role: bedrock::Role::User,
+								content: reminder,
+							},
+						);
+					}
+					continue;
+				},
 				messages::Role::System => {
 					for block in msg.content {
 						if let messages::ContentBlock::Text(messages::ContentTextBlock {
@@ -1892,7 +1936,29 @@ pub mod from_messages {
 				helpers::maybe_insert_cache_point(&mut content, has_cache_control, &mut cache_points_used);
 			}
 
-			messages.push(bedrock::Message { role, content });
+			if !pending_reminders.is_empty() {
+				if role == bedrock::Role::User {
+					content.append(&mut pending_reminders);
+				} else {
+					helpers::push_or_merge_message(
+						&mut messages,
+						bedrock::Message {
+							role: bedrock::Role::User,
+							content: std::mem::take(&mut pending_reminders),
+						},
+					);
+				}
+			}
+			helpers::push_or_merge_message(&mut messages, bedrock::Message { role, content });
+		}
+		if !pending_reminders.is_empty() {
+			helpers::push_or_merge_message(
+				&mut messages,
+				bedrock::Message {
+					role: bedrock::Role::User,
+					content: pending_reminders,
+				},
+			);
 		}
 
 		// Build inference config from typed fields
