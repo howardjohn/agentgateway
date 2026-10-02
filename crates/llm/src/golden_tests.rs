@@ -914,6 +914,14 @@ mod responses {
 		("reasoning_omitted", &[COMPLETIONS_TO_MESSAGES]),
 		("gemini_zero_completion_tokens", ALL_COMPLETIONS),
 		("gemini_with_completion_tokens", ALL_COMPLETIONS),
+		(
+			"gemini_thinking",
+			&[
+				COMPLETIONS_TO_COMPLETIONS,
+				COMPLETIONS_TO_MESSAGES,
+				COMPLETIONS_TO_RESPONSES,
+			],
+		),
 		("tool_call", ALL_COMPLETIONS),
 		(
 			"truncated_tool_call",
@@ -1005,6 +1013,14 @@ mod responses {
 		(
 			"stream_tool_empty_content",
 			&[COMPLETIONS_TO_MESSAGES, COMPLETIONS_TO_RESPONSES],
+		),
+		(
+			"stream-gemini_thinking",
+			&[
+				COMPLETIONS_TO_COMPLETIONS,
+				COMPLETIONS_TO_MESSAGES,
+				COMPLETIONS_TO_RESPONSES,
+			],
 		),
 	];
 	const VERTEX_GEMINI_STREAM_RESPONSES: &[&str] = &["stream_tool"];
