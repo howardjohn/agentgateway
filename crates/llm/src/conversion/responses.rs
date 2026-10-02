@@ -200,7 +200,9 @@ pub mod from_messages {
 		}
 
 		let output_config = output_config.unwrap_or_default();
-		if let Some(reasoning) = translate_reasoning(thinking, output_config.effort) {
+		if crate::conversion::supports_reasoning_effort(&model)
+			&& let Some(reasoning) = translate_reasoning(thinking, output_config.effort)
+		{
 			rest.insert(
 				"reasoning".to_string(),
 				serde_json::to_value(reasoning).map_err(AIError::RequestMarshal)?,
