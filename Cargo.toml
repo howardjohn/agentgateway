@@ -151,7 +151,7 @@ phonenumber = "0.3"
 pin-project-lite = "0.2"
 pingora-pool = "0.9"
 ppp = "2.3"
-pprof-alloc = "0.5"
+pprof-alloc = "0.6"
 # NOTE: the "frame-pointer" feature is NOT enabled here. pprof 0.15's
 # frame-pointer unwinder only supports x86_64/aarch64/riscv64/loongarch64, and
 # its call site is not arch-gated, so enabling it breaks the build on other
