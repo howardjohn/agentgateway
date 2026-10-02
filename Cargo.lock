@@ -9051,9 +9051,9 @@ dependencies = [
 
 [[package]]
 name = "yaml-edit"
-version = "0.2.3"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d25d3b32461fbd629221a7356eb48c86ad435356db0bfa93e26e8c1509c1836"
+checksum = "79e531de3d80075e0a2dc8246ca46c9167211297f8b9d513130880c2ef98d0b8"
 dependencies = [
  "base64 0.22.1",
  "rowan",
@@ -9062,8 +9062,7 @@ dependencies = [
 [[package]]
 name = "yaml-serde-edit"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e306f803df7a4a372142a16f82067293f0f7130dcfb2d0e75cc62210f6ea4ea5"
+source = "git+https://github.com/howardjohn/yaml-serde-edit?rev=683e137f6760f47bb0db3d124c211433a4819f54#683e137f6760f47bb0db3d124c211433a4819f54"
 dependencies = [
  "serde",
  "serde_norway",
