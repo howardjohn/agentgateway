@@ -2931,6 +2931,7 @@ pub enum BackendTrafficPolicy {
 	RequestHeaderModifier(filters::HeaderModifier),
 	ResponseHeaderModifier(Arc<filters::HeaderModifier>),
 	RequestRedirect(filters::RequestRedirect),
+	UrlRewrite(filters::UrlRewrite),
 	RequestMirror(Vec<filters::RequestMirror>),
 }
 

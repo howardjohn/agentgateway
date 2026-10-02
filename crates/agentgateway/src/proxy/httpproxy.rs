@@ -404,6 +404,7 @@ async fn apply_backend_policies(
 		request_header_modifier,
 		response_header_modifier,
 		request_redirect,
+		url_rewrite,
 		transformation,
 		// Applied during service endpoint selection
 		session_affinity: _,
@@ -441,6 +442,10 @@ async fn apply_backend_policies(
 	if let Some(rhm) = request_header_modifier {
 		rhm.apply_request(req).map_err(ProxyError::from)?;
 		dtrace::snapshot!(Request, "backend request header modifier", &req);
+	}
+	if let Some(ur) = url_rewrite {
+		ur.apply(req).map_err(ProxyError::from)?;
+		dtrace::snapshot!(Request, "backend url rewrite", &req);
 	}
 	if let Some(rr) = request_redirect {
 		rr.apply(req)
