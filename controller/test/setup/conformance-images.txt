@@ -1,0 +1,8 @@
+gcr.io/k8s-staging-gateway-api/echo-basic:v20251106-v1.3.0-263-g47c3435c
+localhost:5000/agentgateway-controller:*
+localhost:5000/agentgateway:*
+registry.k8s.io/gateway-api-inference-extension/lwepp:v1.6.2
+registry.k8s.io/gateway-api/echo-advanced:v1.5.1
+registry.k8s.io/gateway-api/echo-basic:v1.5.1
+registry.k8s.io/gateway-api/echo-basic:v1.6.0-dev.2
+registry.k8s.io/gateway-api/echo-basic:v1.6.0-dev.3

@@ -1,0 +1,5 @@
+docker.io/envoyproxy/ratelimit:3e085e5b
+docker.io/library/redis:7.4.3
+docker.io/otel/opentelemetry-collector-contrib:0.143.0
+localhost:5000/agentgateway-controller:*
+localhost:5000/agentgateway:*
