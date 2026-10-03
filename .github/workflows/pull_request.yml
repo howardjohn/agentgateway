@@ -268,13 +268,13 @@ jobs:
         rust: "true"
         go-version: "${{ env.GO_VERSION }}"
     - name: Setup
-      run: TEST_MODE=conformance ./controller/test/setup/setup-kind-ci.sh
+      run: TEST_MODE=gie-conformance ./controller/test/setup/setup-kind-ci.sh
     - name: GIE Conformance
       run: |
         make -C controller gie-conformance
     - name: Verify Kind images
       if: ${{ always() }}
-      run: TEST_MODE=conformance ./controller/test/setup/verify-kind-images.sh
+      run: TEST_MODE=gie-conformance ./controller/test/setup/verify-kind-images.sh
     - name: Debug Info
       if: ${{ failure() }}
       run: |

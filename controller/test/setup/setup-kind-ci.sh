@@ -275,8 +275,10 @@ function step_preload_images() {(
     make --no-print-directory -C controller testbox-docker kind-load-testbox &
   fi
 
-  # localhost images are pushed by other steps.
-  for image in $(grep -v '^localhost:' "${SCRIPT_DIR}/${TEST_MODE}-images.txt"); do
+  # Skip images built into the kind node, and locally built images which are loaded by other steps.
+  local existing
+  existing="$(docker exec "${CLUSTER_NAME}-control-plane" ctr --namespace k8s.io images list --quiet)"
+  for image in $(grep -vxFf <(echo "${existing}") "${SCRIPT_DIR}/${TEST_MODE}-images.txt" | grep -Ev '^localhost:|/testbox:'); do
     (
       docker image inspect "${image}" &>/dev/null || docker pull "${image}"
       kind load docker-image "${image}" --name "${CLUSTER_NAME}"

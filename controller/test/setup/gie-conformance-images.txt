@@ -6,7 +6,6 @@ gcr.io/istio-testing/metallb/speaker:v0.14.3
 gcr.io/k8s-staging-gateway-api/echo-basic:v20251106-v1.3.0-263-g47c3435c
 localhost:5000/agentgateway-controller:*
 localhost:5000/agentgateway:*
-registry.k8s.io/coredns/coredns:v1.12.2
 registry.k8s.io/coredns/coredns:v1.14.2
 registry.k8s.io/etcd:3.6.8-0
 registry.k8s.io/gateway-api-inference-extension/lwepp:v1.6.2
