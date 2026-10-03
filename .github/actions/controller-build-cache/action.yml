@@ -42,3 +42,17 @@ runs:
     with:
       go-version: ${{ inputs.go-version }}
       cache: false
+
+  - name: Locate Go module cache
+    id: go-env
+    shell: bash
+    run: echo "modcache=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+  - name: Mount Go module cache
+    uses: useblacksmith/stickydisk@3f6be1451e3cad893b778bc93495c80452a5da26 # v1.7.2
+    with:
+      # Each snapshot replaces the whole disk, so jobs that download different modules need their own key.
+      key: ${{ github.repository }}-go-mod-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+      path: ${{ steps.go-env.outputs.modcache }}
+      # PRs reuse the default branch's modules, but only postsubmit updates them.
+      commit: ${{ github.ref == 'refs/heads/main' && 'on-change' || 'false' }}
