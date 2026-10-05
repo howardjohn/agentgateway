@@ -7,7 +7,6 @@ use agent_core::drain::DrainWatcher;
 use agent_http::Response;
 use anyhow::{Context, Result};
 use headers::Header;
-use headers_accept::Accept;
 use hyper::body::Incoming;
 use hyper::{Request, StatusCode, header};
 use mediatype::{MediaType, ReadParams, WriteParams};
@@ -15,7 +14,7 @@ use prometheus_client::encoding::prometheus_protobuf;
 use prometheus_client::encoding::text::encode as encode_openmetrics;
 use prometheus_client::registry::Registry;
 
-use super::hyper_helpers;
+use super::{accept::Accept, hyper_helpers};
 use crate::Address;
 
 pub struct Server {
