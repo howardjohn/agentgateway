@@ -134,7 +134,6 @@ func extractImageLines(output string) string {
 }
 
 func TestRBACCreate(t *testing.T) {
-
 	t.Parallel()
 	chartPath, err := filepath.Abs(filepath.Join("..", "..", "install", "helm", "agentgateway"))
 	require.NoError(t, err)

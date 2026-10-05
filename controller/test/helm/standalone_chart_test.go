@@ -44,7 +44,6 @@ func normalizeStandaloneHelmOutput(out string) string {
 }
 
 func TestStandaloneChartGoldenTemplate(t *testing.T) {
-
 	t.Parallel()
 	testCases := []struct {
 		name       string
@@ -198,7 +197,6 @@ extraVolumeMounts:
 }
 
 func TestStandaloneChartDefaultRender(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, "")
 	require.NoError(t, err, "helm template failed: %s", stderr)
@@ -239,7 +237,6 @@ func TestStandaloneChartDefaultRender(t *testing.T) {
 }
 
 func TestStandaloneChartPodDisruptionBudget(t *testing.T) {
-
 	t.Parallel()
 	testCases := []struct {
 		name       string
@@ -309,7 +306,6 @@ func TestStandaloneChartPodDisruptionBudget(t *testing.T) {
 }
 
 func TestStandaloneChartOIDCCookieSecret(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `oidc:
   enabled: true
@@ -336,7 +332,6 @@ func TestStandaloneChartOIDCCookieSecret(t *testing.T) {
 }
 
 func TestStandaloneChartInlineConfig(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `config:
   gateways:
@@ -349,7 +344,6 @@ func TestStandaloneChartInlineConfig(t *testing.T) {
 }
 
 func TestStandaloneChartConfigChecksum(t *testing.T) {
-
 	t.Parallel()
 	render := func(t *testing.T, values string) (string, string) {
 		t.Helper()
@@ -439,7 +433,6 @@ config:
 }
 
 func TestStandaloneChartDatabaseModeAllowsReplicas(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `replicaCount: 3
 mode: database
@@ -457,7 +450,6 @@ database:
 }
 
 func TestStandaloneChartPerImageRegistries(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `image:
   registry: registry.one.example.com
@@ -469,7 +461,6 @@ func TestStandaloneChartPerImageRegistries(t *testing.T) {
 }
 
 func TestStandaloneChartStringImage(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `image: localhost:5000/agentgateway:1784825828
 `)
@@ -479,7 +470,6 @@ func TestStandaloneChartStringImage(t *testing.T) {
 }
 
 func TestStandaloneChartRejectsUnknownMode(t *testing.T) {
-
 	t.Parallel()
 	_, stderr, err := renderStandaloneChart(t, `mode: other
 `)
@@ -488,7 +478,6 @@ func TestStandaloneChartRejectsUnknownMode(t *testing.T) {
 }
 
 func TestStandaloneChartRejectsDatabaseModeWithoutPostgres(t *testing.T) {
-
 	t.Parallel()
 	_, stderr, err := renderStandaloneChart(t, `mode: database
 `)
@@ -497,7 +486,6 @@ func TestStandaloneChartRejectsDatabaseModeWithoutPostgres(t *testing.T) {
 }
 
 func TestStandaloneChartRejectsDatabaseModeWithNonPostgresURL(t *testing.T) {
-
 	t.Parallel()
 	_, stderr, err := renderStandaloneChart(t, `mode: database
 database:
@@ -509,7 +497,6 @@ database:
 }
 
 func TestStandaloneChartRejectsPostgresOutsideDatabaseMode(t *testing.T) {
-
 	t.Parallel()
 	_, stderr, err := renderStandaloneChart(t, `mode: readonly
 database:
@@ -521,7 +508,6 @@ database:
 }
 
 func TestStandaloneChartReadonlyAllowsReplicas(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `replicaCount: 2
 `)
@@ -531,7 +517,6 @@ func TestStandaloneChartReadonlyAllowsReplicas(t *testing.T) {
 }
 
 func TestStandaloneChartCustomGatewayPorts(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `gateway:
   service:
@@ -555,7 +540,6 @@ func TestStandaloneChartCustomGatewayPorts(t *testing.T) {
 }
 
 func TestStandaloneChartGatewayExtraServices(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `gateway:
   extraServices:
@@ -603,7 +587,6 @@ func TestStandaloneChartGatewayExtraServices(t *testing.T) {
 }
 
 func TestStandaloneChartRejectsGatewayExtraServiceWithoutName(t *testing.T) {
-
 	t.Parallel()
 	_, stderr, err := renderStandaloneChart(t, `gateway:
   extraServices:
@@ -617,7 +600,6 @@ func TestStandaloneChartRejectsGatewayExtraServiceWithoutName(t *testing.T) {
 }
 
 func TestStandaloneChartRejectsGatewayExtraServiceWithoutPorts(t *testing.T) {
-
 	t.Parallel()
 	_, stderr, err := renderStandaloneChart(t, `gateway:
   extraServices:
@@ -628,7 +610,6 @@ func TestStandaloneChartRejectsGatewayExtraServiceWithoutPorts(t *testing.T) {
 }
 
 func TestStandaloneChartServiceFullConfig(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `gateway:
   service:
@@ -676,7 +657,6 @@ func TestStandaloneChartServiceFullConfig(t *testing.T) {
 }
 
 func TestStandaloneChartWorkloadOverrides(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `resources:
   requests:
@@ -729,7 +709,6 @@ extraVolumeMounts:
 }
 
 func TestStandaloneChartExtraContainers(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `extraContainers:
 - name: httpbin
@@ -745,7 +724,6 @@ func TestStandaloneChartExtraContainers(t *testing.T) {
 }
 
 func TestStandaloneChartMonitoringDisabledByDefault(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, "")
 	require.NoError(t, err, "helm template failed: %s", stderr)
@@ -755,7 +733,6 @@ func TestStandaloneChartMonitoringDisabledByDefault(t *testing.T) {
 }
 
 func TestStandaloneChartMonitoringEnabled(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `monitoring:
   enabled: true
@@ -771,7 +748,6 @@ func TestStandaloneChartMonitoringEnabled(t *testing.T) {
 }
 
 func TestStandaloneChartMonitoringPodMonitorDisabled(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `monitoring:
   enabled: true
@@ -785,7 +761,6 @@ func TestStandaloneChartMonitoringPodMonitorDisabled(t *testing.T) {
 }
 
 func TestStandaloneChartMonitoringFullConfig(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `monitoring:
   enabled: true
@@ -806,7 +781,6 @@ func TestStandaloneChartMonitoringFullConfig(t *testing.T) {
 }
 
 func TestStandaloneChartPodAnnotationsMergeWithMonitoringPort(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `podAnnotations:
   team: platform
@@ -820,7 +794,6 @@ monitoring:
 }
 
 func TestStandaloneChartPodAnnotationsOverridesMonitoringPort(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `podAnnotations:
   prometheus.io/port: "9999"
@@ -832,7 +805,6 @@ monitoring:
 }
 
 func TestStandaloneChartMonitoringRemovePrometheusAnnotations(t *testing.T) {
-
 	t.Parallel()
 	out, stderr, err := renderStandaloneChart(t, `podAnnotations: {}
 monitoring:
