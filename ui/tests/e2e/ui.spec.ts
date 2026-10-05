@@ -28,7 +28,7 @@ const pages = [
 	['/traffic/listeners', 'Traffic Listeners'],
 	['/traffic/routes', 'Traffic Routes'],
 	['/cel', 'CEL Playground'],
-	['/settings', 'UI Settings']
+	['/settings', 'UI']
 ] as const;
 
 test('core pages render with mocked gateway data', async ({ page }) => {
@@ -235,7 +235,7 @@ test('hybrid settings shows file diff without applying it', async ({ page }) => 
 			})
 		})
 	);
-	await page.goto('/settings');
+	await page.goto('/settings/ui');
 
 	await page.getByRole('combobox', { name: 'Public UI gateway' }).click();
 	await page.getByRole('option', { name: /public/ }).click();
@@ -1127,7 +1127,7 @@ test('hybrid LLM and UI policies are stored as individual resources', async ({ p
 		'/mcp/policies#cors'
 	);
 
-	await page.goto('/settings');
+	await page.goto('/settings/ui');
 	await page.getByText('CORS', { exact: true }).click();
 	await page.getByRole('button', { name: 'Add current origin' }).click();
 	await page.getByRole('button', { name: 'Save policy' }).click();
