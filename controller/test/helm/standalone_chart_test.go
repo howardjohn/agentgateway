@@ -365,7 +365,6 @@ func TestStandaloneChartConfigChecksum(t *testing.T) {
 	baseOutput, baseChecksum := render(t, baseValues)
 
 	t.Run("dynamic config does not restart pods", func(t *testing.T) {
-
 		t.Parallel()
 		output, checksum := render(t, `config:
   gateways:
@@ -377,7 +376,6 @@ func TestStandaloneChartConfigChecksum(t *testing.T) {
 	})
 
 	t.Run("model catalog does not restart pods", func(t *testing.T) {
-
 		t.Parallel()
 		output, checksum := render(t, `config:
   config:
@@ -393,7 +391,6 @@ func TestStandaloneChartConfigChecksum(t *testing.T) {
 	})
 
 	t.Run("startup config restarts pods", func(t *testing.T) {
-
 		t.Parallel()
 		_, checksum := render(t, `config:
   config:
@@ -406,7 +403,6 @@ func TestStandaloneChartConfigChecksum(t *testing.T) {
 	})
 
 	t.Run("storage and database config restart pods", func(t *testing.T) {
-
 		t.Parallel()
 		_, databaseChecksum := render(t, `mode: database
 database:
