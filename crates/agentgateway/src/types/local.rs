@@ -2763,7 +2763,7 @@ pub struct LocalBackendPolicies {
 	/// Authorization rules for MCP requests.
 	#[serde(default)]
 	pub mcp_authorization: Option<McpAuthorization>,
-	/// External MCP policy processors.
+	/// Remote and in-process CEL policy processors for MCP requests and responses.
 	#[serde(default)]
 	pub mcp_guardrails: Option<LocalMcpGuardrails>,
 	/// Mark this traffic as A2A to enable A2A processing and telemetry.
@@ -3034,7 +3034,7 @@ pub struct FilterOrPolicy {
 	/// Authorization rules for MCP requests.
 	#[serde(default)]
 	mcp_authorization: Option<McpAuthorization>,
-	/// External MCP policy processors.
+	/// Remote and in-process CEL policy processors for MCP requests and responses.
 	#[serde(default)]
 	mcp_guardrails: Option<LocalMcpGuardrails>,
 	/// Authorization rules for incoming HTTP requests.
