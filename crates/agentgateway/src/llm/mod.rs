@@ -991,7 +991,14 @@ impl AIProvider {
 	pub fn supported_formats(&self, request_model: &str) -> Vec<custom::ProviderFormat> {
 		use custom::ProviderFormat::*;
 		match self {
-			AIProvider::OpenAI(_) => vec![Completions, Responses, Embeddings, Realtime, Rerank],
+			AIProvider::OpenAI(_) => vec![
+				Completions,
+				Responses,
+				Embeddings,
+				Realtime,
+				Rerank,
+				Decisions,
+			],
 			AIProvider::Copilot(_) => {
 				if copilot::Provider::is_anthropic_model(request_model) {
 					vec![Messages]
@@ -1138,6 +1145,7 @@ impl AIProvider {
 			InputFormat::CountTokens => AnthropicTokenCount,
 			InputFormat::GeminiCountTokens => GeminiCountTokens,
 			InputFormat::Rerank => Rerank,
+			InputFormat::Decisions => Decisions,
 			InputFormat::Detect
 			| InputFormat::Completions
 			| InputFormat::Messages
@@ -1884,6 +1892,34 @@ impl AIProvider {
 			.await
 	}
 
+	pub async fn process_decisions_request(
+		&self,
+		backend_info: &crate::http::auth::BackendInfo,
+		policies: Option<&Policy>,
+		req: Request,
+		tokenize: bool,
+		log: &mut Option<&mut RequestLog>,
+	) -> Result<RequestResult, AIError> {
+		let (parts, managed_body, mut req) = self
+			.read_body_and_default_model::<types::decisions::Request>(policies, req, log)
+			.await?;
+		self.apply_model_alias(policies, &mut req);
+
+		self
+			.process_non_chat_request(
+				backend_info,
+				policies,
+				InputFormat::Decisions,
+				req,
+				parts,
+				managed_body,
+				tokenize,
+				log,
+				|_, req, _, _| serde_json::to_vec(req).map_err(AIError::RequestMarshal),
+			)
+			.await
+	}
+
 	pub async fn process_responses_request(
 		&self,
 		backend_info: &crate::http::auth::BackendInfo,
@@ -2451,12 +2487,27 @@ impl AIProvider {
 			InputFormat::GeminiCountTokens => {
 				self.process_gemini_count_tokens_response(req, buffered, model_catalog, &logging.response)
 			},
-			InputFormat::Embeddings => {
-				self.process_embeddings_buffered_response(req, buffered, model_catalog, &logging.response)
-			},
-			InputFormat::Rerank => {
-				self.process_rerank_buffered_response(req, buffered, model_catalog, &logging.response)
-			},
+			InputFormat::Embeddings => self.process_non_chat_buffered_response(
+				req,
+				buffered,
+				model_catalog,
+				&logging.response,
+				|req, headers, bytes| self.process_embeddings_response(req, headers, bytes),
+			),
+			InputFormat::Rerank => self.process_non_chat_buffered_response(
+				req,
+				buffered,
+				model_catalog,
+				&logging.response,
+				|_, _, bytes| self.process_rerank_response(bytes),
+			),
+			InputFormat::Decisions => self.process_non_chat_buffered_response(
+				req,
+				buffered,
+				model_catalog,
+				&logging.response,
+				|_, _, bytes| self.process_decisions_response(bytes),
+			),
 			_ => {
 				self
 					.process_chat_or_detect_buffered_response(
@@ -2720,12 +2771,17 @@ impl AIProvider {
 		))
 	}
 
-	fn process_embeddings_buffered_response(
+	fn process_non_chat_buffered_response(
 		&self,
 		req: LLMRequest,
 		buffered: BufferedResponse,
 		model_catalog: Option<&catalog::ModelCatalog>,
 		log: &AsyncLog<llm::LLMInfo>,
+		process: impl FnOnce(
+			&LLMRequest,
+			&::http::HeaderMap,
+			Bytes,
+		) -> Result<(LLMResponse, Bytes), AIError>,
 	) -> Result<Response, AIError> {
 		let BufferedResponse {
 			mut parts,
@@ -2750,49 +2806,7 @@ impl AIProvider {
 				log,
 			));
 		}
-		let (llm_resp, bytes) = self.process_embeddings_response(&req, &parts.headers, bytes)?;
-		Ok(Self::finalize_response(
-			parts,
-			bytes,
-			managed_body,
-			req,
-			llm_resp,
-			model_catalog,
-			log,
-		))
-	}
-
-	fn process_rerank_buffered_response(
-		&self,
-		req: LLMRequest,
-		buffered: BufferedResponse,
-		model_catalog: Option<&catalog::ModelCatalog>,
-		log: &AsyncLog<llm::LLMInfo>,
-	) -> Result<Response, AIError> {
-		let BufferedResponse {
-			mut parts,
-			bytes,
-			managed_body,
-		} = buffered;
-		parts.headers.remove(header::CONTENT_LENGTH);
-		if !parts.status.is_success() {
-			let body = self.process_error(
-				&req,
-				parts.status,
-				&bytes,
-				model_catalog.map(|c| c.as_handle()),
-			)?;
-			return Ok(Self::finalize_response(
-				parts,
-				body,
-				managed_body,
-				req,
-				LLMResponse::default(),
-				model_catalog,
-				log,
-			));
-		}
-		let (llm_resp, bytes) = self.process_rerank_response(bytes)?;
+		let (llm_resp, bytes) = process(&req, &parts.headers, bytes)?;
 		Ok(Self::finalize_response(
 			parts,
 			bytes,
@@ -2871,6 +2885,12 @@ impl AIProvider {
 				Ok((resp.to_llm_response(LogContentFields::default()), bytes))
 			},
 		}
+	}
+
+	fn process_decisions_response(&self, bytes: Bytes) -> Result<(LLMResponse, Bytes), AIError> {
+		let resp: types::decisions::Response =
+			serde_json::from_slice(&bytes).map_err(logged_response_parsing(&bytes))?;
+		Ok((resp.to_llm_response(LogContentFields::default()), bytes))
 	}
 
 	fn parse_response<T>(bytes: &Bytes) -> Result<Box<dyn ResponseType>, AIError>
@@ -3218,7 +3238,7 @@ impl AIProvider {
 				// Passthrough; Vertex embeddings endpoint already returns OpenAI-compatible errors.
 				Ok(bytes.clone())
 			},
-			(_, InputFormat::Detect) => {
+			(_, InputFormat::Detect | InputFormat::Decisions) => {
 				// Passthrough; nothing needed
 				Ok(bytes.clone())
 			},

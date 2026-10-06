@@ -66,7 +66,7 @@ impl Provider {
 	) -> BedrockEndpoint {
 		use super::RouteType as RT;
 		match route_type {
-			RT::Embeddings | RT::GeminiCountTokens | RT::Rerank | RT::Realtime => {
+			RT::Embeddings | RT::GeminiCountTokens | RT::Rerank | RT::Decisions | RT::Realtime => {
 				BedrockEndpoint::Runtime
 			},
 			RT::Models => BedrockEndpoint::Mantle,
@@ -472,6 +472,7 @@ mod tests {
 			Embeddings,
 			Realtime,
 			Rerank,
+			Decisions,
 			GeminiCountTokens,
 			GenerateContent,
 			Detect,
@@ -482,8 +483,8 @@ mod tests {
 				Completions | Messages | Responses | AnthropicTokenCount | Models => {
 					BedrockEndpoint::Mantle
 				},
-				Embeddings | Realtime | Rerank | GeminiCountTokens | GenerateContent | Detect
-				| Passthrough => BedrockEndpoint::Runtime,
+				Embeddings | Realtime | Rerank | Decisions | GeminiCountTokens | GenerateContent
+				| Detect | Passthrough => BedrockEndpoint::Runtime,
 			};
 			assert_eq!(
 				mantle.resolve_endpoint(rt, Some("m"), None),

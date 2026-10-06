@@ -13,7 +13,8 @@ const formats: ProviderFormat[] = [
 	'generateContent',
 	'geminiCountTokens',
 	'realtime',
-	'rerank'
+	'rerank',
+	'decisions'
 ];
 
 const formatLabels: Record<ProviderFormat, string> = {
@@ -25,7 +26,8 @@ const formatLabels: Record<ProviderFormat, string> = {
 	generateContent: 'Gemini chat (models/{model}:generateContent)',
 	geminiCountTokens: 'Gemini token count (models/{model}:countTokens)',
 	realtime: 'Realtime (/v1/realtime)',
-	rerank: 'Rerank (/v2/rerank)'
+	rerank: 'Rerank (/v2/rerank)',
+	decisions: 'Decisions (/v1/decisions)'
 };
 
 export function CustomFormats(props: {

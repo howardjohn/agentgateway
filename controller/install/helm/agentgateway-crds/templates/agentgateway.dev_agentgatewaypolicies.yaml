@@ -3546,6 +3546,7 @@ spec:
                           enum:
                           - AnthropicTokenCount
                           - Completions
+                          - Decisions
                           - Detect
                           - Embeddings
                           - GeminiCountTokens

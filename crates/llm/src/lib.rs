@@ -175,6 +175,8 @@ pub enum RouteType {
 	GeminiCountTokens,
 	/// Cohere /v2/rerank (document reranking)
 	Rerank,
+	/// OpenAI /v1/decisions
+	Decisions,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
@@ -188,6 +190,7 @@ pub enum InputFormat {
 	CountTokens,
 	Detect,
 	Rerank,
+	Decisions,
 	/// Native Gemini generateContent body
 	Gemini,
 	/// Native Gemini countTokens body
@@ -210,6 +213,7 @@ impl InputFormat {
 			InputFormat::Completions => true,
 			InputFormat::Messages => true,
 			InputFormat::Responses => true,
+			InputFormat::Decisions => false,
 			InputFormat::Gemini => true,
 			InputFormat::Realtime => false,
 			InputFormat::Embeddings => false,

@@ -2824,6 +2824,7 @@ async fn make_backend_call(
 				| RouteType::GeminiCountTokens
 				| RouteType::Embeddings
 				| RouteType::Rerank
+				| RouteType::Decisions
 				| RouteType::Detect => {
 					let request_body_limit = crate::http::buffer_limit(&req);
 					let req = req.map(|b| {
@@ -2870,6 +2871,15 @@ async fn make_backend_call(
 						.await
 						.map_err(ProxyError::AIRequest)?,
 						RouteType::Rerank => Box::pin(llm.provider.process_rerank_request(
+							&backend_info,
+							llm_request_policies.llm.as_deref(),
+							req,
+							llm.tokenize,
+							&mut log,
+						))
+						.await
+						.map_err(ProxyError::AIRequest)?,
+						RouteType::Decisions => Box::pin(llm.provider.process_decisions_request(
 							&backend_info,
 							llm_request_policies.llm.as_deref(),
 							req,

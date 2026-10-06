@@ -2413,6 +2413,9 @@ const (
 	// RouteTypeGeminiCountTokens processes Gemini `models/{model}:countTokens`
 	// format requests.
 	RouteTypeGeminiCountTokens RouteType = "GeminiCountTokens"
+
+	// RouteTypeDecisions processes OpenAI `/v1/decisions` format requests.
+	RouteTypeDecisions RouteType = "Decisions"
 )
 
 // +kubebuilder:validation:AtLeastOneFieldSet

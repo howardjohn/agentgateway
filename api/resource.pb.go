@@ -1844,6 +1844,8 @@ const (
 	BackendPolicySpec_Ai_GENERATE_CONTENT BackendPolicySpec_Ai_RouteType = 11
 	// Processes Gemini models/{model}:countTokens format requests
 	BackendPolicySpec_Ai_GEMINI_COUNT_TOKENS BackendPolicySpec_Ai_RouteType = 12
+	// Processes OpenAI /v1/decisions format requests
+	BackendPolicySpec_Ai_DECISIONS BackendPolicySpec_Ai_RouteType = 13
 )
 
 // Enum value maps for BackendPolicySpec_Ai_RouteType.
@@ -1862,6 +1864,7 @@ var (
 		10: "RERANK",
 		11: "GENERATE_CONTENT",
 		12: "GEMINI_COUNT_TOKENS",
+		13: "DECISIONS",
 	}
 	BackendPolicySpec_Ai_RouteType_value = map[string]int32{
 		"UNSPECIFIED":           0,
@@ -1877,6 +1880,7 @@ var (
 		"RERANK":                10,
 		"GENERATE_CONTENT":      11,
 		"GEMINI_COUNT_TOKENS":   12,
+		"DECISIONS":             13,
 	}
 )
 
@@ -2570,6 +2574,7 @@ const (
 	AIBackend_ANTHROPIC_TOKEN_COUNT       AIBackend_ProviderFormat = 5
 	AIBackend_REALTIME                    AIBackend_ProviderFormat = 6
 	AIBackend_RERANK                      AIBackend_ProviderFormat = 7
+	AIBackend_DECISIONS                   AIBackend_ProviderFormat = 8
 )
 
 // Enum value maps for AIBackend_ProviderFormat.
@@ -2583,6 +2588,7 @@ var (
 		5: "ANTHROPIC_TOKEN_COUNT",
 		6: "REALTIME",
 		7: "RERANK",
+		8: "DECISIONS",
 	}
 	AIBackend_ProviderFormat_value = map[string]int32{
 		"PROVIDER_FORMAT_UNSPECIFIED": 0,
@@ -2593,6 +2599,7 @@ var (
 		"ANTHROPIC_TOKEN_COUNT":       5,
 		"REALTIME":                    6,
 		"RERANK":                      7,
+		"DECISIONS":                   8,
 	}
 )
 
@@ -19134,7 +19141,7 @@ const file_resource_proto_rawDesc = "" +
 	"\vPolicyPhase\x12\t\n" +
 	"\x05ROUTE\x10\x00\x12\v\n" +
 	"\aGATEWAY\x10\x01B\x06\n" +
-	"\x04kind\"\xe7n\n" +
+	"\x04kind\"\xf6n\n" +
 	"\x11BackendPolicySpec\x12D\n" +
 	"\x03a2a\x18\x01 \x01(\v20.agentgateway.dev.resource.BackendPolicySpec.A2aH\x00R\x03a2a\x12l\n" +
 	"\x11inference_routing\x18\x02 \x01(\v2=.agentgateway.dev.resource.BackendPolicySpec.InferenceRoutingH\x00R\x10inferenceRouting\x12Z\n" +
@@ -19160,7 +19167,7 @@ const file_resource_proto_rawDesc = "" +
 	"\rauthorization\x18\x13 \x01(\v21.agentgateway.dev.resource.TrafficPolicySpec.RBACH\x00R\rauthorization\x12i\n" +
 	"\x10session_affinity\x18\x14 \x01(\v2<.agentgateway.dev.resource.BackendPolicySpec.SessionAffinityH\x00R\x0fsessionAffinity\x12H\n" +
 	"\vurl_rewrite\x18\x15 \x01(\v2%.agentgateway.dev.resource.UrlRewriteH\x00R\n" +
-	"urlRewrite\x1a\xaa9\n" +
+	"urlRewrite\x1a\xb99\n" +
 	"\x02Ai\x12^\n" +
 	"\fprompt_guard\x18\x01 \x01(\v2;.agentgateway.dev.resource.BackendPolicySpec.Ai.PromptGuardR\vpromptGuard\x12Y\n" +
 	"\bdefaults\x18\x02 \x03(\v2=.agentgateway.dev.resource.BackendPolicySpec.Ai.DefaultsEntryR\bdefaults\x12\\\n" +
@@ -19324,7 +19331,7 @@ const file_resource_proto_rawDesc = "" +
 	"\x1bCONTENT_SCOPE_SYSTEM_PROMPT\x10\x01\x12\x1a\n" +
 	"\x16CONTENT_SCOPE_MESSAGES\x10\x02\x12\x1d\n" +
 	"\x19CONTENT_SCOPE_TOOL_OUTPUT\x10\x03\x12\x1c\n" +
-	"\x18CONTENT_SCOPE_TOOL_INPUT\x10\x04\"\xe7\x01\n" +
+	"\x18CONTENT_SCOPE_TOOL_INPUT\x10\x04\"\xf6\x01\n" +
 	"\tRouteType\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vCOMPLETIONS\x10\x01\x12\f\n" +
@@ -19343,7 +19350,8 @@ const file_resource_proto_rawDesc = "" +
 	"\x06RERANK\x10\n" +
 	"\x12\x14\n" +
 	"\x10GENERATE_CONTENT\x10\v\x12\x17\n" +
-	"\x13GEMINI_COUNT_TOKENS\x10\f\x1a\x05\n" +
+	"\x13GEMINI_COUNT_TOKENS\x10\f\x12\r\n" +
+	"\tDECISIONS\x10\r\x1a\x05\n" +
 	"\x03A2a\x1a\x92\x02\n" +
 	"\x10InferenceRouting\x12T\n" +
 	"\x0fendpoint_picker\x18\x01 \x01(\v2+.agentgateway.dev.resource.BackendReferenceR\x0eendpointPicker\x12l\n" +
@@ -19505,7 +19513,7 @@ const file_resource_proto_rawDesc = "" +
 	"\x11agent_runtime_arn\x18\x01 \x01(\tR\x0fagentRuntimeArn\x12!\n" +
 	"\tqualifier\x18\x02 \x01(\tH\x00R\tqualifier\x88\x01\x01B\f\n" +
 	"\n" +
-	"_qualifier\"\xb7\"\n" +
+	"_qualifier\"\xc6\"\n" +
 	"\tAIBackend\x12[\n" +
 	"\x0fprovider_groups\x18\x01 \x03(\v22.agentgateway.dev.resource.AIBackend.ProviderGroupR\x0eproviderGroups\x1a6\n" +
 	"\fHostOverride\x12\x12\n" +
@@ -19615,7 +19623,7 @@ const file_resource_proto_rawDesc = "" +
 	",BEDROCK_ENDPOINT_PREFERENCE_MANTLE_PREFERRED\x10\x03\"-\n" +
 	"\x11AzureResourceType\x12\v\n" +
 	"\aOPEN_AI\x10\x00\x12\v\n" +
-	"\aFOUNDRY\x10\x01\"\xa4\x01\n" +
+	"\aFOUNDRY\x10\x01\"\xb3\x01\n" +
 	"\x0eProviderFormat\x12\x1f\n" +
 	"\x1bPROVIDER_FORMAT_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vCOMPLETIONS\x10\x01\x12\f\n" +
@@ -19626,7 +19634,8 @@ const file_resource_proto_rawDesc = "" +
 	"\x15ANTHROPIC_TOKEN_COUNT\x10\x05\x12\f\n" +
 	"\bREALTIME\x10\x06\x12\n" +
 	"\n" +
-	"\x06RERANK\x10\a\"\xeb\x03\n" +
+	"\x06RERANK\x10\a\x12\r\n" +
+	"\tDECISIONS\x10\b\"\xeb\x03\n" +
 	"\x0eProviderPreset\x12\x1f\n" +
 	"\x1bPROVIDER_PRESET_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16PROVIDER_PRESET_COHERE\x10\x01\x12\x1a\n" +

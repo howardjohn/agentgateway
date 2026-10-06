@@ -321,6 +321,7 @@ spec:
                                           enum:
                                           - AnthropicTokenCount
                                           - Completions
+                                          - Decisions
                                           - Embeddings
                                           - Messages
                                           - Realtime
@@ -4458,6 +4459,7 @@ spec:
                                           enum:
                                           - AnthropicTokenCount
                                           - Completions
+                                          - Decisions
                                           - Detect
                                           - Embeddings
                                           - GeminiCountTokens
@@ -7498,6 +7500,7 @@ spec:
                                   enum:
                                   - AnthropicTokenCount
                                   - Completions
+                                  - Decisions
                                   - Embeddings
                                   - Messages
                                   - Realtime
@@ -13704,6 +13707,7 @@ spec:
                           enum:
                           - AnthropicTokenCount
                           - Completions
+                          - Decisions
                           - Detect
                           - Embeddings
                           - GeminiCountTokens

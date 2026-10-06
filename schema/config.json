@@ -6014,6 +6014,11 @@
           "description": "Cohere /v2/rerank (document reranking)",
           "type": "string",
           "const": "rerank"
+        },
+        {
+          "description": "OpenAI /v1/decisions",
+          "type": "string",
+          "const": "decisions"
         }
       ]
     },
@@ -9452,7 +9457,8 @@
         "generateContent",
         "geminiCountTokens",
         "realtime",
-        "rerank"
+        "rerank",
+        "decisions"
       ]
     },
     "LocalBackendPolicies": {
