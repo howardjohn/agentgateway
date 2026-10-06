@@ -5607,6 +5607,13 @@
 |`llm.providers[].defaults.overrides`|object|Request payload fields to set, overriding any existing values in the request.|
 |`llm.providers[].defaults.overrides.*`|any||
 |`llm.providers[].defaults.transformation`|object|CEL expressions that compute request payload fields, overriding existing values.|
+|`llm.providers[].defaults.requestTransformation`|object|CEL expressions that modify the HTTP request (headers, metadata, etc) to the LLM provider.<br>Unlike `transformation`, which sets fields in the LLM request payload, this operates on the HTTP request itself.|
+|`llm.providers[].defaults.requestTransformation.add`|object|Headers to append using CEL expressions for values.|
+|`llm.providers[].defaults.requestTransformation.set`|object|Headers to set using CEL expressions for values.|
+|`llm.providers[].defaults.requestTransformation.remove`|[]string|Header names to remove.|
+|`llm.providers[].defaults.requestTransformation.replace`|string|CEL expression that computes the full set of headers, replacing all existing headers.<br>The expression must evaluate to a map of header name to value (a string, or a list of<br>strings for a repeated header). Pseudo-headers (`:method`, `:path`, etc.) are ignored;<br>set those explicitly with `set`/`add`. `replace` is applied before `add`/`set`/`remove`,<br>so those still operate on top of the replaced headers.|
+|`llm.providers[].defaults.requestTransformation.body`|string|CEL expression that computes a replacement body.|
+|`llm.providers[].defaults.requestTransformation.metadata`|object|Metadata values to add using CEL expressions.|
 |`llm.providers[].defaults.requestHeaders`|object|Headers to add, set, or remove on requests to the LLM provider.|
 |`llm.providers[].defaults.requestHeaders.add`|object|Headers to append without replacing existing values.|
 |`llm.providers[].defaults.requestHeaders.set`|object|Headers to set, replacing any existing values.|
@@ -5699,8 +5706,15 @@
 |`llm.models[].defaults.*`|any||
 |`llm.models[].overrides`|object|overrides allows setting values for the request, overriding any existing values|
 |`llm.models[].overrides.*`|any||
-|`llm.models[].transformation`|object|transformation allows setting values from CEL expressions for the request, overriding any existing values.|
+|`llm.models[].transformation`|object|transformation allows setting values from CEL expressions for the request, overriding any existing values.<br>This operates on fields of the LLM request payload; to modify the HTTP request (headers, metadata, etc), use `requestTransformation`.|
 |`llm.models[].finalTransformation`|object|final_transformation allows setting values from CEL expressions for the request, overriding any existing values.<br>Occurs after conversion of the request to the provider format, allowing for provider-specific transformations.|
+|`llm.models[].requestTransformation`|object|requestTransformation modifies the HTTP request to the LLM provider (headers, metadata, etc) using CEL expressions.<br>Unlike `transformation`, which sets fields in the LLM request payload, this operates on the HTTP request itself.|
+|`llm.models[].requestTransformation.add`|object|Headers to append using CEL expressions for values.|
+|`llm.models[].requestTransformation.set`|object|Headers to set using CEL expressions for values.|
+|`llm.models[].requestTransformation.remove`|[]string|Header names to remove.|
+|`llm.models[].requestTransformation.replace`|string|CEL expression that computes the full set of headers, replacing all existing headers.<br>The expression must evaluate to a map of header name to value (a string, or a list of<br>strings for a repeated header). Pseudo-headers (`:method`, `:path`, etc.) are ignored;<br>set those explicitly with `set`/`add`. `replace` is applied before `add`/`set`/`remove`,<br>so those still operate on top of the replaced headers.|
+|`llm.models[].requestTransformation.body`|string|CEL expression that computes a replacement body.|
+|`llm.models[].requestTransformation.metadata`|object|Metadata values to add using CEL expressions.|
 |`llm.models[].requestHeaders`|object|requestHeaders modifies headers in requests to the LLM provider.|
 |`llm.models[].requestHeaders.add`|object|Headers to append without replacing existing values.|
 |`llm.models[].requestHeaders.set`|object|Headers to set, replacing any existing values.|
