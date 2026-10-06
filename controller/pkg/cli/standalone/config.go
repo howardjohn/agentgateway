@@ -28,14 +28,14 @@ type gatewayConfig struct {
 }
 
 func configPath() (string, error) {
-	if path := os.Getenv("AGCTL_STANDALONE_CONFIG"); path != "" {
+	if path := os.Getenv("AGCTL_CONFIG"); path != "" {
 		return path, nil
 	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "agctl", "standalone.yaml"), nil
+	return filepath.Join(dir, "agctl", "config.yaml"), nil
 }
 
 // loadGateway returns the named gateway from the config file, or the current one if name is empty.
