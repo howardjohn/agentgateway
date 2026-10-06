@@ -4051,7 +4051,13 @@ async fn convert_attached_ui(
 	}
 	let route_key = strng::new("ui");
 	let route_matches = ui_matches(ui_oidc_redirect_path(ui_config.policies.as_ref())?);
-	let mut resolved_policies = if let Some(pol) = ui_config.policies {
+	let mut resolved_policies = if let Some(mut pol) = ui_config.policies {
+		// The UI's API is also used by CLI clients, which authenticate with bearer tokens.
+		if let Some(oidc) = pol.oidc.as_mut() {
+			oidc
+				.credentials
+				.get_or_insert(crate::http::oidc::OidcCredentials::SessionOrBearer);
+		}
 		split_policies(resources, pol.into(), config.as_policy_context(&route_key)).await?
 	} else {
 		ResolvedPolicies::default()

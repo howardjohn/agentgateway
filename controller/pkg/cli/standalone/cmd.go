@@ -76,7 +76,11 @@ type resourceList struct {
 
 func Command() *cobra.Command {
 	var address, gateway string
-	c := &client{http: &http.Client{Timeout: 10 * time.Second}}
+	c := &client{http: &http.Client{
+		Timeout: 10 * time.Second,
+		// The admin API never redirects on success; redirects are login flows, reported as errors.
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}}
 	cmd := &cobra.Command{
 		Use:   "standalone",
 		Short: "Manage a standalone agentgateway",
@@ -85,8 +89,8 @@ func Command() *cobra.Command {
 The gateway address is taken from --gateway, --address, $AGCTL_STANDALONE_ADDRESS,
 the current gateway in the config file, or ` + defaultAddress + `, in that order.
 
-The config file is read from $AGCTL_STANDALONE_CONFIG, or agctl/standalone.yaml in
-the user config directory (typically ~/.config/agctl/standalone.yaml). Gateways may
+The config file is read from $AGCTL_CONFIG, or agctl/config.yaml in
+the user config directory (typically ~/.config/agctl/config.yaml). Gateways may
 authenticate with a kubectl credential plugin, using the kubeconfig exec schema:
 
   current: prod
@@ -144,9 +148,10 @@ func getCommand(c *client) *cobra.Command {
 	var output string
 	var noMetadata bool
 	cmd := &cobra.Command{
-		Use:   "get KIND [NAME]",
-		Short: "Display one or more resources",
-		Args:  cobra.RangeArgs(1, 2),
+		Use:          "get KIND [NAME]",
+		SilenceUsage: true,
+		Short:        "Display one or more resources",
+		Args:         cobra.RangeArgs(1, 2),
 		ValidArgsFunction: func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
 				return kindCompletions(true), cobra.ShellCompDirectiveNoFileComp
@@ -195,8 +200,9 @@ func getCommand(c *client) *cobra.Command {
 func applyCommand(c *client) *cobra.Command {
 	var filename string
 	cmd := &cobra.Command{
-		Use:   "apply -f FILENAME",
-		Short: "Apply resources from YAML or JSON",
+		Use:          "apply -f FILENAME",
+		SilenceUsage: true,
+		Short:        "Apply resources from YAML or JSON",
 		Long: `Apply resources from YAML or JSON.
 
 Each resource has a kind and value, for example:
@@ -261,9 +267,10 @@ Each resource has a kind and value, for example:
 
 func deleteCommand(c *client) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete KIND NAME",
-		Short: "Delete a resource",
-		Args:  cobra.ExactArgs(2),
+		Use:          "delete KIND NAME",
+		SilenceUsage: true,
+		Short:        "Delete a resource",
+		Args:         cobra.ExactArgs(2),
 		ValidArgsFunction: func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
 				return kindCompletions(false), cobra.ShellCompDirectiveNoFileComp
@@ -325,7 +332,31 @@ func (c *client) do(ctx context.Context, method, path string, input, output any)
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if err := responseError(resp, data); err != nil {
+		return err
+	}
+	if output != nil && len(data) > 0 {
+		if err := json.Unmarshal(data, output); err != nil {
+			if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "json") {
+				return fmt.Errorf("expected a JSON response from %s, got %q; is this an agentgateway admin address?", c.address, ct)
+			}
+			return fmt.Errorf("decode response: %w", err)
+		}
+	}
+	return nil
+}
+
+func responseError(resp *http.Response, data []byte) error {
+	switch {
+	case resp.StatusCode >= 300 && resp.StatusCode < 400:
+		return fmt.Errorf("server returned %s redirecting to %s; the gateway likely requires login. %s",
+			resp.Status, resp.Header.Get("Location"), authHint())
+	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+		return fmt.Errorf("server returned %s. %s", resp.Status, authHint())
+	case resp.StatusCode < 200 || resp.StatusCode >= 300:
+		if strings.Contains(resp.Header.Get("Content-Type"), "html") {
+			return fmt.Errorf("server returned %s", resp.Status)
+		}
 		message := strings.TrimSpace(string(data))
 		var apiMessage string
 		if json.Unmarshal(data, &apiMessage) == nil {
@@ -333,12 +364,15 @@ func (c *client) do(ctx context.Context, method, path string, input, output any)
 		}
 		return fmt.Errorf("server returned %s: %s", resp.Status, message)
 	}
-	if output != nil && len(data) > 0 {
-		if err := json.Unmarshal(data, output); err != nil {
-			return fmt.Errorf("decode response: %w", err)
-		}
-	}
 	return nil
+}
+
+func authHint() string {
+	path, err := configPath()
+	if err != nil {
+		path = "the agctl standalone config file"
+	}
+	return fmt.Sprintf("Configure an exec credential plugin for this gateway in %s (see 'agctl standalone --help').", path)
 }
 
 func readResources(filename string) ([]resource, error) {

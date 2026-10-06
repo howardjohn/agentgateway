@@ -188,20 +188,17 @@ func (c *client) tailLogs(ctx context.Context, body any, onLog func(json.RawMess
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
-	// The shared client has a request timeout, which would cut off the stream.
-	resp, err := (&http.Client{Transport: c.http.Transport}).Do(req)
+	// Streams must outlive the shared client's request timeout.
+	stream := *c.http
+	stream.Timeout = 0
+	resp, err := stream.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		data, _ := io.ReadAll(resp.Body)
-		message := strings.TrimSpace(string(data))
-		var apiMessage string
-		if json.Unmarshal(data, &apiMessage) == nil {
-			message = apiMessage
-		}
-		return fmt.Errorf("server returned %s: %s", resp.Status, message)
+		return responseError(resp, data)
 	}
 
 	scanner := bufio.NewScanner(resp.Body)

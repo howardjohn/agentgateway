@@ -24,7 +24,7 @@ mod session;
 #[cfg(test)]
 mod tests;
 
-pub use local::{LocalOidcConfig, OidcLogin, OidcLogout};
+pub use local::{LocalOidcConfig, OidcCredentials, OidcLogin, OidcLogout};
 pub use redirect::RedirectUri;
 pub use session::{
 	BrowserSession, CookieSecureMode, RESERVED_COOKIE_PREFIX, RefreshSession, SameSiteMode,
@@ -141,6 +141,7 @@ pub struct OidcPolicy {
 	pub redirect_uri: RedirectUri,
 	pub session: SessionConfig,
 	pub scopes: Vec<String>,
+	pub credentials: OidcCredentials,
 	#[serde(skip)]
 	refresh_cache: refresh::RefreshCache,
 }
@@ -232,6 +233,21 @@ impl OidcPolicy {
 		}
 
 		if is_cors_preflight(req) {
+			return Ok(PolicyResponse::default());
+		}
+
+		if self.credentials == OidcCredentials::SessionOrBearer
+			&& let Some(token) = req
+			.headers()
+			.get(header::AUTHORIZATION)
+			.and_then(|v| v.to_str().ok())
+			.and_then(|v| v.strip_prefix("Bearer "))
+			&& let Ok(claims) = self.provider.id_token_validator.validate_claims(token)
+		{
+			if let Some(Value::String(sub)) = claims.inner.get("sub") {
+				log.jwt_sub = Some(sub.clone());
+			}
+			req.extensions_mut().insert(claims);
 			return Ok(PolicyResponse::default());
 		}
 
