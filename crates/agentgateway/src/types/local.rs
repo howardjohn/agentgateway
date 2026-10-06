@@ -2354,7 +2354,8 @@ where
 		.map(|auth| match auth {
 			BackendAuthCompat::PlainKey { key } => Ok(LocalBackendAuth {
 				kind: Some(LocalBackendAuthKind::Key {
-					value: key,
+					value: Some(key),
+					expression: None,
 					location: None,
 				}),
 				credentials: Vec::new(),
@@ -2409,9 +2410,14 @@ pub struct LocalBackendAuth {
 pub struct LocalBackendAuthCredential {
 	/// Where the credential is inserted on the backend request.
 	pub location: crate::http::auth::AuthorizationLocation,
-	/// Credential value.
-	#[cfg_attr(feature = "schema", schemars(with = "FileOrInline"))]
-	pub key: FileOrInline,
+	/// Credential value. Exactly one of `key` or `expression` must be set.
+	#[serde(default)]
+	#[cfg_attr(feature = "schema", schemars(with = "Option<FileOrInline>"))]
+	pub key: Option<FileOrInline>,
+	/// CEL expression evaluated against the request to produce the credential value.
+	/// If it fails or does not return a string, the credential location is cleared instead.
+	#[serde(default)]
+	pub expression: Option<Arc<crate::cel::Expression>>,
 }
 
 impl LocalBackendAuth {
@@ -2423,8 +2429,12 @@ impl LocalBackendAuth {
 			Some(LocalBackendAuthKind::Passthrough { location }) => {
 				Some(BackendAuthKind::Passthrough { location })
 			},
-			Some(LocalBackendAuthKind::Key { value, location }) => Some(BackendAuthKind::Key {
-				value: load_secret(&value, resources).await?,
+			Some(LocalBackendAuthKind::Key {
+				value,
+				expression,
+				location,
+			}) => Some(BackendAuthKind::Key {
+				value: load_backend_auth_value(value, expression, "value", resources).await?,
 				location,
 			}),
 			Some(LocalBackendAuthKind::Gcp(auth)) => Some(BackendAuthKind::Gcp(auth)),
@@ -2446,10 +2456,24 @@ impl LocalBackendAuth {
 		for credential in self.credentials {
 			credentials.push(crate::http::auth::BackendAuthCredential {
 				location: credential.location,
-				key: load_secret(&credential.key, resources).await?,
+				key: load_backend_auth_value(credential.key, credential.expression, "key", resources)
+					.await?,
 			});
 		}
 		Ok(BackendAuth { kind, credentials })
+	}
+}
+
+async fn load_backend_auth_value(
+	value: Option<FileOrInline>,
+	expression: Option<Arc<crate::cel::Expression>>,
+	value_field: &str,
+	resources: &crate::resource_manager::ResourceFetcher,
+) -> anyhow::Result<crate::http::auth::BackendAuthValue> {
+	match (value, expression) {
+		(Some(value), None) => Ok(load_secret(&value, resources).await?.into()),
+		(None, Some(expression)) => Ok(crate::http::auth::BackendAuthValue::Expression { expression }),
+		_ => anyhow::bail!("backendAuth: exactly one of '{value_field}' or 'expression' must be set"),
 	}
 }
 
@@ -2475,12 +2499,18 @@ enum LocalBackendAuthKind {
 		#[serde(default, skip_serializing_if = "Option::is_none")]
 		location: Option<crate::http::auth::AuthorizationLocation>,
 	},
-	/// Send a configured secret value to the backend.
+	/// Send a configured secret value, or a value computed from the request, to the backend.
+	/// Exactly one of `value` or `expression` must be set.
 	Key {
 		/// Secret value to send to the backend. File references are watched, so
 		/// rotating the file reloads it without a restart.
-		#[cfg_attr(feature = "schema", schemars(with = "FileOrInline"))]
-		value: FileOrInline,
+		#[serde(default)]
+		#[cfg_attr(feature = "schema", schemars(with = "Option<FileOrInline>"))]
+		value: Option<FileOrInline>,
+		/// CEL expression evaluated against the request to produce the value to send.
+		/// If it fails or does not return a string, the target location is cleared instead.
+		#[serde(default)]
+		expression: Option<Arc<crate::cel::Expression>>,
 		/// Where to place the secret in the backend request.
 		#[serde(default, skip_serializing_if = "Option::is_none")]
 		location: Option<crate::http::auth::AuthorizationLocation>,
@@ -4573,7 +4603,7 @@ async fn convert_llm_config(
 		let mut pols = vec![];
 		if let Some(key) = p.api_key.as_ref() {
 			let backend_auth = BackendAuthKind::Key {
-				value: key.0.clone(),
+				value: key.0.clone().into(),
 				location: None,
 			};
 			pols.push(BackendTrafficPolicy::backend_auth(backend_auth));

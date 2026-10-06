@@ -2973,7 +2973,7 @@ async fn stream_to_stream_single_tls() {
 		true,
 		false,
 		vec![BackendTrafficPolicy::backend_auth(BackendAuthKind::Key {
-			value: SecretString::new("my-key".into()),
+			value: SecretString::new("my-key".into()).into(),
 			location: None,
 		})],
 	)
