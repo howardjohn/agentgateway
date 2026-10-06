@@ -66,9 +66,12 @@ impl Provider {
 	) -> BedrockEndpoint {
 		use super::RouteType as RT;
 		match route_type {
-			RT::Embeddings | RT::GeminiCountTokens | RT::Rerank | RT::Decisions | RT::Realtime => {
-				BedrockEndpoint::Runtime
-			},
+			RT::Embeddings
+			| RT::GeminiCountTokens
+			| RT::Rerank
+			| RT::Decisions
+			| RT::SystemOne
+			| RT::Realtime => BedrockEndpoint::Runtime,
 			RT::Models => BedrockEndpoint::Mantle,
 			RT::Detect | RT::Passthrough | RT::GenerateContent => BedrockEndpoint::Runtime,
 			// Chat, and Anthropic count-tokens, follow the model's endpoint: Runtime's Converse /
@@ -473,6 +476,7 @@ mod tests {
 			Realtime,
 			Rerank,
 			Decisions,
+			SystemOne,
 			GeminiCountTokens,
 			GenerateContent,
 			Detect,
@@ -483,8 +487,8 @@ mod tests {
 				Completions | Messages | Responses | AnthropicTokenCount | Models => {
 					BedrockEndpoint::Mantle
 				},
-				Embeddings | Realtime | Rerank | Decisions | GeminiCountTokens | GenerateContent
-				| Detect | Passthrough => BedrockEndpoint::Runtime,
+				Embeddings | Realtime | Rerank | Decisions | SystemOne | GeminiCountTokens
+				| GenerateContent | Detect | Passthrough => BedrockEndpoint::Runtime,
 			};
 			assert_eq!(
 				mantle.resolve_endpoint(rt, Some("m"), None),

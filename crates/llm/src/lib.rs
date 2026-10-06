@@ -177,6 +177,9 @@ pub enum RouteType {
 	Rerank,
 	/// OpenAI /v1/decisions
 	Decisions,
+	/// TypeSafe /v1/systemone. Only used upstream, for translated decisions requests.
+	#[serde(skip)]
+	SystemOne,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
@@ -273,6 +276,7 @@ pub enum ProviderState {
 		namespaces: Arc<conversion::namespace_tools::NamespaceToolMap>,
 	},
 	VertexGemini,
+	SystemOneDecisions(Arc<conversion::systemone::from_decisions::State>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]

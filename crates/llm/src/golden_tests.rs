@@ -46,6 +46,7 @@ const VERTEX_GEMINI: &str = "vertex-gemini";
 const GEMINI_NATIVE: &str = "gemini-native";
 const RESPONSES: &str = "responses";
 const VERTEX_EMBED_CONTENT: &str = "vertex-embed-content";
+const SYSTEMONE: &str = "systemone";
 
 mod requests {
 	use super::*;
@@ -503,6 +504,19 @@ mod requests {
 					other => panic!("unsupported provider in RERANK_REQUESTS: {other}"),
 				}
 			}
+		}
+	}
+
+	#[test]
+	fn decisions() {
+		for name in ["basic", "full"] {
+			let path = format!("requests/decisions/{name}.json");
+			test_request(OPENAI, &path, |i: &mut types::decisions::Request| {
+				serde_json::to_vec(i).map_err(AIError::RequestMarshal)
+			});
+			test_request(SYSTEMONE, &path, |i: &mut types::decisions::Request| {
+				conversion::systemone::from_decisions::translate(i).map(|(body, _)| body)
+			});
 		}
 	}
 
@@ -1361,6 +1375,25 @@ mod responses {
 				other => panic!("unsupported provider in RERANK_RESPONSES: {other}"),
 			}
 		}
+	}
+
+	#[test]
+	fn decisions() {
+		let parse = |bytes: &[u8]| {
+			serde_json::from_slice::<types::decisions::Response>(bytes)
+				.map(|r| Box::new(r) as Box<dyn ResponseType>)
+				.map_err(AIError::ResponseParsing)
+		};
+		test_response(OPENAI, "response/openai/decisions.json", |i| parse(&i));
+		let req: types::decisions::Request =
+			serde_json::from_slice(&fs::read(fixture_path("requests/decisions/full.json")).unwrap())
+				.unwrap();
+		let (_, state) = conversion::systemone::from_decisions::translate(&req).unwrap();
+		test_response(SYSTEMONE, "response/systemone/decisions.json", |i| {
+			parse(&conversion::systemone::from_decisions::translate_response(
+				&i, &state,
+			)?)
+		});
 	}
 
 	#[test]
