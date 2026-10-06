@@ -387,6 +387,9 @@ const (
 
 	// ProviderFormatRerank is the Cohere-compatible rerank API.
 	ProviderFormatRerank ProviderFormat = "Rerank"
+
+	// ProviderFormatDecisions is the OpenAI decisions API.
+	ProviderFormatDecisions ProviderFormat = "Decisions"
 )
 
 // Settings for the [OpenAI](https://developers.openai.com/api/docs/guides/streaming-responses) LLM provider.

@@ -227,6 +227,7 @@ pub enum ProviderFormat {
 	GeminiCountTokens,
 	Realtime,
 	Rerank,
+	Decisions,
 }
 
 impl ProviderFormat {
@@ -241,6 +242,7 @@ impl ProviderFormat {
 			RouteType::GeminiCountTokens => Self::GeminiCountTokens,
 			RouteType::Realtime => Self::Realtime,
 			RouteType::Rerank => Self::Rerank,
+			RouteType::Decisions => Self::Decisions,
 			RouteType::Models | RouteType::Passthrough | RouteType::Detect => return None,
 		})
 	}
@@ -256,6 +258,7 @@ impl ProviderFormat {
 			Self::GeminiCountTokens => InputFormat::GeminiCountTokens,
 			Self::Realtime => InputFormat::Realtime,
 			Self::Rerank => InputFormat::Rerank,
+			Self::Decisions => InputFormat::Decisions,
 		}
 	}
 
@@ -270,6 +273,7 @@ impl ProviderFormat {
 			Self::GeminiCountTokens => RouteType::GeminiCountTokens,
 			Self::Realtime => RouteType::Realtime,
 			Self::Rerank => RouteType::Rerank,
+			Self::Decisions => RouteType::Decisions,
 		}
 	}
 }

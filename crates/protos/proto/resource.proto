@@ -1563,6 +1563,8 @@ message BackendPolicySpec {
       GENERATE_CONTENT = 11;
       // Processes Gemini models/{model}:countTokens format requests
       GEMINI_COUNT_TOKENS = 12;
+      // Processes OpenAI /v1/decisions format requests
+      DECISIONS = 13;
     }
 
     // Routes defines how to identify the type of LLM request to handle.
@@ -1947,6 +1949,7 @@ message AIBackend {
     ANTHROPIC_TOKEN_COUNT = 5;
     REALTIME = 6;
     RERANK = 7;
+    DECISIONS = 8;
   }
   message ProviderFormatConfig {
     ProviderFormat format = 1;

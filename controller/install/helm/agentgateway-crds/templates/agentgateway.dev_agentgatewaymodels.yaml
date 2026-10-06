@@ -221,6 +221,7 @@ spec:
                           enum:
                           - AnthropicTokenCount
                           - Completions
+                          - Decisions
                           - Embeddings
                           - Messages
                           - Realtime
