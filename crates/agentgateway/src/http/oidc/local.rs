@@ -39,6 +39,19 @@ struct PreparedOidcPolicy {
 	scopes: Vec<String>,
 	login: Option<OidcLogin>,
 	logout: Option<OidcLogout>,
+	credentials: OidcCredentials,
+}
+
+/// Credentials an OIDC policy accepts.
+#[apply(schema!)]
+#[derive(Copy, Default, PartialEq, Eq)]
+pub enum OidcCredentials {
+	/// Only browser sessions established through the policy's login flow.
+	#[default]
+	Session,
+	/// Browser sessions, or an ID token for this client sent as `Authorization: Bearer <token>`.
+	/// This lets non-browser clients authenticate with a token obtained from the provider directly.
+	SessionOrBearer,
 }
 
 /// Optional browser login entry point and unauthenticated redirect destination.
@@ -150,6 +163,11 @@ pub struct LocalOidcConfig {
 	/// Optional logout endpoint. Independent of login; omit to disable the logout endpoint.
 	#[serde(default)]
 	pub logout: Option<OidcLogout>,
+
+	/// Credentials accepted for authentication. Defaults to `session`, or `sessionOrBearer`
+	/// for `ui.policies.oidc`.
+	#[serde(default)]
+	pub credentials: Option<OidcCredentials>,
 }
 
 struct DiscoveredProviderMetadata {
@@ -189,6 +207,7 @@ impl LocalOidcConfig {
 			scopes,
 			login,
 			logout,
+			credentials,
 		} = self;
 		let redirect_uri = RedirectUri::parse(redirect_uri)?;
 		let mut endpoints = vec![redirect_uri.callback_path.as_str()];
@@ -299,6 +318,7 @@ impl LocalOidcConfig {
 			scopes,
 			login,
 			logout,
+			credentials: credentials.unwrap_or_default(),
 		})
 	}
 }
@@ -437,6 +457,7 @@ impl PreparedOidcPolicy {
 			scopes,
 			login,
 			logout,
+			credentials,
 		} = self;
 		let scopes = dedupe_scopes(scopes);
 		let token_endpoint_auth = provider.token_endpoint_auth;
@@ -465,6 +486,7 @@ impl PreparedOidcPolicy {
 			scopes,
 			login,
 			logout,
+			credentials,
 		})
 	}
 }

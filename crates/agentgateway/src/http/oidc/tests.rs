@@ -124,6 +124,7 @@ fn test_policy() -> OidcPolicy {
 		redirect_uri: test_redirect_uri(),
 		session,
 		scopes: vec!["openid".into(), "profile".into()],
+		credentials: Default::default(),
 	}
 }
 
@@ -238,6 +239,7 @@ fn explicit_local_oidc_config() -> LocalOidcConfig {
 		scopes: vec!["profile".into(), "email".into()],
 		login: None,
 		logout: None,
+		credentials: Default::default(),
 	}
 }
 
@@ -1348,6 +1350,7 @@ async fn local_oidc_config_compiles_supported_provider_sources() {
 				scopes: vec![],
 				login: None,
 				logout: None,
+				credentials: Default::default(),
 			},
 			provider_endpoint(format!("{}/authorize", mock.uri())),
 			provider_endpoint(format!("{}/token", mock.uri())),
@@ -1427,6 +1430,7 @@ async fn discovery_rejects_relative_provider_endpoints() {
 		scopes: vec![],
 		login: None,
 		logout: None,
+		credentials: Default::default(),
 	};
 	let err = compile_local_policy(policy, translated_policy_id("discovery-relative-endpoints"))
 		.await
@@ -1494,6 +1498,7 @@ async fn local_oidc_config_rejects_invalid_configuration() {
 				scopes: vec![],
 				login: None,
 				logout: None,
+				credentials: Default::default(),
 			},
 			"authorizationEndpoint, tokenEndpoint, and jwks must either all be set or all be omitted",
 		),
@@ -1524,6 +1529,7 @@ async fn local_oidc_config_rejects_invalid_configuration() {
 				scopes: vec![],
 				login: None,
 				logout: None,
+				credentials: Default::default(),
 			},
 			"tokenEndpointAuth must be omitted unless authorizationEndpoint, tokenEndpoint, and jwks are configured explicitly",
 		),
