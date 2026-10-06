@@ -1821,13 +1821,10 @@ impl Drop for DropOnLog {
 				// OpenTelemetry Gen AI Semantic Conventions v1.40.0
 				(
 					"gen_ai.operation.name",
-					log.llm_request.as_ref().map(|r| {
-						if r.input_format == InputFormat::Embeddings {
-							"embeddings".into()
-						} else {
-							"chat".into()
-						}
-					}),
+					log
+						.llm_request
+						.as_ref()
+						.map(|r| gen_ai_operation_name(r.input_format).into()),
 				),
 				(
 					"gen_ai.provider.name",
