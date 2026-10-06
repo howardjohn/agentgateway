@@ -10048,3 +10048,4 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.response[].rejection.headers.add`|object|Headers to append without replacing existing values.|
 |`<Guardrails>.response[].rejection.headers.set`|object|Headers to set, replacing any existing values.|
 |`<Guardrails>.response[].rejection.headers.remove`|[]string|Header names to remove.|
+|`<Guardrails>.response[].scope`|[]enum|Which parts of the response this guard inspects.<br>Possible values: `systemPrompt`, `messages`, `toolOutput`, `toolInput`.|
