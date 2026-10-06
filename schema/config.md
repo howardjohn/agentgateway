@@ -470,10 +470,10 @@
 |`binds[].listeners[].routes[].policies.extAuthz.conditional[].includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`binds[].listeners[].routes[].policies.extAuthz.conditional[].includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`binds[].listeners[].routes[].policies.extAuthz.conditional[].includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`binds[].listeners[].routes[].policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`binds[].listeners[].routes[].policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`binds[].listeners[].routes[].policies.extAuthz.conditional[].cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`binds[].listeners[].routes[].policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`binds[].listeners[].routes[].policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`binds[].listeners[].routes[].policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`binds[].listeners[].routes[].policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`binds[].listeners[].routes[].policies.extAuthz.service`|object|Service reference. Service must be defined in the top level services list.|
 |`binds[].listeners[].routes[].policies.extAuthz.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`binds[].listeners[].routes[].policies.extAuthz.service.port`|integer|Port on the target Service to route to.|
@@ -498,10 +498,10 @@
 |`binds[].listeners[].routes[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`binds[].listeners[].routes[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`binds[].listeners[].routes[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`binds[].listeners[].routes[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`binds[].listeners[].routes[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`binds[].listeners[].routes[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`binds[].listeners[].routes[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`binds[].listeners[].routes[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`binds[].listeners[].routes[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`binds[].listeners[].routes[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`binds[].listeners[].routes[].policies.extProc`|object|Send request and response data to an external processing service.|
 |`binds[].listeners[].routes[].policies.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`binds[].listeners[].routes[].policies.extProc.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -818,10 +818,10 @@
 |`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`binds[].listeners[].routes[].backends[].ai.policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`binds[].listeners[].routes[].backends[].ai.policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`binds[].listeners[].routes[].backends[].ai.policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`binds[].listeners[].routes[].backends[].ai.policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -1028,10 +1028,10 @@
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`binds[].listeners[].routes[].backends[].ai.groups[].providers[].policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -1200,10 +1200,10 @@
 |`binds[].listeners[].routes[].backends[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`binds[].listeners[].routes[].backends[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`binds[].listeners[].routes[].backends[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`binds[].listeners[].routes[].backends[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`binds[].listeners[].routes[].backends[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`binds[].listeners[].routes[].backends[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`binds[].listeners[].routes[].backends[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`binds[].listeners[].routes[].backends[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`binds[].listeners[].routes[].backends[].policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`binds[].listeners[].routes[].backends[].policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`binds[].listeners[].routes[].backends[].policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -1395,10 +1395,10 @@
 |`binds[].listeners[].policies.extAuthz.conditional[].includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`binds[].listeners[].policies.extAuthz.conditional[].includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`binds[].listeners[].policies.extAuthz.conditional[].includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`binds[].listeners[].policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`binds[].listeners[].policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`binds[].listeners[].policies.extAuthz.conditional[].cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`binds[].listeners[].policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`binds[].listeners[].policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`binds[].listeners[].policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`binds[].listeners[].policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`binds[].listeners[].policies.extAuthz.service`|object|Service reference. Service must be defined in the top level services list.|
 |`binds[].listeners[].policies.extAuthz.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`binds[].listeners[].policies.extAuthz.service.port`|integer|Port on the target Service to route to.|
@@ -1423,10 +1423,10 @@
 |`binds[].listeners[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`binds[].listeners[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`binds[].listeners[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`binds[].listeners[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`binds[].listeners[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`binds[].listeners[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`binds[].listeners[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`binds[].listeners[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`binds[].listeners[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`binds[].listeners[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`binds[].listeners[].policies.extProc`|object|Send request and response data to an external processing service.|
 |`binds[].listeners[].policies.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`binds[].listeners[].policies.extProc.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -1602,10 +1602,10 @@
 |`frontendPolicies.networkExtAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`frontendPolicies.networkExtAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`frontendPolicies.networkExtAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`frontendPolicies.networkExtAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`frontendPolicies.networkExtAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`frontendPolicies.networkExtAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`frontendPolicies.networkExtAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`frontendPolicies.networkExtAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`frontendPolicies.networkExtAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`frontendPolicies.networkExtAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`frontendPolicies.substrateEgressActorResolution`|object|Validate the originating actor before accepting a CONNECT tunnel.|
 |`frontendPolicies.substrateEgressActorResolution.service`|object|Service reference. Service must be defined in the top level services list.|
 |`frontendPolicies.substrateEgressActorResolution.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
@@ -2023,10 +2023,10 @@
 |`policies[].policy.extAuthz.conditional[].includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`policies[].policy.extAuthz.conditional[].includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`policies[].policy.extAuthz.conditional[].includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`policies[].policy.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`policies[].policy.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`policies[].policy.extAuthz.conditional[].cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`policies[].policy.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`policies[].policy.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`policies[].policy.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`policies[].policy.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`policies[].policy.extAuthz.service`|object|Service reference. Service must be defined in the top level services list.|
 |`policies[].policy.extAuthz.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`policies[].policy.extAuthz.service.port`|integer|Port on the target Service to route to.|
@@ -2051,10 +2051,10 @@
 |`policies[].policy.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`policies[].policy.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`policies[].policy.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`policies[].policy.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`policies[].policy.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`policies[].policy.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`policies[].policy.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`policies[].policy.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`policies[].policy.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`policies[].policy.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`policies[].policy.extProc`|object|Send request and response data to an external processing service.|
 |`policies[].policy.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`policies[].policy.extProc.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -2371,10 +2371,10 @@
 |`backends[].ai.policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`backends[].ai.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`backends[].ai.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`backends[].ai.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`backends[].ai.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`backends[].ai.policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`backends[].ai.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`backends[].ai.policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`backends[].ai.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`backends[].ai.policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`backends[].ai.policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`backends[].ai.policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`backends[].ai.policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -2581,10 +2581,10 @@
 |`backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`backends[].ai.groups[].providers[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`backends[].ai.groups[].providers[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`backends[].ai.groups[].providers[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`backends[].ai.groups[].providers[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`backends[].ai.groups[].providers[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`backends[].ai.groups[].providers[].policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`backends[].ai.groups[].providers[].policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`backends[].ai.groups[].providers[].policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -2751,10 +2751,10 @@
 |`backends[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`backends[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`backends[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`backends[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`backends[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`backends[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`backends[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`backends[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`backends[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`backends[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`backends[].policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`backends[].policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`backends[].policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -3156,10 +3156,10 @@
 |`routeGroups[].routes[].policies.extAuthz.conditional[].includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`routeGroups[].routes[].policies.extAuthz.conditional[].includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`routeGroups[].routes[].policies.extAuthz.conditional[].includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`routeGroups[].routes[].policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`routeGroups[].routes[].policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`routeGroups[].routes[].policies.extAuthz.conditional[].cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`routeGroups[].routes[].policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`routeGroups[].routes[].policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`routeGroups[].routes[].policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`routeGroups[].routes[].policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`routeGroups[].routes[].policies.extAuthz.service`|object|Service reference. Service must be defined in the top level services list.|
 |`routeGroups[].routes[].policies.extAuthz.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`routeGroups[].routes[].policies.extAuthz.service.port`|integer|Port on the target Service to route to.|
@@ -3184,10 +3184,10 @@
 |`routeGroups[].routes[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`routeGroups[].routes[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`routeGroups[].routes[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`routeGroups[].routes[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`routeGroups[].routes[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`routeGroups[].routes[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`routeGroups[].routes[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`routeGroups[].routes[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`routeGroups[].routes[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`routeGroups[].routes[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`routeGroups[].routes[].policies.extProc`|object|Send request and response data to an external processing service.|
 |`routeGroups[].routes[].policies.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`routeGroups[].routes[].policies.extProc.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -3504,10 +3504,10 @@
 |`routeGroups[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`routeGroups[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`routeGroups[].routes[].backends[].ai.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`routeGroups[].routes[].backends[].ai.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`routeGroups[].routes[].backends[].ai.policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`routeGroups[].routes[].backends[].ai.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`routeGroups[].routes[].backends[].ai.policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`routeGroups[].routes[].backends[].ai.policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`routeGroups[].routes[].backends[].ai.policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`routeGroups[].routes[].backends[].ai.policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`routeGroups[].routes[].backends[].ai.policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -3714,10 +3714,10 @@
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`routeGroups[].routes[].backends[].ai.groups[].providers[].policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -3886,10 +3886,10 @@
 |`routeGroups[].routes[].backends[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`routeGroups[].routes[].backends[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`routeGroups[].routes[].backends[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`routeGroups[].routes[].backends[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`routeGroups[].routes[].backends[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`routeGroups[].routes[].backends[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`routeGroups[].routes[].backends[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`routeGroups[].routes[].backends[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`routeGroups[].routes[].backends[].policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`routeGroups[].routes[].backends[].policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`routeGroups[].routes[].backends[].policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -4053,10 +4053,10 @@
 |`gateways.*.listeners[].extAuthz.conditional[].includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`gateways.*.listeners[].extAuthz.conditional[].includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`gateways.*.listeners[].extAuthz.conditional[].includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`gateways.*.listeners[].extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`gateways.*.listeners[].extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`gateways.*.listeners[].extAuthz.conditional[].cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`gateways.*.listeners[].extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`gateways.*.listeners[].extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`gateways.*.listeners[].extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`gateways.*.listeners[].extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`gateways.*.listeners[].extAuthz.service`|object|Service reference. Service must be defined in the top level services list.|
 |`gateways.*.listeners[].extAuthz.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`gateways.*.listeners[].extAuthz.service.port`|integer|Port on the target Service to route to.|
@@ -4081,10 +4081,10 @@
 |`gateways.*.listeners[].extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`gateways.*.listeners[].extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`gateways.*.listeners[].extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`gateways.*.listeners[].extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`gateways.*.listeners[].extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`gateways.*.listeners[].extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`gateways.*.listeners[].extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`gateways.*.listeners[].extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`gateways.*.listeners[].extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`gateways.*.listeners[].extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`gateways.*.listeners[].extProc`|object|Send request and response data to an external processing service.|
 |`gateways.*.listeners[].extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`gateways.*.listeners[].extProc.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -4292,10 +4292,10 @@
 |`gateways.*.extAuthz.conditional[].includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`gateways.*.extAuthz.conditional[].includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`gateways.*.extAuthz.conditional[].includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`gateways.*.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`gateways.*.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`gateways.*.extAuthz.conditional[].cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`gateways.*.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`gateways.*.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`gateways.*.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`gateways.*.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`gateways.*.extAuthz.service`|object|Service reference. Service must be defined in the top level services list.|
 |`gateways.*.extAuthz.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`gateways.*.extAuthz.service.port`|integer|Port on the target Service to route to.|
@@ -4320,10 +4320,10 @@
 |`gateways.*.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`gateways.*.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`gateways.*.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`gateways.*.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`gateways.*.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`gateways.*.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`gateways.*.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`gateways.*.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`gateways.*.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`gateways.*.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`gateways.*.extProc`|object|Send request and response data to an external processing service.|
 |`gateways.*.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`gateways.*.extProc.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -4776,10 +4776,10 @@
 |`routes[].policies.extAuthz.conditional[].includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`routes[].policies.extAuthz.conditional[].includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`routes[].policies.extAuthz.conditional[].includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`routes[].policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`routes[].policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`routes[].policies.extAuthz.conditional[].cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`routes[].policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`routes[].policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`routes[].policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`routes[].policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`routes[].policies.extAuthz.service`|object|Service reference. Service must be defined in the top level services list.|
 |`routes[].policies.extAuthz.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`routes[].policies.extAuthz.service.port`|integer|Port on the target Service to route to.|
@@ -4804,10 +4804,10 @@
 |`routes[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`routes[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`routes[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`routes[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`routes[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`routes[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`routes[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`routes[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`routes[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`routes[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`routes[].policies.extProc`|object|Send request and response data to an external processing service.|
 |`routes[].policies.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`routes[].policies.extProc.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -5124,10 +5124,10 @@
 |`routes[].backends[].ai.policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`routes[].backends[].ai.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`routes[].backends[].ai.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`routes[].backends[].ai.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`routes[].backends[].ai.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`routes[].backends[].ai.policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`routes[].backends[].ai.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`routes[].backends[].ai.policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`routes[].backends[].ai.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`routes[].backends[].ai.policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`routes[].backends[].ai.policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`routes[].backends[].ai.policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`routes[].backends[].ai.policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -5334,10 +5334,10 @@
 |`routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`routes[].backends[].ai.groups[].providers[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`routes[].backends[].ai.groups[].providers[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`routes[].backends[].ai.groups[].providers[].policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`routes[].backends[].ai.groups[].providers[].policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`routes[].backends[].ai.groups[].providers[].policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -5506,10 +5506,10 @@
 |`routes[].backends[].policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`routes[].backends[].policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`routes[].backends[].policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`routes[].backends[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`routes[].backends[].policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`routes[].backends[].policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`routes[].backends[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`routes[].backends[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`routes[].backends[].policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`routes[].backends[].policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`routes[].backends[].policies.authorization`|object|Authorize incoming requests after this backend is selected.|
 |`routes[].backends[].policies.authorization.rules`|[]object|CEL authorization rules to evaluate for a request.|
 |`routes[].backends[].policies.authorization.rules[].allow`|string|Allow the request when this CEL expression is true.|
@@ -5854,6 +5854,22 @@
 |`llm.virtualModels[].routing.conditional.targets`|[]object|targets are evaluated in order. The first matching condition selects the model.|
 |`llm.virtualModels[].routing.conditional.targets[].when`|string|when must evaluate to true for this target to be selected. Omit only on the final fallback target.|
 |`llm.virtualModels[].routing.conditional.targets[].model`|string|model is resolved against llm.models using the same wildcard matching as client requests.|
+|`llm.virtualModels[].routing.callout`|object|callout selects the target model by calling an external HTTP service.|
+|`llm.virtualModels[].routing.callout.service`|object|Service reference. Service must be defined in the top level services list.|
+|`llm.virtualModels[].routing.callout.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
+|`llm.virtualModels[].routing.callout.service.port`|integer|Port on the target Service to route to.|
+|`llm.virtualModels[].routing.callout.host`|string|Hostname or IP address|
+|`llm.virtualModels[].routing.callout.backend`|string|Explicit backend reference. Backend must be defined in the top level backends list|
+|`llm.virtualModels[].routing.callout.policies`|[`<BackendPolicies>`](#backendpolicies)|Backend policies used when connecting to the service.|
+|`llm.virtualModels[].routing.callout.headers`|object|Headers to set on the callout request, computed from CEL expressions.<br>Keys may be header names or the `:path`, `:method`, and `:authority` pseudo-headers.|
+|`llm.virtualModels[].routing.callout.body`|string|CEL expression that computes the callout request body.<br>Strings and bytes are used directly; other values are JSON-encoded.<br>If unset, the original request body is forwarded.|
+|`llm.virtualModels[].routing.callout.transformation`|object|CEL expressions that compute request payload fields from the callout response, overriding existing values.<br>`callout.headers` holds the response headers and `callout.body` the decoded JSON response body.<br>`model` is required and selects the target from `llm.models`.|
+|`llm.virtualModels[].routing.callout.failureMode`|object|Behavior when the callout fails, returns a non-2xx or non-JSON response, or selects an unknown model.<br>Defaults to `failClosed`.|
+|`llm.virtualModels[].routing.callout.failureMode.fallback`|string|Route to this model, which is resolved against llm.models, without applying `transformation`.|
+|`llm.virtualModels[].routing.callout.cache`|object|Reuse callout responses using CEL expressions as the cache key.<br>On a cache hit, `transformation` is evaluated against the cached response.<br>Keying on a session identifier makes routing sticky for that session.<br>The TTL is evaluated with `callout` available, before `transformation` is applied.|
+|`llm.virtualModels[].routing.callout.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
+|`llm.virtualModels[].routing.callout.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`llm.virtualModels[].routing.callout.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`llm.policies`|object|policies defines policies for handling incoming requests, before a model is selected|
 |`llm.policies.oidc`|object|Authenticate browser requests with OIDC authorization code flow.|
 |`llm.policies.oidc.issuer`|string|Issuer used for discovery and ID token validation.|
@@ -5935,10 +5951,10 @@
 |`llm.policies.extAuthz.conditional[].includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`llm.policies.extAuthz.conditional[].includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`llm.policies.extAuthz.conditional[].includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`llm.policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`llm.policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`llm.policies.extAuthz.conditional[].cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`llm.policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`llm.policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`llm.policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`llm.policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`llm.policies.extAuthz.service`|object|Service reference. Service must be defined in the top level services list.|
 |`llm.policies.extAuthz.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`llm.policies.extAuthz.service.port`|integer|Port on the target Service to route to.|
@@ -5963,10 +5979,10 @@
 |`llm.policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`llm.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`llm.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`llm.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`llm.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`llm.policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`llm.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`llm.policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`llm.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`llm.policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`llm.policies.extProc`|object|Send request and response data to an external processing service.|
 |`llm.policies.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`llm.policies.extProc.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -6470,10 +6486,10 @@
 |`mcp.policies.extAuthz.conditional[].includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`mcp.policies.extAuthz.conditional[].includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`mcp.policies.extAuthz.conditional[].includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`mcp.policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`mcp.policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`mcp.policies.extAuthz.conditional[].cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`mcp.policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`mcp.policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`mcp.policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`mcp.policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`mcp.policies.extAuthz.service`|object|Service reference. Service must be defined in the top level services list.|
 |`mcp.policies.extAuthz.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`mcp.policies.extAuthz.service.port`|integer|Port on the target Service to route to.|
@@ -6498,10 +6514,10 @@
 |`mcp.policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`mcp.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`mcp.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`mcp.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`mcp.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`mcp.policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`mcp.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`mcp.policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`mcp.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`mcp.policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`mcp.policies.extProc`|object|Send request and response data to an external processing service.|
 |`mcp.policies.extProc.conditional`|[]object|conditional policy entries. An entry without a condition must be the final fallback.|
 |`mcp.policies.extProc.conditional[].service`|object|Service reference. Service must be defined in the top level services list.|
@@ -6713,10 +6729,10 @@
 |`ui.policies.extAuthz.conditional[].includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`ui.policies.extAuthz.conditional[].includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`ui.policies.extAuthz.conditional[].includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`ui.policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`ui.policies.extAuthz.conditional[].cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`ui.policies.extAuthz.conditional[].cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`ui.policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`ui.policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`ui.policies.extAuthz.conditional[].cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`ui.policies.extAuthz.conditional[].cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`ui.policies.extAuthz.service`|object|Service reference. Service must be defined in the top level services list.|
 |`ui.policies.extAuthz.service.name`|string|Name of the target Service, as defined in the top-level `services` list.|
 |`ui.policies.extAuthz.service.port`|integer|Port on the target Service to route to.|
@@ -6741,10 +6757,10 @@
 |`ui.policies.extAuthz.includeRequestBody.maxRequestBytes`|integer|Maximum request body size to send to the authorization service. Defaults to 8192 bytes.|
 |`ui.policies.extAuthz.includeRequestBody.allowPartialMessage`|boolean|Whether to send a partial body when the request exceeds `maxRequestBytes`.|
 |`ui.policies.extAuthz.includeRequestBody.packAsBytes`|boolean|Whether to send the body as raw bytes for gRPC authorization checks.|
-|`ui.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.|
+|`ui.policies.extAuthz.cache`|object|Cache authorization results using CEL expressions as the cache key.<br>Warning: the safety of this feature depends on the cache key accurately capturing the fields<br>the server operates on. For example, if you return a different result based on header A but only<br>cache header B, users may get incorrect cache hits.<br>The TTL is evaluated after the authorization response has been applied to the request.|
 |`ui.policies.extAuthz.cache.key`|[]string|CEL expressions that make up the cache key. Empty keys are accepted, but do not produce cache hits.|
-|`ui.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached authorization results are reused.<br>The expression is evaluated after the authorization response has been applied<br>to the request, and must return either a duration or timestamp.|
-|`ui.policies.extAuthz.cache.maxEntries`|integer|Maximum number of authorization results to keep in the cache.|
+|`ui.policies.extAuthz.cache.ttl`|string|CEL expression that returns how long cached results are reused.<br>Must return either a duration or timestamp.|
+|`ui.policies.extAuthz.cache.maxEntries`|integer|Maximum number of results to keep in the cache.|
 |`ui.policies.basicAuth`|object|Authenticate incoming requests with Basic Auth credentials from an htpasswd user database.|
 |`ui.policies.basicAuth.htpasswd`|object|User database in htpasswd format. Can be inline or loaded from a file.|
 |`ui.policies.basicAuth.htpasswd.file`|string|Path to a file on disk to load the value from.|
