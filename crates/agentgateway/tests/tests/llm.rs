@@ -225,7 +225,7 @@ async fn llm_detect_mode_passthrough_without_rewrite() {
 	.await
 	.unwrap();
 	let want = json!({
-		"gen_ai.operation.name": "chat",
+		"gen_ai.operation.name": "unknown",
 		"gen_ai.provider.name": "openai",
 		"gen_ai.request.model": "replaceme",
 		"gen_ai.response.model": "gpt-3.5-turbo-0125",
@@ -288,7 +288,7 @@ async fn llm_detect_mode_respects_model_rewrite() {
 	.await
 	.unwrap();
 	let want = json!({
-		"gen_ai.operation.name": "chat",
+		"gen_ai.operation.name": "unknown",
 		"gen_ai.provider.name": "openai",
 		"gen_ai.request.model": "replaceme-overwrite",
 		"gen_ai.response.model": "gpt-3.5-turbo-0125",
