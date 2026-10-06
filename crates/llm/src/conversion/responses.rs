@@ -1569,6 +1569,8 @@ pub mod from_messages {
 					responses::ResponseStreamEvent::ResponseInProgress(_) => {},
 					// Text finalization is handled by ResponseContentPartDone.
 					responses::ResponseStreamEvent::ResponseOutputTextDone(_) => {},
+					responses::ResponseStreamEvent::ResponseReasoningTextDelta(_)
+					| responses::ResponseStreamEvent::ResponseReasoningTextDone(_) => {},
 				},
 			}
 			if state.failed {

@@ -971,10 +971,10 @@ pub mod typed {
 		ResponseContentPartDoneEvent, ResponseCreatedEvent, ResponseError, ResponseErrorCode,
 		ResponseErrorEvent, ResponseFailedEvent, ResponseFunctionCallArgumentsDeltaEvent,
 		ResponseFunctionCallArgumentsDoneEvent, ResponseInProgressEvent, ResponseIncompleteEvent,
-		ResponseOutputItemAddedEvent, ResponseOutputItemDoneEvent, ResponseRefusalDeltaEvent,
-		ResponseRefusalDoneEvent, ResponseTextDeltaEvent, ResponseTextDoneEvent, ResponseTextParam,
-		ResponseUsage, Role, Status, TextResponseFormatConfiguration, Tool, ToolChoiceFunction,
-		ToolChoiceOptions, ToolChoiceParam,
+		ResponseOutputItemAddedEvent, ResponseOutputItemDoneEvent, ResponseReasoningTextDeltaEvent,
+		ResponseReasoningTextDoneEvent, ResponseRefusalDeltaEvent, ResponseRefusalDoneEvent,
+		ResponseTextDeltaEvent, ResponseTextDoneEvent, ResponseTextParam, ResponseUsage, Role, Status,
+		TextResponseFormatConfiguration, Tool, ToolChoiceFunction, ToolChoiceOptions, ToolChoiceParam,
 	};
 	use serde::{Deserialize, Serialize};
 
@@ -1001,6 +1001,12 @@ pub mod typed {
 		/// Emitted when text content is finalized.
 		#[serde(rename = "response.output_text.done")]
 		ResponseOutputTextDone(openai_responses::ResponseTextDoneEvent),
+		/// Emitted when there is an additional reasoning text delta.
+		#[serde(rename = "response.reasoning_text.delta")]
+		ResponseReasoningTextDelta(openai_responses::ResponseReasoningTextDeltaEvent),
+		/// Emitted when reasoning text is finalized.
+		#[serde(rename = "response.reasoning_text.done")]
+		ResponseReasoningTextDone(openai_responses::ResponseReasoningTextDoneEvent),
 		/// Emitted when there is a partial refusal text.
 		#[serde(rename = "response.refusal.delta")]
 		ResponseRefusalDelta(openai_responses::ResponseRefusalDeltaEvent),
