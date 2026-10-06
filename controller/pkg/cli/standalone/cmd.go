@@ -57,6 +57,8 @@ var kindAliases = map[string]string{
 type client struct {
 	address string
 	http    *http.Client
+	// resolve sets address and auth from flags, environment, and the config file.
+	resolve func() error
 }
 
 type resource struct {
@@ -73,32 +75,68 @@ type resourceList struct {
 }
 
 func Command() *cobra.Command {
-	address := os.Getenv("AGCTL_STANDALONE_ADDRESS")
-	if address == "" {
-		address = defaultAddress
-	}
-	c := &client{
-		address: strings.TrimRight(address, "/"),
-		http:    &http.Client{Timeout: 10 * time.Second},
-	}
+	var address, gateway string
+	c := &client{http: &http.Client{Timeout: 10 * time.Second}}
 	cmd := &cobra.Command{
 		Use:   "standalone",
 		Short: "Manage a standalone agentgateway",
-		Long:  "Manage configuration resources through a standalone agentgateway admin API.",
+		Long: `Manage configuration resources through a standalone agentgateway admin API.
+
+The gateway address is taken from --gateway, --address, $AGCTL_STANDALONE_ADDRESS,
+the current gateway in the config file, or ` + defaultAddress + `, in that order.
+
+The config file is read from $AGCTL_STANDALONE_CONFIG, or agctl/standalone.yaml in
+the user config directory (typically ~/.config/agctl/standalone.yaml). Gateways may
+authenticate with a kubectl credential plugin, using the kubeconfig exec schema:
+
+  current: prod
+  gateways:
+    local:
+      url: http://localhost:15000
+    prod:
+      url: https://agw.example.com
+      exec:
+        apiVersion: client.authentication.k8s.io/v1
+        command: kubectl
+        args: [oidc-login, get-token, --oidc-issuer-url=https://issuer.example.com, --oidc-client-id=agctl]`,
 		Example: `  agctl standalone get llm.models
   agctl standalone get all -o yaml
   agctl standalone apply -f resources.yaml
-  agctl standalone delete llm.models my-model`,
-		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			c.address = strings.TrimRight(address, "/")
-			if _, err := url.ParseRequestURI(c.address); err != nil {
-				return fmt.Errorf("invalid --address: %w", err)
-			}
-			return nil
+  agctl standalone delete llm.models my-model
+  agctl standalone --gateway prod get all`,
+		PersistentPreRunE: func(*cobra.Command, []string) error {
+			return c.resolve()
 		},
 	}
-	cmd.PersistentFlags().StringVar(&address, "address", address, "Standalone agentgateway admin address")
-	cmd.AddCommand(getCommand(c), applyCommand(c), deleteCommand(c))
+	c.resolve = func() error {
+		c.http.Transport = nil
+		addr := os.Getenv("AGCTL_STANDALONE_ADDRESS")
+		if cmd.PersistentFlags().Changed("address") {
+			addr = address
+		}
+		if gateway != "" || addr == "" {
+			gw, err := loadGateway(gateway)
+			if err != nil {
+				return err
+			}
+			addr = defaultAddress
+			if gw != nil {
+				addr = gw.URL
+				if c.http.Transport, err = gw.transport(); err != nil {
+					return fmt.Errorf("configure gateway auth: %w", err)
+				}
+			}
+		}
+		c.address = strings.TrimRight(addr, "/")
+		if _, err := url.ParseRequestURI(c.address); err != nil {
+			return fmt.Errorf("invalid gateway address: %w", err)
+		}
+		return nil
+	}
+	cmd.PersistentFlags().StringVar(&address, "address", "", "Standalone agentgateway admin address")
+	cmd.PersistentFlags().StringVar(&gateway, "gateway", "", "Gateway name from the config file")
+	cmd.MarkFlagsMutuallyExclusive("address", "gateway")
+	cmd.AddCommand(getCommand(c), applyCommand(c), deleteCommand(c), logsCommand(c), analyticsCommand(c), keysCommand(c), budgetsCommand(c))
 	return cmd
 }
 
@@ -441,7 +479,7 @@ func kindCompletions(includeAll bool) []string {
 
 func completeResourceNames(c *client, inputKind string) []string {
 	kind := canonicalKind(inputKind)
-	if kind == "" || c.address == "" {
+	if kind == "" || c.resolve() != nil {
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -460,8 +498,11 @@ func completeResourceNames(c *client, inputKind string) []string {
 
 func resourceName(r resource) string {
 	var value struct {
-		Name string `json:"name"`
-		ID   string `json:"id"`
+		Name     string `json:"name"`
+		ID       string `json:"id"`
+		Metadata struct {
+			Name string `json:"name"`
+		} `json:"metadata"`
 	}
 	if json.Unmarshal(r.Value, &value) == nil {
 		if value.Name != "" {
@@ -469,6 +510,10 @@ func resourceName(r resource) string {
 		}
 		if value.ID != "" {
 			return value.ID
+		}
+		// llm.apiKey resources keep their name in metadata.
+		if value.Metadata.Name != "" {
+			return value.Metadata.Name
 		}
 	}
 	return r.ID
