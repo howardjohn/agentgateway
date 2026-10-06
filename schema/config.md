@@ -6769,9 +6769,10 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<BackendPolicies>.backendAuth.passthrough.location.cookie`|object|Read the credential from a request cookie.|
 |`<BackendPolicies>.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`<BackendPolicies>.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<BackendPolicies>.backendAuth.key`|object|Send a configured secret value to the backend.|
+|`<BackendPolicies>.backendAuth.key`|object|Send a configured secret value, or a value computed from the request, to the backend.<br>Exactly one of `value` or `expression` must be set.|
 |`<BackendPolicies>.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`<BackendPolicies>.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
+|`<BackendPolicies>.backendAuth.key.expression`|string|CEL expression evaluated against the request to produce the value to send.<br>If it fails or does not return a string, the target location is cleared instead.|
 |`<BackendPolicies>.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`<BackendPolicies>.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
 |`<BackendPolicies>.backendAuth.key.location.header.name`|string|Header name containing the credential.|
@@ -6977,8 +6978,9 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<BackendPolicies>.backendAuth.credentials[].location.cookie`|object|Read the credential from a request cookie.|
 |`<BackendPolicies>.backendAuth.credentials[].location.cookie.name`|string|Cookie name containing the credential.|
 |`<BackendPolicies>.backendAuth.credentials[].location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<BackendPolicies>.backendAuth.credentials[].key`|object|Credential value.|
+|`<BackendPolicies>.backendAuth.credentials[].key`|object|Credential value. Exactly one of `key` or `expression` must be set.|
 |`<BackendPolicies>.backendAuth.credentials[].key.file`|string|Path to a file on disk to load the value from.|
+|`<BackendPolicies>.backendAuth.credentials[].expression`|string|CEL expression evaluated against the request to produce the credential value.<br>If it fails or does not return a string, the credential location is cleared instead.|
 |`<BackendPolicies>.http`|object|HTTP protocol settings for this backend.|
 |`<BackendPolicies>.http.version`|string|HTTP version to use when connecting to the backend.|
 |`<BackendPolicies>.http.requestTimeout`|string|Maximum time allowed for a backend HTTP request.|
@@ -7016,9 +7018,10 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<BackendAuth>.passthrough.location.cookie`|object|Read the credential from a request cookie.|
 |`<BackendAuth>.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`<BackendAuth>.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<BackendAuth>.key`|object|Send a configured secret value to the backend.|
+|`<BackendAuth>.key`|object|Send a configured secret value, or a value computed from the request, to the backend.<br>Exactly one of `value` or `expression` must be set.|
 |`<BackendAuth>.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`<BackendAuth>.key.value.file`|string|Path to a file on disk to load the value from.|
+|`<BackendAuth>.key.expression`|string|CEL expression evaluated against the request to produce the value to send.<br>If it fails or does not return a string, the target location is cleared instead.|
 |`<BackendAuth>.key.location`|object|Where to place the secret in the backend request.|
 |`<BackendAuth>.key.location.header`|object|Read the credential from an HTTP header.|
 |`<BackendAuth>.key.location.header.name`|string|Header name containing the credential.|
@@ -7377,8 +7380,9 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<BackendAuth>.credentials[].location.cookie`|object|Read the credential from a request cookie.|
 |`<BackendAuth>.credentials[].location.cookie.name`|string|Cookie name containing the credential.|
 |`<BackendAuth>.credentials[].location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<BackendAuth>.credentials[].key`|object|Credential value.|
+|`<BackendAuth>.credentials[].key`|object|Credential value. Exactly one of `key` or `expression` must be set.|
 |`<BackendAuth>.credentials[].key.file`|string|Path to a file on disk to load the value from.|
+|`<BackendAuth>.credentials[].expression`|string|CEL expression evaluated against the request to produce the credential value.<br>If it fails or does not return a string, the credential location is cleared instead.|
 
 ### `<Guardrails>`
 
@@ -7442,9 +7446,10 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.passthrough.location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.request[].webhook.target.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
+|`<Guardrails>.request[].webhook.target.policies.backendAuth.key`|object|Send a configured secret value, or a value computed from the request, to the backend.<br>Exactly one of `value` or `expression` must be set.|
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.request[].webhook.target.policies.backendAuth.key.expression`|string|CEL expression evaluated against the request to produce the value to send.<br>If it fails or does not return a string, the target location is cleared instead.|
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.key.location.header.name`|string|Header name containing the credential.|
@@ -7650,8 +7655,9 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.credentials[].location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.credentials[].location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.credentials[].location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.request[].webhook.target.policies.backendAuth.credentials[].key`|object|Credential value.|
+|`<Guardrails>.request[].webhook.target.policies.backendAuth.credentials[].key`|object|Credential value. Exactly one of `key` or `expression` must be set.|
 |`<Guardrails>.request[].webhook.target.policies.backendAuth.credentials[].key.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.request[].webhook.target.policies.backendAuth.credentials[].expression`|string|CEL expression evaluated against the request to produce the credential value.<br>If it fails or does not return a string, the credential location is cleared instead.|
 |`<Guardrails>.request[].webhook.target.policies.http`|object|HTTP protocol settings for this backend.|
 |`<Guardrails>.request[].webhook.target.policies.http.version`|string|HTTP version to use when connecting to the backend.|
 |`<Guardrails>.request[].webhook.target.policies.http.requestTimeout`|string|Maximum time allowed for a backend HTTP request.|
@@ -7728,9 +7734,10 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.passthrough.location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.request[].openAIModeration.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
+|`<Guardrails>.request[].openAIModeration.policies.backendAuth.key`|object|Send a configured secret value, or a value computed from the request, to the backend.<br>Exactly one of `value` or `expression` must be set.|
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.request[].openAIModeration.policies.backendAuth.key.expression`|string|CEL expression evaluated against the request to produce the value to send.<br>If it fails or does not return a string, the target location is cleared instead.|
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.key.location.header.name`|string|Header name containing the credential.|
@@ -7936,8 +7943,9 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.credentials[].location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.credentials[].location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.credentials[].location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.request[].openAIModeration.policies.backendAuth.credentials[].key`|object|Credential value.|
+|`<Guardrails>.request[].openAIModeration.policies.backendAuth.credentials[].key`|object|Credential value. Exactly one of `key` or `expression` must be set.|
 |`<Guardrails>.request[].openAIModeration.policies.backendAuth.credentials[].key.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.request[].openAIModeration.policies.backendAuth.credentials[].expression`|string|CEL expression evaluated against the request to produce the credential value.<br>If it fails or does not return a string, the credential location is cleared instead.|
 |`<Guardrails>.request[].openAIModeration.policies.http`|object|HTTP protocol settings for this backend.|
 |`<Guardrails>.request[].openAIModeration.policies.http.version`|string|HTTP version to use when connecting to the backend.|
 |`<Guardrails>.request[].openAIModeration.policies.http.requestTimeout`|string|Maximum time allowed for a backend HTTP request.|
@@ -8008,9 +8016,10 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.passthrough.location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
+|`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.key`|object|Send a configured secret value, or a value computed from the request, to the backend.<br>Exactly one of `value` or `expression` must be set.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.key.expression`|string|CEL expression evaluated against the request to produce the value to send.<br>If it fails or does not return a string, the target location is cleared instead.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.key.location.header.name`|string|Header name containing the credential.|
@@ -8216,8 +8225,9 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.credentials[].location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.credentials[].location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.credentials[].location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.credentials[].key`|object|Credential value.|
+|`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.credentials[].key`|object|Credential value. Exactly one of `key` or `expression` must be set.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.credentials[].key.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.request[].bedrockGuardrails.policies.backendAuth.credentials[].expression`|string|CEL expression evaluated against the request to produce the credential value.<br>If it fails or does not return a string, the credential location is cleared instead.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.http`|object|HTTP protocol settings for this backend.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.http.version`|string|HTTP version to use when connecting to the backend.|
 |`<Guardrails>.request[].bedrockGuardrails.policies.http.requestTimeout`|string|Maximum time allowed for a backend HTTP request.|
@@ -8288,9 +8298,10 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.passthrough.location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.request[].googleModelArmor.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
+|`<Guardrails>.request[].googleModelArmor.policies.backendAuth.key`|object|Send a configured secret value, or a value computed from the request, to the backend.<br>Exactly one of `value` or `expression` must be set.|
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.request[].googleModelArmor.policies.backendAuth.key.expression`|string|CEL expression evaluated against the request to produce the value to send.<br>If it fails or does not return a string, the target location is cleared instead.|
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.key.location.header.name`|string|Header name containing the credential.|
@@ -8496,8 +8507,9 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.credentials[].location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.credentials[].location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.credentials[].location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.request[].googleModelArmor.policies.backendAuth.credentials[].key`|object|Credential value.|
+|`<Guardrails>.request[].googleModelArmor.policies.backendAuth.credentials[].key`|object|Credential value. Exactly one of `key` or `expression` must be set.|
 |`<Guardrails>.request[].googleModelArmor.policies.backendAuth.credentials[].key.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.request[].googleModelArmor.policies.backendAuth.credentials[].expression`|string|CEL expression evaluated against the request to produce the credential value.<br>If it fails or does not return a string, the credential location is cleared instead.|
 |`<Guardrails>.request[].googleModelArmor.policies.http`|object|HTTP protocol settings for this backend.|
 |`<Guardrails>.request[].googleModelArmor.policies.http.version`|string|HTTP version to use when connecting to the backend.|
 |`<Guardrails>.request[].googleModelArmor.policies.http.requestTimeout`|string|Maximum time allowed for a backend HTTP request.|
@@ -8566,9 +8578,10 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.passthrough.location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.request[].azureContentSafety.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
+|`<Guardrails>.request[].azureContentSafety.policies.backendAuth.key`|object|Send a configured secret value, or a value computed from the request, to the backend.<br>Exactly one of `value` or `expression` must be set.|
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.request[].azureContentSafety.policies.backendAuth.key.expression`|string|CEL expression evaluated against the request to produce the value to send.<br>If it fails or does not return a string, the target location is cleared instead.|
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.key.location.header.name`|string|Header name containing the credential.|
@@ -8774,8 +8787,9 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.credentials[].location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.credentials[].location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.credentials[].location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.request[].azureContentSafety.policies.backendAuth.credentials[].key`|object|Credential value.|
+|`<Guardrails>.request[].azureContentSafety.policies.backendAuth.credentials[].key`|object|Credential value. Exactly one of `key` or `expression` must be set.|
 |`<Guardrails>.request[].azureContentSafety.policies.backendAuth.credentials[].key.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.request[].azureContentSafety.policies.backendAuth.credentials[].expression`|string|CEL expression evaluated against the request to produce the credential value.<br>If it fails or does not return a string, the credential location is cleared instead.|
 |`<Guardrails>.request[].azureContentSafety.policies.http`|object|HTTP protocol settings for this backend.|
 |`<Guardrails>.request[].azureContentSafety.policies.http.version`|string|HTTP version to use when connecting to the backend.|
 |`<Guardrails>.request[].azureContentSafety.policies.http.requestTimeout`|string|Maximum time allowed for a backend HTTP request.|
@@ -8868,9 +8882,10 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.passthrough.location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.response[].webhook.target.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
+|`<Guardrails>.response[].webhook.target.policies.backendAuth.key`|object|Send a configured secret value, or a value computed from the request, to the backend.<br>Exactly one of `value` or `expression` must be set.|
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.response[].webhook.target.policies.backendAuth.key.expression`|string|CEL expression evaluated against the request to produce the value to send.<br>If it fails or does not return a string, the target location is cleared instead.|
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.key.location.header.name`|string|Header name containing the credential.|
@@ -9076,8 +9091,9 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.credentials[].location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.credentials[].location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.credentials[].location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.response[].webhook.target.policies.backendAuth.credentials[].key`|object|Credential value.|
+|`<Guardrails>.response[].webhook.target.policies.backendAuth.credentials[].key`|object|Credential value. Exactly one of `key` or `expression` must be set.|
 |`<Guardrails>.response[].webhook.target.policies.backendAuth.credentials[].key.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.response[].webhook.target.policies.backendAuth.credentials[].expression`|string|CEL expression evaluated against the request to produce the credential value.<br>If it fails or does not return a string, the credential location is cleared instead.|
 |`<Guardrails>.response[].webhook.target.policies.http`|object|HTTP protocol settings for this backend.|
 |`<Guardrails>.response[].webhook.target.policies.http.version`|string|HTTP version to use when connecting to the backend.|
 |`<Guardrails>.response[].webhook.target.policies.http.requestTimeout`|string|Maximum time allowed for a backend HTTP request.|
@@ -9156,9 +9172,10 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.passthrough.location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
+|`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.key`|object|Send a configured secret value, or a value computed from the request, to the backend.<br>Exactly one of `value` or `expression` must be set.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.key.expression`|string|CEL expression evaluated against the request to produce the value to send.<br>If it fails or does not return a string, the target location is cleared instead.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.key.location.header.name`|string|Header name containing the credential.|
@@ -9364,8 +9381,9 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.credentials[].location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.credentials[].location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.credentials[].location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.credentials[].key`|object|Credential value.|
+|`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.credentials[].key`|object|Credential value. Exactly one of `key` or `expression` must be set.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.credentials[].key.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.response[].bedrockGuardrails.policies.backendAuth.credentials[].expression`|string|CEL expression evaluated against the request to produce the credential value.<br>If it fails or does not return a string, the credential location is cleared instead.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.http`|object|HTTP protocol settings for this backend.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.http.version`|string|HTTP version to use when connecting to the backend.|
 |`<Guardrails>.response[].bedrockGuardrails.policies.http.requestTimeout`|string|Maximum time allowed for a backend HTTP request.|
@@ -9436,9 +9454,10 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.passthrough.location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.response[].googleModelArmor.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
+|`<Guardrails>.response[].googleModelArmor.policies.backendAuth.key`|object|Send a configured secret value, or a value computed from the request, to the backend.<br>Exactly one of `value` or `expression` must be set.|
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.response[].googleModelArmor.policies.backendAuth.key.expression`|string|CEL expression evaluated against the request to produce the value to send.<br>If it fails or does not return a string, the target location is cleared instead.|
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.key.location.header.name`|string|Header name containing the credential.|
@@ -9644,8 +9663,9 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.credentials[].location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.credentials[].location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.credentials[].location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.response[].googleModelArmor.policies.backendAuth.credentials[].key`|object|Credential value.|
+|`<Guardrails>.response[].googleModelArmor.policies.backendAuth.credentials[].key`|object|Credential value. Exactly one of `key` or `expression` must be set.|
 |`<Guardrails>.response[].googleModelArmor.policies.backendAuth.credentials[].key.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.response[].googleModelArmor.policies.backendAuth.credentials[].expression`|string|CEL expression evaluated against the request to produce the credential value.<br>If it fails or does not return a string, the credential location is cleared instead.|
 |`<Guardrails>.response[].googleModelArmor.policies.http`|object|HTTP protocol settings for this backend.|
 |`<Guardrails>.response[].googleModelArmor.policies.http.version`|string|HTTP version to use when connecting to the backend.|
 |`<Guardrails>.response[].googleModelArmor.policies.http.requestTimeout`|string|Maximum time allowed for a backend HTTP request.|
@@ -9714,9 +9734,10 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.passthrough.location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.passthrough.location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.passthrough.location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.response[].azureContentSafety.policies.backendAuth.key`|object|Send a configured secret value to the backend.|
+|`<Guardrails>.response[].azureContentSafety.policies.backendAuth.key`|object|Send a configured secret value, or a value computed from the request, to the backend.<br>Exactly one of `value` or `expression` must be set.|
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.key.value`|object|Secret value to send to the backend. File references are watched, so<br>rotating the file reloads it without a restart.|
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.key.value.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.response[].azureContentSafety.policies.backendAuth.key.expression`|string|CEL expression evaluated against the request to produce the value to send.<br>If it fails or does not return a string, the target location is cleared instead.|
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.key.location`|object|Where to place the secret in the backend request.|
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.key.location.header`|object|Read the credential from an HTTP header.|
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.key.location.header.name`|string|Header name containing the credential.|
@@ -9922,8 +9943,9 @@ These types are used by many fields. Fields of these types link here instead of 
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.credentials[].location.cookie`|object|Read the credential from a request cookie.|
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.credentials[].location.cookie.name`|string|Cookie name containing the credential.|
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.credentials[].location.expression`|string|Read the credential from a CEL expression evaluated against the incoming request.<br>CEL expression that returns the credential string. This location can extract credentials but cannot insert them.|
-|`<Guardrails>.response[].azureContentSafety.policies.backendAuth.credentials[].key`|object|Credential value.|
+|`<Guardrails>.response[].azureContentSafety.policies.backendAuth.credentials[].key`|object|Credential value. Exactly one of `key` or `expression` must be set.|
 |`<Guardrails>.response[].azureContentSafety.policies.backendAuth.credentials[].key.file`|string|Path to a file on disk to load the value from.|
+|`<Guardrails>.response[].azureContentSafety.policies.backendAuth.credentials[].expression`|string|CEL expression evaluated against the request to produce the credential value.<br>If it fails or does not return a string, the credential location is cleared instead.|
 |`<Guardrails>.response[].azureContentSafety.policies.http`|object|HTTP protocol settings for this backend.|
 |`<Guardrails>.response[].azureContentSafety.policies.http.version`|string|HTTP version to use when connecting to the backend.|
 |`<Guardrails>.response[].azureContentSafety.policies.http.requestTimeout`|string|Maximum time allowed for a backend HTTP request.|
