@@ -12211,6 +12211,17 @@
             "$ref": "#/$defs/Expression"
           }
         },
+        "requestTransformation": {
+          "description": "CEL expressions that modify the HTTP request (headers, metadata, etc) to the LLM provider.\nUnlike `transformation`, which sets fields in the LLM request payload, this operates on the HTTP request itself.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalTransform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "requestHeaders": {
           "description": "Headers to add, set, or remove on requests to the LLM provider.",
           "anyOf": [
@@ -12380,7 +12391,7 @@
           "additionalProperties": true
         },
         "transformation": {
-          "description": "transformation allows setting values from CEL expressions for the request, overriding any existing values.",
+          "description": "transformation allows setting values from CEL expressions for the request, overriding any existing values.\nThis operates on fields of the LLM request payload; to modify the HTTP request (headers, metadata, etc), use `requestTransformation`.",
           "type": [
             "object",
             "null"
@@ -12398,6 +12409,17 @@
           "additionalProperties": {
             "$ref": "#/$defs/Expression"
           }
+        },
+        "requestTransformation": {
+          "description": "requestTransformation modifies the HTTP request to the LLM provider (headers, metadata, etc) using CEL expressions.\nUnlike `transformation`, which sets fields in the LLM request payload, this operates on the HTTP request itself.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalTransform"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "requestHeaders": {
           "description": "requestHeaders modifies headers in requests to the LLM provider.",

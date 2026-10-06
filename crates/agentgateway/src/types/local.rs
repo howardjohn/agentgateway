@@ -493,6 +493,10 @@ pub struct LocalLLMProviderDefaults {
 	/// CEL expressions that compute request payload fields, overriding existing values.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	transformation: Option<HashMap<String, Arc<cel::Expression>>>,
+	/// CEL expressions that modify the HTTP request (headers, metadata, etc) to the LLM provider.
+	/// Unlike `transformation`, which sets fields in the LLM request payload, this operates on the HTTP request itself.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	request_transformation: Option<Arc<crate::http::transformation_cel::TransformerConfig>>,
 	/// Headers to add, set, or remove on requests to the LLM provider.
 	#[serde(default)]
 	request_headers: Option<filters::HeaderModifier>,
@@ -826,12 +830,17 @@ pub struct LocalLLMModels {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	overrides: Option<HashMap<String, serde_json::Value>>,
 	/// transformation allows setting values from CEL expressions for the request, overriding any existing values.
+	/// This operates on fields of the LLM request payload; to modify the HTTP request (headers, metadata, etc), use `requestTransformation`.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	transformation: Option<HashMap<String, Arc<cel::Expression>>>,
 	/// final_transformation allows setting values from CEL expressions for the request, overriding any existing values.
 	/// Occurs after conversion of the request to the provider format, allowing for provider-specific transformations.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	final_transformation: Option<HashMap<String, Arc<cel::Expression>>>,
+	/// requestTransformation modifies the HTTP request to the LLM provider (headers, metadata, etc) using CEL expressions.
+	/// Unlike `transformation`, which sets fields in the LLM request payload, this operates on the HTTP request itself.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	request_transformation: Option<Arc<crate::http::transformation_cel::TransformerConfig>>,
 	/// requestHeaders modifies headers in requests to the LLM provider.
 	#[serde(default)]
 	request_headers: Option<filters::HeaderModifier>,
@@ -1027,6 +1036,10 @@ impl LocalLLMModels {
 			self.overrides = merge_optional_maps(defaults.overrides, self.overrides.take());
 			self.transformation =
 				merge_optional_maps(defaults.transformation, self.transformation.take());
+			self.request_transformation = self
+				.request_transformation
+				.take()
+				.or(defaults.request_transformation);
 			self.request_headers = self.request_headers.take().or(defaults.request_headers);
 			self.response_headers = self.response_headers.take().or(defaults.response_headers);
 			self.backend_tls = self.backend_tls.take().or(defaults.backend_tls);
@@ -4637,6 +4650,14 @@ async fn convert_llm_config(
 		}
 		if let Some(p) = model_config.backend_tunnel.clone() {
 			pols.push(BackendTrafficPolicy::Tunnel(p));
+		}
+		if let Some(p) = model_config.request_transformation.clone() {
+			pols.push(BackendTrafficPolicy::Transformation(Arc::new(
+				crate::http::transformation_cel::Transformation {
+					request: Some(p),
+					response: None,
+				},
+			)));
 		}
 		if let Some(rh) = model_config.request_headers.clone() {
 			pols.push(BackendTrafficPolicy::RequestHeaderModifier(rh));
