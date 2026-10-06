@@ -395,7 +395,8 @@ export async function mockXdsGateway(page: Page, dump: StoresDump = xdsDump()) {
 				buildProfile: 'test',
 				buildTarget: 'test'
 			},
-			ui: { gatewayMode: 'xds', configStoreMode: 'file' }
+			ui: { gatewayMode: 'xds', configStoreMode: 'file' },
+			configReload: { synchronized: true, lastError: null }
 		});
 	});
 
@@ -424,7 +425,8 @@ export async function mockGateway(page: Page, initialConfig: TestConfig = popula
 				buildProfile: 'test',
 				buildTarget: 'test'
 			},
-			ui: { gatewayMode: 'standalone', configStoreMode: 'file' }
+			ui: { gatewayMode: 'standalone', configStoreMode: 'file' },
+			configReload: { synchronized: true, lastError: null }
 		});
 	});
 
