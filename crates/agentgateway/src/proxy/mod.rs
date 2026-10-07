@@ -2,6 +2,7 @@ pub mod admission;
 pub mod dtrace;
 mod gateway;
 pub mod httpproxy;
+pub mod policy_host;
 pub mod proxy_protocol;
 pub mod request_builder;
 pub mod tcpproxy;
@@ -76,6 +77,7 @@ impl ProxyError {
 			| ProxyError::Http(_)
 			| ProxyError::BackendUnsupportedMirror
 			| ProxyError::FilterError(_)
+			| ProxyError::Policy(_)
 			| ProxyError::StaleAssignment => ProxyResponseReason::Internal,
 			ProxyError::SubstrateIngressFailed(status, _) => substrate_ingress_reason(*status),
 			ProxyError::AIRequest(error) => classify_ai_request(error).reason,
@@ -196,6 +198,8 @@ pub enum ProxyError {
 	DnsResolution,
 	#[error("failed to apply filters: {0}")]
 	FilterError(#[from] http::filters::Error),
+	#[error("policy failed: {0}")]
+	Policy(agent_policy::BoxError),
 	#[error("backend type cannot be used in mirror")]
 	BackendUnsupportedMirror,
 	#[error("authentication failure: {0}")]
@@ -400,6 +404,7 @@ impl ProxyError {
 
 			// Should it be 4xx?
 			ProxyError::FilterError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+			ProxyError::Policy(_) => StatusCode::INTERNAL_SERVER_ERROR,
 			ProxyError::InvalidRequest => StatusCode::BAD_REQUEST,
 			ProxyError::MethodNotAllowed => StatusCode::METHOD_NOT_ALLOWED,
 

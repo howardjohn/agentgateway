@@ -25,7 +25,7 @@ crypto-aws-lc = ["dep:aws-lc-rs", "rustls/aws_lc_rs", "tokio-rustls/aws_lc_rs", 
 fips = ["aws-lc-rs?/fips", "rustls/fips", "tokio-rustls/fips"]
 crypto-symcrypt = ["dep:symcrypt", "dep:rustls-symcrypt", "dep:aws-lc-rs", "jsonwebtoken/aws_lc_rs"]
 ui = []
-schema = ["schemars", "agent-core/schema", "agent-llm/schema"]
+schema = ["schemars", "agent-core/schema", "agent-llm/schema", "agent-policy/schema", "agent-policy-cors/schema"]
 internal_benches = ["divan"]
 assert_size_runtime = ["agent-core/assert_size_runtime"]
 
@@ -35,6 +35,8 @@ agent-celx.workspace = true
 agent-hbone.workspace = true
 agent-http.workspace = true
 agent-llm.workspace = true
+agent-policy.workspace = true
+agent-policy-cors.workspace = true
 agent-xds.workspace = true
 agent-pool.workspace = true
 anyhow.workspace = true

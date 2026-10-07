@@ -32,8 +32,8 @@ use crate::http::substrate::{ActorIdentity, EgressRequestProtocol, EgressTlsMode
 use crate::http::transformation_cel::Transformation;
 use crate::http::x_headers::TRACEPARENT;
 use crate::http::{
-	Authority, HeaderName, HeaderValue, Request, Response, Scheme, StatusCode, Uri, auth, filters,
-	merge_in_headers, retry,
+	Authority, HeaderName, HeaderValue, PolicyResponseExt, Request, Response, Scheme, StatusCode,
+	Uri, auth, filters, merge_in_headers, retry,
 };
 use crate::llm::{
 	InputFormat, LLMInfo, LLMRequest, LLMResponse, RequestResult, RouteType, model_router,
@@ -578,7 +578,7 @@ async fn apply_llm_request_policies(
 	let limits = policies
 		.local_rate_limit
 		.as_deref()
-		.map(Vec::as_slice)
+		.map(|limits| limits.as_slice())
 		.unwrap_or_default();
 	if !limits.is_empty() {
 		// The context costs a clone of the request, so it is only built for a key that reads it.
@@ -5341,6 +5341,27 @@ impl PolicyClient {
 			Self::finish_outbound_span(span.as_deref_mut(), &result);
 			result
 		})
+	}
+}
+
+impl agent_policy::BackendReferenceClient<SimpleBackendReference, BackendTrafficPolicy>
+	for PolicyClient
+{
+	type Error = ProxyError;
+
+	fn with_policy_call(&self, call: OutboundCallSubtype) -> Self {
+		self.with_outbound(OutboundCallKind::Policy, call)
+	}
+
+	async fn call_reference_with_policies(
+		&self,
+		req: Request,
+		backend_ref: &SimpleBackendReference,
+		policies: &[BackendTrafficPolicy],
+	) -> Result<Response, Self::Error> {
+		self
+			.call_reference_with_policies(req, backend_ref, policies)
+			.await
 	}
 }
 
