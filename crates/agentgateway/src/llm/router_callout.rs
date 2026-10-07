@@ -54,7 +54,7 @@ pub struct VirtualModelCallout {
 	pub cache: Option<CacheConfig>,
 	#[serde(skip)]
 	#[cfg_attr(feature = "schema", schemars(skip))]
-	cache_store: Option<Arc<Cache<CacheKey, CachedCallout>>>,
+	pub(crate) cache_store: Option<Arc<Cache<CacheKey, CachedCallout>>>,
 }
 
 #[apply(schema!)]
@@ -68,7 +68,7 @@ pub enum VirtualModelCalloutFailureMode {
 }
 
 #[derive(Clone, Debug)]
-struct CachedCallout {
+pub(crate) struct CachedCallout {
 	expires_at: Instant,
 	response: Arc<JsonValue>,
 }

@@ -1439,6 +1439,43 @@ func buildExtAuthSpec(
 	return spec, errors.Join(errs...)
 }
 
+// TranslateModelCallout translates the callout routing of a virtual model, excluding the fallback model.
+func TranslateModelCallout(ctx PolicyCtx, namespace string, callout *agentgateway.CalloutModelRouting) (*api.ModelRoute_VirtualModel_Callout, error) {
+	var errs []error
+	be, inlinePolicies, parsedURL, err := buildPolicyBackendEndpoint(ctx, callout.PolicyBackendEndpoint, namespace)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to build callout: %v", err))
+	}
+	spec := &api.ModelRoute_VirtualModel_Callout{
+		Target:         be,
+		InlinePolicies: inlinePolicies,
+		Headers: castCELMap(callout.Headers, func(key string, expr agentgateway.CELExpression) {
+			errs = append(errs, fmt.Errorf("callout headers %q is not a valid CEL expression: %s", key, expr))
+		}),
+		Body: castCELPtr(callout.Body, func(expr agentgateway.CELExpression) {
+			errs = append(errs, fmt.Errorf("callout body is not a valid CEL expression: %s", expr))
+		}),
+		Transformation: castCELMap(callout.Transformation, func(key string, expr agentgateway.CELExpression) {
+			errs = append(errs, fmt.Errorf("callout transformation %q is not a valid CEL expression: %s", key, expr))
+		}),
+	}
+	if parsedURL != nil && parsedURL.EscapedPath() != "" {
+		spec.Path = new(parsedURL.EscapedPath())
+	}
+	if cache := callout.Cache; cache != nil {
+		spec.Cache = &api.TrafficPolicySpec_ExternalAuth_Cache{
+			Key: castCELSlice(cache.Key, func(expr agentgateway.CELExpression) {
+				errs = append(errs, fmt.Errorf("callout cache key is not a valid CEL expression: %s", expr))
+			}),
+			Ttl: castDurationOrCEL(cache.TTL, func(expr agentgateway.CELExpression) {
+				errs = append(errs, fmt.Errorf("callout cache ttl is not a valid CEL expression: %s", expr))
+			}),
+			MaxEntries: ptr.OrDefault(cache.MaxEntries, 0),
+		}
+	}
+	return spec, errors.Join(errs...)
+}
+
 // processExtProcPolicy processes ExtProc configuration and creates corresponding agentgateway policies
 func processExtProcTraffic(
 	ctx PolicyCtx,
@@ -1941,19 +1978,20 @@ func BuildBackendRef(ctx PolicyCtx, ref gwv1.BackendObjectReference, defaultNS s
 		Group: string(group),
 		Kind:  string(kind),
 	}
-	if ctx.RouteBackend != nil {
-		return ctx.RouteBackend(ctx.Krt, defaultNS, gk, ref.Name, ref.Namespace, ref.Port)
-	}
 	if err := checkBackendRefGrant(ctx, ref, defaultNS, gk); err != nil {
 		return nil, err
+	}
+	if ctx.RouteBackend != nil {
+		return ctx.RouteBackend(ctx.Krt, defaultNS, gk, ref.Name, ref.Namespace, ref.Port)
 	}
 	return ctx.References.PolicyBackend(ctx.Krt, defaultNS, gk, ref.Name, ref.Namespace, ref.Port)
 }
 
 func checkBackendRefGrant(ctx PolicyCtx, ref gwv1.BackendObjectReference, defaultNS string, gk schema.GroupKind) error {
+	// Route-like sources follow the route grant mode, which BackendAllowed applies.
 	if ref.Namespace != nil &&
 		string(*ref.Namespace) != defaultNS &&
-		ctx.Collections.Settings.BackendRefGrantMode.RequirePolicyBackendGrant() {
+		(ctx.RouteBackend != nil || ctx.Collections.Settings.BackendRefGrantMode.RequirePolicyBackendGrant()) {
 		sourceGVK := ctx.PolicySourceGVK()
 		if !ctx.Grants.BackendAllowed(
 			ctx.Krt,

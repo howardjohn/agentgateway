@@ -61,8 +61,8 @@ func AgwModelCollection(
 }
 
 // extractModelAncestorBackends mirrors extractAncestorBackends for AgentgatewayModels.
-// It includes provider and inline-policy backends from the model and its concrete
-// failover targets.
+// It includes provider and inline-policy backends from the model, its concrete
+// failover targets, and its callout backend.
 func extractModelAncestorBackends(ctx RouteContext, model *agentgateway.AgentgatewayModel) []*utils.AncestorBackend {
 	source := utils.TypedNamespacedName{
 		Namespace: model.Namespace,
@@ -81,25 +81,32 @@ func extractModelAncestorBackends(ctx RouteContext, model *agentgateway.Agentgat
 
 	// Collect all reachable backends (deduplicated).
 	backends := sets.Set[utils.TypedNamespacedName]{}
+	collectBackendRef := func(namespace string, ref gwv1.BackendObjectReference) {
+		groupKind := NormalizeReference(ref.Group, ref.Kind, wellknown.ServiceGVK.GroupKind())
+		if !ancestorBackendAllowed(ctx, wellknown.AgentgatewayModelGVK, namespace, groupKind, ref.Namespace, ref.Name) {
+			return
+		}
+		backends.Insert(utils.TypedNamespacedName{
+			Namespace: defaultString(ref.Namespace, namespace),
+			Name:      string(ref.Name),
+			Kind:      groupKind.Kind,
+		})
+	}
 	collectConcreteModelBackends := func(concrete *agentgateway.AgentgatewayModel) {
 		if custom := concrete.Spec.Custom; custom != nil && custom.BackendRef != nil {
 			backends.Insert(backendRefToTypedNamespacedName(concrete.Namespace, custom.BackendRef))
 		}
 		if policies := modelBackendPolicy(concrete.Spec.Policies); policies != nil {
 			plugins.BackendReferencesFromBackendPolicy(policies, func(ref gwv1.BackendObjectReference) {
-				groupKind := NormalizeReference(ref.Group, ref.Kind, wellknown.ServiceGVK.GroupKind())
-				if !ancestorBackendAllowed(ctx, wellknown.AgentgatewayModelGVK, concrete.Namespace, groupKind, ref.Namespace, ref.Name) {
-					return
-				}
-				backends.Insert(utils.TypedNamespacedName{
-					Namespace: defaultString(ref.Namespace, concrete.Namespace),
-					Name:      string(ref.Name),
-					Kind:      groupKind.Kind,
-				})
+				collectBackendRef(concrete.Namespace, ref)
 			})
 		}
 	}
 	collectConcreteModelBackends(model)
+
+	if vm := model.Spec.VirtualModel; vm != nil && vm.Callout != nil && vm.Callout.BackendRef != nil {
+		collectBackendRef(model.Namespace, *vm.Callout.BackendRef)
+	}
 
 	// Virtual model failover → concrete model → backendRefs.
 	// Failover targets must be concrete models (enforced by modelFailoverBackend runtime check).
@@ -541,6 +548,19 @@ func translateVirtualModel(ctx RouteContext, model *agentgateway.AgentgatewayMod
 				Conditional: &api.ModelRoute_VirtualModel_Conditional{Targets: targets},
 			},
 		}, nil, errors.Join(errs...)
+	case vm.Callout != nil:
+		callout, err := plugins.TranslateModelCallout(modelPolicyCtx(ctx), model.Namespace, vm.Callout)
+		if fallback := vm.Callout.Fallback; fallback != nil {
+			modelName, ferr := resolveModelTargetName(ctx, model.Namespace, *fallback)
+			if ferr != nil {
+				err = errors.Join(err, ferr)
+			} else {
+				callout.FallbackModel = &modelName
+			}
+		}
+		return &api.ModelRoute_VirtualModel{
+			Routing: &api.ModelRoute_VirtualModel_Callout_{Callout: callout},
+		}, nil, err
 	case vm.Failover != nil:
 		backend, err := modelFailoverBackend(ctx, model, parent)
 		if backend == nil {
@@ -552,7 +572,7 @@ func translateVirtualModel(ctx RouteContext, model *agentgateway.AgentgatewayMod
 			},
 		}, []*api.Resource{backendResource(backend)}, err
 	default:
-		return nil, nil, fmt.Errorf("virtualModel must define weighted, conditional, or failover")
+		return nil, nil, fmt.Errorf("virtualModel must define weighted, conditional, failover, or callout")
 	}
 }
 
@@ -808,13 +828,18 @@ func translateModelRouteAIPolicy(ctx RouteContext, namespace string, policies *a
 }
 
 func translateInlineModelBackendPolicy(ctx RouteContext, namespace string, backend *agentgateway.BackendFull) ([]*api.BackendPolicySpec, error) {
-	policyCtx := plugins.PolicyCtx{
+	return plugins.TranslateInlineBackendPolicy(modelPolicyCtx(ctx), namespace, backend)
+}
+
+func modelPolicyCtx(ctx RouteContext) plugins.PolicyCtx {
+	return plugins.PolicyCtx{
 		Krt:                ctx.Krt,
 		Collections:        ctx.Collections,
 		CredentialResolver: kubeutils.NewSecretCredentialResolver(ctx.Secrets),
 		RouteBackend:       ctx.References.RouteBackend,
+		Grants:             ctx.Grants,
+		SourceGVK:          wellknown.AgentgatewayModelGVK,
 	}
-	return plugins.TranslateInlineBackendPolicy(policyCtx, namespace, backend)
 }
 
 func modelLLMProvider(model *agentgateway.AgentgatewayModelSpec) (*agentgateway.LLMProvider, error) {
