@@ -61,6 +61,7 @@
 |`config.standardAttributes`|object|Standard request log attributes populated for database-backed local runtime features.|
 |`config.standardAttributes.user`|string|CEL expression used to populate the `agentgateway.user` request log attribute.|
 |`config.standardAttributes.group`|string|CEL expression used to populate the `agentgateway.group` request log attribute.|
+|`config.standardAttributes.session`|string|CEL expression identifying the session a request belongs to, exposed to CEL as `request.agent.session`.<br>If unset, or if the expression fails, the session is detected from well-known agent headers<br>such as `x-claude-code-session-id`. Return `null` to mark the request as having no session.|
 |`config.statsAddr`|string|Stats/metrics server address in the format "ip:port", "localhost:port", "unix:/path/to/socket", or "off"|
 |`config.histograms`|enum|Histogram representation to collect. Native histograms are exposed only through the<br>Prometheus protobuf format. Defaults to classic.<br>Possible values: `classic`, `native`, `both`.|
 |`config.readinessAddr`|string|Readiness probe server address in the format "ip:port", "localhost:port", "unix:/path/to/socket", or "off"|

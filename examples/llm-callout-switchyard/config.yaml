@@ -16,7 +16,8 @@ llm:
         host: http://127.0.0.1:4123/v1/decision
         headers:
           # Switchyard tracks routing state, such as capable holds, per session.
-          x-switchyard-session-id: request.headers["x-session-id"]
+          # The session is detected from agent headers like `x-claude-code-session-id`.
+          x-switchyard-session-id: request.agent.session
         # The request model, `auto`, selects the Switchyard route.
         body: '{"input_format": "openai_chat", "request": llmRequest}'
         transformation:

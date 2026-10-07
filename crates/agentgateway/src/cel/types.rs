@@ -878,6 +878,7 @@ pub fn snapshot_request(req: &mut crate::http::Request, clear: bool) -> RequestS
 		mcp_guardrails: ext::<McpGuardrailsDynamicMetadata>(req, clear),
 		metadata: ext::<TransformationMetadata>(req, clear),
 		llm: ext::<LLMContext>(req, clear),
+		agent: ext::<AgentContext>(req, clear),
 		start_time: ext::<RequestTime>(req, clear),
 	}
 }
@@ -935,6 +936,8 @@ pub struct RequestSnapshot {
 	pub metadata: Option<TransformationMetadata>,
 
 	pub llm: Option<LLMContext>,
+
+	pub agent: Option<AgentContext>,
 }
 
 #[derive(Debug, Clone, Serialize, cel::DynamicType)]
@@ -983,6 +986,19 @@ pub struct RequestRef<'a> {
 
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub end_time: Option<&'a RequestTime>,
+
+	#[serde(skip_serializing_if = "is_extension_or_direct_none")]
+	pub agent: ExtensionOrDirect<'a, AgentContext>,
+}
+
+/// The agent harness that sent the request, such as Claude Code or Codex.
+#[apply(schema!)]
+#[derive(Default, cel::DynamicType)]
+pub struct AgentContext {
+	/// The agent session the request belongs to, from `standardAttributes.session` or detected from
+	/// well-known agent headers such as `x-claude-code-session-id`.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub session: Option<Strng>,
 }
 
 #[derive(Debug, Clone)]
@@ -1099,6 +1115,9 @@ pub struct RequestRefSerde {
 	/// The time the request completed
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub end_time: Option<RequestTime>,
+	/// The agent harness that sent the request.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub agent: Option<AgentContext>,
 }
 
 #[apply(schema!)]
@@ -1160,6 +1179,7 @@ impl<'a> From<&'a RequestSnapshot> for RequestRef<'a> {
 			}),
 			start_time: value.start_time.as_ref().into(),
 			end_time: None,
+			agent: value.agent.as_ref().into(),
 		}
 	}
 }
@@ -1180,6 +1200,7 @@ impl<'a> RequestRef<'a> {
 			start_time: req.extensions().into(),
 			// Only known in snapshot phase...
 			end_time: None,
+			agent: req.extensions().into(),
 		}
 	}
 }
@@ -2288,6 +2309,7 @@ impl ExecutorSerde {
 				}),
 				start_time: ExtensionOrDirect::Direct(req.start_time.as_ref()),
 				end_time: req.end_time.as_ref(),
+				agent: ExtensionOrDirect::Direct(req.agent.as_ref()),
 			});
 		}
 
@@ -2359,6 +2381,9 @@ pub fn full_example_executor() -> ExecutorSerde {
 			end_time: Some(RequestTime(
 				chrono::DateTime::parse_from_rfc3339("2000-01-01T12:00:01.12345678Z").unwrap(),
 			)),
+			agent: Some(AgentContext {
+				session: Some("e96634a3-fa28-4083-b354-55542e2dca01".into()),
+			}),
 		}),
 		response: Some(ResponseRefSerde {
 			code: 200,

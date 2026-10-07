@@ -30,5 +30,5 @@ llm:
         # Requests with the same session ID reuse the first routing decision.
         cache:
           key:
-          - request.headers["x-session-id"]
+          - request.agent.session
           ttl: 10m

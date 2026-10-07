@@ -330,6 +330,8 @@ pub struct NormalizedLocalConfig {
 	#[serde(skip)]
 	pub(crate) standard_attributes: Arc<crate::telemetry::log::LoggingFields>,
 	#[serde(skip)]
+	pub(crate) session_attribute: Option<Arc<crate::cel::Expression>>,
+	#[serde(skip)]
 	pub(crate) budget_registration: crate::http::budget::BudgetRegistration,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub model_catalog: Option<Vec<crate::ModelCatalogSource>>,
@@ -3174,6 +3176,8 @@ async fn convert(
 		crate::config::standard_attributes(raw_attributes.as_ref())
 			.context("invalid config.standardAttributes")?,
 	);
+	let session_attribute = crate::config::session_attribute(raw_attributes.as_ref())
+		.context("invalid config.standardAttributes.session")?;
 	merge_deprecated_frontend_policies(config, &mut frontend_policies)?;
 	let mut all_policies = vec![];
 	let mut all_backends = vec![];
@@ -3456,6 +3460,7 @@ async fn convert(
 	all_policies.extend_from_slice(&split_frontend_policies(gateway, frontend_policies).await?);
 	let normalized = NormalizedLocalConfig {
 		standard_attributes,
+		session_attribute,
 		budget_registration: Default::default(),
 		model_catalog,
 		binds: all_binds,

@@ -87,6 +87,23 @@
             "string",
             "null"
           ]
+        },
+        "agent": {
+          "description": "The agent harness that sent the request.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "session": {
+              "description": "The agent session the request belongs to, from `standardAttributes.session` or detected from\nwell-known agent headers such as `x-claude-code-session-id`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

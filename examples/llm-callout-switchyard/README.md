@@ -5,6 +5,11 @@ which model to use through its `/v1/decision` endpoint. Switchyard's Auto routin
 reads the agent's recent tool results without calling a model: errors and churn route
 to `gpt-5.6-sol`, routine work to `gpt-5.6-luna`. Errors fall back to `gpt-5.6-luna`.
 
+Agentgateway sends Switchyard the request's `request.agent.session`, so routing state follows the
+agent session. The session is detected from the headers coding agents send, such as
+Claude Code's `x-claude-code-session-id`, and can be overridden with
+`config.standardAttributes.session`.
+
 ## Run
 
 ```sh
