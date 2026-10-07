@@ -26,7 +26,7 @@
       "type": "choice",
       "name": "repeat",
       "instructions": "Has this happened before?",
-      "choices": [{"value": true}, {"value": false}]
+      "choices": [{"value": true}, {"value": false}, {"value": "unsure"}]
     },
     {
       "type": "score",
@@ -37,7 +37,8 @@
         {"label": "Medium"},
         {"label": "High"}
       ]
-    }
+    },
+    {"type": "predicate", "name": "1", "instructions": "Is this the customer's first message?"}
   ],
   "safety_identifier": "user-123"
 }

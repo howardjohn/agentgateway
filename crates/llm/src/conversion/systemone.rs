@@ -1,17 +1,26 @@
 pub mod from_decisions {
-	use std::collections::HashSet;
+	use std::collections::{HashMap, HashSet};
 
 	use async_openai::types::decisions as d;
+	use indexmap::IndexMap;
 
 	use crate::types::{decisions, systemone};
 	use crate::{AIError, json};
 
 	/// Request details SystemOne cannot represent, used to restore them on the response.
-	/// Both sets hold SystemOne question keys.
+	/// Keyed by SystemOne question key.
 	#[derive(Debug, Default)]
 	pub struct State {
-		unnamed: HashSet<String>,
-		boolean_choices: HashSet<String>,
+		questions: HashMap<String, QuestionState>,
+	}
+
+	#[derive(Debug, Default)]
+	struct QuestionState {
+		name: Option<String>,
+		/// Choice values that were booleans.
+		boolean_values: HashSet<String>,
+		/// Score level labels, by level.
+		labels: Vec<String>,
 	}
 
 	pub fn translate(req: &decisions::Request) -> Result<(Vec<u8>, State), AIError> {
@@ -37,60 +46,90 @@ pub mod from_decisions {
 				})
 				.collect::<Result<_, AIError>>()?,
 		};
-		let mut response_state = State::default();
-		let questions = req
+		let translated = req
 			.questions
 			.into_iter()
-			.enumerate()
-			.map(|(i, q)| {
-				let boolean_choice = matches!(&q, d::QuestionParam::Choice(c)
-					if c.choices.iter().any(|c| matches!(c.value, d::ChoiceValue::Boolean(_))));
-				let (name, question) = match q {
-					d::QuestionParam::Predicate(q) => (
-						q.name,
+			.map(|q| {
+				let mut qs = QuestionState::default();
+				let question = match q {
+					d::QuestionParam::Predicate(q) => {
+						qs.name = q.name;
 						systemone::Question::Noul {
 							instructions: q.instructions.into(),
 							criteria: None,
-						},
-					),
-					d::QuestionParam::Choice(q) => (
-						q.name,
+						}
+					},
+					d::QuestionParam::Choice(q) => {
+						qs.name = q.name;
+						let mut criteria = IndexMap::new();
+						for c in q.choices {
+							let value = match c.value {
+								d::ChoiceValue::String(s) => s,
+								d::ChoiceValue::Boolean(b) => {
+									qs.boolean_values.insert(b.to_string());
+									b.to_string()
+								},
+							};
+							if criteria.insert(value.clone(), c.description).is_some() {
+								return Err(AIError::UnsupportedConversion(
+									format!("duplicate choice value {value:?}").into(),
+								));
+							}
+						}
 						systemone::Question::Choice {
 							instructions: q.instructions.into(),
-							criteria: q
-								.choices
-								.into_iter()
-								.map(|c| {
-									let value = match c.value {
-										d::ChoiceValue::String(s) => s,
-										d::ChoiceValue::Boolean(b) => b.to_string(),
-									};
-									(value, c.description.unwrap_or_default())
-								})
-								.collect(),
-						},
-					),
-					d::QuestionParam::Score(q) => (
-						q.name,
+							criteria,
+						}
+					},
+					d::QuestionParam::Score(q) => {
+						qs.name = q.name;
+						let criteria = q
+							.levels
+							.into_iter()
+							.map(|l| {
+								qs.labels.push(l.label.clone());
+								match l.description {
+									Some(description) => {
+										serde_json::json!({"label": l.label, "description": description})
+									},
+									None => serde_json::Value::String(l.label),
+								}
+							})
+							.collect();
 						systemone::Question::Score {
 							instructions: q.instructions.into(),
-							criteria: q.levels.into_iter().map(|l| l.label).collect(),
-						},
-					),
-				};
-				let key = match name {
-					Some(name) => name,
-					None => {
-						response_state.unnamed.insert(i.to_string());
-						i.to_string()
+							criteria,
+						}
 					},
 				};
-				if boolean_choice {
-					response_state.boolean_choices.insert(key.clone());
-				}
-				(key, question)
+				Ok((qs, question))
 			})
+			.collect::<Result<Vec<_>, AIError>>()?;
+		// Unnamed questions are keyed by index, avoiding explicit names.
+		let names: HashSet<String> = translated
+			.iter()
+			.filter_map(|(qs, _)| qs.name.clone())
 			.collect();
+		let mut response_state = State::default();
+		let mut questions = IndexMap::new();
+		for (i, (qs, question)) in translated.into_iter().enumerate() {
+			let key = match &qs.name {
+				Some(name) => name.clone(),
+				None => {
+					let mut key = i.to_string();
+					while names.contains(&key) || questions.contains_key(&key) {
+						key.push('_');
+					}
+					key
+				},
+			};
+			if questions.insert(key.clone(), question).is_some() {
+				return Err(AIError::UnsupportedConversion(
+					format!("duplicate question name {key:?}").into(),
+				));
+			}
+			response_state.questions.insert(key, qs);
+		}
 		let req = systemone::Request {
 			model: req.model,
 			state,
@@ -107,11 +146,17 @@ pub mod from_decisions {
 			.answers
 			.into_iter()
 			.map(|(key, answer)| {
+				let qs = state.questions.get(&key);
 				let choice_value = |value: String| match value.parse() {
-					Ok(b) if state.boolean_choices.contains(&key) => d::ChoiceValue::Boolean(b),
+					Ok(b) if qs.is_some_and(|qs| qs.boolean_values.contains(&value)) => {
+						d::ChoiceValue::Boolean(b)
+					},
 					_ => d::ChoiceValue::String(value),
 				};
-				let name = (!state.unnamed.contains(&key)).then(|| key.clone());
+				let name = match qs {
+					Some(qs) => qs.name.clone(),
+					None => Some(key.clone()),
+				};
 				match answer {
 					systemone::Answer::Noul { noul } => d::AnswerResource::Predicate(d::PredicateAnswer {
 						name: name.clone(),
@@ -135,7 +180,6 @@ pub mod from_decisions {
 					}),
 					systemone::Answer::Score {
 						score,
-						legend,
 						probabilities,
 						confidence,
 					} => d::AnswerResource::Score(d::ScoreAnswer {
@@ -143,10 +187,15 @@ pub mod from_decisions {
 						score,
 						probabilities: probabilities
 							.into_iter()
-							.map(|(level, probability)| d::ScoreProbability {
-								label: legend.get(&level).cloned().unwrap_or_default(),
-								value: level.parse().unwrap_or_default(),
-								probability,
+							.map(|(level, probability)| {
+								let value: usize = level.parse().unwrap_or_default();
+								d::ScoreProbability {
+									label: qs
+										.and_then(|qs| qs.labels.get(value).cloned())
+										.unwrap_or_default(),
+									value: value as _,
+									probability,
+								}
 							})
 							.collect(),
 						confidence,

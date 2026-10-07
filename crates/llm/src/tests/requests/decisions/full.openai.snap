@@ -32,6 +32,7 @@ info:
       choices:
         - value: true
         - value: false
+        - value: unsure
     - type: score
       name: urgency
       instructions: How urgent is this ticket?
@@ -40,6 +41,9 @@ info:
           description: Can wait
         - label: Medium
         - label: High
+    - type: predicate
+      name: "1"
+      instructions: "Is this the customer's first message?"
   safety_identifier: user-123
 ---
 {
@@ -99,6 +103,9 @@ info:
           },
           {
             "value": false
+          },
+          {
+            "value": "unsure"
           }
         ]
       },
@@ -118,6 +125,11 @@ info:
             "label": "High"
           }
         ]
+      },
+      {
+        "type": "predicate",
+        "name": "1",
+        "instructions": "Is this the customer's first message?"
       }
     ],
     "safety_identifier": "user-123"

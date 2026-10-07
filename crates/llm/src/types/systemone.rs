@@ -22,14 +22,14 @@ pub enum Question {
 	Choice {
 		/// A string, object, or array.
 		instructions: serde_json::Value,
-		/// Option name to description.
-		criteria: IndexMap<String, String>,
+		/// Option name to optional description.
+		criteria: IndexMap<String, Option<String>>,
 	},
 	Score {
 		/// A string, object, or array.
 		instructions: serde_json::Value,
-		/// Levels, lowest first.
-		criteria: Vec<String>,
+		/// Level descriptions, lowest first. A string, object, or array.
+		criteria: Vec<serde_json::Value>,
 	},
 }
 
@@ -62,7 +62,6 @@ pub enum Answer {
 	},
 	Score {
 		score: f64,
-		legend: IndexMap<String, String>,
 		probabilities: IndexMap<String, f64>,
 		confidence: f64,
 	},

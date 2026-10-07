@@ -5,7 +5,7 @@
       "type": "noul",
       "noul": 0.93
     },
-    "1": {
+    "1_": {
       "type": "noul",
       "noul": 0.81
     },
@@ -23,7 +23,8 @@
       "choice": "true",
       "probabilities": {
         "true": 0.77,
-        "false": 0.23
+        "false": 0.2,
+        "unsure": 0.03
       },
       "confidence": 0.77
     },
@@ -41,6 +42,10 @@
         "2": 0.7
       },
       "confidence": 0.7
+    },
+    "1": {
+      "type": "noul",
+      "noul": 0.12
     }
   },
   "usage": {

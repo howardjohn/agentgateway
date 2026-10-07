@@ -32,6 +32,7 @@ info:
       choices:
         - value: true
         - value: false
+        - value: unsure
     - type: score
       name: urgency
       instructions: How urgent is this ticket?
@@ -40,6 +41,9 @@ info:
           description: Can wait
         - label: Medium
         - label: High
+    - type: predicate
+      name: "1"
+      instructions: "Is this the customer's first message?"
   safety_identifier: user-123
 ---
 {
@@ -60,7 +64,7 @@ info:
         "type": "noul",
         "instructions": "Is the customer asking for a refund?"
       },
-      "1": {
+      "1_": {
         "type": "noul",
         "instructions": "Is the customer angry?"
       },
@@ -69,25 +73,33 @@ info:
         "instructions": "What is the ticket about?",
         "criteria": {
           "damage": "Item arrived damaged",
-          "shipping": ""
+          "shipping": null
         }
       },
       "repeat": {
         "type": "choice",
         "instructions": "Has this happened before?",
         "criteria": {
-          "true": "",
-          "false": ""
+          "true": null,
+          "false": null,
+          "unsure": null
         }
       },
       "urgency": {
         "type": "score",
         "instructions": "How urgent is this ticket?",
         "criteria": [
-          "Low",
+          {
+            "label": "Low",
+            "description": "Can wait"
+          },
           "Medium",
           "High"
         ]
+      },
+      "1": {
+        "type": "noul",
+        "instructions": "Is this the customer's first message?"
       }
     }
   },
