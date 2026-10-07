@@ -52,6 +52,7 @@ export const providerNames: ProviderName[] = [
 	'bedrock',
 	'azure',
 	'copilot',
+	'typesafe',
 	'cohere',
 	'ollama',
 	'baseten',
@@ -78,6 +79,7 @@ export const coreProviderNames = new Set<ProviderName>([
 	'bedrock',
 	'azure',
 	'copilot',
+	'typesafe',
 	'custom'
 ]);
 
@@ -104,6 +106,7 @@ export function providerDisplayName(provider: ProviderName | string): string {
 		bedrock: 'Amazon Bedrock',
 		azure: 'Azure',
 		copilot: 'GitHub Copilot',
+		typesafe: 'TypeSafe',
 		cohere: 'Cohere',
 		ollama: 'Ollama',
 		baseten: 'Baseten',

@@ -12305,7 +12305,8 @@
         "xai",
         "fireworks",
         "meta",
-        "perplexity"
+        "perplexity",
+        "typesafe"
       ]
     },
     "LocalLLMProviderDefaults": {
