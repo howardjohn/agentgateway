@@ -50,6 +50,29 @@ pub trait RequestPolicyTrait: Send + Sync + 'static {
 	}
 }
 
+/// Bridges request-only policies implemented against `agent_policy` into the gateway.
+impl<T> RequestPolicyTrait for T
+where
+	T: agent_policy::RequestPolicy<ResponseState = ()>,
+{
+	async fn apply(
+		&self,
+		_client: &PolicyClient,
+		_log: &mut RequestLog,
+		req: &mut crate::http::Request,
+	) -> Result<crate::http::PolicyResponse, crate::proxy::ProxyResponse> {
+		let ctx = agent_policy::PolicyContext::new(&crate::proxy::policy_host::GatewayCel);
+		let action = agent_policy::RequestPolicy::apply(self, ctx, req)
+			.await
+			.map_err(proxy::ProxyError::Policy)?;
+		Ok(action.response)
+	}
+
+	fn expressions(&self) -> impl Iterator<Item = &Expression> {
+		agent_policy::RequestPolicy::expressions(self)
+	}
+}
+
 /// Response policies are policies that run on the response side. The vast majority of the time, these
 /// are also request policies that have a response-time component, but it is possible to only be a response policy.
 /// These are run exactly once per request, after all retry attempts.

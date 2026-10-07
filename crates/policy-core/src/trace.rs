@@ -19,16 +19,44 @@ macro_rules! pol_event {
 	};
 }
 
-/// Emits a lazily formatted policy result.
+/// Emits a lazily formatted policy result, mirroring the gateway's `dtrace::pol_result!`.
 ///
 /// The policy module must define `TRACE_POLICY_KIND`.
 #[macro_export]
 macro_rules! pol_result {
-	($severity:expr, $start:expr, $($arg:tt)+) => {
-		$crate::PolicyTrace::result_apply(
+	($severity:expr, Apply, $($arg:tt)+) => {
+		$crate::PolicyTrace::result(
 			$crate::policy_trace(),
 			TRACE_POLICY_KIND,
 			$severity,
+			$crate::PolicyOutcome::Apply,
+			None,
+			&|| format!($($arg)+),
+		)
+	};
+	($severity:expr, Skip, $($arg:tt)+) => {
+		$crate::PolicyTrace::result(
+			$crate::policy_trace(),
+			TRACE_POLICY_KIND,
+			$severity,
+			$crate::PolicyOutcome::Skip,
+			None,
+			&|| format!($($arg)+),
+		)
+	};
+}
+
+/// Emits a lazily formatted, timed policy result, mirroring the gateway's `dtrace::pol_result_timed!`.
+///
+/// The policy module must define `TRACE_POLICY_KIND`.
+#[macro_export]
+macro_rules! pol_result_timed {
+	($start:expr, $severity:expr, Apply, $($arg:tt)+) => {
+		$crate::PolicyTrace::result(
+			$crate::policy_trace(),
+			TRACE_POLICY_KIND,
+			$severity,
+			$crate::PolicyOutcome::Apply,
 			$start,
 			&|| format!($($arg)+),
 		)
@@ -38,9 +66,17 @@ macro_rules! pol_result {
 /// Severity attached to a policy trace record.
 #[derive(Clone, Copy, Debug)]
 pub enum TraceSeverity {
+	Success,
 	Info,
 	Warn,
 	Error,
+}
+
+/// Whether a policy acted on the request or skipped it.
+#[derive(Clone, Copy, Debug)]
+pub enum PolicyOutcome {
+	Apply,
+	Skip,
 }
 
 /// Owns a host trace scope until dropped.
@@ -88,10 +124,11 @@ pub trait PolicyTrace: Send + Sync {
 		}
 	}
 
-	fn result_apply(
+	fn result(
 		&self,
 		kind: &'static str,
 		_severity: TraceSeverity,
+		_outcome: PolicyOutcome,
 		_start: Option<Instant>,
 		details: &dyn Fn() -> String,
 	) {

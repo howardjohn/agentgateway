@@ -780,16 +780,20 @@ impl LocalRateLimitPolicy {
 
 	fn into_request_policy(
 		self,
-	) -> anyhow::Result<RequestPolicy<Vec<crate::http::localratelimit::RateLimit>>> {
+	) -> anyhow::Result<RequestPolicy<crate::http::localratelimit::RateLimits>> {
 		match self {
-			LocalRateLimitPolicy::Explicit(policies) => Ok(RequestPolicy::single(policies)),
+			LocalRateLimitPolicy::Explicit(policies) => Ok(RequestPolicy::single(
+				crate::http::localratelimit::RateLimits(policies),
+			)),
 			LocalRateLimitPolicy::Conditional(policies) => {
 				validate_local_conditional_policies(&policies)?;
 				Ok(RequestPolicy::from_policies(
-					policies
-						.conditional
-						.into_iter()
-						.map(|entry| (vec![entry.policy], entry.condition)),
+					policies.conditional.into_iter().map(|entry| {
+						(
+							crate::http::localratelimit::RateLimits(vec![entry.policy]),
+							entry.condition,
+						)
+					}),
 				))
 			},
 		}

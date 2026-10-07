@@ -198,6 +198,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "agent-policy-cors"
+version = "0.0.0"
+dependencies = [
+ "agent-core",
+ "agent-http",
+ "agent-policy",
+ "anyhow",
+ "http 1.5.0",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "tokio",
+]
+
+[[package]]
 name = "agent-policy-simple"
 version = "0.0.0"
 dependencies = [
@@ -262,6 +278,7 @@ dependencies = [
  "agent-http",
  "agent-llm",
  "agent-policy",
+ "agent-policy-cors",
  "agent-pool",
  "agent-xds",
  "anyhow",

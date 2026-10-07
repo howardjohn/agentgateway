@@ -2713,7 +2713,9 @@ fn traffic_policy_from_proto(
 					})
 					.collect::<Result<Vec<_>, _>>()?
 			};
-			TrafficPolicy::LocalRateLimit(RequestPolicy::single(rules))
+			TrafficPolicy::LocalRateLimit(RequestPolicy::single(http::localratelimit::RateLimits(
+				rules,
+			)))
 		},
 		Some(tps::Kind::ExtAuthz(ea)) => TrafficPolicy::ExtAuthz(RequestPolicy::single(
 			external_auth_from_proto(ea, diagnostics)?,

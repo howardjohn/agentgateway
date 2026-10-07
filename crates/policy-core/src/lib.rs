@@ -41,7 +41,8 @@ pub use expression::{
 };
 pub use policy::{BackendPolicy, PolicyContext, RequestAction, RequestPolicy};
 pub use trace::{
-	NoopTrace, PolicyTrace, TraceScope, TraceSeverity, install_policy_trace, policy_trace,
+	NoopTrace, PolicyOutcome, PolicyTrace, TraceScope, TraceSeverity, install_policy_trace,
+	policy_trace,
 };
 
 /// Error type returned by policy phase callbacks.

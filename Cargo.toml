@@ -21,6 +21,7 @@ members = [
     "crates/policy-core",
     "crates/policies/simple",
     "crates/policies/advanced",
+    "crates/policies/cors",
     "crates/hbone",
     "crates/htpasswd-verify-fork",
     "crates/protos",
@@ -58,6 +59,7 @@ agent-http = { path = "crates/http" }
 agent-llm = { path = "crates/llm" }
 agent-policy = { path = "crates/policy-core" }
 agent-policy-advanced = { path = "crates/policies/advanced" }
+agent-policy-cors = { path = "crates/policies/cors" }
 agent-policy-simple = { path = "crates/policies/simple" }
 agent-pool = { path = "crates/pool" }
 agent-xds = { path = "crates/xds" }

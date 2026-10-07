@@ -2918,7 +2918,7 @@ pub enum TrafficPolicy {
 	#[serde(rename = "ai")]
 	AI(Arc<llm::Policy>),
 	Authorization(Authorization),
-	LocalRateLimit(RequestPolicy<Vec<crate::http::localratelimit::RateLimit>>),
+	LocalRateLimit(RequestPolicy<crate::http::localratelimit::RateLimits>),
 	RemoteRateLimit(RequestPolicy<remoteratelimit::RemoteRateLimit>),
 	ExtAuthz(RequestPolicy<ext_authz::ExtAuthz>),
 	SubstrateEgress(RequestPolicy<crate::http::substrate::SubstrateEgress>),

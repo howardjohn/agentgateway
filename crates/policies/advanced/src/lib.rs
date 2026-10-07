@@ -6,7 +6,7 @@ use agent_http::{
 };
 use agent_policy::{
 	BoxError, Expression, OutboundCallSubtype, PolicyContext, RequestAction, RequestPolicy,
-	TraceSeverity, pol_event, pol_result, policy_trace,
+	TraceSeverity, pol_event, pol_result_timed, policy_trace,
 };
 
 const TRACE_POLICY_KIND: &str = "advanced";
@@ -59,9 +59,10 @@ where
 			.ok_or_else(|| std::io::Error::other("advanced policy requires a backend dispatcher"))?
 			.send(OutboundCallSubtype::ExtAuthz, callout)
 			.await?;
-		pol_result!(
-			TraceSeverity::Info,
+		pol_result_timed!(
 			start,
+			TraceSeverity::Info,
+			Apply,
 			"advanced policy backend returned {}",
 			response.status()
 		);

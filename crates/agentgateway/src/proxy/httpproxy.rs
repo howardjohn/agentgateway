@@ -578,7 +578,7 @@ async fn apply_llm_request_policies(
 	let limits = policies
 		.local_rate_limit
 		.as_deref()
-		.map(Vec::as_slice)
+		.map(|limits| limits.as_slice())
 		.unwrap_or_default();
 	if !limits.is_empty() {
 		// The context costs a clone of the request, so it is only built for a key that reads it.

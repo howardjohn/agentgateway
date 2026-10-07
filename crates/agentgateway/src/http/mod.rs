@@ -5,7 +5,6 @@ pub mod timeout;
 pub mod budget;
 pub mod buffer;
 pub mod bufferbody;
-pub mod cors;
 pub mod delay;
 pub mod jwt;
 pub mod localratelimit;
@@ -37,6 +36,7 @@ pub use agent_http::{
 	RecordedBodyHandle, Request, RequestBodyExt, Response, ResponseBodyExt, buffer_limit,
 	merge_in_headers, read_body_with_limit, response_buffer_limit, x_headers,
 };
+pub use agent_policy_cors as cors;
 
 pub(crate) fn mark_sensitive_headers(req: &mut Request, configured: &[HeaderName]) {
 	for (name, value) in req.headers_mut() {
