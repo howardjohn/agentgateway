@@ -2575,6 +2575,7 @@ const (
 	AIBackend_REALTIME                    AIBackend_ProviderFormat = 6
 	AIBackend_RERANK                      AIBackend_ProviderFormat = 7
 	AIBackend_DECISIONS                   AIBackend_ProviderFormat = 8
+	AIBackend_SYSTEM_ONE                  AIBackend_ProviderFormat = 9
 )
 
 // Enum value maps for AIBackend_ProviderFormat.
@@ -2589,6 +2590,7 @@ var (
 		6: "REALTIME",
 		7: "RERANK",
 		8: "DECISIONS",
+		9: "SYSTEM_ONE",
 	}
 	AIBackend_ProviderFormat_value = map[string]int32{
 		"PROVIDER_FORMAT_UNSPECIFIED": 0,
@@ -2600,6 +2602,7 @@ var (
 		"REALTIME":                    6,
 		"RERANK":                      7,
 		"DECISIONS":                   8,
+		"SYSTEM_ONE":                  9,
 	}
 )
 
@@ -2653,6 +2656,7 @@ const (
 	AIBackend_PROVIDER_PRESET_FIREWORKS   AIBackend_ProviderPreset = 13
 	AIBackend_PROVIDER_PRESET_META        AIBackend_ProviderPreset = 14
 	AIBackend_PROVIDER_PRESET_PERPLEXITY  AIBackend_ProviderPreset = 15
+	AIBackend_PROVIDER_PRESET_TYPESAFE    AIBackend_ProviderPreset = 16
 )
 
 // Enum value maps for AIBackend_ProviderPreset.
@@ -2674,6 +2678,7 @@ var (
 		13: "PROVIDER_PRESET_FIREWORKS",
 		14: "PROVIDER_PRESET_META",
 		15: "PROVIDER_PRESET_PERPLEXITY",
+		16: "PROVIDER_PRESET_TYPESAFE",
 	}
 	AIBackend_ProviderPreset_value = map[string]int32{
 		"PROVIDER_PRESET_UNSPECIFIED": 0,
@@ -2692,6 +2697,7 @@ var (
 		"PROVIDER_PRESET_FIREWORKS":   13,
 		"PROVIDER_PRESET_META":        14,
 		"PROVIDER_PRESET_PERPLEXITY":  15,
+		"PROVIDER_PRESET_TYPESAFE":    16,
 	}
 )
 
@@ -19540,7 +19546,7 @@ const file_resource_proto_rawDesc = "" +
 	"\x11agent_runtime_arn\x18\x01 \x01(\tR\x0fagentRuntimeArn\x12!\n" +
 	"\tqualifier\x18\x02 \x01(\tH\x00R\tqualifier\x88\x01\x01B\f\n" +
 	"\n" +
-	"_qualifier\"\xc6\"\n" +
+	"_qualifier\"\xf4\"\n" +
 	"\tAIBackend\x12[\n" +
 	"\x0fprovider_groups\x18\x01 \x03(\v22.agentgateway.dev.resource.AIBackend.ProviderGroupR\x0eproviderGroups\x1a6\n" +
 	"\fHostOverride\x12\x12\n" +
@@ -19650,7 +19656,7 @@ const file_resource_proto_rawDesc = "" +
 	",BEDROCK_ENDPOINT_PREFERENCE_MANTLE_PREFERRED\x10\x03\"-\n" +
 	"\x11AzureResourceType\x12\v\n" +
 	"\aOPEN_AI\x10\x00\x12\v\n" +
-	"\aFOUNDRY\x10\x01\"\xb3\x01\n" +
+	"\aFOUNDRY\x10\x01\"\xc3\x01\n" +
 	"\x0eProviderFormat\x12\x1f\n" +
 	"\x1bPROVIDER_FORMAT_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vCOMPLETIONS\x10\x01\x12\f\n" +
@@ -19662,7 +19668,9 @@ const file_resource_proto_rawDesc = "" +
 	"\bREALTIME\x10\x06\x12\n" +
 	"\n" +
 	"\x06RERANK\x10\a\x12\r\n" +
-	"\tDECISIONS\x10\b\"\xeb\x03\n" +
+	"\tDECISIONS\x10\b\x12\x0e\n" +
+	"\n" +
+	"SYSTEM_ONE\x10\t\"\x89\x04\n" +
 	"\x0eProviderPreset\x12\x1f\n" +
 	"\x1bPROVIDER_PRESET_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16PROVIDER_PRESET_COHERE\x10\x01\x12\x1a\n" +
@@ -19680,7 +19688,8 @@ const file_resource_proto_rawDesc = "" +
 	"\x13PROVIDER_PRESET_XAI\x10\f\x12\x1d\n" +
 	"\x19PROVIDER_PRESET_FIREWORKS\x10\r\x12\x18\n" +
 	"\x14PROVIDER_PRESET_META\x10\x0e\x12\x1e\n" +
-	"\x1aPROVIDER_PRESET_PERPLEXITY\x10\x0f\"\xb9\x04\n" +
+	"\x1aPROVIDER_PRESET_PERPLEXITY\x10\x0f\x12\x1c\n" +
+	"\x18PROVIDER_PRESET_TYPESAFE\x10\x10\"\xb9\x04\n" +
 	"\n" +
 	"MCPBackend\x12>\n" +
 	"\atargets\x18\x02 \x03(\v2$.agentgateway.dev.resource.MCPTargetR\atargets\x12W\n" +

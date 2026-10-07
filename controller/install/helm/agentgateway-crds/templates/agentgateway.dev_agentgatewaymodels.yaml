@@ -227,6 +227,7 @@ spec:
                           - Realtime
                           - Rerank
                           - Responses
+                          - SystemOne
                           type: string
                       required:
                       - type
@@ -5286,6 +5287,7 @@ spec:
                 - Openrouter
                 - Perplexity
                 - TogetherAI
+                - Typesafe
                 - VertexAI
                 - XAI
                 type: string

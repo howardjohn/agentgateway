@@ -280,6 +280,7 @@ const (
 	ModelProviderFireworks   ModelProvider = "Fireworks"
 	ModelProviderMeta        ModelProvider = "Meta"
 	ModelProviderPerplexity  ModelProvider = "Perplexity"
+	ModelProviderTypesafe    ModelProvider = "Typesafe"
 	ModelProviderCustom      ModelProvider = "Custom"
 )
 
