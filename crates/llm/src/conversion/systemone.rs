@@ -15,7 +15,8 @@ pub mod from_decisions {
 	}
 
 	pub fn translate(req: &decisions::Request) -> Result<(Vec<u8>, State), AIError> {
-		let req: d::DecisionRequest = json::convert(req).map_err(AIError::RequestMarshal)?;
+		let req = json::convert::<_, d::DecisionRequest>(req)
+			.map_err(|err| AIError::RequestParsing(crate::InputFormat::Decisions, err))?;
 		let state = match req.input {
 			d::DecisionInput::Text(text) => serde_json::Value::String(text),
 			d::DecisionInput::Messages(items) => items
