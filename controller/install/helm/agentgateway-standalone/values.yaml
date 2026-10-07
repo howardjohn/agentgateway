@@ -178,6 +178,11 @@ oidc:
   # -- The name of an existing secret that has the 'OIDC_COOKIE_SECRET' key. Defaults to '<release name>-oidc'. The secret is required when 'oidc.enabled' is true.
   cookieSecretName: ""
 
+# Agentgateway session configuration.
+session:
+  # -- The name of an existing secret that has the 'key' entry used for the session key.
+  secretName: ""
+
 # -- Additional containers to run in the agentgateway proxy pod, such as a sidecar.
 extraContainers: []
 
