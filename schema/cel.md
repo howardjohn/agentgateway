@@ -15,6 +15,8 @@
 |`request.bodyPrefix`|string|The request body buffered up to `maxBufferSize`. If the complete body exceeds the limit,<br>this contains the first `maxBufferSize` bytes.|
 |`request.startTime`|string|The time the request started|
 |`request.endTime`|string|The time the request completed|
+|`request.agent`|object|The agent harness that sent the request.|
+|`request.agent.session`|string|The agent session the request belongs to, from `standardAttributes.session` or detected from<br>well-known agent headers such as `x-claude-code-session-id`.|
 |`response`|object|`response` contains attributes about the HTTP response|
 |`response.code`|integer|The HTTP status code of the response.|
 |`response.grpcStatus`|integer|The gRPC status code of the response, when present.|

@@ -398,6 +398,9 @@ pub struct Config {
 	/// Compiled standard attributes, replaced on config reload and snapshotted per request.
 	#[serde(skip)]
 	pub database_fields: Arc<arc_swap::ArcSwap<LoggingFields>>,
+	/// Compiled `standardAttributes.session`, replaced on config reload.
+	#[serde(skip)]
+	pub session: Arc<arc_swap::ArcSwapOption<cel::Expression>>,
 	/// Level sets the level for logs
 	pub level: String,
 	/// Format sets the logging format (text or json)

@@ -27,5 +27,6 @@ curl http://localhost:4000/v1/chat/completions \
   -d '{"model":"auto","messages":[{"role":"user","content":"What is the capital of France?"}]}'
 ```
 
-The response `model` shows the selected model. Add an `x-session-id` header to keep
-a session on its first selection for 10 minutes.
+The response `model` shows the selected model. Requests in the same agent session,
+detected from headers such as `x-claude-code-session-id` or `x-session-id`, keep their
+first selection for 10 minutes.

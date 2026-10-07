@@ -264,6 +264,7 @@ impl LocalClient {
 			.logging
 			.database_fields
 			.store(config.standard_attributes);
+		self.config.logging.session.store(config.session_attribute);
 		info!("loaded config from {:?}", self.cfg);
 
 		// Sync binds first, but always run discovery sync even when a new bind cannot open.

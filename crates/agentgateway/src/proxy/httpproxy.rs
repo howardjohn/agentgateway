@@ -893,6 +893,7 @@ impl HTTPProxy {
 			},
 		);
 		log.version = Some(req.version());
+		http::session::apply(self.inputs.cfg.logging.session.load().as_deref(), &mut req);
 		dtrace::snapshot!(Request, "initial request", &req);
 
 		// Now check if we actually have a listener - fail after tracing is set up
