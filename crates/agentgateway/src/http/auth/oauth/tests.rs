@@ -1360,6 +1360,7 @@ fn cross_app_access_from_proto_derives_oauth_chain(
 				token_type: token_type.to_string(),
 			}),
 			cache: None,
+			translation_error: None,
 		},
 		&mut Diagnostics::default(),
 	)

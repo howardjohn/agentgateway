@@ -1144,6 +1144,9 @@ var oauthReservedAdditionalParams = []string{
 
 func buildOAuthTokenExchangePolicy(ctx PolicyCtx, auth *agentgateway.OAuthTokenExchange, namespace string) (*api.BackendAuthPolicy, error) {
 	oauth, err := BuildOAuthTokenExchange(ctx, auth, namespace, nil)
+	if err != nil {
+		oauth = &api.OAuthTokenExchange{TranslationError: new(err.Error())}
+	}
 	return &api.BackendAuthPolicy{
 		Kind: &api.BackendAuthPolicy_OauthTokenExchange{
 			OauthTokenExchange: oauth,
@@ -1214,6 +1217,9 @@ func translateCrossAppAccessSubjectToken(spec *agentgateway.CrossAppAccessSubjec
 
 func buildCrossAppAccessPolicy(ctx PolicyCtx, auth *agentgateway.CrossAppAccessAuth, namespace string) (*api.BackendAuthPolicy, error) {
 	crossAppAccess, err := BuildCrossAppAccess(ctx, auth, namespace)
+	if err != nil {
+		crossAppAccess = &api.CrossAppAccessAuth{TranslationError: new(err.Error())}
+	}
 	return &api.BackendAuthPolicy{
 		Kind: &api.BackendAuthPolicy_CrossAppAccess{
 			CrossAppAccess: crossAppAccess,
