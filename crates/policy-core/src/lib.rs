@@ -7,19 +7,21 @@
 //! allows each policy crate to compile and test in isolation.
 //!
 //! ```no_run
+//! use std::convert::Infallible;
+//!
 //! use agent_http::Request;
 //! use agent_policy::{BoxError, PolicyContext, RequestAction, RequestPolicy};
 //!
 //! struct Example;
 //!
 //! impl RequestPolicy for Example {
-//!     type ResponseState = ();
+//!     type ResponseState = Infallible;
 //!
 //!     async fn apply(
 //!         &self,
 //!         _ctx: PolicyContext<'_>,
 //!         _request: &mut Request,
-//!     ) -> Result<RequestAction<()>, BoxError> {
+//!     ) -> Result<RequestAction<Infallible>, BoxError> {
 //!         Ok(RequestAction::default())
 //!     }
 //! }

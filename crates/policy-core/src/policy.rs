@@ -65,6 +65,8 @@ impl<S> From<PolicyResponse> for RequestAction<S> {
 #[allow(async_fn_in_trait)]
 pub trait RequestPolicy: Send + Sync + 'static {
 	/// Per-request state passed from [`Self::apply`] to [`Self::apply_response`].
+	///
+	/// Request-only policies use [`std::convert::Infallible`], so they cannot return response state.
 	type ResponseState: Send + 'static;
 
 	async fn apply(

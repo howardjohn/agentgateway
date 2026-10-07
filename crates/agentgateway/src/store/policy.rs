@@ -53,7 +53,7 @@ pub trait RequestPolicyTrait: Send + Sync + 'static {
 /// Bridges request-only policies implemented against `agent_policy` into the gateway.
 impl<T> RequestPolicyTrait for T
 where
-	T: agent_policy::RequestPolicy<ResponseState = ()>,
+	T: agent_policy::RequestPolicy<ResponseState = std::convert::Infallible>,
 {
 	async fn apply(
 		&self,

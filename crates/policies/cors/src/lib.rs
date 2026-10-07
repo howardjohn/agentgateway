@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::fmt::Display;
 use std::str::FromStr;
 use std::time::Duration;
@@ -150,7 +151,7 @@ impl TryFrom<CorsSerde> for Cors {
 }
 
 impl RequestPolicy for Cors {
-	type ResponseState = ();
+	type ResponseState = Infallible;
 
 	/// Apply applies the CORS header. It seems a lot of implementations handle this differently wrt when
 	/// to add or not add headers, and when to forward the request.
@@ -159,7 +160,7 @@ impl RequestPolicy for Cors {
 		&self,
 		_ctx: PolicyContext<'_>,
 		req: &mut Request,
-	) -> Result<RequestAction<()>, BoxError> {
+	) -> Result<RequestAction<Infallible>, BoxError> {
 		// If no origin, return immediately
 		let Some(origin) = req.headers().get(header::ORIGIN) else {
 			pol_result!(Severity::Info, Skip, "request has no Origin header");

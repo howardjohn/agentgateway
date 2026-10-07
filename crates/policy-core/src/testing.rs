@@ -3,7 +3,8 @@
 //! Enable the `testing` feature in policy unit tests to run policies with real CEL
 //! evaluation and a recording mock backend. `request` and `response` CEL variables
 //! are derived from the mock request and response; other variables come from
-//! [`PolicyTest::vars`]:
+//! [`PolicyTest::vars`]. Extra fields passed under `request` or `response` are merged in,
+//! with the mock message's fields taking precedence:
 //!
 //! ```no_run
 //! # use agent_policy::RequestPolicy;
@@ -166,7 +167,7 @@ impl TestRequest {
 			uri: path
 				.as_ref()
 				.parse()
-				.unwrap_or_else(|_| Uri::from_static("/")),
+				.unwrap_or_else(|err| panic!("invalid test request URI {:?}: {err}", path.as_ref())),
 			headers: Vec::new(),
 			body: Vec::new(),
 		}
@@ -245,7 +246,7 @@ impl TestResponse {
 /// `response` derived from the message being evaluated.
 struct JsonCel {
 	context: cel::Context,
-	variables: Vec<(String, cel::Value<'static>)>,
+	variables: serde_json::Map<String, serde_json::Value>,
 }
 
 impl JsonCel {
@@ -255,14 +256,6 @@ impl JsonCel {
 				"test CEL variables must be a JSON object".to_owned(),
 			));
 		};
-		let variables = variables
-			.into_iter()
-			.map(|(name, value)| {
-				cel::to_value(value)
-					.map(|value| (name, value))
-					.map_err(|error| Error::Variable(error.to_string()))
-			})
-			.collect::<Result<Vec<_>, _>>()?;
 		let mut context = cel::Context::default();
 		agent_celx::insert_all(&mut context);
 		Ok(Self { context, variables })
@@ -273,14 +266,23 @@ impl JsonCel {
 		expression: &Expression,
 		message: (&str, serde_json::Value),
 	) -> Result<cel::Value<'static>, Error> {
-		let mut variables = cel::context::MapResolver::new();
-		let (name, value) = message;
-		let value = cel::to_value(value).map_err(|error| Error::Variable(error.to_string()))?;
-		variables.add_variable_from_value(name, value);
-		for (name, value) in &self.variables {
-			variables.add_variable_from_value(name, value.clone());
+		let mut variables = self.variables.clone();
+		// Fields from the mock message win; other user-supplied fields under the same name are kept.
+		let (name, derived) = message;
+		let entry = variables
+			.entry(name)
+			.or_insert_with(|| serde_json::Value::Object(Default::default()));
+		match (entry, derived) {
+			(serde_json::Value::Object(user), serde_json::Value::Object(derived)) => user.extend(derived),
+			(entry, derived) => *entry = derived,
 		}
-		cel::Value::resolve(expression.ast(), &self.context, &variables)
+		let mut resolver = cel::context::MapResolver::new();
+		for (name, value) in &variables {
+			let value =
+				cel::to_value(value.clone()).map_err(|error| Error::Variable(error.to_string()))?;
+			resolver.add_variable_from_value(name, value);
+		}
+		cel::Value::resolve(expression.ast(), &self.context, &resolver)
 			.map(|value| value.as_static())
 			.map_err(Error::from)
 	}
