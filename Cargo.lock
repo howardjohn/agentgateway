@@ -142,6 +142,7 @@ dependencies = [
  "http 1.5.0",
  "http-body 1.1.0",
  "http-body-util",
+ "indexmap 2.14.2",
  "insta",
  "itertools 0.15.0",
  "mime_guess",
@@ -669,7 +670,7 @@ dependencies = [
 [[package]]
 name = "async-openai"
 version = "0.42.1"
-source = "git+https://github.com/howardjohn/async-openai?rev=a2a8f025bcb7b139d3e5513be2eca5ac5d1ead34#a2a8f025bcb7b139d3e5513be2eca5ac5d1ead34"
+source = "git+https://github.com/howardjohn/async-openai?rev=793d289223b345161e8292af93be16755d8ccc40#793d289223b345161e8292af93be16755d8ccc40"
 dependencies = [
  "bytes",
  "derive_builder",

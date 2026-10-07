@@ -1146,7 +1146,11 @@ impl AIProvider {
 			InputFormat::CountTokens => AnthropicTokenCount,
 			InputFormat::GeminiCountTokens => GeminiCountTokens,
 			InputFormat::Rerank => Rerank,
-			InputFormat::Decisions => Decisions,
+			InputFormat::Decisions => {
+				return [Decisions, SystemOne]
+					.into_iter()
+					.find(|f| self.supports_format(*f, request_model));
+			},
 			InputFormat::Detect
 			| InputFormat::Completions
 			| InputFormat::Messages
@@ -1916,7 +1920,16 @@ impl AIProvider {
 				managed_body,
 				tokenize,
 				log,
-				|_, req, _, _| serde_json::to_vec(req).map_err(AIError::RequestMarshal),
+				|provider, req, _, llm| match provider
+					.non_chat_provider_format_for(InputFormat::Decisions, &llm.request_model)
+				{
+					Some(custom::ProviderFormat::SystemOne) => {
+						let (body, state) = conversion::systemone::from_decisions::translate(req)?;
+						llm.provider_state = Some(ProviderState::SystemOneDecisions(Arc::new(state)));
+						Ok(body)
+					},
+					_ => serde_json::to_vec(req).map_err(AIError::RequestMarshal),
+				},
 			)
 			.await
 	}
@@ -2007,8 +2020,8 @@ impl AIProvider {
 				managed_body,
 				false,
 				log,
-				move |provider, req, parts, request_model| {
-					provider.render_count_tokens_request(req, &parts.headers, request_model, catalog)
+				move |provider, req, parts, llm| {
+					provider.render_count_tokens_request(req, &parts.headers, &llm.request_model, catalog)
 				},
 			)
 			.await
@@ -2039,8 +2052,8 @@ impl AIProvider {
 				managed_body,
 				false,
 				log,
-				|provider, req, _, request_model| {
-					provider.render_gemini_count_tokens_request(req, request_model)
+				|provider, req, _, llm| {
+					provider.render_gemini_count_tokens_request(req, &llm.request_model)
 				},
 			)
 			.await
@@ -2380,7 +2393,7 @@ impl AIProvider {
 	) -> Result<RequestResult, AIError>
 	where
 		T: RequestType,
-		F: FnOnce(&AIProvider, &T, &Parts, &str) -> Result<Vec<u8>, AIError>,
+		F: FnOnce(&AIProvider, &T, &Parts, &mut LLMRequest) -> Result<Vec<u8>, AIError>,
 	{
 		// Detect is raw passthrough and keeps its client-facing route type upstream.
 		let provider_format = match original_format {
@@ -2415,7 +2428,7 @@ impl AIProvider {
 				log,
 			)
 			.await?;
-		let llm_info = match prepared {
+		let mut llm_info = match prepared {
 			PreparedRequest::Ready(llm_info) => llm_info,
 			PreparedRequest::GuardrailRejected {
 				response,
@@ -2427,8 +2440,7 @@ impl AIProvider {
 				});
 			},
 		};
-		let request_model = llm_info.request_model.as_str();
-		let body = render(self, &req, &parts, request_model)?;
+		let body = render(self, &req, &parts, &mut llm_info)?;
 		// Couldn't find a better place to apply it, needs to be after rendered. but before generating the request.
 		let body = match policies {
 			Some(p) if req.body_is_json() => p.apply_final_transformations(body, log)?,
@@ -2507,7 +2519,7 @@ impl AIProvider {
 				buffered,
 				model_catalog,
 				&logging.response,
-				|_, _, bytes| self.process_decisions_response(bytes),
+				|req, _, bytes| self.process_decisions_response(req, bytes),
 			),
 			_ => {
 				self
@@ -2888,7 +2900,17 @@ impl AIProvider {
 		}
 	}
 
-	fn process_decisions_response(&self, bytes: Bytes) -> Result<(LLMResponse, Bytes), AIError> {
+	fn process_decisions_response(
+		&self,
+		req: &LLMRequest,
+		bytes: Bytes,
+	) -> Result<(LLMResponse, Bytes), AIError> {
+		let bytes = match &req.provider_state {
+			Some(ProviderState::SystemOneDecisions(state)) => Bytes::from(
+				conversion::systemone::from_decisions::translate_response(&bytes, state)?,
+			),
+			_ => bytes,
+		};
 		let resp: types::decisions::Response =
 			serde_json::from_slice(&bytes).map_err(logged_response_parsing(&bytes))?;
 		Ok((resp.to_llm_response(LogContentFields::default()), bytes))

@@ -35,6 +35,7 @@ rand.workspace = true
 schemars = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
+indexmap.workspace = true
 serde_with.workspace = true
 thiserror.workspace = true
 tiktoken-rs.workspace = true

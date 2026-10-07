@@ -14,7 +14,8 @@ const formats: ProviderFormat[] = [
 	'geminiCountTokens',
 	'realtime',
 	'rerank',
-	'decisions'
+	'decisions',
+	'systemOne'
 ];
 
 const formatLabels: Record<ProviderFormat, string> = {
@@ -27,7 +28,8 @@ const formatLabels: Record<ProviderFormat, string> = {
 	geminiCountTokens: 'Gemini token count (models/{model}:countTokens)',
 	realtime: 'Realtime (/v1/realtime)',
 	rerank: 'Rerank (/v2/rerank)',
-	decisions: 'Decisions (/v1/decisions)'
+	decisions: 'Decisions (/v1/decisions)',
+	systemOne: 'System One (/v1/systemone)'
 };
 
 export function CustomFormats(props: {

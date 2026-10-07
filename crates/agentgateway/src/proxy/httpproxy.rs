@@ -3002,7 +3002,8 @@ async fn make_backend_call(
 					log.add(|l| l.llm_request = Some(llm_request.clone()));
 					(req, response_policies, Some(llm_request))
 				},
-				RouteType::Models => {
+				// SystemOne is only an upstream route.
+				RouteType::Models | RouteType::SystemOne => {
 					return Ok(
 						::http::Response::builder()
 							.status(::http::StatusCode::NOT_IMPLEMENTED)

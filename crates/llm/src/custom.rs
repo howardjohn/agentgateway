@@ -228,6 +228,7 @@ pub enum ProviderFormat {
 	Realtime,
 	Rerank,
 	Decisions,
+	SystemOne,
 }
 
 impl ProviderFormat {
@@ -243,6 +244,7 @@ impl ProviderFormat {
 			RouteType::Realtime => Self::Realtime,
 			RouteType::Rerank => Self::Rerank,
 			RouteType::Decisions => Self::Decisions,
+			RouteType::SystemOne => Self::SystemOne,
 			RouteType::Models | RouteType::Passthrough | RouteType::Detect => return None,
 		})
 	}
@@ -258,7 +260,8 @@ impl ProviderFormat {
 			Self::GeminiCountTokens => InputFormat::GeminiCountTokens,
 			Self::Realtime => InputFormat::Realtime,
 			Self::Rerank => InputFormat::Rerank,
-			Self::Decisions => InputFormat::Decisions,
+			// SystemOne serves decisions requests.
+			Self::Decisions | Self::SystemOne => InputFormat::Decisions,
 		}
 	}
 
@@ -274,6 +277,7 @@ impl ProviderFormat {
 			Self::Realtime => RouteType::Realtime,
 			Self::Rerank => RouteType::Rerank,
 			Self::Decisions => RouteType::Decisions,
+			Self::SystemOne => RouteType::SystemOne,
 		}
 	}
 }
