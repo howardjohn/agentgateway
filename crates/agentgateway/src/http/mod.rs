@@ -748,17 +748,6 @@ pub fn get_host(req: &Request) -> Result<&str, ProxyError> {
 	Ok(host)
 }
 
-pub fn get_host_with_port(req: &Request) -> Result<&str, ProxyError> {
-	// We expect a normalized request, so this will always be in the URI
-	// TODO: handle absolute HTTP/1.1 form
-	let host = req
-		.uri()
-		.authority()
-		.map(|a| a.as_str())
-		.ok_or(ProxyError::InvalidRequest)?;
-	Ok(host)
-}
-
 /// Read with the request's size limit and remaining body deadline.
 pub async fn read_req_body(req: Request) -> Result<Bytes, axum_core::Error> {
 	let lim = buffer_limit(&req);
@@ -816,24 +805,6 @@ impl PolicyResponse {
 		PolicyResponse {
 			direct_response: Some(other),
 			response_headers: self.response_headers,
-		}
-	}
-	pub fn merge(self, other: Self) -> Self {
-		if other.direct_response.is_some() {
-			other
-		} else {
-			match (self.response_headers, other.response_headers) {
-				(None, None) => PolicyResponse::default(),
-				(a, b) => PolicyResponse {
-					direct_response: None,
-					response_headers: Some({
-						let mut hm = HeaderMap::new();
-						merge_in_headers(a, &mut hm);
-						merge_in_headers(b, &mut hm);
-						hm
-					}),
-				},
-			}
 		}
 	}
 }

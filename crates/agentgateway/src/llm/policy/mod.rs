@@ -2169,14 +2169,6 @@ pub struct Rule<T> {
 	rule: T,
 }
 
-#[apply(schema!)]
-pub struct NamedRegex {
-	#[serde(with = "serde_regex")]
-	#[cfg_attr(feature = "schema", schemars(with = "String"))]
-	pattern: regex::Regex,
-	name: String,
-}
-
 /// Defines how the proxy behaves when a guardrail provider is unreachable or
 /// returns an error.
 ///
@@ -2529,8 +2521,6 @@ impl ResponseGuardKind {
 	}
 }
 
-#[apply(schema!)]
-pub struct PromptGuardRegex {}
 fn default_code() -> StatusCode {
 	StatusCode::FORBIDDEN
 }

@@ -1249,23 +1249,6 @@ pub mod typed {
 	}
 
 	#[allow(dead_code)]
-	pub const SYSTEM_ROLE: &str = "system";
-	#[allow(dead_code)]
-	pub const ASSISTANT_ROLE: &str = "assistant";
-
-	#[allow(dead_code)]
-	pub fn message_role(msg: &RequestMessage) -> &'static str {
-		match msg {
-			RequestMessage::Developer(_) => "developer",
-			RequestMessage::System(_) => "system",
-			RequestMessage::Assistant(_) => "assistant",
-			RequestMessage::Tool(_) => "tool",
-			RequestMessage::Function(_) => "function",
-			RequestMessage::User(_) => "user",
-		}
-	}
-
-	#[allow(dead_code)]
 	pub fn message_text(msg: &RequestMessage) -> Option<&str> {
 		// All of these types support Vec<Text>... show we support those?
 		// Right now, we don't support
@@ -1300,13 +1283,6 @@ pub mod typed {
 				.max_completion_tokens
 				.or(self.max_tokens)
 				.unwrap_or(4096) as usize
-		}
-
-		pub fn max_tokens_option(&self) -> Option<u64> {
-			self
-				.max_completion_tokens
-				.or(self.max_tokens)
-				.map(Into::into)
 		}
 
 		pub fn stop_sequence(&self) -> Vec<String> {

@@ -76,13 +76,6 @@ impl HboneAddress {
 		}
 	}
 
-	pub fn hostname_addr(&self) -> Option<Arc<str>> {
-		match self {
-			HboneAddress::SocketAddr(_) => None,
-			HboneAddress::SvcHostname(_, _) => Some(Arc::from(self.to_string())),
-		}
-	}
-
 	pub fn socket_addr(&self) -> Option<SocketAddr> {
 		match self {
 			HboneAddress::SocketAddr(addr) => Some(*addr),

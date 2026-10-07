@@ -858,12 +858,6 @@ impl ConfigSource {
 			ConfigSource::Static(data) => std::str::from_utf8(data).map(|s| s.to_string())?,
 		})
 	}
-	pub fn read_to_string_sync(&self) -> anyhow::Result<String> {
-		Ok(match self {
-			ConfigSource::File(path) => fs_err::read_to_string(path)?,
-			ConfigSource::Static(data) => std::str::from_utf8(data).map(|s| s.to_string())?,
-		})
-	}
 }
 
 #[derive(Debug, Clone)]
