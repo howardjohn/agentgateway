@@ -11,7 +11,7 @@ path = "src/lib.rs"
 [features]
 default = ["jemalloc", "mimalloc", "crypto-aws-lc"]
 jemalloc = ["dep:tikv-jemallocator", "dep:jemalloc_pprof"]
-mimalloc = ["pprof-alloc/allocator-mimalloc", "dep:mimalloc"]
+mimalloc = ["pprof-alloc/allocator-mimalloc"]
 # Crypto provider selection. `crypto-aws-lc` (the default) backs all crypto with
 # aws-lc-rs. `fips` is an operating-mode modifier; it currently requires the
 # `crypto-aws-lc` backend and builds it against AWS-LC-FIPS (aws-lc-fips-sys).
@@ -50,8 +50,6 @@ aws-types.workspace = true
 aws-lc-rs = { workspace = true, optional = true }
 symcrypt = { workspace = true, optional = true }
 rustls-symcrypt = { workspace = true, optional = true }
-aws-smithy-eventstream.workspace = true
-aws-smithy-types.workspace = true
 axum-core.workspace = true
 axum-extra.workspace = true
 axum.workspace = true
@@ -150,8 +148,6 @@ sse-stream.workspace = true
 subtle.workspace = true
 sqlx.workspace = true
 thiserror.workspace = true
-tiktoken-rs.workspace = true
-mimalloc = { workspace = true, optional = true }
 tokio-rustls.workspace = true
 tokio-stream.workspace = true
 tokio-util.workspace = true

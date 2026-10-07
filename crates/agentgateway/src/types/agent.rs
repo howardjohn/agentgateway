@@ -828,7 +828,6 @@ pub struct Route {
 
 pub type RouteKey = Strng;
 pub type RouteGroupKey = Strng;
-pub type RouteRuleName = Strng;
 
 #[apply(schema_ser_schema!)]
 pub struct ModelRoute {
@@ -978,15 +977,6 @@ impl ListenerTarget {
 			"gateway policy target cannot set both listener_name and port"
 		);
 		Ok(())
-	}
-
-	pub fn strip_listener_fields(&self) -> ListenerTarget {
-		Self {
-			gateway_name: self.gateway_name.clone(),
-			gateway_namespace: self.gateway_namespace.clone(),
-			listener_name: None,
-			port: None,
-		}
 	}
 }
 

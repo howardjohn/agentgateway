@@ -610,12 +610,6 @@ pub struct RoutePath<'a> {
 	pub route_inlines: Vec<&'a [TrafficPolicy]>,
 }
 
-impl<'a> RoutePath<'a> {
-	pub fn final_route(&self) -> Option<&'a RouteName> {
-		self.routes.last().copied()
-	}
-}
-
 impl Store {
 	fn bind_listener_single(address: std::net::SocketAddr) -> anyhow::Result<StdTcpListener> {
 		let listener =
@@ -1483,25 +1477,6 @@ impl Store {
 				},
 				_ => None,
 			})
-			.collect_vec()
-	}
-
-	pub fn all_access_log_policies(&self) -> Vec<Arc<crate::types::agent::AccessLogPolicy>> {
-		self
-			.binds
-			.iter()
-			.flat_map(|(bind_key, bind)| {
-				self
-					.listeners
-					.get(bind_key)
-					.into_iter()
-					.flat_map(|listeners| listeners.iter())
-					.map(|listener| {
-						self.listener_frontend_policies(&listener.name, Some(bind.address.port()), None)
-					})
-			})
-			.filter_map(|fp| fp.access_log_otlp)
-			.unique_by(|p| Arc::as_ptr(p) as usize)
 			.collect_vec()
 	}
 

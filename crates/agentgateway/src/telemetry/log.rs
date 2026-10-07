@@ -7,8 +7,7 @@ use std::time::{Duration, Instant, SystemTime};
 use agent_core::metrics::CustomField;
 use agent_core::strng::{RichStrng, Strng};
 use agent_core::telemetry::{
-	OptionExt, OtelLogSink, ValueBag, current_connection_id, current_request_id, debug, display,
-	quoted,
+	OptionExt, ValueBag, current_connection_id, current_request_id, debug, display, quoted,
 };
 use agent_core::{Timestamp, strng};
 use bytes::{Buf, Bytes};
@@ -2436,9 +2435,7 @@ impl OtelAccessLogger {
 	pub fn shutdown(&self) {
 		let _ = self.inner.provider.shutdown();
 	}
-}
 
-impl OtelLogSink for OtelAccessLogger {
 	fn emit<'v>(&self, level: &str, _target: &str, kv: &[(&str, Option<ValueBag<'v>>)]) {
 		let severity = match level {
 			"error" => Severity::Error,
@@ -2501,10 +2498,6 @@ impl OtelLogSink for OtelAccessLogger {
 		}
 
 		self.inner.logger.emit(record);
-	}
-
-	fn shutdown(&self) {
-		let _ = self.inner.provider.shutdown();
 	}
 }
 

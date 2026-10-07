@@ -4974,10 +4974,6 @@ impl ResponsePolicies {
 }
 
 #[derive(Debug, Clone)]
-pub struct TunnelClient {
-	pub inputs: Arc<ProxyInputs>,
-}
-#[derive(Debug, Clone)]
 pub struct PolicyClient {
 	pub inputs: Arc<ProxyInputs>,
 	context: Option<Arc<PolicyClientContext>>,
