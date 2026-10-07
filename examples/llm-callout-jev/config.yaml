@@ -10,11 +10,8 @@ llm:
     params:
       apiKey: $OPENAI_API_KEY
   - name: jev-latest
-    provider:
-      custom:
-        providerOverride: typesafe
+    provider: typesafe
     params:
-      baseUrl: https://api.typesafe.ai
       apiKey: $TYPESAFE_API_KEY
   virtualModels:
   - name: auto

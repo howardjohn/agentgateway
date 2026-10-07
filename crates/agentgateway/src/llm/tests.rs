@@ -2942,6 +2942,37 @@ fn setup_request_openai_applies_prefixed_path_without_host_override() {
 	assert_eq!(req.uri().query(), Some("trace=repro"));
 }
 
+#[rstest::rstest]
+#[case::v1("/v1", "/v1/systemone")]
+#[case::nested("/openai/v1", "/openai/v1/systemone")]
+#[case::root("/", "/v1/systemone")]
+fn setup_request_custom_detect_replaces_v1_with_path_prefix(
+	#[case] path_prefix: &str,
+	#[case] expected_path: &str,
+) {
+	let mut req =
+		crate::http::tests_common::request("https://example.com/v1/systemone", http::Method::POST, &[]);
+
+	AIProvider::Custom(custom::Provider {
+		model_override: None,
+		provider_override: None,
+		formats: vec![],
+	})
+	.setup_request(
+		&mut req,
+		RouteType::Detect,
+		None,
+		None,
+		Some(path_prefix),
+		true,
+		None,
+		None,
+	)
+	.expect("setup_request should succeed");
+
+	assert_eq!(req.uri().path(), expected_path);
+}
+
 #[test]
 fn setup_request_openai_normalizes_trailing_slash_in_path_prefix() {
 	let provider = AIProvider::OpenAI(openai::Provider {
