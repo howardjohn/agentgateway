@@ -56,13 +56,8 @@ llm:
       apiKey: $OPENAI_API_KEY
   - name: jev-latest
     visibility: internal
-    provider:
-      custom:
-        providerOverride: typesafe
-        formats:
-        - type: systemOne
+    provider: typesafe
     params:
-      baseUrl: https://api.typesafe.ai/v1
       apiKey: $TYPESAFE_API_KEY
   virtualModels:
   - name: guardrail

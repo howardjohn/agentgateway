@@ -5237,6 +5237,11 @@ textarea {
 	filter: invert(1) brightness(1.12);
 }
 
+:root:not([data-theme='dark']) .provider-icon-dark,
+:root[data-theme='dark'] .provider-icon-light {
+	display: none;
+}
+
 .provider-icon-fallback {
 	display: inline-grid;
 	place-items: center;

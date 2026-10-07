@@ -67,6 +67,7 @@ pub enum ProviderPreset {
 	Fireworks,
 	Meta,
 	Perplexity,
+	Typesafe,
 }
 
 impl ProviderPreset {
@@ -87,6 +88,7 @@ impl ProviderPreset {
 			Self::Fireworks => "https://api.fireworks.ai/inference/v1",
 			Self::Meta => "https://api.meta.ai/v1",
 			Self::Perplexity => "https://api.perplexity.ai/v1",
+			Self::Typesafe => "https://api.typesafe.ai/v1",
 		}
 	}
 
@@ -191,6 +193,7 @@ impl ProviderPreset {
 				],
 			),
 			Self::Perplexity => ("perplexity", vec![format(Responses, None)]),
+			Self::Typesafe => ("typesafe", vec![format(SystemOne, None)]),
 		};
 		Provider {
 			model_override: model,
