@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -52,7 +53,6 @@ func vertexParsePricing(r io.Reader, now time.Time) (*ModelCatalog, []string, er
 		return nil, nil, err
 	}
 	models := map[string]Model{}
-	var warnings []string
 	services := map[string]bool{}
 	for table := range doc.Descendants() {
 		if table.Type != html.ElementNode || table.Data != "table" {
@@ -76,12 +76,14 @@ func vertexParsePricing(r io.Reader, now time.Time) (*ModelCatalog, []string, er
 		regionCol := slices.Index(header, "Region")
 		// Column index per [context tier] for input and cached input prices; -1 if absent.
 		inputCols, cacheCols := [2]int{-1, -1}, [2]int{-1, -1}
+		// Columns without a context threshold apply to all context sizes.
 		for i, h := range header {
+			if !strings.HasPrefix(h, "Price") {
+				continue
+			}
 			ctx := 0
 			if strings.Contains(h, "> 200K") {
 				ctx = 1
-			} else if !strings.Contains(h, "<= 200K") {
-				continue
 			}
 			if strings.Contains(h, "cached input") {
 				cacheCols[ctx] = i
@@ -89,7 +91,7 @@ func vertexParsePricing(r io.Reader, now time.Time) (*ModelCatalog, []string, er
 				inputCols[ctx] = i
 			}
 		}
-		if inputCols[0] < 0 || inputCols[1] < 0 {
+		if inputCols[0] < 0 {
 			return nil, nil, fmt.Errorf("unrecognized Vertex %s pricing columns: %v", service, header)
 		}
 		id, usage := "", ""
@@ -130,7 +132,7 @@ func vertexParsePricing(r io.Reader, now time.Time) (*ModelCatalog, []string, er
 			if id == "" || (regionCol >= 0 && row[regionCol] != "Global" && row[regionCol] != "Global (Flex)") {
 				continue
 			}
-			if row[inputCols[0]] == "N/A" && row[inputCols[1]] == "N/A" {
+			if row[inputCols[0]] == "N/A" && (inputCols[1] < 0 || row[inputCols[1]] == "N/A") {
 				continue
 			}
 			field := ""
@@ -142,13 +144,15 @@ func vertexParsePricing(r io.Reader, now time.Time) (*ModelCatalog, []string, er
 			case strings.HasPrefix(usage, "text output"):
 				field = "output"
 			case strings.HasPrefix(usage, "image output"):
-				warnings = append(warnings, fmt.Sprintf("%s %s: image-output pricing is not represented by the catalog", id, service))
 				continue
 			default:
 				return nil, nil, fmt.Errorf("unrecognized Vertex usage %q for %s %s", usage, id, service)
 			}
 			model := models[id]
 			for i, threshold := range []uint64{0, 200000} {
+				if inputCols[i] < 0 {
+					continue
+				}
 				value := row[inputCols[i]]
 				if value == "N/A" {
 					continue
@@ -212,7 +216,7 @@ func vertexParsePricing(r io.Reader, now time.Time) (*ModelCatalog, []string, er
 		})
 		models[id] = model
 	}
-	return &ModelCatalog{Providers: map[string]Provider{vertexProviderID: {Models: models}}}, warnings, nil
+	return &ModelCatalog{Providers: map[string]Provider{vertexProviderID: {Models: models}}}, nil, nil
 }
 
 func vertexMoney(value string) (Money, error) {
@@ -222,6 +226,8 @@ func vertexMoney(value string) (Money, error) {
 	}
 	return rate, nil
 }
+
+var vertexFootnote = regexp.MustCompile(`\[\d+\]`)
 
 // Tables use explicit empty cells for repeated model and usage labels.
 func vertexTableRows(table *html.Node) [][]string {
@@ -243,7 +249,7 @@ func vertexTableRows(table *html.Node) [][]string {
 			var row []string
 			for c := n.FirstChild; c != nil; c = c.NextSibling {
 				if c.Type == html.ElementNode && (c.Data == "td" || c.Data == "th") {
-					row = append(row, strings.Join(strings.Fields(text(c)), " "))
+					row = append(row, strings.Join(strings.Fields(vertexFootnote.ReplaceAllString(text(c), "")), " "))
 				}
 			}
 			if len(row) > 0 {
