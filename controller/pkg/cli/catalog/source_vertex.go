@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"regexp"
 	"slices"
@@ -41,7 +42,17 @@ func init() {
 		if resp.StatusCode != http.StatusOK {
 			return nil, nil, fmt.Errorf("fetch Vertex pricing: HTTP %d", resp.StatusCode)
 		}
-		return vertexParsePricing(resp.Body, time.Now())
+		cat, warnings, err := vertexParsePricing(resp.Body, time.Now())
+		if err != nil {
+			return nil, nil, err
+		}
+		// Only augment models defined by earlier sources.
+		known := opts.merged.Providers[vertexProviderID].Models
+		maps.DeleteFunc(cat.Providers[vertexProviderID].Models, func(id string, _ Model) bool {
+			_, ok := known[id]
+			return !ok
+		})
+		return cat, warnings, nil
 	}
 }
 

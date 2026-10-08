@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generatedAt": "2026-10-12T18:55:48Z"
+    "generatedAt": "2026-10-12T18:55:57Z"
   },
   "providers": {
     "anthropic": {
@@ -5569,29 +5569,6 @@
             "output": "0.9"
           }
         },
-        "gemini-2.5-flash": {
-          "tiers": [
-            {
-              "serviceTier": "priority",
-              "rates": {
-                "input": "0.54",
-                "output": "4.50",
-                "cacheRead": "0.054",
-                "reasoning": "4.50",
-                "inputAudio": "1.80"
-              }
-            },
-            {
-              "serviceTier": "flex",
-              "rates": {
-                "input": "0.15",
-                "output": "1.25",
-                "reasoning": "1.25",
-                "inputAudio": "0.50"
-              }
-            }
-          ]
-        },
         "gemini-2.5-flash-image": {
           "rates": {
             "input": "0.3",
@@ -5608,78 +5585,11 @@
             }
           ]
         },
-        "gemini-2.5-flash-lite": {
-          "tiers": [
-            {
-              "serviceTier": "priority",
-              "rates": {
-                "input": "0.18",
-                "output": "0.72",
-                "cacheRead": "0.018",
-                "reasoning": "0.72",
-                "inputAudio": "0.54"
-              }
-            },
-            {
-              "serviceTier": "flex",
-              "rates": {
-                "input": "0.05",
-                "output": "0.20",
-                "reasoning": "0.20",
-                "inputAudio": "0.05"
-              }
-            }
-          ]
-        },
         "gemini-2.5-flash-tts": {
           "rates": {
             "input": "0.5",
             "output": "10"
           }
-        },
-        "gemini-2.5-pro": {
-          "tiers": [
-            {
-              "serviceTier": "priority",
-              "rates": {
-                "input": "2.25",
-                "output": "18.00",
-                "cacheRead": "0.225",
-                "reasoning": "18.00",
-                "inputAudio": "2.25"
-              }
-            },
-            {
-              "contextOver": 200000,
-              "serviceTier": "priority",
-              "rates": {
-                "input": "4.50",
-                "output": "27.00",
-                "cacheRead": "0.45",
-                "reasoning": "27.00",
-                "inputAudio": "4.50"
-              }
-            },
-            {
-              "serviceTier": "flex",
-              "rates": {
-                "input": "0.625",
-                "output": "5.00",
-                "reasoning": "5.00",
-                "inputAudio": "0.625"
-              }
-            },
-            {
-              "contextOver": 200000,
-              "serviceTier": "flex",
-              "rates": {
-                "input": "1.25",
-                "output": "7.50",
-                "reasoning": "7.50",
-                "inputAudio": "1.25"
-              }
-            }
-          ]
         },
         "gemini-2.5-pro-tts": {
           "rates": {
@@ -5960,30 +5870,6 @@
             }
           ]
         },
-        "gemini-3.6-flash": {
-          "tiers": [
-            {
-              "serviceTier": "priority",
-              "rates": {
-                "input": "1.35",
-                "output": "6.75",
-                "cacheRead": "0.135",
-                "reasoning": "6.75",
-                "inputAudio": "1.35"
-              }
-            },
-            {
-              "serviceTier": "flex",
-              "rates": {
-                "input": "0.375",
-                "output": "1.875",
-                "cacheRead": "0.0375",
-                "reasoning": "1.875",
-                "inputAudio": "0.375"
-              }
-            }
-          ]
-        },
         "gemini-3.7-flash": {
           "rates": {
             "input": "0.75",
@@ -6040,30 +5926,6 @@
                 "cacheRead": "0.0375",
                 "reasoning": "1.875",
                 "inputAudio": "0.375"
-              }
-            }
-          ]
-        },
-        "gemini-3.8-flash-cyber": {
-          "tiers": [
-            {
-              "serviceTier": "priority",
-              "rates": {
-                "input": "2.70",
-                "output": "13.50",
-                "cacheRead": "0.27",
-                "reasoning": "13.50",
-                "inputAudio": "2.70"
-              }
-            },
-            {
-              "serviceTier": "flex",
-              "rates": {
-                "input": "0.75",
-                "output": "3.75",
-                "cacheRead": "0.075",
-                "reasoning": "3.75",
-                "inputAudio": "0.75"
               }
             }
           ]
