@@ -66,7 +66,9 @@ pub async fn run_with_ui_assets(
 	pprof_alloc::stats::smaps::PrometheusCollector::register(sub_registry);
 
 	// TODO: use for XDS
-	let control_client = client::Client::new(&config.dns, None, config.backend.clone(), None);
+	let control_client = client::Client::new(&config.dns, None, config.backend.clone(), None)
+		.with_callouts(&config.callouts)
+		.context("invalid callouts config")?;
 	let ca = if let Some(cfg) = &config.ca {
 		Some(Arc::new(caclient::CaClient::new(
 			control_client.clone(),
@@ -102,7 +104,9 @@ pub async fn run_with_ui_assets(
 		Arc::new(config.hbone.h2.clone()),
 		config.backend.clone(),
 		Some(metrics_handle.clone()),
-	);
+	)
+	.with_callouts(&config.callouts)
+	.context("invalid callouts config")?;
 
 	let model_catalog_sources = if let Some(store) = &config_resource_store {
 		config_store::merge_model_catalog_sources(

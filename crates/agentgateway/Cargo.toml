@@ -48,6 +48,8 @@ atomic_float.workspace = true
 aws-config.workspace = true
 aws-credential-types.workspace = true
 aws-sigv4.workspace = true
+aws-smithy-runtime-api.workspace = true
+aws-smithy-types = { workspace = true, features = ["http-body-1-x"] }
 aws-types.workspace = true
 aws-lc-rs = { workspace = true, optional = true }
 symcrypt = { workspace = true, optional = true }

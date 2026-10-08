@@ -256,6 +256,11 @@ pub struct RawConfig {
 	#[serde(default)]
 	backend: BackendConfig,
 
+	/// Configuration for calls the gateway makes on its own behalf, such as cloud provider credential
+	/// fetches, JWKS fetches, OIDC discovery, and external authorization.
+	#[serde(default)]
+	callouts: CalloutConfig,
+
 	#[serde(
 		default,
 		rename = "listener",
@@ -313,6 +318,29 @@ pub struct BackendConfig {
 	#[serde(default = "defaults::h2_keepalive_timeout", with = "serde_dur")]
 	#[cfg_attr(feature = "schema", schemars(with = "String"))]
 	h2_keepalive_timeout: Duration,
+}
+
+#[apply(schema!)]
+#[derive(Default)]
+pub struct CalloutConfig {
+	/// HTTP proxy to tunnel callouts through. If unset, the `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`,
+	/// and `NO_PROXY` environment variables are used.
+	/// Callouts to backends with their own tunnel policy, Kubernetes services, and loopback or
+	/// link-local addresses (such as cloud metadata servers) are sent directly.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub tunnel: Option<CalloutTunnel>,
+}
+
+#[apply(schema!)]
+pub struct CalloutTunnel {
+	/// URL of the proxy, for example `http://proxy.example.com:3128`.
+	#[serde(with = "http_serde::uri")]
+	#[cfg_attr(feature = "schema", schemars(with = "String"))]
+	pub url: ::http::Uri,
+	/// Destinations that bypass the proxy, using `NO_PROXY` syntax: hostnames (matching subdomains),
+	/// IP addresses, CIDRs, or `*`.
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub no_proxy: Vec<String>,
 }
 
 #[derive(serde::Serialize, Clone, Debug, Eq, PartialEq)]
@@ -708,6 +736,7 @@ pub struct Config {
 	pub config_reload_status: Arc<ConfigReloadStatus>,
 
 	pub backend: BackendConfig,
+	pub callouts: CalloutConfig,
 	pub mcp: McpConfig,
 	pub dynamic_ca_cert_cache: DynamicCaCertCacheConfig,
 	pub model_catalog: ModelCatalogConfig,

@@ -398,6 +398,7 @@ async fn apply_backend_auth_kind(
 }
 
 pub async fn apply_late_backend_auth(
+	client: &crate::client::Client,
 	auth: Option<&BackendAuth>,
 	req: &mut Request,
 ) -> Result<(), ProxyError> {
@@ -409,7 +410,7 @@ pub async fn apply_late_backend_auth(
 		return Ok(());
 	};
 
-	aws::sign_request(req, aws_auth)
+	aws::sign_request(client, req, aws_auth)
 		.await
 		.map_err(ProxyError::BackendAuthenticationFailed)
 }
