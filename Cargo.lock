@@ -7679,8 +7679,7 @@ dependencies = [
 [[package]]
 name = "tiktoken"
 version = "4.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40ba662e4a36f3db9561d09f1ba085f719aaf393b7dbd71e23a2e16b8e4e4e19"
+source = "git+https://github.com/howardjohn/rust-tiktoken?rev=14ea59ef50aed1d2935bbce06d8811427b7b972f#14ea59ef50aed1d2935bbce06d8811427b7b972f"
 dependencies = [
  "regex",
  "rustc-hash 2.1.3",
