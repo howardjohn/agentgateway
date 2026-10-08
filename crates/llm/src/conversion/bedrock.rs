@@ -2918,27 +2918,44 @@ pub mod from_responses {
 					}
 				},
 				InputItem::Item(Item::Reasoning(reasoning)) => {
-					let content = if let Some(redacted_content) = reasoning.encrypted_content {
-						vec![bedrock::ContentBlock::ReasoningContent(
-							bedrock::ReasoningContentBlock::Redacted { redacted_content },
-						)]
-					} else {
-						reasoning
-							.content
-							.unwrap_or_default()
+					// encrypted_content holds the signature for visible reasoning, or the redacted
+					// content when there is no visible text.
+					let texts = reasoning
+						.content
+						.unwrap_or_default()
+						.into_iter()
+						.map(|part| {
+							let responses::ReasoningItemContent::ReasoningText(text) = part;
+							text.text
+						})
+						.collect::<Vec<_>>();
+					let content = match reasoning.encrypted_content {
+						Some(redacted_content) if texts.is_empty() => {
+							vec![bedrock::ContentBlock::ReasoningContent(
+								bedrock::ReasoningContentBlock::Redacted { redacted_content },
+							)]
+						},
+						Some(signature) => vec![bedrock::ContentBlock::ReasoningContent(
+							bedrock::ReasoningContentBlock::Structured {
+								reasoning_text: bedrock::ReasoningText {
+									text: texts.concat(),
+									signature: Some(signature),
+								},
+							},
+						)],
+						None => texts
 							.into_iter()
-							.map(|part| {
-								let responses::ReasoningItemContent::ReasoningText(text) = part;
+							.map(|text| {
 								bedrock::ContentBlock::ReasoningContent(
 									bedrock::ReasoningContentBlock::Structured {
 										reasoning_text: bedrock::ReasoningText {
-											text: text.text,
+											text,
 											signature: None,
 										},
 									},
 								)
 							})
-							.collect()
+							.collect(),
 					};
 					if !content.is_empty() {
 						helpers::push_or_merge_message(
@@ -3326,8 +3343,8 @@ pub mod from_responses {
 		// output_index is the stable position of this tool call in the response output array.
 		let mut tool_calls: HashMap<i32, (String, String, String, u32)> = HashMap::new();
 
-		// Track reasoning blocks: (content_block_index -> (item_id, output_index, text, encrypted_content))
-		let mut reasoning_blocks: HashMap<i32, (String, u32, String, Vec<u8>)> = HashMap::new();
+		// Track reasoning blocks: (content_block_index -> (item_id, output_index, text, signature, redacted_content))
+		let mut reasoning_blocks: HashMap<i32, (String, u32, String, String, Vec<u8>)> = HashMap::new();
 
 		// Output indices are assigned in stream order, so reasoning precedes the message it led to.
 		let mut next_output_index: u32 = 0;
@@ -3493,29 +3510,38 @@ pub mod from_responses {
 								out.push(("event", delta_event));
 							},
 							bedrock::ContentBlockDelta::ReasoningContent(rc) => {
-								let (item_id, output_index, reasoning_text, encrypted_content) = reasoning_blocks
-									.entry(delta.content_block_index)
-									.or_insert_with(|| {
-										let item_id = format!("rs_{:016x}", rand::rng().random::<u64>());
-										let output_index = next_output_index;
-										next_output_index += 1;
-										sequence_number += 1;
-										out.push((
-											"event",
-											ResponseStreamEvent::ResponseOutputItemAdded(ResponseOutputItemAddedEvent {
-												sequence_number,
+								let (item_id, output_index, reasoning_text, signature, redacted_content) =
+									reasoning_blocks
+										.entry(delta.content_block_index)
+										.or_insert_with(|| {
+											let item_id = format!("rs_{:016x}", rand::rng().random::<u64>());
+											let output_index = next_output_index;
+											next_output_index += 1;
+											sequence_number += 1;
+											out.push((
+												"event",
+												ResponseStreamEvent::ResponseOutputItemAdded(
+													ResponseOutputItemAddedEvent {
+														sequence_number,
+														output_index,
+														item: OutputItem::Reasoning(ReasoningItem {
+															id: Some(item_id.clone()),
+															summary: vec![],
+															content: None,
+															encrypted_content: None,
+															status: Some(OutputStatus::InProgress),
+														}),
+													},
+												),
+											));
+											(
+												item_id,
 												output_index,
-												item: OutputItem::Reasoning(ReasoningItem {
-													id: Some(item_id.clone()),
-													summary: vec![],
-													content: None,
-													encrypted_content: None,
-													status: Some(OutputStatus::InProgress),
-												}),
-											}),
-										));
-										(item_id, output_index, String::new(), Vec::new())
-									});
+												String::new(),
+												String::new(),
+												Vec::new(),
+											)
+										});
 								match rc {
 									bedrock::ReasoningContentBlockDelta::Text(t) => {
 										reasoning_text.push_str(&t);
@@ -3531,12 +3557,12 @@ pub mod from_responses {
 										);
 										out.push(("event", delta_event));
 									},
-									// Redacted content is only exposed once complete, on the item done event.
+									// Signatures and redacted content are only exposed once complete, on the item done event.
+									bedrock::ReasoningContentBlockDelta::Signature(sig) => signature.push_str(&sig),
 									bedrock::ReasoningContentBlockDelta::RedactedContent(data) => {
-										encrypted_content.extend(data);
+										redacted_content.extend(data);
 									},
-									bedrock::ReasoningContentBlockDelta::Signature(_)
-									| bedrock::ReasoningContentBlockDelta::Unknown => {},
+									bedrock::ReasoningContentBlockDelta::Unknown => {},
 								}
 							},
 							bedrock::ContentBlockDelta::ToolUse(tu) => {
@@ -3600,7 +3626,7 @@ pub mod from_responses {
 								item,
 							});
 						events.push(("event", item_done_event));
-					} else if let Some((item_id, output_index, reasoning_text, encrypted_content)) =
+					} else if let Some((item_id, output_index, reasoning_text, signature, redacted_content)) =
 						reasoning_blocks.remove(&stop.content_block_index)
 					{
 						if !reasoning_text.is_empty() {
@@ -3615,16 +3641,27 @@ pub mod from_responses {
 								});
 							events.push(("event", text_done_event));
 						}
+						// encrypted_content carries the redacted content, or the signature alongside visible text.
+						let (content, encrypted_content) = if redacted_content.is_empty() {
+							(
+								Some(vec![ReasoningItemContent::ReasoningText(
+									ReasoningTextContent {
+										text: reasoning_text,
+									},
+								)]),
+								(!signature.is_empty()).then_some(signature),
+							)
+						} else {
+							(
+								None,
+								Some(base64::prelude::BASE64_STANDARD.encode(redacted_content)),
+							)
+						};
 						let item = OutputItem::Reasoning(ReasoningItem {
 							id: Some(item_id),
 							summary: vec![],
-							content: (!reasoning_text.is_empty()).then(|| {
-								vec![ReasoningItemContent::ReasoningText(ReasoningTextContent {
-									text: reasoning_text,
-								})]
-							}),
-							encrypted_content: (!encrypted_content.is_empty())
-								.then(|| base64::prelude::BASE64_STANDARD.encode(encrypted_content)),
+							content,
+							encrypted_content,
 							status: Some(OutputStatus::Completed),
 						});
 						completed_items.push((output_index, item.clone()));
@@ -4406,9 +4443,11 @@ impl ConverseResponseAdapter {
 				},
 				bedrock::ContentBlock::ReasoningContent(reasoning) => {
 					let (text, encrypted_content) = match reasoning {
-						bedrock::ReasoningContentBlock::Structured { reasoning_text } => {
-							(Some(reasoning_text.text.clone()), None)
-						},
+						// The signature rides in encrypted_content so it can be replayed on the next turn.
+						bedrock::ReasoningContentBlock::Structured { reasoning_text } => (
+							Some(reasoning_text.text.clone()),
+							reasoning_text.signature.clone(),
+						),
 						bedrock::ReasoningContentBlock::Redacted { redacted_content } => {
 							(None, Some(redacted_content.clone()))
 						},
