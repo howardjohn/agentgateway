@@ -1858,6 +1858,88 @@ impl ModelRoute {
 						}
 						llm::model_router::VirtualModelRouting::Conditional(targets)
 					},
+					Some(virtual_model::Routing::Callout(callout)) => {
+						let field = |name: &str| format!("modelRoute.{}.callout.{name}", model_match.model);
+						if !callout.transformation.contains_key("model") {
+							return Err(ProtoError::Generic(
+								"model route callout transformation must set model".to_string(),
+							));
+						}
+						let cache = callout
+							.cache
+							.as_ref()
+							.map(|cache| {
+								if cache.ttl.is_empty() {
+									return Err(ProtoError::MissingRequiredField);
+								}
+								Ok::<_, ProtoError>(http::ext_authz::CacheConfig {
+									key: cache
+										.key
+										.iter()
+										.map(|expr| {
+											permissive_cel_expression_arc(diagnostics, field("cache.key"), expr)
+										})
+										.collect(),
+									ttl: permissive_cel_expression_arc(diagnostics, field("cache.ttl"), &cache.ttl),
+									max_entries: http::ext_authz::effective_cache_entries(cache.max_entries as usize),
+								})
+							})
+							.transpose()?;
+						let callout = llm::router_callout::VirtualModelCallout {
+							target: SimpleBackendReferenceWithPoliciesAndPath {
+								target: SimpleBackendReferenceWithPolicies {
+									target: Arc::new(resolve_simple_reference(callout.target.as_ref())),
+									policies: backend_policies_from_proto(&callout.inline_policies, diagnostics)?,
+								},
+								path: callout
+									.path
+									.as_deref()
+									.map(::http::uri::PathAndQuery::try_from)
+									.transpose()
+									.map_err(|e| ProtoError::Generic(e.to_string()))?,
+							},
+							headers: callout
+								.headers
+								.iter()
+								.map(|(k, v)| {
+									Ok::<_, ProtoError>((
+										HeaderOrPseudo::try_from(k.as_str())
+											.map_err(|e| ProtoError::Generic(e.to_string()))?,
+										permissive_cel_expression_arc(diagnostics, field(&format!("headers.{k}")), v),
+									))
+								})
+								.collect::<Result<_, _>>()?,
+							body: callout
+								.body
+								.as_ref()
+								.map(|expr| permissive_cel_expression_arc(diagnostics, field("body"), expr)),
+							transformation: callout
+								.transformation
+								.iter()
+								.map(|(k, v)| {
+									(
+										k.clone(),
+										permissive_cel_expression_arc(
+											diagnostics,
+											field(&format!("transformation.{k}")),
+											v,
+										),
+									)
+								})
+								.collect(),
+							failure_mode: match &callout.fallback_model {
+								Some(model) => {
+									llm::router_callout::VirtualModelCalloutFailureMode::Fallback(model.clone())
+								},
+								None => llm::router_callout::VirtualModelCalloutFailureMode::FailClosed,
+							},
+							cache,
+							cache_store: None,
+						};
+						llm::model_router::VirtualModelRouting::Callout(Arc::new(
+							callout.with_configured_cache_store(),
+						))
+					},
 					Some(virtual_model::Routing::Failover(failover)) => {
 						llm::model_router::VirtualModelRouting::Failover {
 							backend: RouteBackendReference {
