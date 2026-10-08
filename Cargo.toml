@@ -296,6 +296,10 @@ macro_rules_attribute = "0.2"
 [profile.dev.package.cel]
 opt-level = 1
 
+# Unoptimized SQLite makes request-log analytics queries several times slower in dev builds.
+[profile.dev.package.libsqlite3-sys]
+opt-level = 1
+
 # Release optimized but without as many dependencies, suitable for incremental development
 [profile.quick-release-debug]
 inherits = "quick-release"
