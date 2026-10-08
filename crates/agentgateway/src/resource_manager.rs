@@ -71,7 +71,6 @@ pub struct ResourceFetcher {
 	// Populated only while a ResourceFetchScope is active for managed fetchers.
 	// It records the resources the successful config should retain.
 	tracking: Arc<std::sync::Mutex<Option<HashSet<ResourceRef>>>>,
-	reject_http: bool,
 }
 
 pub struct ResourceFetchScope<'a> {
@@ -93,7 +92,6 @@ impl ResourceFetcher {
 		Self {
 			mode: ResourceFetcherMode::Managed(manager),
 			tracking: Default::default(),
-			reject_http: false,
 		}
 	}
 
@@ -102,7 +100,6 @@ impl ResourceFetcher {
 		Self {
 			mode: ResourceFetcherMode::CachedOrDirect(manager),
 			tracking: Default::default(),
-			reject_http: false,
 		}
 	}
 
@@ -111,7 +108,6 @@ impl ResourceFetcher {
 		Self {
 			mode: ResourceFetcherMode::Direct(Box::new(client)),
 			tracking: Default::default(),
-			reject_http: false,
 		}
 	}
 
@@ -120,18 +116,12 @@ impl ResourceFetcher {
 		Self {
 			mode: ResourceFetcherMode::FilesOnly,
 			tracking: Default::default(),
-			reject_http: false,
 		}
 	}
 
 	/// Loads a normalized resource according to this fetcher's mode.
 	pub async fn fetch(&self, resource: ResourceRef) -> anyhow::Result<Bytes> {
 		let normalized = normalize_resource(resource)?;
-		if self.reject_http
-			&& let ResourceRef::Http { url, .. } = &normalized
-		{
-			return Err(anyhow!("resource fetcher cannot fetch HTTP resource {url}"));
-		}
 		match &self.mode {
 			ResourceFetcherMode::Managed(manager) => {
 				self.track_resource(normalized.clone());
@@ -204,27 +194,24 @@ thread_local! {
 /// Runs a synchronous config parse with `fetcher` available to serde hooks
 /// through [`parse_fetcher`].
 pub fn with_parse_fetcher<T>(fetcher: &ResourceFetcher, parse: impl FnOnce() -> T) -> T {
-	struct Restore(Option<ResourceFetcher>);
-	impl Drop for Restore {
+	struct Clear;
+	impl Drop for Clear {
 		fn drop(&mut self) {
-			let previous = self.0.take();
-			PARSE_FETCHER.with(|f| f.replace(previous));
+			PARSE_FETCHER.with(|f| f.take());
 		}
 	}
-	let _restore = Restore(PARSE_FETCHER.with(|f| f.replace(Some(fetcher.clone()))));
+	PARSE_FETCHER.with(|f| f.replace(Some(fetcher.clone())));
+	let _clear = Clear;
 	parse()
 }
 
 /// The fetcher of the enclosing [`with_parse_fetcher`], or a files-only fetcher
-/// outside one. HTTP resources are rejected either way: serde hooks block on
-/// the fetch, and on a current-thread runtime nothing would drive the request.
+/// outside one.
 pub fn parse_fetcher() -> ResourceFetcher {
-	PARSE_FETCHER.with(|f| match f.borrow().as_ref() {
-		Some(fetcher) => ResourceFetcher {
-			reject_http: true,
-			..fetcher.clone()
-		},
-		None => ResourceFetcher::files_only(),
+	PARSE_FETCHER.with(|f| {
+		f.borrow()
+			.clone()
+			.unwrap_or_else(ResourceFetcher::files_only)
 	})
 }
 
@@ -1111,43 +1098,6 @@ mod tests {
 		assert_eq!(manager.cached(&resource), Some(Bytes::from("cert")));
 		assert!(manager.is_active(&resource));
 		assert!(manager.inner.watched_files.contains(&abspath));
-		PARSE_FETCHER.with(|f| assert!(f.borrow().is_none()));
-	}
-
-	#[tokio::test]
-	async fn parse_fetcher_rejects_http() {
-		let manager = ResourceManager::new(test_client()).unwrap();
-		let resources = ResourceFetcher::managed(manager);
-		let http = ResourceRef::Http {
-			url: "http://127.0.0.1:1/jwks".parse().unwrap(),
-			kind: ResourceKind::Generic,
-		};
-		let inside = with_parse_fetcher(&resources, || {
-			futures::executor::block_on(parse_fetcher().fetch(http.clone()))
-		});
-		let outside = futures::executor::block_on(parse_fetcher().fetch(http));
-		for result in [inside, outside] {
-			let err = result.unwrap_err().to_string();
-			assert!(err.contains("cannot fetch HTTP resource"), "{err}");
-		}
-	}
-
-	#[test]
-	fn with_parse_fetcher_restores_the_previous_fetcher_on_panic() {
-		let outer = ResourceFetcher::files_only();
-		with_parse_fetcher(&outer, || {
-			let inner = ResourceFetcher::direct(test_client());
-			let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-				with_parse_fetcher(&inner, || panic!("parse failed"))
-			}));
-			assert!(panicked.is_err());
-			PARSE_FETCHER.with(|f| {
-				assert!(matches!(
-					f.borrow().as_ref().map(|f| &f.mode),
-					Some(ResourceFetcherMode::FilesOnly)
-				))
-			});
-		});
 		PARSE_FETCHER.with(|f| assert!(f.borrow().is_none()));
 	}
 
