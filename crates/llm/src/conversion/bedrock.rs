@@ -2457,16 +2457,18 @@ pub mod from_responses {
 
 	use agent_core::strng;
 	use agent_http::Body;
+	use base64::Engine;
 	use bytes::Bytes;
 	use helpers::*;
 	use rand::RngExt;
 	use responses::{
 		AssistantRole, FunctionToolCall, IncompleteDetails, InputTokenDetails, OutputContent,
-		OutputItem, OutputMessage, OutputStatus, OutputTextContent, OutputTokenDetails,
-		ResponseContentPartAddedEvent, ResponseContentPartDoneEvent, ResponseError, ResponseErrorCode,
-		ResponseErrorEvent, ResponseFunctionCallArgumentsDeltaEvent,
-		ResponseFunctionCallArgumentsDoneEvent, ResponseOutputItemAddedEvent,
-		ResponseOutputItemDoneEvent, ResponseStreamEvent, ResponseTextDeltaEvent, ResponseUsage,
+		OutputItem, OutputMessage, OutputStatus, OutputTextContent, OutputTokenDetails, ReasoningItem,
+		ReasoningItemContent, ReasoningTextContent, ResponseContentPartAddedEvent,
+		ResponseContentPartDoneEvent, ResponseError, ResponseErrorCode, ResponseErrorEvent,
+		ResponseFunctionCallArgumentsDeltaEvent, ResponseFunctionCallArgumentsDoneEvent,
+		ResponseOutputItemAddedEvent, ResponseOutputItemDoneEvent, ResponseReasoningTextDeltaEvent,
+		ResponseReasoningTextDoneEvent, ResponseStreamEvent, ResponseTextDeltaEvent, ResponseUsage,
 	};
 	use types::bedrock;
 	use types::responses::typed as responses;
@@ -2916,27 +2918,44 @@ pub mod from_responses {
 					}
 				},
 				InputItem::Item(Item::Reasoning(reasoning)) => {
-					let content = if let Some(redacted_content) = reasoning.encrypted_content {
-						vec![bedrock::ContentBlock::ReasoningContent(
-							bedrock::ReasoningContentBlock::Redacted { redacted_content },
-						)]
-					} else {
-						reasoning
-							.content
-							.unwrap_or_default()
+					// encrypted_content holds the signature for visible reasoning, or the redacted
+					// content when there is no visible text.
+					let texts = reasoning
+						.content
+						.unwrap_or_default()
+						.into_iter()
+						.map(|part| {
+							let responses::ReasoningItemContent::ReasoningText(text) = part;
+							text.text
+						})
+						.collect::<Vec<_>>();
+					let content = match reasoning.encrypted_content {
+						Some(redacted_content) if texts.is_empty() => {
+							vec![bedrock::ContentBlock::ReasoningContent(
+								bedrock::ReasoningContentBlock::Redacted { redacted_content },
+							)]
+						},
+						Some(signature) => vec![bedrock::ContentBlock::ReasoningContent(
+							bedrock::ReasoningContentBlock::Structured {
+								reasoning_text: bedrock::ReasoningText {
+									text: texts.concat(),
+									signature: Some(signature),
+								},
+							},
+						)],
+						None => texts
 							.into_iter()
-							.map(|part| {
-								let responses::ReasoningItemContent::ReasoningText(text) = part;
+							.map(|text| {
 								bedrock::ContentBlock::ReasoningContent(
 									bedrock::ReasoningContentBlock::Structured {
 										reasoning_text: bedrock::ReasoningText {
-											text: text.text,
+											text,
 											signature: None,
 										},
 									},
 								)
 							})
-							.collect()
+							.collect(),
 					};
 					if !content.is_empty() {
 						helpers::push_or_merge_message(
@@ -3314,10 +3333,9 @@ pub mod from_responses {
 		let mut last_token_at: Option<Instant> = None;
 		let mut pending_stop_reason: Option<bedrock::StopReason> = None;
 		let mut pending_usage: Option<bedrock::TokenUsage> = None;
-		let mut seen_blocks: HashSet<i32> = HashSet::new();
 		// Terminal events must carry the full output even when content logging is disabled.
 		let mut text = String::new();
-		let mut completed_tools: Vec<(u32, OutputItem)> = Vec::new();
+		let mut completed_items: Vec<(u32, OutputItem)> = Vec::new();
 		let mut logged_tool_calls =
 			crate::conversion::messages::StreamingToolCalls::new(log_content.tool_calls);
 
@@ -3325,8 +3343,12 @@ pub mod from_responses {
 		// output_index is the stable position of this tool call in the response output array.
 		let mut tool_calls: HashMap<i32, (String, String, String, u32)> = HashMap::new();
 
-		// Message item is always output_index 0; tool call items get sequential indices from 1.
-		let mut next_output_index: u32 = 1;
+		// Track reasoning blocks: (content_block_index -> (item_id, output_index, text, signature, redacted_content))
+		let mut reasoning_blocks: HashMap<i32, (String, u32, String, String, Vec<u8>)> = HashMap::new();
+
+		// Output indices are assigned in stream order, so reasoning precedes the message it led to.
+		let mut next_output_index: u32 = 0;
+		let mut message_output_index: Option<u32> = None;
 
 		// Track sequence numbers and item IDs
 		let mut sequence_number: u64 = 0;
@@ -3377,26 +3399,9 @@ pub mod from_responses {
 					let created_event = response_builder.created_event(sequence_number);
 					events.push(("event", created_event));
 
-					sequence_number += 1;
-					let item_added_event =
-						ResponseStreamEvent::ResponseOutputItemAdded(ResponseOutputItemAddedEvent {
-							sequence_number,
-							output_index: 0,
-							item: OutputItem::Message(OutputMessage {
-								content: Vec::new(),
-								id: message_item_id.clone(),
-								role: AssistantRole::Assistant,
-								phase: None,
-								status: OutputStatus::InProgress,
-							}),
-						});
-					events.push(("event", item_added_event));
-
 					events
 				},
 				bedrock::ConverseStreamOutput::ContentBlockStart(start) => {
-					seen_blocks.insert(start.content_block_index);
-
 					match start.start {
 						Some(bedrock::ContentBlockStart::ToolUse(tu)) => {
 							let tool_call_item_id = format!("call_{:016x}", rand::rng().random::<u64>());
@@ -3438,19 +3443,8 @@ pub mod from_responses {
 
 							vec![("event", item_added_event)]
 						},
-						_ => {
-							sequence_number += 1;
-							let part_added_event =
-								ResponseStreamEvent::ResponseContentPartAdded(ResponseContentPartAddedEvent {
-									sequence_number,
-									item_id: message_item_id.clone(),
-									output_index: 0,
-									content_index: 0,
-									part: make_output_part(String::new()),
-								});
-
-							vec![("event", part_added_event)]
-						},
+						// Text and reasoning items are opened by their first delta.
+						_ => vec![],
 					}
 				},
 				bedrock::ConverseStreamOutput::ContentBlockDelta(delta) => {
@@ -3472,46 +3466,104 @@ pub mod from_responses {
 						match d {
 							bedrock::ContentBlockDelta::Text(delta) => {
 								text.push_str(&delta);
+								let output_index = *message_output_index.get_or_insert_with(|| {
+									let output_index = next_output_index;
+									next_output_index += 1;
+									sequence_number += 1;
+									out.push((
+										"event",
+										ResponseStreamEvent::ResponseOutputItemAdded(ResponseOutputItemAddedEvent {
+											sequence_number,
+											output_index,
+											item: OutputItem::Message(OutputMessage {
+												content: Vec::new(),
+												id: message_item_id.clone(),
+												role: AssistantRole::Assistant,
+												phase: None,
+												status: OutputStatus::InProgress,
+											}),
+										}),
+									));
+									sequence_number += 1;
+									out.push((
+										"event",
+										ResponseStreamEvent::ResponseContentPartAdded(ResponseContentPartAddedEvent {
+											sequence_number,
+											item_id: message_item_id.clone(),
+											output_index,
+											content_index: 0,
+											part: make_output_part(String::new()),
+										}),
+									));
+									output_index
+								});
 								sequence_number += 1;
 								let delta_event =
 									ResponseStreamEvent::ResponseOutputTextDelta(ResponseTextDeltaEvent {
 										sequence_number,
 										item_id: message_item_id.clone(),
-										output_index: 0,
+										output_index,
 										content_index: 0,
 										delta,
 										logprobs: None,
 									});
 								out.push(("event", delta_event));
 							},
-							bedrock::ContentBlockDelta::ReasoningContent(rc) => match rc {
-								bedrock::ReasoningContentBlockDelta::Text(t) => {
-									sequence_number += 1;
-									let delta_event =
-										ResponseStreamEvent::ResponseOutputTextDelta(ResponseTextDeltaEvent {
-											sequence_number,
-											item_id: message_item_id.clone(),
-											output_index: 0,
-											content_index: 0,
-											delta: t,
-											logprobs: None,
+							bedrock::ContentBlockDelta::ReasoningContent(rc) => {
+								let (item_id, output_index, reasoning_text, signature, redacted_content) =
+									reasoning_blocks
+										.entry(delta.content_block_index)
+										.or_insert_with(|| {
+											let item_id = format!("rs_{:016x}", rand::rng().random::<u64>());
+											let output_index = next_output_index;
+											next_output_index += 1;
+											sequence_number += 1;
+											out.push((
+												"event",
+												ResponseStreamEvent::ResponseOutputItemAdded(
+													ResponseOutputItemAddedEvent {
+														sequence_number,
+														output_index,
+														item: OutputItem::Reasoning(ReasoningItem {
+															id: Some(item_id.clone()),
+															summary: vec![],
+															content: None,
+															encrypted_content: None,
+															status: Some(OutputStatus::InProgress),
+														}),
+													},
+												),
+											));
+											(
+												item_id,
+												output_index,
+												String::new(),
+												String::new(),
+												Vec::new(),
+											)
 										});
-									out.push(("event", delta_event));
-								},
-								bedrock::ReasoningContentBlockDelta::RedactedContent(_) => {
-									sequence_number += 1;
-									let delta_event =
-										ResponseStreamEvent::ResponseOutputTextDelta(ResponseTextDeltaEvent {
-											sequence_number,
-											item_id: message_item_id.clone(),
-											output_index: 0,
-											content_index: 0,
-											delta: "[REDACTED]".to_string(),
-											logprobs: None,
-										});
-									out.push(("event", delta_event));
-								},
-								_ => {},
+								match rc {
+									bedrock::ReasoningContentBlockDelta::Text(t) => {
+										reasoning_text.push_str(&t);
+										sequence_number += 1;
+										let delta_event = ResponseStreamEvent::ResponseReasoningTextDelta(
+											ResponseReasoningTextDeltaEvent {
+												sequence_number,
+												item_id: item_id.clone(),
+												output_index: *output_index,
+												content_index: 0,
+												delta: t,
+											},
+										);
+										out.push(("event", delta_event));
+									},
+									// Signatures and redacted content are only exposed once complete, on the item done event.
+									bedrock::ReasoningContentBlockDelta::Signature(sig) => signature.push_str(&sig),
+									bedrock::ReasoningContentBlockDelta::RedactedContent(data) => {
+										redacted_content.extend(data);
+									},
+									bedrock::ReasoningContentBlockDelta::Unknown => {},
+								}
 							},
 							bedrock::ContentBlockDelta::ToolUse(tu) => {
 								logged_tool_calls.append_arguments(delta.content_block_index as usize, &tu.input);
@@ -3539,7 +3591,6 @@ pub mod from_responses {
 				},
 				bedrock::ConverseStreamOutput::ContentBlockStop(stop) => {
 					let mut events: Vec<(&'static str, ResponseStreamEvent)> = Vec::new();
-					let was_tracked = seen_blocks.remove(&stop.content_block_index);
 
 					if let Some((item_id, name, buffer, output_index)) =
 						tool_calls.remove(&stop.content_block_index)
@@ -3566,7 +3617,7 @@ pub mod from_responses {
 							status: Some(OutputStatus::Completed),
 							r#async: None,
 						});
-						completed_tools.push((output_index, item.clone()));
+						completed_items.push((output_index, item.clone()));
 						sequence_number += 1;
 						let item_done_event =
 							ResponseStreamEvent::ResponseOutputItemDone(ResponseOutputItemDoneEvent {
@@ -3575,17 +3626,53 @@ pub mod from_responses {
 								item,
 							});
 						events.push(("event", item_done_event));
-					} else if was_tracked {
+					} else if let Some((item_id, output_index, reasoning_text, signature, redacted_content)) =
+						reasoning_blocks.remove(&stop.content_block_index)
+					{
+						if !reasoning_text.is_empty() {
+							sequence_number += 1;
+							let text_done_event =
+								ResponseStreamEvent::ResponseReasoningTextDone(ResponseReasoningTextDoneEvent {
+									sequence_number,
+									item_id: item_id.clone(),
+									output_index,
+									content_index: 0,
+									text: reasoning_text.clone(),
+								});
+							events.push(("event", text_done_event));
+						}
+						// encrypted_content carries the redacted content, or the signature alongside visible text.
+						let (content, encrypted_content) = if redacted_content.is_empty() {
+							(
+								Some(vec![ReasoningItemContent::ReasoningText(
+									ReasoningTextContent {
+										text: reasoning_text,
+									},
+								)]),
+								(!signature.is_empty()).then_some(signature),
+							)
+						} else {
+							(
+								None,
+								Some(base64::prelude::BASE64_STANDARD.encode(redacted_content)),
+							)
+						};
+						let item = OutputItem::Reasoning(ReasoningItem {
+							id: Some(item_id),
+							summary: vec![],
+							content,
+							encrypted_content,
+							status: Some(OutputStatus::Completed),
+						});
+						completed_items.push((output_index, item.clone()));
 						sequence_number += 1;
-						let part_done_event =
-							ResponseStreamEvent::ResponseContentPartDone(ResponseContentPartDoneEvent {
+						let item_done_event =
+							ResponseStreamEvent::ResponseOutputItemDone(ResponseOutputItemDoneEvent {
 								sequence_number,
-								item_id: message_item_id.clone(),
-								output_index: 0,
-								content_index: 0,
-								part: make_output_part(text.clone()),
+								output_index,
+								item,
 							});
-						events.push(("event", part_done_event));
+						events.push(("event", item_done_event));
 					}
 
 					events
@@ -3615,39 +3702,43 @@ pub mod from_responses {
 						.map(responses_output_status)
 						.unwrap_or(OutputStatus::Completed);
 
-					let content = if text.is_empty() {
-						vec![]
-					} else {
-						vec![responses::OutputMessageContent::OutputText(
-							OutputTextContent {
-								annotations: vec![],
-								logprobs: None,
-								text: text.clone(),
-							},
-						)]
-					};
+					if let Some(output_index) = message_output_index {
+						sequence_number += 1;
+						let part_done_event =
+							ResponseStreamEvent::ResponseContentPartDone(ResponseContentPartDoneEvent {
+								sequence_number,
+								item_id: message_item_id.clone(),
+								output_index,
+								content_index: 0,
+								part: make_output_part(text.clone()),
+							});
+						out.push(("event", part_done_event));
 
-					let item = OutputItem::Message(OutputMessage {
-						content,
-						id: message_item_id.clone(),
-						role: AssistantRole::Assistant,
-						phase: None,
-						status: output_status,
-					});
-					let mut output = Vec::new();
-					if !text.is_empty() {
-						output.push(item.clone());
-					}
-					sequence_number += 1;
-					let message_done_event =
-						ResponseStreamEvent::ResponseOutputItemDone(ResponseOutputItemDoneEvent {
-							sequence_number,
-							output_index: 0,
-							item,
+						let item = OutputItem::Message(OutputMessage {
+							content: vec![responses::OutputMessageContent::OutputText(
+								OutputTextContent {
+									annotations: vec![],
+									logprobs: None,
+									text: text.clone(),
+								},
+							)],
+							id: message_item_id.clone(),
+							role: AssistantRole::Assistant,
+							phase: None,
+							status: output_status,
 						});
-					completed_tools.sort_by_key(|(index, _)| *index);
-					output.extend(completed_tools.drain(..).map(|(_, item)| item));
-					out.push(("event", message_done_event));
+						completed_items.push((output_index, item.clone()));
+						sequence_number += 1;
+						let message_done_event =
+							ResponseStreamEvent::ResponseOutputItemDone(ResponseOutputItemDoneEvent {
+								sequence_number,
+								output_index,
+								item,
+							});
+						out.push(("event", message_done_event));
+					}
+					completed_items.sort_by_key(|(index, _)| *index);
+					let output: Vec<_> = completed_items.drain(..).map(|(_, item)| item).collect();
 
 					let response_status = match stop.as_ref() {
 						Some(bedrock::StopReason::EndTurn)
@@ -4352,9 +4443,11 @@ impl ConverseResponseAdapter {
 				},
 				bedrock::ContentBlock::ReasoningContent(reasoning) => {
 					let (text, encrypted_content) = match reasoning {
-						bedrock::ReasoningContentBlock::Structured { reasoning_text } => {
-							(Some(reasoning_text.text.clone()), None)
-						},
+						// The signature rides in encrypted_content so it can be replayed on the next turn.
+						bedrock::ReasoningContentBlock::Structured { reasoning_text } => (
+							Some(reasoning_text.text.clone()),
+							reasoning_text.signature.clone(),
+						),
 						bedrock::ReasoningContentBlock::Redacted { redacted_content } => {
 							(None, Some(redacted_content.clone()))
 						},
