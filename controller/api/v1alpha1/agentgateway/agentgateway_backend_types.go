@@ -390,6 +390,9 @@ const (
 
 	// ProviderFormatDecisions is the OpenAI decisions API.
 	ProviderFormatDecisions ProviderFormat = "Decisions"
+
+	// ProviderFormatSystemOne is the TypeSafe SystemOne API.
+	ProviderFormatSystemOne ProviderFormat = "SystemOne"
 )
 
 // Settings for the [OpenAI](https://developers.openai.com/api/docs/guides/streaming-responses) LLM provider.

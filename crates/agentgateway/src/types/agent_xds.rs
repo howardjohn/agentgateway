@@ -119,6 +119,7 @@ fn provider_preset_from_proto(
 		ProviderPreset::Fireworks => Ok(llm::custom::ProviderPreset::Fireworks),
 		ProviderPreset::Meta => Ok(llm::custom::ProviderPreset::Meta),
 		ProviderPreset::Perplexity => Ok(llm::custom::ProviderPreset::Perplexity),
+		ProviderPreset::Typesafe => Ok(llm::custom::ProviderPreset::Typesafe),
 		ProviderPreset::Unspecified => Err(ProtoError::Generic(format!(
 			"AI backend provider at index {provider_idx} requires a provider preset"
 		))),
@@ -886,6 +887,7 @@ fn convert_provider_format(
 		Ok(ProtoFormat::Realtime) => Ok(llm::custom::ProviderFormat::Realtime),
 		Ok(ProtoFormat::Rerank) => Ok(llm::custom::ProviderFormat::Rerank),
 		Ok(ProtoFormat::Decisions) => Ok(llm::custom::ProviderFormat::Decisions),
+		Ok(ProtoFormat::SystemOne) => Ok(llm::custom::ProviderFormat::SystemOne),
 		Err(_) => Err(ProtoError::Generic(format!(
 			"AI backend custom provider at index {provider_idx} has unknown supported format value {proto_format}"
 		))),

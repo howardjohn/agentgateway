@@ -327,6 +327,7 @@ spec:
                                           - Realtime
                                           - Rerank
                                           - Responses
+                                          - SystemOne
                                           type: string
                                       required:
                                       - type
@@ -7562,6 +7563,7 @@ spec:
                                   - Realtime
                                   - Rerank
                                   - Responses
+                                  - SystemOne
                                   type: string
                               required:
                               - type
