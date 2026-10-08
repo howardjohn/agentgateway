@@ -2605,12 +2605,13 @@ impl AIProvider {
 			}
 
 			let mut llm_resp = resp.to_llm_response(log_content);
-			if matches!(self, AIProvider::Bedrock(_)) {
-				llm_resp.service_tier = parts
+			if matches!(self, AIProvider::Bedrock(_))
+				&& let Some(tier) = parts
 					.headers
 					.get("x-amzn-bedrock-service-tier")
 					.and_then(|value| value.to_str().ok())
-					.map(strng::new);
+			{
+				llm_resp.service_tier = Some(strng::new(tier));
 			}
 			let body = resp.serialize().map_err(AIError::ResponseParsing)?;
 			(llm_resp, Bytes::copy_from_slice(&body))
@@ -2997,12 +2998,13 @@ impl AIProvider {
 			request: req,
 			response: LLMResponse::default(),
 		};
-		if matches!(self, AIProvider::Bedrock(_)) {
-			llmresp.response.service_tier = resp
+		if matches!(self, AIProvider::Bedrock(_))
+			&& let Some(tier) = resp
 				.headers()
 				.get("x-amzn-bedrock-service-tier")
 				.and_then(|value| value.to_str().ok())
-				.map(strng::new);
+		{
+			llmresp.response.service_tier = Some(strng::new(tier));
 		}
 		log.store(Some(llmresp));
 		let buffer = http::response_buffer_limit(&resp);

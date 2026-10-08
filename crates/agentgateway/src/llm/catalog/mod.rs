@@ -14,7 +14,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, warn};
 
 use super::{
-	CacheTokenConvention, LLMInfo, LLMResponse, Provider, anthropic, bedrock, gemini, openai, vertex,
+	CacheTokenConvention, LLMInfo, LLMResponse, Provider, anthropic, azure, bedrock, gemini, openai,
+	vertex,
 };
 use crate::{ModelCatalogSource, apply, schema};
 
@@ -38,10 +39,11 @@ impl PricingTier {
 	pub fn detect(provider: &str, service_tier: &str) -> Option<Self> {
 		let tier = match (provider, service_tier) {
 			// https://docs.cloud.google.com/gemini-enterprise-agent-platform/reference/rest/v1/GenerateContentResponse#TrafficType
+			// Anthropic models on Vertex report Anthropic service tiers.
 			(provider, tier) if provider == vertex::Provider::NAME.as_str() => match tier {
-				"ON_DEMAND" => Self::Standard,
+				"ON_DEMAND" | "standard" => Self::Standard,
 				"ON_DEMAND_FLEX" => Self::Flex,
-				"ON_DEMAND_PRIORITY" => Self::Priority,
+				"ON_DEMAND_PRIORITY" | "priority" => Self::Priority,
 				"PROVISIONED_THROUGHPUT" => Self::Reserved,
 				_ => return None,
 			},
@@ -55,12 +57,17 @@ impl PricingTier {
 			// https://developers.openai.com/api/docs/guides/fast-mode
 			// https://developers.openai.com/api/docs/guides/flex-processing
 			// https://openai.com/api-scale-tier/
-			(provider, tier) if provider == openai::Provider::NAME.as_str() => match tier {
-				"default" => Self::Standard,
-				"flex" => Self::Flex,
-				"fast" | "priority" => Self::Priority,
-				"scale" => Self::Reserved,
-				_ => return None,
+			(provider, tier)
+				if provider == openai::Provider::NAME.as_str()
+					|| provider == azure::Provider::NAME.as_str() =>
+			{
+				match tier {
+					"default" => Self::Standard,
+					"flex" => Self::Flex,
+					"fast" | "priority" => Self::Priority,
+					"scale" => Self::Reserved,
+					_ => return None,
+				}
 			},
 			// https://platform.claude.com/docs/en/api/service-tiers
 			(provider, tier) if provider == anthropic::Provider::NAME.as_str() => match tier {
@@ -69,8 +76,9 @@ impl PricingTier {
 				_ => return None,
 			},
 			// https://docs.aws.amazon.com/bedrock/latest/userguide/service-tiers-inference.html
+			// Anthropic models on Bedrock may report Anthropic service tiers.
 			(provider, tier) if provider == bedrock::Provider::NAME.as_str() => match tier {
-				"default" => Self::Standard,
+				"default" | "standard" => Self::Standard,
 				"flex" => Self::Flex,
 				"priority" => Self::Priority,
 				"reserved" => Self::Reserved,
