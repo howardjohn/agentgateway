@@ -2003,8 +2003,7 @@ impl AIProvider {
 		);
 		if use_local {
 			let messages = req.get_messages();
-			let model = req.model.as_deref().unwrap_or_default();
-			let count = num_tokens_from_messages(model, &messages)?;
+			let count = num_tokens_from_messages(&messages);
 			let body = serde_json::to_vec(&types::count_tokens::Response {
 				input_tokens: count,
 			})

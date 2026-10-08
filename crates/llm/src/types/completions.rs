@@ -433,7 +433,7 @@ impl super::RequestType for Request {
 		let model = strng::new(self.model.as_deref().unwrap_or_default());
 		let input_tokens = if tokenize {
 			let messages = self.get_messages();
-			let tokens = crate::tokenizer::num_tokens_from_messages(&model, &messages)?;
+			let tokens = crate::tokenizer::num_tokens_from_messages(&messages);
 			Some(tokens)
 		} else {
 			None
