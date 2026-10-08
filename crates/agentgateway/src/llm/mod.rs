@@ -1307,7 +1307,14 @@ impl AIProvider {
 							.as_ref()
 							.map(|pq| pq.path())
 							.unwrap_or("/");
-						let new_path = match self.default_base_path() {
+						let prefix = prefix.trim_end_matches('/');
+						let default_base_path = match self {
+							// Clients call custom providers with the gateway's OpenAI-style `/v1` paths,
+							// which a base URL path (e.g. Groq's /openai/v1) replaces, as on other routes.
+							AIProvider::Custom(_) if !prefix.is_empty() => Some(openai::DEFAULT_BASE_PATH),
+							_ => self.default_base_path(),
+						};
+						let new_path = match default_base_path {
 							// For providers with a default base path (e.g. /v1), strip it so
 							// that pathPrefix replaces it — consistent with non-passthrough routes.
 							// If the path doesn't start with the default base, still apply
@@ -1317,11 +1324,11 @@ impl AIProvider {
 									.strip_prefix(base)
 									.filter(|rest| rest.is_empty() || rest.starts_with('/'))
 									.unwrap_or(current);
-								format!("{}{}", prefix.trim_end_matches('/'), rest)
+								format!("{prefix}{rest}")
 							},
 							// For other providers, pathPrefix is prepended to the full path,
 							// consistent with with_path_prefix used in their non-passthrough code.
-							None => format!("{}{}", prefix.trim_end_matches('/'), current),
+							None => format!("{prefix}{current}"),
 						};
 						Self::set_path_and_query(uri, &new_path)?;
 						Ok(())
