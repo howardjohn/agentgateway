@@ -273,11 +273,22 @@ impl<'a> VariableResolver<'a> for CustomResolver<'a, '_> {
 	}
 
 	fn resolve_member(&self, expr: &str, member: &str) -> Option<Value<'a>> {
+		if self.masked().any(|m| m == expr) {
+			return None;
+		}
 		self.base.resolve_member(expr, member)
 	}
 
-	fn resolve_direct(&self, field: &cel::common::ast::OptimizedExpr) -> Option<Option<Value<'a>>> {
-		self.base.resolve_direct(field)
+	// resolve_direct is intentionally not forwarded: optimized expressions may reference a variable
+	// this resolver masks.
+}
+
+impl CustomResolver<'_, '_> {
+	/// Variable names shadowed by this resolver.
+	fn masked(&self) -> impl Iterator<Item = &str> {
+		std::iter::once("this")
+			.chain(self.params.iter().map(String::as_str))
+			.chain(self.variadic)
 	}
 }
 
