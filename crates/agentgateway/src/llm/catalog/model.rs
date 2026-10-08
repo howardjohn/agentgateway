@@ -59,16 +59,22 @@ impl Catalog {
 			reject_unknown(&"metadata", &metadata.unknown)?;
 		}
 		for (provider, entry) in &self.providers {
-			reject_unknown(pid, &p.unknown)?;
+			reject_unknown(provider, &entry.unknown)?;
 			for (model, pricing) in &entry.models {
-				reject_unknown(&format_args!("{pid}/{mid}"), &m.unknown)?;
-				reject_unknown(&format_args!("{pid}/{mid} rates"), &m.rates.unknown)?;
+				reject_unknown(&format_args!("{provider}/{model}"), &pricing.unknown)?;
+				reject_unknown(
+					&format_args!("{provider}/{model} rates"),
+					&pricing.rates.unknown,
+				)?;
 				let mut previous = BTreeMap::new();
 				for (index, tier) in pricing.tiers.iter().enumerate() {
-					reject_unknown(&format_args!("{pid}/{mid} tier {i}"), &t.unknown)?;
 					reject_unknown(
-						&format_args!("{pid}/{mid} tier {i} rates"),
-						&t.rates.unknown,
+						&format_args!("{provider}/{model} tier {index}"),
+						&tier.unknown,
+					)?;
+					reject_unknown(
+						&format_args!("{provider}/{model} tier {index} rates"),
+						&tier.rates.unknown,
 					)?;
 					if let Some(prior) = previous.insert(tier.service_tier, tier.context_over)
 						&& tier.context_over <= prior
@@ -380,23 +386,19 @@ impl Model {
 	}
 
 	pub(super) fn effective_rates(&self, context_tokens: u64, service_tier: PricingTier) -> Rates {
-		let context_matches = |tier: &&Tier| context_tokens > tier.context_over;
-		let selected = self
-			.tiers
-			.iter()
-			.rev()
-			.find(|tier| tier.service_tier == Some(service_tier) && context_matches(tier))
-			.or_else(|| {
-				self
-					.tiers
-					.iter()
-					.rev()
-					.find(|tier| tier.service_tier.is_none() && context_matches(tier))
-			});
-		match selected {
-			Some(tier) => self.rates.overlay(&tier.rates),
-			None => self.rates.clone(),
-		}
+		let select = |service_tier: Option<PricingTier>| {
+			self
+				.tiers
+				.iter()
+				.rev()
+				.find(|tier| tier.service_tier == service_tier && context_tokens > tier.context_over)
+		};
+		// Service-tier rates overlay the context tier, so components a service tier omits use the
+		// context-appropriate standard rate.
+		[select(None), select(Some(service_tier))]
+			.into_iter()
+			.flatten()
+			.fold(self.rates.clone(), |rates, tier| rates.overlay(&tier.rates))
 	}
 }
 
@@ -573,7 +575,7 @@ mod tests {
 			"rates":{"input":"1","future":"2"},
 			"tiers":[
 				{"contextOver":100,"rates":{"input":"3","future":"4"}},
-				{"contextOver":100,"serviceTier":"priority","rates":{"input":"5"}}
+				{"contextOver":100,"region":"us","rates":{"input":"5"}}
 			]}}}}}"#;
 		assert!(from_json(json).is_err());
 		let mut catalog: Catalog = serde_json::from_str(json).unwrap();

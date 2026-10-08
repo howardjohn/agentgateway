@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generatedAt": "2026-10-08T19:40:13Z"
+    "generatedAt": "2026-10-08T19:52:25Z"
   },
   "providers": {
     "anthropic": {
@@ -5907,28 +5907,6 @@
             }
           ]
         },
-        "gemini-3.1-flash-lite-image": {
-          "tiers": [
-            {
-              "serviceTier": "priority",
-              "rates": {
-                "input": "0.45",
-                "output": "2.70",
-                "cacheRead": "0.045",
-                "reasoning": "2.70"
-              }
-            },
-            {
-              "serviceTier": "flex",
-              "rates": {
-                "input": "0.125",
-                "output": "0.75",
-                "cacheRead": "0.0125",
-                "reasoning": "0.75"
-              }
-            }
-          ]
-        },
         "gemini-3.1-pro-preview": {
           "rates": {
             "input": "2",
@@ -6152,30 +6130,6 @@
             }
           ]
         },
-        "gemini-3.8-flash-cyber": {
-          "tiers": [
-            {
-              "serviceTier": "priority",
-              "rates": {
-                "input": "2.70",
-                "output": "13.50",
-                "cacheRead": "0.27",
-                "reasoning": "13.50",
-                "inputAudio": "2.70"
-              }
-            },
-            {
-              "serviceTier": "flex",
-              "rates": {
-                "input": "0.75",
-                "output": "3.75",
-                "cacheRead": "0.075",
-                "reasoning": "3.75",
-                "inputAudio": "0.75"
-              }
-            }
-          ]
-        },
         "gemini-embedding-001": {
           "rates": {
             "input": "0.15",
@@ -6197,28 +6151,6 @@
             "cacheRead": "0.025",
             "inputAudio": "0.5"
           }
-        },
-        "gemini-nano-banana-2.1": {
-          "tiers": [
-            {
-              "serviceTier": "priority",
-              "rates": {
-                "input": "2.70",
-                "output": "13.50",
-                "cacheRead": "0.27",
-                "reasoning": "13.50"
-              }
-            },
-            {
-              "serviceTier": "flex",
-              "rates": {
-                "input": "0.75",
-                "output": "3.75",
-                "cacheRead": "0.075",
-                "reasoning": "3.75"
-              }
-            }
-          ]
         },
         "meta/llama-4-maverick-17b-128e-instruct-maas": {
           "rates": {

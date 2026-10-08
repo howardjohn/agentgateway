@@ -38,6 +38,8 @@ type importOptions struct {
 	providers        []string
 	excludeProviders []string
 	legacy           bool
+	// merged holds the output of earlier sources.
+	merged *ModelCatalog
 }
 
 var importSources = map[string]func(ctx context.Context, opts importOptions) (*ModelCatalog, []string, error){}
@@ -111,6 +113,7 @@ func runImport(cmd *cobra.Command, f *importFlags) error {
 			providers:        f.providers,
 			excludeProviders: f.excludeProviders,
 			legacy:           f.legacy,
+			merged:           merged,
 		})
 		if err != nil {
 			return fmt.Errorf("source %q: %w", name, err)
