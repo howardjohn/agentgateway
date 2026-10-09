@@ -1008,8 +1008,9 @@ func processAPIKeyAuthenticationPolicy(
 			dataSets = append(dataSets, apiKeyData{kind: "configMap", name: cm.Name, data: data})
 		}
 	}
+	slices.SortBy(dataSets, func(d apiKeyData) string { return d.name })
 	for _, s := range dataSets {
-		for k, v := range s.data {
+		for k, v := range maps.SeqStable(s.data) {
 			trimmed := bytes.TrimSpace(v)
 			if len(trimmed) == 0 {
 				errs = append(errs, fmt.Errorf("%s %v contains invalid key %v: empty value", s.kind, s.name, k))
@@ -1055,7 +1056,7 @@ func processAPIKeyAuthenticationPolicy(
 		}
 	}
 	// Ensure deterministic ordering
-	slices.SortFunc(p.ApiKeys, func(a, b *api.TrafficPolicySpec_APIKey_User) int {
+	slices.SortStableFunc(p.ApiKeys, func(a, b *api.TrafficPolicySpec_APIKey_User) int {
 		return cmp.Or(
 			cmp.Compare(a.Key, b.Key),
 			cmp.Compare(a.KeyHash, b.KeyHash),

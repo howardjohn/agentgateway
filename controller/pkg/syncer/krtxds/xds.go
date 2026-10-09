@@ -140,7 +140,7 @@ func PerGatewayCollection[T IntoProto[TT], TT proto.Message](collection krt.Coll
 			if extract != nil {
 				forGateway = new(extract(i))
 			}
-			resource := protoconv.MessageToAny(i.IntoProto())
+			resource := protoconv.MessageToAnyDeterministic(i.IntoProto())
 			return &DiscoveryResource{
 				Resource: &discovery.Resource{
 					Name: getKey(i),

@@ -1282,7 +1282,7 @@ func BuildOAuthTokenExchange(ctx PolicyCtx, auth *agentgateway.OAuthTokenExchang
 	additionalParams := castCELMap(auth.AdditionalParams, func(key string, expr agentgateway.CELExpression) {
 		errs = append(errs, fmt.Errorf("oauth additionalParams %q is not a valid CEL expression: %s", key, expr))
 	})
-	for key := range auth.AdditionalParams {
+	for key := range maps.SeqStable(auth.AdditionalParams) {
 		if isOAuthReservedAdditionalParam(key) {
 			errs = append(errs, fmt.Errorf("oauth additionalParams %q overrides a reserved OAuth parameter", key))
 		}
