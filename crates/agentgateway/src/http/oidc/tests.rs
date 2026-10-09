@@ -511,6 +511,13 @@ async fn apply_refreshes_expired_browser_session() {
 	}))
 	.await;
 	let response = &responses[0];
+	assert_eq!(
+		response
+			.response_headers
+			.as_ref()
+			.expect("refreshed session headers")[header::CACHE_CONTROL],
+		"no-store"
+	);
 	for other in &responses[1..] {
 		assert_eq!(other.response_headers, response.response_headers);
 	}
