@@ -825,6 +825,64 @@ async fn apply_returns_unauthorized_for_fetch_requests() {
 }
 
 #[tokio::test]
+async fn apply_bearer_credentials() {
+	let id_token = signed_id_token(TEST_NONCE);
+	for (name, credentials, bearer, authenticated) in [
+		(
+			"session ignores bearer",
+			OidcCredentials::Session,
+			Some(id_token.as_str()),
+			false,
+		),
+		(
+			"valid bearer",
+			OidcCredentials::SessionOrBearer,
+			Some(id_token.as_str()),
+			true,
+		),
+		(
+			"invalid bearer",
+			OidcCredentials::SessionOrBearer,
+			Some("not-a-jwt"),
+			false,
+		),
+		(
+			"missing bearer",
+			OidcCredentials::SessionOrBearer,
+			None,
+			false,
+		),
+	] {
+		let mut policy = test_policy();
+		policy.credentials = credentials;
+		let mut req = request(Method::GET, "https://app.example.com/private", None);
+		req
+			.headers_mut()
+			.insert("sec-fetch-mode", "cors".parse().unwrap());
+		if let Some(bearer) = bearer {
+			req.headers_mut().insert(
+				header::AUTHORIZATION,
+				format!("bearer {bearer}").parse().unwrap(),
+			);
+		}
+
+		let result = test_helpers::test_policy(&policy, &mut req).await;
+		if authenticated {
+			assert!(result.expect(name).direct_response.is_none(), "{name}");
+			let claims = req.extensions().get::<jwt::Claims>().expect(name);
+			assert_eq!(claims.inner.get("sub"), Some(&json!("user-1")), "{name}");
+			assert!(req.headers().get(header::AUTHORIZATION).is_none(), "{name}");
+		} else {
+			let err = result.expect_err(name).downcast();
+			assert!(
+				matches!(&err, ProxyError::OidcFailure(Error::AuthenticationRequired)),
+				"{name}"
+			);
+		}
+	}
+}
+
+#[tokio::test]
 async fn apply_bypasses_cors_preflight_requests() {
 	let policy = test_policy();
 	let mut req = request(Method::OPTIONS, "https://app.example.com/private", None);

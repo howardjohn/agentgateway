@@ -236,18 +236,23 @@ impl OidcPolicy {
 			return Ok(PolicyResponse::default());
 		}
 
+		let bearer = crate::http::auth::AuthorizationLocation::bearer_header();
 		if self.credentials == OidcCredentials::SessionOrBearer
-			&& let Some(token) = req
-				.headers()
-				.get(header::AUTHORIZATION)
-				.and_then(|v| v.to_str().ok())
-				.and_then(|v| v.strip_prefix("Bearer "))
-			&& let Ok(claims) = self.provider.id_token_validator.validate_claims(token)
+			&& let Some(token) = bearer.extract(req)
 		{
+			let claims = self
+				.provider
+				.id_token_validator
+				.validate_claims(&token)
+				.map_err(|e| {
+					debug!(error=%e, "rejected invalid bearer id token");
+					Error::AuthenticationRequired
+				})?;
 			if let Some(Value::String(sub)) = claims.inner.get("sub") {
 				log.jwt_sub = Some(sub.clone());
 			}
 			req.extensions_mut().insert(claims);
+			bearer.remove(req).map_err(|e| Error::Http(e.into()))?;
 			return Ok(PolicyResponse::default());
 		}
 
