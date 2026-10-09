@@ -98,15 +98,26 @@ fn classify_request_protocol(req: &Request, backend: &Backend) -> RequestProtoco
 }
 
 async fn set_mcp_cel_context(req: &mut Request, backend: &McpBackend) {
-	let Ok(http::BodyInspection::Complete(body)) = http::inspect_body(req).await else {
-		return;
-	};
-	let Ok(message) = serde_json::from_slice::<rmcp::model::ClientJsonRpcMessage>(&body) else {
-		return;
+	// Clear first so a failed parse below leaves no MCP context rather than a stale one.
+	req.extensions_mut().remove::<mcp::MCPInfo>();
+	// CachedRequest is cleared when the body is replaced, so a hit means the body is unchanged.
+	let message = match req.body().extension::<mcp::CachedRequest>() {
+		Some(cached) => cached.0.clone(),
+		None => {
+			let Ok(http::BodyInspection::Complete(body)) = http::inspect_body(req).await else {
+				return;
+			};
+			let Ok(message) = serde_json::from_slice::<rmcp::model::ClientJsonRpcMessage>(&body) else {
+				return;
+			};
+			req
+				.body_mut()
+				.insert_extension(mcp::CachedRequest(message.clone()));
+			message
+		},
 	};
 	let info = mcp::MCPInfo::from_request(req.headers(), &message, backend);
 	req.extensions_mut().insert(info);
-	req.body_mut().insert_extension(mcp::CachedRequest(message));
 }
 
 fn select_route_chain(
@@ -1097,12 +1108,10 @@ impl HTTPProxy {
 			Some(route_path.clone()),
 		));
 		backend_policies.register_cel_expressions(log.cel.ctx());
-		// Backend-policy expressions are registered only after route policies run, so they may
-		// introduce an MCP dependency that was not known at the earlier parsing point. Avoid
-		// parsing again when a route-policy expression already required MCP context.
+		// Backend-policy expressions are registered only after route policies run. Refresh MCPInfo
+		// from the current headers and body; an unchanged body reuses its cached parsed message.
 		if request_protocol == RequestProtocol::Mcp
 			&& log.cel.ctx().needs_mcp()
-			&& req.extensions().get::<mcp::MCPInfo>().is_none()
 			&& let Backend::MCP(_, backend) = &selected_backend.backend.backend
 		{
 			set_mcp_cel_context(&mut req, backend).await;

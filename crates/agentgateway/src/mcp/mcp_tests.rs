@@ -7069,11 +7069,23 @@ async fn mcp_local_ratelimit() {
 }
 
 #[tokio::test]
-async fn mcp_cached_request_reparsed_after_body_transformation() {
+async fn mcp_context_refreshed_after_body_transformation() {
 	let mock = mock_streamable_http_server(true).await;
+	let deny_increment = crate::types::agent::Authorization(Arc::new(RuleSet::new(PolicySet::new(
+		vec![],
+		vec![Arc::new(
+			cel::Expression::new_strict(r#"mcp.tool.name == "increment""#).unwrap(),
+		)],
+		vec![],
+	))));
 	let mut t = setup_proxy_test("{}")
 		.unwrap()
-		.with_mcp_backend(mock.addr, true, false)
+		.with_mcp_backend_policies(
+			mock.addr,
+			true,
+			false,
+			vec![BackendTrafficPolicy::Authorization(deny_increment)],
+		)
 		.with_bind(simple_bind())
 		.with_route(basic_route(mock.addr));
 
@@ -7087,8 +7099,8 @@ async fn mcp_cached_request_reparsed_after_body_transformation() {
 						"id": json(request.body).id,
 						"method": "tools/call",
 						"params": {
-							"name": mcp.tool.name,
-							"arguments": {"after": true}
+							"name": "increment",
+							"arguments": {}
 						}
 					}"#
 				}
@@ -7099,21 +7111,27 @@ async fn mcp_cached_request_reparsed_after_body_transformation() {
 
 	let io = t.serve_real_listener(BIND_KEY).await;
 	let client = mcp_streamable_client(io).await;
-	let result = client
-		.call_tool(
-			rmcp::model::CallToolRequestParams::new("echo").with_arguments(
-				serde_json::json!({"before": true})
-					.as_object()
-					.cloned()
-					.unwrap(),
-			),
-		)
-		.await
-		.expect("transformed tool call should succeed");
 
-	assert_eq!(
-		&result.content[0].as_text().unwrap().text,
-		r#"{"after":true}"#
+	assert!(
+		client
+			.call_tool(rmcp::model::CallToolRequestParams::new("increment"))
+			.await
+			.is_err(),
+		"direct increment should be denied"
+	);
+	assert!(
+		client
+			.call_tool(
+				rmcp::model::CallToolRequestParams::new("echo").with_arguments(
+					serde_json::json!({"before": true})
+						.as_object()
+						.cloned()
+						.unwrap(),
+				),
+			)
+			.await
+			.is_err(),
+		"echo transformed into increment should also be denied"
 	);
 }
 
