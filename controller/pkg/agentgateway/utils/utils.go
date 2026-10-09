@@ -60,6 +60,12 @@ func InternalBackendKey(backendNamespace, backendName, targetName string) string
 	return name
 }
 
+// InternalTypedBackendKey returns the internal key for a backend Kubernetes resource whose
+// group and kind must be retained to distinguish it from other backend resource types.
+func InternalTypedBackendKey(group, kind, namespace, name string) string {
+	return group + "/" + kind + "/" + namespace + "/" + name
+}
+
 func ListenerName(namespace, name, listener string, listenerSet *api.ResourceName) *api.ListenerName {
 	return &api.ListenerName{
 		GatewayName:      name,

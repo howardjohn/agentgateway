@@ -27,7 +27,7 @@ output:
       inlinePolicies:
       - backendTls:
           hostname: mcp.example.com
-      key: default/external-mcp
+      key: gateway.networking.x-k8s.io/XBackend/default/external-mcp
       mcp:
         targets:
         - backend:
