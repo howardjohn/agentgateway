@@ -394,7 +394,9 @@ func resolveXBackend(
 			Message: fmt.Sprintf("XBackend %s must be an ExternalHostname backend", key),
 		}
 	}
-	return &api.BackendReference{Kind: &api.BackendReference_Backend{Backend: key}}, nil
+	return &api.BackendReference{Kind: &api.BackendReference_Backend{Backend: utils.InternalTypedBackendKey(
+		wellknown.XBackendGVK.Group, wellknown.XBackendGVK.Kind, namespace, string(name),
+	)}}, nil
 }
 
 type RouteAttachment struct {

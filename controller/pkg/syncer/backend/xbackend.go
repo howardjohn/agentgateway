@@ -77,7 +77,7 @@ func buildXBackend(
 	}
 	if backend.Spec.Protocol != nil && *backend.Spec.Protocol == gwxv1a1.BackendProtocolMCP {
 		return &api.Backend{
-			Key:  backend.Namespace + "/" + backend.Name,
+			Key:  utils.InternalTypedBackendKey(wellknown.XBackendGVK.Group, wellknown.XBackendGVK.Kind, backend.Namespace, backend.Name),
 			Name: plugins.ResourceName(backend),
 			Kind: &api.Backend_Mcp{Mcp: &api.MCPBackend{
 				Targets: []*api.MCPTarget{{
@@ -100,7 +100,7 @@ func buildXBackend(
 	}
 
 	return &api.Backend{
-		Key:  backend.Namespace + "/" + backend.Name,
+		Key:  utils.InternalTypedBackendKey(wellknown.XBackendGVK.Group, wellknown.XBackendGVK.Kind, backend.Namespace, backend.Name),
 		Name: plugins.ResourceName(backend),
 		Kind: &api.Backend_Static{Static: &api.StaticBackend{
 			Host: string(backend.Spec.ExternalHostname.Hostname),
