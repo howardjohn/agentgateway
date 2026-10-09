@@ -25,7 +25,7 @@ impl PhoneRecognizer {
 impl Recognizer for PhoneRecognizer {
 	fn recognize(&self, text: &str) -> Vec<RecognizerResult> {
 		static CANDIDATE_RE: Lazy<Regex> =
-			Lazy::new(|| Regex::new(r"(?i)(^|[^0-9])([+()]?[0-9][0-9\t\p{Zs}().\-+]{6,})").unwrap());
+			Lazy::new(|| Regex::new(r"(?i)(^|[^0-9])([+()]?[0-9][0-9\t\p{Zs}().\-+]{6,255})").unwrap());
 
 		// Map region strings once.
 		fn to_country(code: &str) -> Option<country::Id> {
@@ -105,6 +105,7 @@ fn split_numbers(
 ) -> Vec<RecognizerResult> {
 	static WORD_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\S+").unwrap());
 	const MAX_NUMBER_LEN: usize = 32;
+	const MAX_NUMBER_WORDS: usize = 6;
 
 	let words: Vec<_> = WORD_RE.find_iter(run.as_str()).collect();
 	// maximize digits covered, prefer fewer matches (implying each match is longer)
@@ -112,10 +113,18 @@ fn split_numbers(
 	let mut first_number_from: Vec<Option<(usize, RecognizerResult)>> = vec![None; words.len() + 1];
 	for first in (0..words.len()).rev() {
 		score_from[first] = score_from[first + 1];
-		for last in first..words.len() {
+		for last in first..words.len().min(first + MAX_NUMBER_WORDS) {
 			let span = &run.as_str()[words[first].start()..words[last].end()];
 			if span.len() > MAX_NUMBER_LEN {
 				break;
+			}
+			// skip parsing spans that cannot be valid phone numbers (E.164 allows at most 15 digits)
+			let span_digits = span.chars().filter(|c| c.is_ascii_digit()).count();
+			if span_digits > 15 {
+				break;
+			}
+			if span_digits < 7 {
+				continue;
 			}
 			let Some(number) = parse_span(span, run.start() + words[first].start()) else {
 				continue;
