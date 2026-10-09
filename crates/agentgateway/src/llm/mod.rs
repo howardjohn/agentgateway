@@ -3393,19 +3393,20 @@ fn response_prompt_guard_headers(
 }
 
 fn amend_tokens(rate_limit: store::LLMResponsePolicies, llm_resp: &LLMInfo, exec: Executor) {
+	let to_i64 = |v: u64| i64::try_from(v).unwrap_or(i64::MAX);
 	let input_mismatch = match (
 		llm_resp.request.input_tokens,
 		llm_resp.normalized_input_tokens(),
 	) {
 		// Already counted 'req'
-		(Some(req), Some(resp)) => (resp as i64) - (req as i64),
+		(Some(req), Some(resp)) => to_i64(resp).saturating_sub(to_i64(req)),
 		// No request or response count... this is probably an issue.
 		(_, None) => 0,
 		// No request counted, so count the full response
-		(_, Some(resp)) => resp as i64,
+		(_, Some(resp)) => to_i64(resp),
 	};
 	let response = llm_resp.response.output_tokens.unwrap_or_default();
-	let tokens_to_remove = input_mismatch + (response as i64);
+	let tokens_to_remove = input_mismatch.saturating_add(to_i64(response));
 
 	for lrl in &rate_limit.local_rate_limit {
 		lrl.amend_tokens(tokens_to_remove)
