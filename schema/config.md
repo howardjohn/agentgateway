@@ -1707,6 +1707,7 @@
 |`policies[].target.backend.backend.name`|string||
 |`policies[].target.backend.backend.namespace`|string||
 |`policies[].target.backend.backend.section`|string||
+|`policies[].target.backend.backend.kind`|string||
 |`policies[].target.backend.service`|object||
 |`policies[].target.backend.service.hostname`|string||
 |`policies[].target.backend.service.namespace`|string||

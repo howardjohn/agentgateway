@@ -182,15 +182,25 @@ func RouteTarget[T ~string](namespace, name, kind string, ruleName *T) *api.Poli
 }
 
 func BackendTarget[T ~string](backendNamespace, backendName string, section *T) *api.PolicyTarget_Backend {
-	var ls *string
+	return TypedBackendTarget("", backendNamespace, backendName, section)
+}
+
+// TypedBackendTarget is BackendTarget for backend resources that must be distinguished from other
+// backend resource types sharing the same namespace and name. An empty kind is untyped.
+func TypedBackendTarget[T ~string](kind, backendNamespace, backendName string, section *T) *api.PolicyTarget_Backend {
+	var ls, k *string
 	if section != nil {
 		ls = new((string)(*section))
+	}
+	if kind != "" {
+		k = &kind
 	}
 	return &api.PolicyTarget_Backend{
 		Backend: &api.PolicyTarget_BackendTarget{
 			Name:      backendName,
 			Namespace: backendNamespace,
 			Section:   ls,
+			Kind:      k,
 		},
 	}
 }
