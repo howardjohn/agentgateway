@@ -133,6 +133,7 @@ fn test_oidc_policy() -> super::FilterOrPolicy {
 			scopes: vec![],
 			login: None,
 			logout: None,
+			credentials: Default::default(),
 		}),
 		..Default::default()
 	}

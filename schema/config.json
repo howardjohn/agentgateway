@@ -6767,6 +6767,18 @@
             }
           ],
           "default": null
+        },
+        "credentials": {
+          "description": "Credentials accepted for authentication. Defaults to `session`, or `sessionOrBearer`\nfor `ui.policies.oidc`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OidcCredentials"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "additionalProperties": false,
@@ -6826,6 +6838,21 @@
       "additionalProperties": false,
       "required": [
         "path"
+      ]
+    },
+    "OidcCredentials": {
+      "description": "Credentials an OIDC policy accepts.",
+      "oneOf": [
+        {
+          "description": "Only browser sessions established through the policy's login flow.",
+          "type": "string",
+          "const": "session"
+        },
+        {
+          "description": "Browser sessions, or an ID token for this client sent as `Authorization: Bearer <token>`.\nThis lets non-browser clients authenticate with a token obtained from the provider directly.",
+          "type": "string",
+          "const": "sessionOrBearer"
+        }
       ]
     },
     "LocalBasicAuth": {

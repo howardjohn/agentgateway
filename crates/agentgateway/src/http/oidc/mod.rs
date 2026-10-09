@@ -24,7 +24,7 @@ mod session;
 #[cfg(test)]
 mod tests;
 
-pub use local::{LocalOidcConfig, OidcLogin, OidcLogout};
+pub use local::{LocalOidcConfig, OidcCredentials, OidcLogin, OidcLogout};
 pub use redirect::RedirectUri;
 pub use session::{
 	BrowserSession, CookieSecureMode, RESERVED_COOKIE_PREFIX, RefreshSession, SameSiteMode,
@@ -141,6 +141,7 @@ pub struct OidcPolicy {
 	pub redirect_uri: RedirectUri,
 	pub session: SessionConfig,
 	pub scopes: Vec<String>,
+	pub credentials: OidcCredentials,
 	#[serde(skip)]
 	refresh_cache: refresh::RefreshCache,
 }
@@ -232,6 +233,26 @@ impl OidcPolicy {
 		}
 
 		if is_cors_preflight(req) {
+			return Ok(PolicyResponse::default());
+		}
+
+		let bearer = crate::http::auth::AuthorizationLocation::bearer_header();
+		if self.credentials == OidcCredentials::SessionOrBearer
+			&& let Some(token) = bearer.extract(req)
+		{
+			let claims = self
+				.provider
+				.id_token_validator
+				.validate_claims(&token)
+				.map_err(|e| {
+					debug!(error=%e, "rejected invalid bearer id token");
+					Error::AuthenticationRequired
+				})?;
+			if let Some(Value::String(sub)) = claims.inner.get("sub") {
+				log.jwt_sub = Some(sub.clone());
+			}
+			req.extensions_mut().insert(claims);
+			bearer.remove(req).map_err(|e| Error::Http(e.into()))?;
 			return Ok(PolicyResponse::default());
 		}
 
