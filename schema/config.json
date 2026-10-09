@@ -426,6 +426,11 @@
             "h2KeepaliveTimeout": "5s"
           }
         },
+        "callouts": {
+          "description": "Configuration for calls the gateway makes on its own behalf, such as cloud provider credential\nfetches, JWKS fetches, OIDC discovery, and external authorization.",
+          "$ref": "#/$defs/CalloutConfig",
+          "default": {}
+        },
         "hbone": {
           "description": "HBONE (HTTP/2 CONNECT tunnel) protocol configuration.",
           "anyOf": [
@@ -1173,6 +1178,43 @@
         }
       },
       "additionalProperties": false
+    },
+    "CalloutConfig": {
+      "type": "object",
+      "properties": {
+        "tunnel": {
+          "description": "HTTP proxy to tunnel callouts through. If unset, the `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`,\nand `NO_PROXY` environment variables are used.\nCallouts to backends with their own tunnel policy, Kubernetes services, and loopback or\nlink-local addresses (such as cloud metadata servers) are sent directly.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CalloutTunnel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "CalloutTunnel": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "URL of the proxy, for example `http://proxy.example.com:3128`.",
+          "type": "string"
+        },
+        "noProxy": {
+          "description": "Destinations that bypass the proxy, using `NO_PROXY` syntax: hostnames (matching subdomains),\nIP addresses, CIDRs, or `*`.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "url"
+      ]
     },
     "RawHBONE": {
       "type": "object",

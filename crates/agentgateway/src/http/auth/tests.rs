@@ -563,7 +563,7 @@ async fn test_aws_sign_request_explicit_region() {
 
 	// Should use the explicit region and attempt signing
 	// Will fail on credentials but should not fail on region
-	aws::sign_request(&mut req, &aws_auth)
+	aws::sign_request(&crate::test_helpers::test_client(), &mut req, &aws_auth)
 		.await
 		.expect("signing failed");
 	// Assert on the credential scope rather than the whole header: the signature
@@ -596,7 +596,7 @@ async fn test_aws_sign_request_explicit_region() {
 
 	// Should use the explicit region and attempt signing
 	// Will fail on credentials but should not fail on region
-	aws::sign_request(&mut req, &aws_auth)
+	aws::sign_request(&crate::test_helpers::test_client(), &mut req, &aws_auth)
 		.await
 		.expect("signing failed");
 	// get the signature header
@@ -641,7 +641,7 @@ async fn test_aws_sign_requestallback() {
 	});
 
 	// Should use the default region in the extension
-	aws::sign_request(&mut req, &aws_auth)
+	aws::sign_request(&crate::test_helpers::test_client(), &mut req, &aws_auth)
 		.await
 		.expect("signing failed");
 }
@@ -671,7 +671,7 @@ async fn test_aws_sign_request_no_region_error() {
 	// No default region in request extensions.
 
 	// Should fail with specific "Region must be specified" error
-	let result = aws::sign_request(&mut req, &aws_auth).await;
+	let result = aws::sign_request(&crate::test_helpers::test_client(), &mut req, &aws_auth).await;
 	assert!(result.is_err(), "Should fail without region");
 
 	let err = result.unwrap_err().to_string();
@@ -715,7 +715,7 @@ async fn test_aws_sign_request_implicit_with_extension() {
 	};
 
 	// Should use region from request extensions
-	let result = aws::sign_request(&mut req, &aws_auth).await;
+	let result = aws::sign_request(&crate::test_helpers::test_client(), &mut req, &aws_auth).await;
 
 	// Clean up environment variables
 	unsafe {
@@ -758,7 +758,7 @@ async fn test_aws_sign_request_implicit_configured_region_wins() {
 		assume_role_cache: Default::default(),
 	};
 
-	let result = aws::sign_request(&mut req, &aws_auth).await;
+	let result = aws::sign_request(&crate::test_helpers::test_client(), &mut req, &aws_auth).await;
 
 	unsafe {
 		std::env::remove_var("AWS_ACCESS_KEY_ID");

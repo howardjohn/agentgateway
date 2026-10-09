@@ -449,6 +449,7 @@ pub fn parse_config(
 		termination_min_deadline,
 		threading_mode,
 		backend: raw.backend,
+		callouts: raw.callouts,
 		admin_runtime_handle: None,
 		budget_policy: Arc::new(crate::http::budget::BudgetPolicy::default()),
 		config_reload_status: Arc::new(crate::ConfigReloadStatus::default()),

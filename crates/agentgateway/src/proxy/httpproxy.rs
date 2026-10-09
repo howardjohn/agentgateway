@@ -2428,6 +2428,7 @@ async fn make_backend_call(
 	response_policies: &mut ResponsePolicies,
 	substrate_state: &mut Option<http::substrate::SubstrateRequestState>,
 ) -> Result<Response, ProxyResponse> {
+	let callout = req.extensions_mut().remove::<Callout>().is_some();
 	let resolved_backend;
 	let mut model_route_type = None;
 	let backend = if let Backend::LLMRouter(_, router) = backend {
@@ -3061,6 +3062,7 @@ async fn make_backend_call(
 			// expressions need the extensions (JWT claims, etc.) the snapshot clears.
 			apply_auto_hostname(&mut req, &backend_call.target)?;
 			auth::apply_late_backend_auth(
+				&inputs.upstream,
 				backend_call.backend_policies.backend_auth.as_ref(),
 				&mut req,
 			)
@@ -3086,6 +3088,7 @@ async fn make_backend_call(
 		apply_auto_hostname(&mut req, &backend_call.target)?;
 		// Some auth types (AWS) need to be applied after all request processing
 		auth::apply_late_backend_auth(
+			&inputs.upstream,
 			backend_call.backend_policies.backend_auth.as_ref(),
 			&mut req,
 		)
@@ -3118,7 +3121,12 @@ async fn make_backend_call(
 		});
 		return Ok(resp);
 	}
-	let transport = build_backend_transport(&inputs, &backend_call, hbone_source).await?;
+	let mut transport = build_backend_transport(&inputs, &backend_call, hbone_source).await?;
+	if callout && !matches!(backend, Backend::Service(..)) {
+		transport = inputs
+			.upstream
+			.callout_transport(transport, &backend_call.target);
+	}
 	dtrace::snapshot!(Request, "final request", &req);
 	let request_body_limit = crate::http::buffer_limit(&req);
 	let req = req.map(|b| dtrace::TracingBody::maybe_wrap("final request", b, request_body_limit));
@@ -4975,6 +4983,10 @@ impl ResponsePolicies {
 	}
 }
 
+/// Marks a request sent by the gateway on its own behalf, which uses the callout proxy.
+#[derive(Clone, Copy)]
+struct Callout;
+
 #[derive(Debug, Clone)]
 pub struct PolicyClient {
 	pub inputs: Arc<ProxyInputs>,
@@ -5302,6 +5314,15 @@ impl PolicyClient {
 		req
 			.extensions_mut()
 			.get_or_insert(BackendRequestTimeout(Duration::from_secs(10)));
+		if !matches!(
+			self.outbound(),
+			Some(OutboundCallLabels {
+				kind: OutboundCallKind::Primary | OutboundCallKind::Mirror,
+				..
+			})
+		) {
+			req.extensions_mut().insert(Callout);
+		}
 		let mut req = Some(req);
 		Box::pin(async move {
 			let mut response_policies = Default::default();
