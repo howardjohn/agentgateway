@@ -42,6 +42,7 @@ output:
     backend:
       key: gateway.networking.x-k8s.io/XBackend/default/shared
       name:
+        kind: XBackend
         name: shared
         namespace: default
       static:

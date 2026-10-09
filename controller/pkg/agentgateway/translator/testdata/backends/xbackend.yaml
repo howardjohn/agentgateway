@@ -31,6 +31,7 @@ output:
           hostname: api.example.com
       key: gateway.networking.x-k8s.io/XBackend/default/external-api
       name:
+        kind: XBackend
         name: external-api
         namespace: default
       static:

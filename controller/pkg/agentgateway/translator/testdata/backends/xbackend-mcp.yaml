@@ -38,6 +38,7 @@ output:
           name: external-mcp
           protocol: STREAMABLE_HTTP
       name:
+        kind: XBackend
         name: external-mcp
         namespace: default
 status:
