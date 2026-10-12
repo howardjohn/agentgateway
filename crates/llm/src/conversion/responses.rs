@@ -1350,7 +1350,11 @@ pub mod from_messages {
 							Some(delta.item_id.clone()),
 							None,
 						);
-						state.tool_blocks.entry(delta.output_index).or_default().emitted_arguments = true;
+						state
+							.tool_blocks
+							.entry(delta.output_index)
+							.or_default()
+							.emitted_arguments = true;
 						record_token(&mut state, &log);
 						push_event(
 							&mut events,

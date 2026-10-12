@@ -2153,7 +2153,11 @@ pub mod from_messages {
 		let mut tool_calls =
 			crate::conversion::messages::StreamingToolCalls::new(log_content.tool_calls);
 		let model = model.to_string();
+		let mut failed = false;
 		parse::aws_sse::transform_multi(b, buffer_limit, move |aws_event| {
+			if failed {
+				return vec![];
+			}
 			let event = match bedrock::ConverseStreamOutput::deserialize(aws_event) {
 				Ok(e) => e,
 				Err(e) => {
@@ -2309,8 +2313,8 @@ pub mod from_messages {
 									redacted_bytes += data.len();
 									if redacted_bytes > buffer_limit {
 										tracing::error!("bedrock redacted reasoning exceeded buffer limit");
+										failed = true;
 										redacted_blocks.clear();
-										redacted_bytes = 0;
 										return vec![(
 											"error",
 											serde_json::json!({

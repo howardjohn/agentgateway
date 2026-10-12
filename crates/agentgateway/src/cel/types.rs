@@ -32,8 +32,8 @@ use crate::llm::{LLMInfo, LLMRequest};
 use crate::mcp::guardrails::McpGuardrailsDynamicMetadata;
 use crate::mcp::{MCPInfo, MCPTool, MCPView};
 use crate::proxy::dtrace;
-use crate::telemetry::metrics::GuardrailAction;
 use crate::serdes::schema;
+use crate::telemetry::metrics::GuardrailAction;
 use crate::transport::tls::TlsInfo;
 use crate::{apply, llm};
 

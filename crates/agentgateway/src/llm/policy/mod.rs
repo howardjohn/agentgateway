@@ -1950,10 +1950,7 @@ impl Policy {
 		let (outcome, detail) =
 			match Self::evaluate_single_response_guard(guard, resp, http_headers, client, original).await
 			{
-				Err(e)
-					if !streaming
-						&& guard.failure_mode() == FailureMode::FailOpen =>
-				{
+				Err(e) if !streaming && guard.failure_mode() == FailureMode::FailOpen => {
 					tracing::warn!("response guard error, failing open: {e}");
 					(GuardrailOutcome::FailOpen, None)
 				},
