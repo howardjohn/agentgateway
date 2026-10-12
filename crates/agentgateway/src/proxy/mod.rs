@@ -197,7 +197,7 @@ pub enum ProxyError {
 	BackendDoesNotExist,
 	#[error("backends required DNS resolution which failed")]
 	DnsResolution,
-	#[error("dynamic backend resolved to a loopback address")]
+	#[error("dynamic backend resolved to a loopback or link-local address")]
 	DynamicBackendLoopback,
 	#[error("failed to apply filters: {0}")]
 	FilterError(#[from] http::filters::Error),

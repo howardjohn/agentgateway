@@ -29,6 +29,7 @@ pub struct Client {
 	client: agent_pool::Client<Connector, PoolKey>,
 	connector: Connector,
 	callout_proxy: Option<Arc<callout::Proxy>>,
+	deny_dynamic_loopback: bool,
 }
 
 impl Debug for Client {
@@ -541,12 +542,18 @@ impl tower::Service<::http::Extensions> for Connector {
 pub struct Config {
 	pub resolver_cfg: ResolverConfig,
 	pub resolver_opts: ResolverOpts,
+	/// Reject dynamic backends that resolve to loopback or link-local addresses.
+	pub deny_dynamic_loopback: bool,
 }
 
-/// Rejects loopback destinations, checked after DNS resolution.
+/// Rejects loopback and link-local destinations, checked after DNS resolution.
 fn check_not_loopback(dest: SocketAddr) -> Result<(), ProxyError> {
 	let ip = dest.ip().to_canonical();
-	if ip.is_loopback() || (ip.is_unspecified() && dest.port() != 0) {
+	let link_local = match ip {
+		std::net::IpAddr::V4(ip) => ip.is_link_local(),
+		std::net::IpAddr::V6(ip) => ip.is_unicast_link_local(),
+	};
+	if ip.is_loopback() || link_local || (ip.is_unspecified() && dest.port() != 0) {
 		return Err(ProxyError::DynamicBackendLoopback);
 	}
 	Ok(())
@@ -601,6 +608,7 @@ impl Client {
 			client,
 			connector,
 			callout_proxy: None,
+			deny_dynamic_loopback: cfg.deny_dynamic_loopback,
 		}
 	}
 
@@ -659,7 +667,7 @@ impl Client {
 			.connector
 			.resolve_target(connection.transport.skip_dns_resolution(), &target)
 			.await?;
-		if deny_loopback {
+		if deny_loopback && self.deny_dynamic_loopback {
 			check_not_loopback(dest)?;
 		}
 
@@ -728,12 +736,13 @@ impl Client {
 	) -> impl std::future::Future<Output = Result<http::Response, ProxyError>> + '_ {
 		let client = &self.client;
 		let connector = &self.connector;
+		let deny_loopback = call.deny_loopback && self.deny_dynamic_loopback;
 		let start = std::time::Instant::now();
 		let Call {
 			mut req,
 			target,
 			connection,
-			deny_loopback,
+			..
 		} = call;
 		async move {
 			let dest = connector
@@ -905,6 +914,7 @@ mod tests {
 			&Config {
 				resolver_cfg: hickory_resolver::config::ResolverConfig::default(),
 				resolver_opts: hickory_resolver::config::ResolverOpts::default(),
+				deny_dynamic_loopback: true,
 			},
 			None,
 			crate::BackendConfig::default(),
@@ -964,6 +974,7 @@ mod tests {
 			&Config {
 				resolver_cfg: hickory_resolver::config::ResolverConfig::default(),
 				resolver_opts: hickory_resolver::config::ResolverOpts::default(),
+				deny_dynamic_loopback: true,
 			},
 			None,
 			crate::BackendConfig::default(),
