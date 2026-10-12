@@ -1895,6 +1895,7 @@ fn resolve_backend_tls(
 		BackendTLSSource::Static(per_alpn_config) => Ok(VersionedBackendTLS {
 			hostname_override: backend_tls.hostname_override.clone(),
 			config: per_alpn_config.config_for(http_version_override),
+			expected_identities: None,
 			peer_identity_mode: transport::tls::PeerIdentityMode::Istio,
 		}),
 		BackendTLSSource::Spiffe(spiffe_tls) => {
@@ -1910,6 +1911,7 @@ fn resolve_backend_tls(
 			Ok(VersionedBackendTLS {
 				hostname_override: backend_tls.hostname_override.clone(),
 				config,
+				expected_identities: None,
 				peer_identity_mode: transport::tls::PeerIdentityMode::Spiffe,
 			})
 		},
@@ -2042,11 +2044,7 @@ pub async fn build_transport(
 			if matches!(app_transport, ApplicationTransport::Plaintext) =>
 		{
 			if let Ok(id) = ca.get_identity().await {
-				Some(
-					id.legacy_mtls(idents.clone())
-						.map_err(|e| ProxyError::Processing(anyhow!("{e}")))?,
-				)
-				.into()
+				Some(id.legacy_mtls(idents.clone())).into()
 			} else {
 				warn!("wanted TLS but CA is not available");
 				app_transport.into()
