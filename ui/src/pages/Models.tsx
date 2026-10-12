@@ -181,7 +181,7 @@ function ModelsEditorPage() {
 	const activeVirtualEditing =
 		editingVirtual ??
 		(modelHash?.kind === 'add' && modelHash.type === 'virtual'
-			? { model: makeEmptyVirtualModel() }
+			? { model: makeEmptyVirtualModel(defaultVirtualTargetModel(models)) }
 			: null);
 	const editingDatabaseModel = Boolean(
 		hybrid &&
@@ -537,7 +537,7 @@ function ModelsEditorPage() {
 					onSave={saveModel}
 				/>
 			) : null}
-			{activeVirtualEditing ? (
+			{activeVirtualEditing && !isLoading ? (
 				<VirtualModelEditor
 					key={activeVirtualEditing.previousName ?? 'new'}
 					previousName={activeVirtualEditing.previousName}
