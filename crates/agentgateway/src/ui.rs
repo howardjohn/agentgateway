@@ -485,7 +485,6 @@ async fn persist_file_config(app: &App, config_json: &Value) -> Result<(), Error
 			Err(yaml_serde_edit::Error::RoundTrip) => yaml::to_string(config_json)?,
 			Err(e) => return Err(anyhow::Error::from(e).into()),
 		};
-		let content = document.get_string();
 		if content
 			.lines()
 			.any(|line| line.trim_start().starts_with("# yaml-language-server:"))
