@@ -4,7 +4,8 @@ pub mod from_decisions {
 	use async_openai::types::decisions as d;
 	use indexmap::IndexMap;
 
-	use crate::types::{decisions, systemone};
+	use crate::types::decisions;
+	use crate::types::systemone::typed as systemone;
 	use crate::{AIError, json};
 
 	/// Request details SystemOne cannot represent, used to restore them on the response.
@@ -182,9 +183,10 @@ pub mod from_decisions {
 						score,
 						probabilities,
 						confidence,
+						..
 					} => d::AnswerResource::Score(d::ScoreAnswer {
 						name: name.clone(),
-						score,
+						score: score.as_f64().unwrap_or_default(),
 						probabilities: probabilities
 							.into_iter()
 							.map(|(level, probability)| {
@@ -216,6 +218,160 @@ pub mod from_decisions {
 				output_tokens_details: Default::default(),
 				total_tokens: input_tokens + output_tokens,
 			},
+		};
+		serde_json::to_vec(&resp).map_err(AIError::ResponseMarshal)
+	}
+}
+
+pub mod from_systemone {
+	use async_openai::types::decisions as d;
+
+	use crate::types::systemone::{Request, typed as systemone};
+	use crate::{AIError, json};
+
+	fn text(v: serde_json::Value) -> String {
+		match v {
+			serde_json::Value::String(s) => s,
+			v => v.to_string(),
+		}
+	}
+
+	pub fn translate(req: &Request) -> Result<Vec<u8>, AIError> {
+		let req = json::convert::<_, systemone::Request>(req)
+			.map_err(|err| AIError::RequestParsing(crate::InputFormat::SystemOne, err))?;
+		let input = match req.state {
+			serde_json::Value::String(s) => d::DecisionInput::Text(s),
+			state => match serde_json::from_value::<Vec<d::DecisionInputItem>>(state.clone()) {
+				Ok(items) => d::DecisionInput::Messages(items),
+				Err(_) => d::DecisionInput::Text(state.to_string()),
+			},
+		};
+		let questions = req
+			.questions
+			.into_iter()
+			.map(|(name, q)| match q {
+				systemone::Question::Noul {
+					instructions,
+					criteria,
+				} => {
+					let mut instructions = text(instructions);
+					if let Some(c) = criteria {
+						instructions = format!("{instructions}\n\ntrue: {}\nfalse: {}", c.true_, c.false_);
+					}
+					d::QuestionParam::Predicate(d::QuestionPredicate {
+						name: Some(name),
+						instructions,
+					})
+				},
+				systemone::Question::Choice {
+					instructions,
+					criteria,
+				} => d::QuestionParam::Choice(d::QuestionChoice {
+					name: Some(name),
+					instructions: text(instructions),
+					choices: criteria
+						.into_iter()
+						.map(|(value, description)| d::ChoiceOption {
+							value: d::ChoiceValue::String(value),
+							description,
+						})
+						.collect(),
+				}),
+				systemone::Question::Score {
+					instructions,
+					criteria,
+				} => d::QuestionParam::Score(d::QuestionScore {
+					name: Some(name),
+					instructions: text(instructions),
+					levels: criteria
+						.into_iter()
+						.map(|c| match c {
+							serde_json::Value::Object(mut o) if o.get("label").is_some_and(|l| l.is_string()) => {
+								d::ScoreLevel {
+									label: o.remove("label").map(text).unwrap_or_default(),
+									description: o.remove("description").map(text),
+								}
+							},
+							c => d::ScoreLevel {
+								label: text(c),
+								description: None,
+							},
+						})
+						.collect(),
+				}),
+			})
+			.collect();
+		let req = d::DecisionRequest {
+			model: req.model,
+			input,
+			questions,
+			safety_identifier: None,
+		};
+		serde_json::to_vec(&req).map_err(AIError::RequestMarshal)
+	}
+
+	pub fn translate_response(bytes: &[u8]) -> Result<Vec<u8>, AIError> {
+		let resp: d::DecisionResponse =
+			serde_json::from_slice(bytes).map_err(AIError::ResponseParsing)?;
+		let choice_value = |v: d::ChoiceValue| match v {
+			d::ChoiceValue::String(s) => s,
+			d::ChoiceValue::Boolean(b) => b.to_string(),
+		};
+		// Questions are always sent named, so every answer maps back to its key.
+		let answers = resp
+			.answers
+			.into_iter()
+			.filter_map(|answer| match answer {
+				d::AnswerResource::Predicate(a) => Some((
+					a.name?,
+					systemone::Answer::Noul {
+						noul: a.probability,
+					},
+				)),
+				d::AnswerResource::Choice(a) => Some((
+					a.name?,
+					systemone::Answer::Choice {
+						choice: choice_value(a.choice),
+						probabilities: a
+							.probabilities
+							.into_iter()
+							.map(|p| (choice_value(p.value), p.probability))
+							.collect(),
+						confidence: a.confidence,
+					},
+				)),
+				d::AnswerResource::Score(a) => Some((
+					a.name?,
+					systemone::Answer::Score {
+						score: if a.score.fract() == 0.0 {
+							(a.score as i64).into()
+						} else {
+							serde_json::Number::from_f64(a.score).unwrap_or_else(|| 0.into())
+						},
+						legend: Some(
+							a.probabilities
+								.iter()
+								.map(|p| (p.value.to_string(), p.label.clone()))
+								.collect(),
+						),
+						probabilities: a
+							.probabilities
+							.into_iter()
+							.map(|p| (p.value.to_string(), p.probability))
+							.collect(),
+						confidence: a.confidence,
+					},
+				)),
+				d::AnswerResource::Refusal(_) => None,
+			})
+			.collect();
+		let resp = systemone::Response {
+			model: resp.model,
+			answers,
+			usage: Some(systemone::Usage {
+				input_tokens: resp.usage.input_tokens,
+				output_tokens: resp.usage.output_tokens,
+			}),
 		};
 		serde_json::to_vec(&resp).map_err(AIError::ResponseMarshal)
 	}

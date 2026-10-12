@@ -6068,6 +6068,11 @@
           "description": "OpenAI /v1/decisions",
           "type": "string",
           "const": "decisions"
+        },
+        {
+          "description": "TypeSafe /v1/systemone",
+          "type": "string",
+          "const": "systemOne"
         }
       ]
     },

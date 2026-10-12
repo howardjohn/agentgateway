@@ -521,6 +521,19 @@ mod requests {
 	}
 
 	#[test]
+	fn systemone() {
+		for name in ["basic", "full", "object_state"] {
+			let path = format!("requests/systemone/{name}.json");
+			test_request(SYSTEMONE, &path, |i: &mut types::systemone::Request| {
+				serde_json::to_vec(i).map_err(AIError::RequestMarshal)
+			});
+			test_request(OPENAI, &path, |i: &mut types::systemone::Request| {
+				conversion::systemone::from_systemone::translate(i)
+			});
+		}
+	}
+
+	#[test]
 	fn count_tokens() {
 		let mut headers = http::HeaderMap::new();
 		headers.insert("anthropic-version", "2023-06-01".parse().unwrap());
@@ -1395,6 +1408,16 @@ mod responses {
 			parse(&conversion::systemone::from_decisions::translate_response(
 				&i, &state,
 			)?)
+		});
+	}
+
+	#[test]
+	fn systemone() {
+		test_response(OPENAI, "response/openai/systemone.json", |i| {
+			let body = conversion::systemone::from_systemone::translate_response(&i)?;
+			serde_json::from_slice::<types::systemone::Response>(&body)
+				.map(|r| Box::new(r) as Box<dyn ResponseType>)
+				.map_err(AIError::ResponseParsing)
 		});
 	}
 

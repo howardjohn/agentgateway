@@ -1151,6 +1151,11 @@ impl AIProvider {
 					.into_iter()
 					.find(|f| self.supports_format(*f, request_model));
 			},
+			InputFormat::SystemOne => {
+				return [SystemOne, Decisions]
+					.into_iter()
+					.find(|f| self.supports_format(*f, request_model));
+			},
 			InputFormat::Detect
 			| InputFormat::Completions
 			| InputFormat::Messages
@@ -1941,6 +1946,41 @@ impl AIProvider {
 			.await
 	}
 
+	pub async fn process_systemone_request(
+		&self,
+		backend_info: &crate::http::auth::BackendInfo,
+		policies: Option<&Policy>,
+		req: Request,
+		tokenize: bool,
+		log: &mut Option<&mut RequestLog>,
+	) -> Result<RequestResult, AIError> {
+		let (parts, managed_body, mut req) = self
+			.read_body_and_default_model::<types::systemone::Request>(policies, req, log)
+			.await?;
+		self.apply_model_alias(policies, &mut req);
+
+		self
+			.process_non_chat_request(
+				backend_info,
+				policies,
+				InputFormat::SystemOne,
+				req,
+				parts,
+				managed_body,
+				tokenize,
+				log,
+				|provider, req, _, llm| match provider
+					.non_chat_provider_format_for(InputFormat::SystemOne, &llm.request_model)
+				{
+					Some(custom::ProviderFormat::Decisions) => {
+						conversion::systemone::from_systemone::translate(req)
+					},
+					_ => serde_json::to_vec(req).map_err(AIError::RequestMarshal),
+				},
+			)
+			.await
+	}
+
 	pub async fn process_responses_request(
 		&self,
 		backend_info: &crate::http::auth::BackendInfo,
@@ -2528,6 +2568,13 @@ impl AIProvider {
 				&logging.response,
 				|req, _, bytes| self.process_decisions_response(req, bytes),
 			),
+			InputFormat::SystemOne => self.process_non_chat_buffered_response(
+				req,
+				buffered,
+				model_catalog,
+				&logging.response,
+				|req, _, bytes| self.process_systemone_response(req, bytes),
+			),
 			_ => {
 				self
 					.process_chat_or_detect_buffered_response(
@@ -2923,6 +2970,23 @@ impl AIProvider {
 		Ok((resp.to_llm_response(LogContentFields::default()), bytes))
 	}
 
+	fn process_systemone_response(
+		&self,
+		req: &LLMRequest,
+		bytes: Bytes,
+	) -> Result<(LLMResponse, Bytes), AIError> {
+		let bytes = match self.non_chat_provider_format_for(InputFormat::SystemOne, &req.request_model)
+		{
+			Some(custom::ProviderFormat::Decisions) => Bytes::from(
+				conversion::systemone::from_systemone::translate_response(&bytes)?,
+			),
+			_ => bytes,
+		};
+		let resp: types::systemone::Response =
+			serde_json::from_slice(&bytes).map_err(logged_response_parsing(&bytes))?;
+		Ok((resp.to_llm_response(LogContentFields::default()), bytes))
+	}
+
 	fn parse_response<T>(bytes: &Bytes) -> Result<Box<dyn ResponseType>, AIError>
 	where
 		T: ResponseType + DeserializeOwned + 'static,
@@ -3268,7 +3332,7 @@ impl AIProvider {
 				// Passthrough; Vertex embeddings endpoint already returns OpenAI-compatible errors.
 				Ok(bytes.clone())
 			},
-			(_, InputFormat::Detect | InputFormat::Decisions) => {
+			(_, InputFormat::Detect | InputFormat::Decisions | InputFormat::SystemOne) => {
 				// Passthrough; nothing needed
 				Ok(bytes.clone())
 			},
