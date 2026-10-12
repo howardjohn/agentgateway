@@ -755,6 +755,11 @@ fn headers_match(headers: &[HeaderMatch], req: &Request) -> bool {
 	true
 }
 
+/// Ranks model patterns so more specific ones are tried first: higher is more specific.
+pub(crate) fn model_match_specificity(pattern: &str) -> usize {
+	pattern.chars().filter(|c| *c != '*').count()
+}
+
 fn model_name_matches(pattern: &str, model: &str) -> bool {
 	if pattern == "*" {
 		return true;

@@ -3997,10 +3997,6 @@ fn ui_oidc_redirect_path(policies: Option<&LocalUIPolicy>) -> anyhow::Result<Opt
 #[cfg(any(not(test), target_family = "unix"))]
 static STARTUP_TIMESTAMP: OnceLock<u64> = OnceLock::new();
 
-fn llm_model_match_specificity(model_name: &str) -> usize {
-	model_name.chars().filter(|c| *c != '*').count()
-}
-
 fn validate_llm_model_pattern(pattern: &str) -> anyhow::Result<()> {
 	let wildcard_count = pattern.chars().filter(|c| *c == '*').count();
 	if wildcard_count > 1 {
@@ -4393,7 +4389,7 @@ impl LocalLLMModelRegistry {
 			.enumerate()
 			.sorted_by_key(|(original_idx, model)| {
 				(
-					std::cmp::Reverse(llm_model_match_specificity(&model.name)),
+					std::cmp::Reverse(llm::model_router::model_match_specificity(&model.name)),
 					*original_idx,
 				)
 			})

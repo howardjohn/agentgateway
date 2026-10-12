@@ -816,6 +816,13 @@ impl Store {
 			}
 		}
 
+		// Most specific patterns first, so a wildcard does not shadow exact or prefix matches.
+		models.sort_by_key(|model| {
+			std::cmp::Reverse(crate::llm::model_router::model_match_specificity(
+				&model.name,
+			))
+		});
+
 		if implicit_route && models.is_empty() && virtual_models.is_empty() {
 			return;
 		}
