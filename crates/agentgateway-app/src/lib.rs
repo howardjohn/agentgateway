@@ -5,15 +5,16 @@ use std::path::{Path, PathBuf};
 
 use agentgateway::ConfigSource;
 use clap::{Args as ClapArgs, Parser, Subcommand};
-#[cfg(feature = "ui")]
-use include_dir::{Dir, include_dir};
+use include_dir::Dir;
 use pprof_alloc::Allocator;
 
 mod commands;
 
-#[cfg(feature = "ui")]
 // Keep embedded asset changes scoped to relinking the binary crate.
-static UI_ASSETS: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/../../ui/dist");
+#[cfg(ui_assets)]
+static UI_ASSETS: Dir<'static> = include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../ui/dist");
+#[cfg(not(ui_assets))]
+static UI_ASSETS: Dir<'static> = Dir::new("", &[]);
 
 cfg_select! {
 	all(target_os = "linux", target_env = "musl", target_arch = "aarch64") => {

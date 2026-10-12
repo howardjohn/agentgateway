@@ -86,8 +86,7 @@ pub fn router(
 		resource_manager,
 		model_catalog,
 	};
-	let ui_service = tower::service_fn(move |req| serve_ui_asset(req, assets_dir));
-	Router::new()
+	let router = Router::new()
 		// OIDC intercepts this path to start login; without OIDC, return to the UI.
 		.route("/api/auth/login", get(|| async { Redirect::to("/ui") }))
 		.route("/api/runtime", get(get_runtime))
@@ -111,9 +110,16 @@ pub fn router(
 		.route("/api/logs/analytics/summary", post(analytics_summary))
 		.route("/api/costs/models", get(cost_models))
 		.route("/api/costs/refresh-base", post(refresh_base_costs))
-		.route("/api/budgets/status", get(budget_status))
-		.nest_service("/ui", ui_service)
-		.route("/", get(|| async { Redirect::permanent("/ui") }))
+		.route("/api/budgets/status", get(budget_status));
+	let router = if assets_dir.entries().is_empty() {
+		router.route("/", get(crate::management::admin::handle_dashboard))
+	} else {
+		let ui_service = tower::service_fn(move |req| serve_ui_asset(req, assets_dir));
+		router
+			.nest_service("/ui", ui_service)
+			.route("/", get(|| async { Redirect::permanent("/ui") }))
+	};
+	router
 		.layer(axum::middleware::from_fn_with_state(
 			app.clone(),
 			authorize_route,
