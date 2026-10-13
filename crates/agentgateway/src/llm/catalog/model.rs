@@ -62,10 +62,21 @@ impl Catalog {
 			reject_unknown(provider, &entry.unknown)?;
 			for (model, pricing) in &entry.models {
 				reject_unknown(&format_args!("{provider}/{model}"), &pricing.unknown)?;
-				reject_unknown(
-					&format_args!("{provider}/{model} rates"),
-					&pricing.rates.unknown,
-				)?;
+				for (field, unknown) in [
+					("rates", &pricing.rates.unknown),
+					("limits", &pricing.limits.unknown),
+					("modalities", &pricing.modalities.unknown),
+					("capabilities", &pricing.capabilities.unknown),
+					("reasoning", &pricing.reasoning.unknown),
+				] {
+					reject_unknown(&format_args!("{provider}/{model} {field}"), unknown)?;
+				}
+				if let Some(budget) = &pricing.reasoning.budget_tokens {
+					reject_unknown(
+						&format_args!("{provider}/{model} reasoning budgetTokens"),
+						&budget.unknown,
+					)?;
+				}
 				let mut previous = BTreeMap::new();
 				for (index, tier) in pricing.tiers.iter().enumerate() {
 					reject_unknown(
@@ -104,6 +115,38 @@ impl Catalog {
 							bm.tiers.extend(om.tiers);
 						}
 						bm.tags.extend(om.tags);
+						bm.name = om.name.or(bm.name);
+						bm.status = om.status.or(bm.status);
+						bm.released = om.released.or(bm.released);
+						bm.limits = Limits {
+							context: om.limits.context.or(bm.limits.context),
+							input: om.limits.input.or(bm.limits.input),
+							output: om.limits.output.or(bm.limits.output),
+							unknown: Unknown::new(),
+						};
+						if !om.modalities.input.is_empty() {
+							bm.modalities.input = om.modalities.input;
+						}
+						if !om.modalities.output.is_empty() {
+							bm.modalities.output = om.modalities.output;
+						}
+						bm.capabilities = Capabilities {
+							reasoning: om.capabilities.reasoning.or(bm.capabilities.reasoning),
+							structured_output: om
+								.capabilities
+								.structured_output
+								.or(bm.capabilities.structured_output),
+							tool_call: om.capabilities.tool_call.or(bm.capabilities.tool_call),
+							temperature: om.capabilities.temperature.or(bm.capabilities.temperature),
+							unknown: Unknown::new(),
+						};
+						bm.reasoning.toggle |= om.reasoning.toggle;
+						if !om.reasoning.effort.is_empty() {
+							bm.reasoning.effort = om.reasoning.effort;
+						}
+						if om.reasoning.budget_tokens.is_some() {
+							bm.reasoning.budget_tokens = om.reasoning.budget_tokens;
+						}
 						bm
 					},
 					None => om,
@@ -165,6 +208,15 @@ pub struct Provider {
 #[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
 #[serde(rename_all = "camelCase")]
 pub struct Model {
+	/// Human-readable display name.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub name: Option<String>,
+	/// Lifecycle stage (alpha, beta, deprecated); absent means generally available.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub status: Option<String>,
+	/// Release date, as YYYY-MM-DD or YYYY-MM.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub released: Option<String>,
 	/// Base pricing rates for this model.
 	#[serde(default, skip_serializing_if = "Rates::is_empty")]
 	pub rates: Rates,
@@ -174,6 +226,115 @@ pub struct Model {
 	/// Freeform capability/routing tags for this model.
 	#[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
 	pub tags: BTreeSet<String>,
+	/// Token limits.
+	#[serde(default, skip_serializing_if = "crate::serdes::is_default")]
+	pub limits: Limits,
+	/// Supported input and output modalities.
+	#[serde(default, skip_serializing_if = "crate::serdes::is_default")]
+	pub modalities: Modalities,
+	/// Supported features. Absent fields are unknown.
+	#[serde(default, skip_serializing_if = "crate::serdes::is_default")]
+	pub capabilities: Capabilities,
+	/// How reasoning can be controlled.
+	#[serde(default, skip_serializing_if = "crate::serdes::is_default")]
+	pub reasoning: Reasoning,
+	/// Fields not understood by this version.
+	#[serde(flatten, skip_serializing)]
+	#[cfg_attr(feature = "schema", schemars(skip))]
+	pub unknown: Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
+#[serde(rename_all = "camelCase")]
+pub struct Limits {
+	/// Total context window, shared by input and output.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub context: Option<u64>,
+	/// Maximum input tokens, when tighter than the context window allows.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub input: Option<u64>,
+	/// Maximum output tokens.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub output: Option<u64>,
+	/// Fields not understood by this version.
+	#[serde(flatten, skip_serializing)]
+	#[cfg_attr(feature = "schema", schemars(skip))]
+	pub unknown: Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
+#[serde(rename_all = "camelCase")]
+pub struct Modalities {
+	/// Input modalities, such as text, image, pdf, audio, or video.
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub input: Vec<String>,
+	/// Output modalities, such as text, image, audio, or video.
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub output: Vec<String>,
+	/// Fields not understood by this version.
+	#[serde(flatten, skip_serializing)]
+	#[cfg_attr(feature = "schema", schemars(skip))]
+	pub unknown: Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
+#[serde(rename_all = "camelCase")]
+pub struct Capabilities {
+	/// Whether the model supports reasoning.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub reasoning: Option<bool>,
+	/// Whether the model supports JSON Schema structured outputs.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub structured_output: Option<bool>,
+	/// Whether the model supports tool calling.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub tool_call: Option<bool>,
+	/// Whether the model accepts the temperature parameter.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub temperature: Option<bool>,
+	/// Fields not understood by this version.
+	#[serde(flatten, skip_serializing)]
+	#[cfg_attr(feature = "schema", schemars(skip))]
+	pub unknown: Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
+#[serde(rename_all = "camelCase")]
+pub struct Reasoning {
+	/// Whether reasoning can be turned on and off.
+	#[serde(default, skip_serializing_if = "crate::serdes::is_default")]
+	pub toggle: bool,
+	/// Accepted effort levels.
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub effort: Vec<String>,
+	/// Accepted reasoning token budget range.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub budget_tokens: Option<BudgetTokens>,
+	/// Fields not understood by this version.
+	#[serde(flatten, skip_serializing)]
+	#[cfg_attr(feature = "schema", schemars(skip))]
+	pub unknown: Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
+#[serde(rename_all = "camelCase")]
+pub struct BudgetTokens {
+	/// Minimum reasoning token budget.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub min: Option<u64>,
+	/// Maximum reasoning token budget.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub max: Option<u64>,
 	/// Fields not understood by this version.
 	#[serde(flatten, skip_serializing)]
 	#[cfg_attr(feature = "schema", schemars(skip))]
@@ -487,7 +648,7 @@ mod tests {
 	}
 
 	#[test]
-	fn limits_are_rejected() {
+	fn unknown_nested_fields_are_rejected() {
 		let err = from_json(
 			r#"{"providers":{"openai":{"models":{"m":{"rates":{"input":"1"},"limits":{"contextWindow":128000}}}}}}"#,
 		)

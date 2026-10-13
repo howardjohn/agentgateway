@@ -17,6 +17,9 @@
 |`config.modelCatalog[].inline.metadata.generatedAt`|string|Time the generated catalog contents last changed.|
 |`config.modelCatalog[].inline.providers`|object|Map of provider name to its supported models and pricing.|
 |`config.modelCatalog[].inline.providers.*.models`|object|Map of model ID to its pricing rates and tiers.|
+|`config.modelCatalog[].inline.providers.*.models.*.name`|string|Human-readable display name.|
+|`config.modelCatalog[].inline.providers.*.models.*.status`|string|Lifecycle stage (alpha, beta, deprecated); absent means generally available.|
+|`config.modelCatalog[].inline.providers.*.models.*.released`|string|Release date, as YYYY-MM-DD or YYYY-MM.|
 |`config.modelCatalog[].inline.providers.*.models.*.rates`|object|Base pricing rates for this model.|
 |`config.modelCatalog[].inline.providers.*.models.*.rates.input`|string|Cost per 1M input (prompt) tokens.|
 |`config.modelCatalog[].inline.providers.*.models.*.rates.output`|string|Cost per 1M output (completion) tokens.|
@@ -39,6 +42,23 @@
 |`config.modelCatalog[].inline.providers.*.models.*.tiers[].rates.outputAudio`|string|Cost per 1M output audio tokens. Falls back to the output rate if unset.|
 |`config.modelCatalog[].inline.providers.*.models.*.tiers[].rates.perPage`|string|Cost per page, for document/OCR models.|
 |`config.modelCatalog[].inline.providers.*.models.*.tags`|[]string|Freeform capability/routing tags for this model.|
+|`config.modelCatalog[].inline.providers.*.models.*.limits`|object|Token limits.|
+|`config.modelCatalog[].inline.providers.*.models.*.limits.context`|integer|Total context window, shared by input and output.|
+|`config.modelCatalog[].inline.providers.*.models.*.limits.input`|integer|Maximum input tokens, when tighter than the context window allows.|
+|`config.modelCatalog[].inline.providers.*.models.*.limits.output`|integer|Maximum output tokens.|
+|`config.modelCatalog[].inline.providers.*.models.*.modalities`|object|Supported input and output modalities.|
+|`config.modelCatalog[].inline.providers.*.models.*.modalities.input`|[]string|Input modalities, such as text, image, pdf, audio, or video.|
+|`config.modelCatalog[].inline.providers.*.models.*.modalities.output`|[]string|Output modalities, such as text, image, audio, or video.|
+|`config.modelCatalog[].inline.providers.*.models.*.capabilities`|object|Supported features. Absent fields are unknown.|
+|`config.modelCatalog[].inline.providers.*.models.*.capabilities.reasoning`|boolean|Whether the model supports reasoning.|
+|`config.modelCatalog[].inline.providers.*.models.*.capabilities.structuredOutput`|boolean|Whether the model supports JSON Schema structured outputs.|
+|`config.modelCatalog[].inline.providers.*.models.*.capabilities.toolCall`|boolean|Whether the model supports tool calling.|
+|`config.modelCatalog[].inline.providers.*.models.*.capabilities.temperature`|boolean|Whether the model accepts the temperature parameter.|
+|`config.modelCatalog[].inline.providers.*.models.*.reasoningOptions`|[]object|Ways reasoning can be controlled.|
+|`config.modelCatalog[].inline.providers.*.models.*.reasoningOptions[].type`|string|How reasoning is controlled: effort (with values), budget_tokens (with min/max), or toggle.|
+|`config.modelCatalog[].inline.providers.*.models.*.reasoningOptions[].values`|[]string|Accepted effort values.|
+|`config.modelCatalog[].inline.providers.*.models.*.reasoningOptions[].min`|integer|Minimum reasoning token budget.|
+|`config.modelCatalog[].inline.providers.*.models.*.reasoningOptions[].max`|integer|Maximum reasoning token budget.|
 |`config.database`|object|Primary database used by local runtime features.|
 |`config.database.url`|string|Connection URL for the request log database. A postgres:// or postgresql:// URL uses Postgres; any other value is treated as a SQLite database.|
 |`config.database.maxConnections`|integer|Maximum number of connections to open in this database's connection pool. Defaults to 5.<br>When the request log and config stores have matching database settings, they share one pool<br>with this limit.|

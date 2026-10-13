@@ -604,6 +604,27 @@
     "Model": {
       "type": "object",
       "properties": {
+        "name": {
+          "description": "Human-readable display name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "description": "Lifecycle stage (alpha, beta, deprecated); absent means generally available.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "released": {
+          "description": "Release date, as YYYY-MM-DD or YYYY-MM.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "rates": {
           "description": "Base pricing rates for this model.",
           "$ref": "#/$defs/Rates"
@@ -621,6 +642,25 @@
           "uniqueItems": true,
           "items": {
             "type": "string"
+          }
+        },
+        "limits": {
+          "description": "Token limits.",
+          "$ref": "#/$defs/Limits"
+        },
+        "modalities": {
+          "description": "Supported input and output modalities.",
+          "$ref": "#/$defs/Modalities"
+        },
+        "capabilities": {
+          "description": "Supported features. Absent fields are unknown.",
+          "$ref": "#/$defs/Capabilities"
+        },
+        "reasoningOptions": {
+          "description": "Ways reasoning can be controlled.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReasoningOption"
           }
         }
       },
@@ -760,6 +800,131 @@
         "flex",
         "priority",
         "reserved"
+      ]
+    },
+    "Limits": {
+      "type": "object",
+      "properties": {
+        "context": {
+          "description": "Total context window, shared by input and output.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "input": {
+          "description": "Maximum input tokens, when tighter than the context window allows.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "output": {
+          "description": "Maximum output tokens.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "Modalities": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "Input modalities, such as text, image, pdf, audio, or video.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "output": {
+          "description": "Output modalities, such as text, image, audio, or video.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Capabilities": {
+      "type": "object",
+      "properties": {
+        "reasoning": {
+          "description": "Whether the model supports reasoning.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "structuredOutput": {
+          "description": "Whether the model supports JSON Schema structured outputs.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "toolCall": {
+          "description": "Whether the model supports tool calling.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "temperature": {
+          "description": "Whether the model accepts the temperature parameter.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ReasoningOption": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "How reasoning is controlled: effort (with values), budget_tokens (with min/max), or toggle.",
+          "type": "string"
+        },
+        "values": {
+          "description": "Accepted effort values.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "min": {
+          "description": "Minimum reasoning token budget.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "max": {
+          "description": "Maximum reasoning token budget.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type"
       ]
     },
     "Config": {
