@@ -656,12 +656,9 @@
           "description": "Supported features. Absent fields are unknown.",
           "$ref": "#/$defs/Capabilities"
         },
-        "reasoningOptions": {
-          "description": "Ways reasoning can be controlled.",
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/ReasoningOption"
-          }
+        "reasoning": {
+          "description": "How reasoning can be controlled.",
+          "$ref": "#/$defs/Reasoning"
         }
       },
       "additionalProperties": false
@@ -889,20 +886,37 @@
       },
       "additionalProperties": false
     },
-    "ReasoningOption": {
+    "Reasoning": {
       "type": "object",
       "properties": {
-        "type": {
-          "description": "How reasoning is controlled: effort (with values), budget_tokens (with min/max), or toggle.",
-          "type": "string"
+        "toggle": {
+          "description": "Whether reasoning can be turned on and off.",
+          "type": "boolean"
         },
-        "values": {
-          "description": "Accepted effort values.",
+        "effort": {
+          "description": "Accepted effort levels.",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
+        "budgetTokens": {
+          "description": "Accepted reasoning token budget range.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BudgetTokens"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "BudgetTokens": {
+      "type": "object",
+      "properties": {
         "min": {
           "description": "Minimum reasoning token budget.",
           "type": [
@@ -922,10 +936,7 @@
           "minimum": 0
         }
       },
-      "additionalProperties": false,
-      "required": [
-        "type"
-      ]
+      "additionalProperties": false
     },
     "Config": {
       "type": "object",

@@ -54,11 +54,12 @@
 |`config.modelCatalog[].inline.providers.*.models.*.capabilities.structuredOutput`|boolean|Whether the model supports JSON Schema structured outputs.|
 |`config.modelCatalog[].inline.providers.*.models.*.capabilities.toolCall`|boolean|Whether the model supports tool calling.|
 |`config.modelCatalog[].inline.providers.*.models.*.capabilities.temperature`|boolean|Whether the model accepts the temperature parameter.|
-|`config.modelCatalog[].inline.providers.*.models.*.reasoningOptions`|[]object|Ways reasoning can be controlled.|
-|`config.modelCatalog[].inline.providers.*.models.*.reasoningOptions[].type`|string|How reasoning is controlled: effort (with values), budget_tokens (with min/max), or toggle.|
-|`config.modelCatalog[].inline.providers.*.models.*.reasoningOptions[].values`|[]string|Accepted effort values.|
-|`config.modelCatalog[].inline.providers.*.models.*.reasoningOptions[].min`|integer|Minimum reasoning token budget.|
-|`config.modelCatalog[].inline.providers.*.models.*.reasoningOptions[].max`|integer|Maximum reasoning token budget.|
+|`config.modelCatalog[].inline.providers.*.models.*.reasoning`|object|How reasoning can be controlled.|
+|`config.modelCatalog[].inline.providers.*.models.*.reasoning.toggle`|boolean|Whether reasoning can be turned on and off.|
+|`config.modelCatalog[].inline.providers.*.models.*.reasoning.effort`|[]string|Accepted effort levels.|
+|`config.modelCatalog[].inline.providers.*.models.*.reasoning.budgetTokens`|object|Accepted reasoning token budget range.|
+|`config.modelCatalog[].inline.providers.*.models.*.reasoning.budgetTokens.min`|integer|Minimum reasoning token budget.|
+|`config.modelCatalog[].inline.providers.*.models.*.reasoning.budgetTokens.max`|integer|Maximum reasoning token budget.|
 |`config.database`|object|Primary database used by local runtime features.|
 |`config.database.url`|string|Connection URL for the request log database. A postgres:// or postgresql:// URL uses Postgres; any other value is treated as a SQLite database.|
 |`config.database.maxConnections`|integer|Maximum number of connections to open in this database's connection pool. Defaults to 5.<br>When the request log and config stores have matching database settings, they share one pool<br>with this limit.|
