@@ -1,7 +1,11 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { useState } from 'react';
 
-import { UnsupportedYamlFallback } from '@/components/EditorContracts';
+import {
+	LostFieldsWarning,
+	UnsupportedYamlFallback,
+	useMergedEdits
+} from '@/components/EditorContracts';
 import { EnumSelector, type EnumSelectorOption } from '@/components/EnumSelector';
 import { MiniMonacoEditor } from '@/components/MiniMonacoEditor';
 import { FieldGroup } from '@/components/Primitives';
@@ -101,6 +105,7 @@ export function ExtProcPolicyEditor(props: {
 	);
 	const [metadataError, setMetadataError] = useState<string | null>(null);
 	const preview = buildExtProc();
+	const merged = useMergedEdits(props.extProc, preview);
 
 	if (unsupportedTarget) {
 		return (
@@ -145,7 +150,7 @@ export function ExtProcPolicyEditor(props: {
 		try {
 			if (metadataText.trim()) parseYamlText(metadataText);
 			setMetadataError(null);
-			props.onSave(buildExtProc());
+			props.onSave(merged.value);
 		} catch (err) {
 			setMetadataError(err instanceof Error ? err.message : 'Invalid metadata YAML');
 		}
@@ -160,6 +165,7 @@ export function ExtProcPolicyEditor(props: {
 				save();
 			}}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<TargetEditor
 				value={target}
 				tooltip={props.help.field<ExtProc>('ExtProc', 'host')}
@@ -283,7 +289,7 @@ export function ExtProcPolicyEditor(props: {
 					/>
 				</FieldGroup>
 			</PolicySection>
-			<ResultingYaml value={preview} />
+			<ResultingYaml value={merged.value} />
 		</form>
 	);
 }

@@ -1,6 +1,10 @@
 import { useState } from 'react';
 
-import { UnsupportedYamlFallback } from '@/components/EditorContracts';
+import {
+	LostFieldsWarning,
+	UnsupportedYamlFallback,
+	useMergedEdits
+} from '@/components/EditorContracts';
 import { EnumSelector } from '@/components/EnumSelector';
 import { Field, FieldGroup } from '@/components/Primitives';
 import type { RateLimitSpec } from '@/gateway-config';
@@ -28,6 +32,7 @@ export function LocalRateLimitPolicyEditor(props: {
 			tokensPerFill: Number(tokensPerFill)
 		}
 	] as LocalRateLimitDraft;
+	const merged = useMergedEdits(props.localRateLimit, preview);
 
 	if (props.localRateLimit && !Array.isArray(props.localRateLimit)) {
 		return (
@@ -50,9 +55,10 @@ export function LocalRateLimitPolicyEditor(props: {
 			onSubmit={event => {
 				event.preventDefault();
 				if (!fillInterval.trim()) return;
-				props.onSave(preview);
+				props.onSave(merged.value);
 			}}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<div className="form-grid">
 				<FieldGroup
 					label="Limit type"
@@ -108,7 +114,7 @@ export function LocalRateLimitPolicyEditor(props: {
 					/>
 				</Field>
 			</div>
-			<ResultingYaml value={preview} />
+			<ResultingYaml value={merged.value} />
 		</form>
 	);
 }

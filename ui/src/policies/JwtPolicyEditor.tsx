@@ -1,6 +1,7 @@
 import { DatabaseZap, FileKey2, Globe2, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
+import { LostFieldsWarning, useMergedEdits } from '@/components/EditorContracts';
 import { MiniMonacoEditor } from '@/components/MiniMonacoEditor';
 import { Field, FieldGroup, StatusBanner } from '@/components/Primitives';
 import type { JWTValidationOptions, LocalJwtConfig } from '@/gateway-config';
@@ -112,6 +113,7 @@ export function JwtPolicyEditor(props: {
 	const [error, setError] = useState<string | null>(null);
 
 	const preview = safeBuildJwtPolicy();
+	const merged = useMergedEdits(props.jwt, preview);
 
 	function buildJwtPolicy() {
 		return {
@@ -155,7 +157,7 @@ export function JwtPolicyEditor(props: {
 				setError('Fix the highlighted fields before saving.');
 				return;
 			}
-			props.onSave(buildJwtPolicy());
+			props.onSave(merged.value as JwtPolicy);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Invalid JWT policy');
 		}
@@ -189,6 +191,7 @@ export function JwtPolicyEditor(props: {
 				save();
 			}}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<PolicySection
 				icon={<ShieldCheck size={17} />}
 				title="Enforcement"
@@ -352,7 +355,7 @@ export function JwtPolicyEditor(props: {
 				onChange={setLocation}
 			/>
 
-			<ResultingYaml value={preview} />
+			<ResultingYaml value={merged.value} />
 
 			{error ? (
 				<StatusBanner state="bad" title="Invalid JWT policy">

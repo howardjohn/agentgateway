@@ -6,6 +6,7 @@ import {
 	ConfigDiffSaveActions,
 	configDiffText
 } from '@/components/ConfigDiffDrawer';
+import { LostFieldsWarning, useMergedEdits } from '@/components/EditorContracts';
 import {
 	Drawer,
 	Dropdown,
@@ -465,7 +466,7 @@ function GatewayEditor(props: {
 			name.trim() !== props.initial.previousName &&
 			props.config?.gateways?.[name.trim()]
 	);
-	const preview: TrafficGateway = cleanGateway({
+	const preview: TrafficGateway = {
 		...(multipleListeners ? withoutGatewayPolicies(gateway) : gateway),
 		listeners: multipleListeners
 			? gateway.listeners?.length
@@ -478,7 +479,13 @@ function GatewayEditor(props: {
 			(cert.trim() || key.trim())
 				? { ...(gateway.tls ?? {}), cert: cert.trim(), key: key.trim() }
 				: null
-	});
+	};
+	const merged = useMergedEdits(
+		props.initial.previousName ? props.initial.gateway : undefined,
+		preview
+	);
+	// Normalize after merging so fields this cleanup drops still count as edited.
+	const saved = cleanGateway(merged.value);
 
 	return (
 		<Drawer
@@ -494,7 +501,7 @@ function GatewayEditor(props: {
 										name: props.initial.name,
 										...props.initial.gateway
 									},
-									modified: { name: name.trim(), ...preview }
+									modified: { name: name.trim(), ...saved }
 								}
 							: undefined
 					}
@@ -507,7 +514,7 @@ function GatewayEditor(props: {
 						props.onSave({
 							previousName: props.initial.previousName,
 							name: name.trim(),
-							gateway: preview
+							gateway: saved
 						})
 					}
 					applyDiff={next => {
@@ -515,11 +522,12 @@ function GatewayEditor(props: {
 						if (props.initial.previousName && props.initial.previousName !== name.trim()) {
 							delete next.gateways[props.initial.previousName];
 						}
-						next.gateways[name.trim()] = cleanGateway(preview);
+						next.gateways[name.trim()] = saved;
 					}}
 				/>
 			}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<div className="form-grid gateway-identity-grid">
 				<Field label="Name" tooltip="Features and routes reference this gateway by name.">
 					<input
@@ -671,7 +679,7 @@ function GatewayEditor(props: {
 
 			<details open>
 				<summary>Resulting YAML</summary>
-				<YamlBlock value={{ [name.trim() || 'gateway']: preview }} />
+				<YamlBlock value={{ [name.trim() || 'gateway']: saved }} />
 			</details>
 		</Drawer>
 	);
@@ -750,21 +758,27 @@ function GatewayListenerEditor(props: {
 	const [cert, setCert] = useState(listener.tls?.cert ?? '');
 	const [key, setKey] = useState(listener.tls?.key ?? '');
 	const protocol = effectiveGatewayProtocol(listener);
-	const preview = cleanGatewayListener({
+	const preview: TrafficGatewayListener = {
 		...listener,
 		tls:
 			(protocol === 'HTTPS' || protocol === 'TLS') && (cert.trim() || key.trim())
 				? { ...(listener.tls ?? {}), cert: cert.trim(), key: key.trim() }
 				: null
-	});
+	};
+	const merged = useMergedEdits(
+		typeof props.editing.listenerIndex === 'number' ? props.editing.listener : undefined,
+		preview
+	);
+	// Normalize after merging so fields this cleanup drops still count as edited.
+	const saved = cleanGatewayListener(merged.value);
 	const originalGateway = props.config?.gateways?.[props.editing.gatewayName];
 	const modifiedGateway = originalGateway ? structuredClone(originalGateway) : undefined;
 	if (modifiedGateway) {
 		modifiedGateway.listeners ??= [];
 		if (typeof props.editing.listenerIndex === 'number') {
-			modifiedGateway.listeners[props.editing.listenerIndex] = preview;
+			modifiedGateway.listeners[props.editing.listenerIndex] = saved;
 		} else {
-			modifiedGateway.listeners.push(preview);
+			modifiedGateway.listeners.push(saved);
 		}
 	}
 
@@ -793,22 +807,21 @@ function GatewayListenerEditor(props: {
 					saveLabel="Save listener"
 					saving={props.saving}
 					onCancel={props.onCancel}
-					onSave={() =>
-						props.onSave(props.editing.gatewayName, preview, props.editing.listenerIndex)
-					}
+					onSave={() => props.onSave(props.editing.gatewayName, saved, props.editing.listenerIndex)}
 					applyDiff={next => {
 						const gateway = next.gateways?.[props.editing.gatewayName];
 						if (!gateway) return;
 						gateway.listeners ??= [];
 						if (typeof props.editing.listenerIndex === 'number') {
-							gateway.listeners[props.editing.listenerIndex] = preview;
+							gateway.listeners[props.editing.listenerIndex] = saved;
 						} else {
-							gateway.listeners.push(preview);
+							gateway.listeners.push(saved);
 						}
 					}}
 				/>
 			}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<div className="form-grid">
 				<Field
 					label="Name"
@@ -879,7 +892,7 @@ function GatewayListenerEditor(props: {
 			/>
 			<details open>
 				<summary>Resulting YAML</summary>
-				<YamlBlock value={preview} />
+				<YamlBlock value={saved} />
 			</details>
 		</Drawer>
 	);

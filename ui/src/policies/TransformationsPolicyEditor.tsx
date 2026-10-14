@@ -1,6 +1,7 @@
 import { Save } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
+import { LostFieldsWarning, useMergedEdits } from '@/components/EditorContracts';
 import { MiniMonacoEditor } from '@/components/MiniMonacoEditor';
 import { FieldGroup } from '@/components/Primitives';
 import type { LocalTransform } from '@/gateway-config';
@@ -22,11 +23,7 @@ export function TransformationsPolicyEditor(props: {
 	const [request, setRequest] = useState<TransformDraft>(props.transformations?.request ?? {});
 	const [response, setResponse] = useState<TransformDraft>(props.transformations?.response ?? {});
 	const preview = cleanEmpty({ request, response }) as TransformationDraft;
-
-	useEffect(() => {
-		setRequest(props.transformations?.request ?? {});
-		setResponse(props.transformations?.response ?? {});
-	}, [props.transformations]);
+	const merged = useMergedEdits(props.transformations, preview);
 
 	return (
 		<form
@@ -34,9 +31,10 @@ export function TransformationsPolicyEditor(props: {
 			className="policy-editor-stack"
 			onSubmit={event => {
 				event.preventDefault();
-				props.onSave(preview);
+				props.onSave(merged.value);
 			}}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<TransformSection
 				key={`request-${hasTransformContent(request)}`}
 				title="Request transformations"
@@ -53,7 +51,7 @@ export function TransformationsPolicyEditor(props: {
 				help={props.help}
 				onChange={setResponse}
 			/>
-			<ResultingYaml value={preview} />
+			<ResultingYaml value={merged.value} />
 		</form>
 	);
 }

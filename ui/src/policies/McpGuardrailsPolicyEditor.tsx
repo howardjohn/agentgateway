@@ -1,6 +1,7 @@
 import { Plus, Server, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
+import { LostFieldsWarning, useMergedEdits } from '@/components/EditorContracts';
 import { EnumSelector } from '@/components/EnumSelector';
 import { EmptyState, Field, FieldGroup, StatusBanner } from '@/components/Primitives';
 import type { Processor } from '@/gateway-config';
@@ -69,6 +70,7 @@ export function McpGuardrailsPolicyEditor(props: {
 	const [errors, setErrors] = useState<Record<number, string>>({});
 	const [error, setError] = useState<string | null>(null);
 	const preview = buildGuardrails(processors);
+	const merged = useMergedEdits(props.guardrails, preview);
 
 	function addProcessor() {
 		setProcessors(current => [...current, newProcessor()]);
@@ -110,7 +112,7 @@ export function McpGuardrailsPolicyEditor(props: {
 			return;
 		}
 		setError(null);
-		props.onSave(buildGuardrails(processors));
+		props.onSave(merged.value);
 	}
 
 	return (
@@ -122,6 +124,7 @@ export function McpGuardrailsPolicyEditor(props: {
 				save();
 			}}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<div className="authz-rule-toolbar">
 				<div>
 					<strong>
@@ -222,7 +225,7 @@ export function McpGuardrailsPolicyEditor(props: {
 				</div>
 			)}
 
-			<ResultingYaml value={preview} />
+			<ResultingYaml value={merged.value} />
 			{error ? (
 				<StatusBanner state="bad" title="Invalid MCP guardrails policy">
 					{error}

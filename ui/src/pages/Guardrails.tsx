@@ -8,6 +8,7 @@ import googleCloudIcon from '@/assets/providers/googlecloud.svg';
 import openAiIcon from '@/assets/providers/openai.svg';
 import { CloudRegionCombobox } from '@/components/CloudRegionCombobox';
 import { ConfigDiffSaveActions } from '@/components/ConfigDiffDrawer';
+import { LostFieldsWarning, useMergedEdits } from '@/components/EditorContracts';
 import { EnumSelector, type EnumSelectorOption } from '@/components/EnumSelector';
 import {
 	ConfirmDialog,
@@ -287,6 +288,7 @@ function GuardrailsEditor(props: {
 	const initialDraft = useMemo(() => draftFromGuardrails(props.initial), [props.initial]);
 	const [draft, setDraft] = useState<GuardrailDraft>(() => initialDraft);
 	const [error, setError] = useState<string | null>(null);
+	const merged = useMergedEdits(props.initial, buildGuardrails(draft));
 	const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft);
 	const blocker = useBlocker({
 		shouldBlockFn: ({ current, next }) => dirty && current.pathname !== next.pathname,
@@ -294,15 +296,10 @@ function GuardrailsEditor(props: {
 		withResolver: true
 	});
 
-	function validateAndBuild(nextDraft: GuardrailDraft) {
-		setDraft(nextDraft);
-		const validationError = validateDraft(nextDraft);
-		if (validationError) {
-			setError(validationError);
-			return null;
-		}
-		setError(null);
-		return buildGuardrails(nextDraft);
+	function validate() {
+		const validationError = validateDraft(draft);
+		setError(validationError);
+		return !validationError;
 	}
 
 	function applyDraft(nextDraft: GuardrailDraft) {
@@ -312,9 +309,7 @@ function GuardrailsEditor(props: {
 	}
 
 	function save() {
-		const guardrails = validateAndBuild(draft);
-		if (!guardrails) return;
-		props.onSave(guardrails);
+		if (validate()) props.onSave(merged.value);
 	}
 
 	return (
@@ -340,6 +335,7 @@ function GuardrailsEditor(props: {
 					{props.saveError}
 				</StatusBanner>
 			) : null}
+			<LostFieldsWarning lost={merged.lost} />
 			<GuardrailSection
 				phase="request"
 				help={props.help}
@@ -359,7 +355,7 @@ function GuardrailsEditor(props: {
 						props.databaseBacked
 							? () => ({
 									original: props.initial,
-									modified: buildGuardrails(draft)
+									modified: merged.value
 								})
 							: undefined
 					}
@@ -367,11 +363,8 @@ function GuardrailsEditor(props: {
 					saveLabel="Save guardrails"
 					saving={props.saving}
 					onSave={save}
-					beforeDiff={() => Boolean(validateAndBuild(draft))}
-					applyDiff={next => {
-						const guardrails = buildGuardrails(draft);
-						setLlmGuardrails(next, guardrails);
-					}}
+					beforeDiff={validate}
+					applyDiff={next => setLlmGuardrails(next, merged.value)}
 				/>
 			) : null}
 		</div>

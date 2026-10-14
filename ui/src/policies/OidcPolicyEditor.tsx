@@ -1,6 +1,7 @@
 import { Fingerprint, Globe2, KeyRound } from 'lucide-react';
 import { useState } from 'react';
 
+import { LostFieldsWarning, useMergedEdits } from '@/components/EditorContracts';
 import { EnumSelector } from '@/components/EnumSelector';
 import { MiniMonacoEditor } from '@/components/MiniMonacoEditor';
 import { Field, FieldGroup, StatusBanner } from '@/components/Primitives';
@@ -120,6 +121,7 @@ export function OidcPolicyEditor(props: {
 	const [error, setError] = useState<string | null>(null);
 
 	const preview = buildOidcPolicy();
+	const merged = useMergedEdits(props.oidc, preview);
 
 	function buildOidcPolicy() {
 		return cleanEmpty({
@@ -144,7 +146,7 @@ export function OidcPolicyEditor(props: {
 			setError('Fix the highlighted fields before saving.');
 			return;
 		}
-		props.onSave(buildOidcPolicy());
+		props.onSave(merged.value);
 	}
 
 	function validateOidcPolicy() {
@@ -175,6 +177,7 @@ export function OidcPolicyEditor(props: {
 				save();
 			}}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<PolicySection
 				icon={<Fingerprint size={17} />}
 				title="Provider"
@@ -399,7 +402,7 @@ export function OidcPolicyEditor(props: {
 				/>
 			</PolicySection>
 
-			<ResultingYaml value={preview} />
+			<ResultingYaml value={merged.value} />
 
 			{error ? (
 				<StatusBanner state="bad" title="Invalid OIDC policy">

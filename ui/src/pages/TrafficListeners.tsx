@@ -3,6 +3,7 @@ import { Network, Pencil, Plus, Route as RouteIcon, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react';
 
 import { ConfigDiffSaveActions } from '@/components/ConfigDiffDrawer';
+import { LostFieldsWarning, useMergedEdits } from '@/components/EditorContracts';
 import { EnumSelector } from '@/components/EnumSelector';
 import {
 	ConfirmDialog,
@@ -521,6 +522,10 @@ function ListenerEditor(props: {
 				? { ...(listener.tls ?? {}), cert: cert.trim(), key: key.trim() }
 				: null
 	};
+	const merged = useMergedEdits(
+		typeof props.editing.listenerIndex === 'number' ? props.editing.listener : undefined,
+		preview
+	);
 
 	return (
 		<Drawer
@@ -536,20 +541,25 @@ function ListenerEditor(props: {
 					saving={props.saving}
 					onCancel={requestClose}
 					onSave={() =>
-						props.onSave(Number(bindIndex), cleanListener(preview), props.editing.listenerIndex)
+						props.onSave(
+							Number(bindIndex),
+							cleanListener(merged.value),
+							props.editing.listenerIndex
+						)
 					}
 					applyDiff={next => {
 						const bind = next.binds?.[Number(bindIndex)];
 						if (!bind) return;
 						if (typeof props.editing.listenerIndex === 'number') {
-							bind.listeners[props.editing.listenerIndex] = cleanListener(preview);
+							bind.listeners[props.editing.listenerIndex] = cleanListener(merged.value);
 						} else {
-							bind.listeners.push(cleanListener(preview));
+							bind.listeners.push(cleanListener(merged.value));
 						}
 					}}
 				/>
 			)}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<div className="form-grid">
 				{typeof props.editing.listenerIndex !== 'number' ? (
 					<FieldGroup label="Bind" tooltip="Bind port this listener is attached to.">
@@ -631,7 +641,7 @@ function ListenerEditor(props: {
 			/>
 			<details open>
 				<summary>Resulting YAML</summary>
-				<YamlBlock value={cleanListener(preview)} />
+				<YamlBlock value={cleanListener(merged.value)} />
 			</details>
 		</Drawer>
 	);

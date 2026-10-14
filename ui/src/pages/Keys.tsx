@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 
 import type { BudgetStatus, BudgetStatusResponse } from '@/api/budgetsApi';
 import { ConfigDiffSaveActions } from '@/components/ConfigDiffDrawer';
+import { LostFieldsWarning, useMergedEdits } from '@/components/EditorContracts';
 import { EnumSelector } from '@/components/EnumSelector';
 import {
 	ConfirmDialog,
@@ -682,6 +683,7 @@ function KeyEditor(props: {
 		...(props.config?.llm?.models ?? []).map(model => model.name),
 		...(props.config?.llm?.virtualModels ?? []).map(model => model.name)
 	].filter((name): name is string => typeof name === 'string');
+	const merged = useMergedEdits(props.previousKey ? props.initial : undefined, virtualKey());
 
 	function virtualKey() {
 		const metadata: Record<string, unknown> = {
@@ -711,7 +713,7 @@ function KeyEditor(props: {
 
 	function nextVirtualKey() {
 		setSubmitted(true);
-		return nameRequired || modelError || invalidBudgets ? null : virtualKey();
+		return nameRequired || modelError || invalidBudgets ? null : merged.value;
 	}
 
 	function save() {
@@ -751,7 +753,7 @@ function KeyEditor(props: {
 						props.databaseBacked
 							? {
 									original: props.previousKey ? keyResourceForDisplay(props.initial) : {},
-									modified: keyResourceForDisplay(virtualKey())
+									modified: keyResourceForDisplay(merged.value)
 								}
 							: undefined
 					}
@@ -776,6 +778,7 @@ function KeyEditor(props: {
 				/>
 			)}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<Field label="Name">
 				<input
 					value={name}

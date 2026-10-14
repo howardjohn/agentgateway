@@ -1,7 +1,11 @@
 import { ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
-import { UnsupportedYamlFallback } from '@/components/EditorContracts';
+import {
+	LostFieldsWarning,
+	UnsupportedYamlFallback,
+	useMergedEdits
+} from '@/components/EditorContracts';
 import { EnumSelector } from '@/components/EnumSelector';
 import { MiniMonacoEditor } from '@/components/MiniMonacoEditor';
 import { Field, FieldGroup } from '@/components/Primitives';
@@ -74,6 +78,7 @@ export function ExtAuthzPolicyEditor(props: {
 	const [addRequestHeaders, setAddRequestHeaders] = useState(http.addRequestHeaders ?? {});
 	const [httpMetadata, setHttpMetadata] = useState(http.metadata ?? {});
 	const preview = buildExtAuthz();
+	const merged = useMergedEdits(props.extAuthz, preview);
 
 	if (unsupportedTarget) {
 		return (
@@ -127,9 +132,10 @@ export function ExtAuthzPolicyEditor(props: {
 			className="policy-editor-stack"
 			onSubmit={event => {
 				event.preventDefault();
-				props.onSave(preview);
+				props.onSave(merged.value);
 			}}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<TargetEditor
 				value={target}
 				tooltip={props.help.field<ExtAuthz>('ExtAuthz', 'host')}
@@ -337,7 +343,7 @@ export function ExtAuthzPolicyEditor(props: {
 				</PolicySection>
 			)}
 
-			<ResultingYaml value={preview} />
+			<ResultingYaml value={merged.value} />
 		</form>
 	);
 }

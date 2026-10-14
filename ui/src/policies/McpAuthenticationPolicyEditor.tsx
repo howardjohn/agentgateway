@@ -1,6 +1,7 @@
 import { DatabaseZap, FileKey2, Globe2, KeyRound, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
+import { LostFieldsWarning, useMergedEdits } from '@/components/EditorContracts';
 import { EnumSelector } from '@/components/EnumSelector';
 import { MiniMonacoEditor } from '@/components/MiniMonacoEditor';
 import { Field, FieldGroup, StatusBanner } from '@/components/Primitives';
@@ -43,6 +44,7 @@ export function McpAuthenticationPolicyEditor(props: {
 	const [errors, setErrors] = useState<FieldErrors>({});
 	const [error, setError] = useState<string | null>(null);
 	const preview = safeBuild();
+	const merged = useMergedEdits(props.authentication, preview);
 
 	function build() {
 		return cleanEmpty({
@@ -82,7 +84,7 @@ export function McpAuthenticationPolicyEditor(props: {
 				return;
 			}
 			setError(null);
-			props.onSave(build());
+			props.onSave(merged.value as McpAuthenticationDraft);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Invalid MCP authentication policy');
 		}
@@ -97,6 +99,7 @@ export function McpAuthenticationPolicyEditor(props: {
 				save();
 			}}
 		>
+			<LostFieldsWarning lost={merged.lost} />
 			<PolicySection
 				icon={<ShieldCheck size={17} />}
 				title="Enforcement"
@@ -255,7 +258,7 @@ export function McpAuthenticationPolicyEditor(props: {
 				</FieldGroup>
 			</PolicySection>
 
-			<ResultingYaml value={preview} />
+			<ResultingYaml value={merged.value} />
 			{error ? (
 				<StatusBanner state="bad" title="Invalid MCP authentication policy">
 					{error}

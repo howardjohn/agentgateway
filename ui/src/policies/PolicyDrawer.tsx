@@ -206,8 +206,10 @@ export function PolicyEditorBody(props: {
 	const description = props.help.propertyDescription(props.schemaRoot ?? 'LocalLLMPolicy', [
 		props.policyKey
 	]);
+	// Remount when the value changes so editors reload their form state and
+	// edit baseline from it.
 	return (
-		<div className="policy-custom-editor">
+		<div className="policy-custom-editor" key={JSON.stringify(props.policyValue ?? null)}>
 			{description ? <p className="policy-schema-description">{description}</p> : null}
 			{props.customEditor === 'accessLog' ? (
 				<AccessLogPolicyEditor
@@ -234,7 +236,6 @@ export function PolicyEditorBody(props: {
 				/>
 			) : props.customEditor === 'cors' ? (
 				<CorsPolicyEditor
-					key={JSON.stringify(props.policyValue ?? null)}
 					formId={props.formId}
 					cors={props.policyValue as CorsPolicy | null | undefined}
 					help={props.help}
