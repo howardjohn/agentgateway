@@ -601,9 +601,12 @@ function McpServerEditor(props: {
 				}
 			};
 		}
-		const target = {
-			host: url.trim() || null
-		};
+		// The URL field folds host, port, and path into one value. Until it is
+		// edited, emit the original address so an edit replaces all of them.
+		const target =
+			network && url.trim() === networkUrl(network, targetKind(props.initial))
+				? { ...network }
+				: { host: url.trim() || null };
 		if (kind === 'sse') return { ...base, sse: target };
 		if (kind === 'openapi')
 			return { ...base, openapi: { ...target, schema: schemaFromSource(schemaValue, schemaMode) } };

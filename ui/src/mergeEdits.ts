@@ -60,7 +60,9 @@ function merge(
 
 // Baseline items correspond to original items by index. Edited items that are
 // unchanged from some baseline item keep that original item, so removing or
-// reordering entries preserves the rest. Changed items between two unchanged
+// reordering entries preserves the rest. Rows that look the same but differ in
+// hidden fields cannot be told apart by value, so they are matched by position
+// below instead. Changed items between two unchanged
 // neighbours pair in order with the unused baseline items there when the counts
 // match (edits in place), or after the last unchanged item when there are more
 // changed items (edits followed by appended entries). Otherwise which entry is
@@ -75,9 +77,16 @@ function mergeArray(
 ) {
 	const used = new Set<number>();
 	const matched = edited.map(item => {
-		const index = baseline.findIndex((base, i) => !used.has(i) && deepEqual(base, item));
-		if (index >= 0) used.add(index);
-		return index;
+		const candidates = baseline.flatMap((base, i) =>
+			!used.has(i) && deepEqual(base, item) ? [i] : []
+		);
+		if (
+			!candidates.length ||
+			candidates.some(i => !deepEqual(original[i], original[candidates[0]]))
+		)
+			return -1;
+		used.add(candidates[0]);
+		return candidates[0];
 	});
 	const result: unknown[] = [];
 	let run: number[] = [];

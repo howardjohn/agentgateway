@@ -60,6 +60,25 @@ test('pairs edits in order when entries are appended in the same save', () => {
 	});
 });
 
+test('does not mix up rows that differ only in hidden fields', () => {
+	const original = [
+		{ host: 'a', policies: { key: 'A' } },
+		{ host: 'a', policies: { key: 'B' } }
+	];
+	const baseline = [{ host: 'a' }, { host: 'a' }];
+	assert.deepEqual(mergeEdits(original, baseline, [{ host: 'b' }, { host: 'a' }]), {
+		value: [
+			{ host: 'b', policies: { key: 'A' } },
+			{ host: 'a', policies: { key: 'B' } }
+		],
+		lost: []
+	});
+	assert.deepEqual(mergeEdits(original, baseline, [{ host: 'a' }]), {
+		value: [{ host: 'a' }],
+		lost: ['[0]', '[1]']
+	});
+});
+
 test('does not move hidden fields between entries when pairing is ambiguous', () => {
 	const original = [
 		{ name: 'a', hidden: 'A' },

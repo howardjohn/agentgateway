@@ -57,42 +57,45 @@ type GuardDraftBase = {
 	rejectionBody: string;
 	policies?: unknown;
 };
+type RemoteGuardDraftBase = GuardDraftBase & {
+	failureMode: 'failClosed' | 'failOpen';
+	action: 'reject' | 'audit';
+};
 type UnsupportedGuardDraft = {
 	kind: 'unsupported';
 	raw: GuardObject;
 };
 type BuiltinGuardDraft = GuardDraftBase & {
 	kind: 'builtin';
-	action: 'mask' | 'reject';
+	action: RegexAction;
 	builtins: BuiltinRule[];
 };
 type RegexGuardDraft = GuardDraftBase & {
 	kind: 'regex';
-	action: 'mask' | 'reject';
+	action: RegexAction;
 	patterns: string[];
 };
-type WebhookGuardDraft = GuardDraftBase & {
+type WebhookGuardDraft = RemoteGuardDraftBase & {
 	kind: 'webhook';
 	target: string;
-	failureMode: 'failClosed' | 'failOpen';
 };
-type OpenAIModerationGuardDraft = GuardDraftBase & {
+type OpenAIModerationGuardDraft = RemoteGuardDraftBase & {
 	kind: 'openAIModeration';
 	model: string;
 };
-type BedrockGuardDraft = GuardDraftBase & {
+type BedrockGuardDraft = RemoteGuardDraftBase & {
 	kind: 'bedrockGuardrails';
 	guardrailIdentifier: string;
 	guardrailVersion: string;
 	region: string;
 };
-type GoogleModelArmorGuardDraft = GuardDraftBase & {
+type GoogleModelArmorGuardDraft = RemoteGuardDraftBase & {
 	kind: 'googleModelArmor';
 	templateId: string;
 	projectId: string;
 	location: string;
 };
-type AzureContentSafetyGuardDraft = GuardDraftBase & {
+type AzureContentSafetyGuardDraft = RemoteGuardDraftBase & {
 	kind: 'azureContentSafety';
 	endpoint: string;
 	severityThreshold: string;
@@ -112,8 +115,10 @@ type GuardDraft =
 	| GoogleModelArmorGuardDraft
 	| AzureContentSafetyGuardDraft;
 type SupportedGuardDraft = Exclude<GuardDraft, UnsupportedGuardDraft>;
+type RemoteGuardDraft = Exclude<SupportedGuardDraft, BuiltinGuardDraft | RegexGuardDraft>;
+type RegexAction = 'mask' | 'reject' | 'audit';
 type RegexRulesShape = {
-	action?: 'mask' | 'reject';
+	action?: RegexAction;
 	rules?: Array<{ builtin?: BuiltinRule; pattern?: string }>;
 };
 type GuardrailDraft = {
@@ -700,18 +705,21 @@ function GuardFields(props: {
 			) : null}
 			{props.guard.kind !== 'builtin' && props.guard.kind !== 'regex' ? (
 				<>
+					<RemoteGuardFields help={props.help} guard={props.guard} onChange={patch} />
 					<BackendPoliciesField
 						key={props.guard.kind}
 						help={props.help}
 						value={props.guard.policies}
 						onChange={policies => patch({ policies })}
 					/>
-					<RejectionFields
-						phase={props.phase}
-						help={props.help}
-						guard={props.guard}
-						onChange={patch}
-					/>
+					{props.guard.action === 'reject' ? (
+						<RejectionFields
+							phase={props.phase}
+							help={props.help}
+							guard={props.guard}
+							onChange={patch}
+						/>
+					) : null}
 				</>
 			) : null}
 		</>
@@ -743,6 +751,11 @@ function BuiltinGuardFields(props: {
 							value: 'mask',
 							label: 'Mask matched text',
 							description: 'Replace matched content and continue.'
+						},
+						{
+							value: 'audit',
+							label: 'Audit',
+							description: 'Record matches without rejecting or masking.'
 						}
 					]}
 					schema={props.help.node(['$defs', 'RegexRules', 'properties', 'action'])}
@@ -813,6 +826,11 @@ function RegexGuardFields(props: {
 							value: 'mask',
 							label: 'Mask matched text',
 							description: 'Replace matched content and continue.'
+						},
+						{
+							value: 'audit',
+							label: 'Audit',
+							description: 'Record matches without rejecting or masking.'
 						}
 					]}
 					schema={props.help.node(['$defs', 'RegexRules', 'properties', 'action'])}
@@ -842,25 +860,34 @@ function WebhookGuardFields(props: {
 	onChange: (next: Partial<SupportedGuardDraft>) => void;
 }) {
 	return (
-		<>
-			<Field
-				label="Webhook target"
-				tooltip={props.help.field<Webhook>('Webhook', 'target')}
-				hint="Backend host URL for guardrail checks."
-			>
-				<input
-					value={props.guard.target}
-					onChange={event =>
-						props.onChange({
-							target: event.target.value
-						} as Partial<SupportedGuardDraft>)
-					}
-					placeholder="http://guardrail.internal:8080"
-				/>
-			</Field>
+		<Field
+			label="Webhook target"
+			tooltip={props.help.field<Webhook>('Webhook', 'target')}
+			hint="Backend host URL for guardrail checks."
+		>
+			<input
+				value={props.guard.target}
+				onChange={event =>
+					props.onChange({
+						target: event.target.value
+					} as Partial<SupportedGuardDraft>)
+				}
+				placeholder="http://guardrail.internal:8080"
+			/>
+		</Field>
+	);
+}
+
+function RemoteGuardFields(props: {
+	help: SchemaHelp;
+	guard: RemoteGuardDraft;
+	onChange: (next: Partial<SupportedGuardDraft>) => void;
+}) {
+	return (
+		<div className="form-grid">
 			<FieldGroup
 				label="Failure mode"
-				tooltip={props.help.field<Webhook>('Webhook', 'failureMode')}
+				tooltip={props.help.field<Moderation>('Moderation', 'failureMode')}
 			>
 				<EnumSelector
 					ariaLabel="Failure mode"
@@ -869,15 +896,15 @@ function WebhookGuardFields(props: {
 						{
 							value: 'failClosed',
 							label: 'Fail closed',
-							description: 'Reject when the webhook is unavailable or errors.'
+							description: 'Reject when the provider is unavailable or errors.'
 						},
 						{
 							value: 'failOpen',
 							label: 'Fail open',
-							description: 'Continue when the webhook is unavailable or errors.'
+							description: 'Continue when the provider is unavailable or errors.'
 						}
 					]}
-					schema={props.help.node(['$defs', 'Webhook', 'properties', 'failureMode'])}
+					schema={props.help.node(['$defs', 'Moderation', 'properties', 'failureMode'])}
 					onChange={value =>
 						props.onChange({
 							failureMode: value
@@ -885,7 +912,31 @@ function WebhookGuardFields(props: {
 					}
 				/>
 			</FieldGroup>
-		</>
+			<FieldGroup label="Action" tooltip={props.help.field<Moderation>('Moderation', 'action')}>
+				<EnumSelector
+					ariaLabel="Action"
+					value={props.guard.action}
+					options={[
+						{
+							value: 'reject',
+							label: 'Reject',
+							description: 'Enforce the provider verdict.'
+						},
+						{
+							value: 'audit',
+							label: 'Audit',
+							description: 'Record the verdict without blocking.'
+						}
+					]}
+					schema={props.help.node(['$defs', 'Moderation', 'properties', 'action'])}
+					onChange={value =>
+						props.onChange({
+							action: value
+						} as Partial<SupportedGuardDraft>)
+					}
+				/>
+			</FieldGroup>
+		</div>
 	);
 }
 
@@ -1257,7 +1308,7 @@ function draftsFromGuard(guard: GuardObject): GuardDraft[] {
 	if ('regex' in guard && guard.regex && typeof guard.regex === 'object') {
 		const regex = guard.regex as RegexRulesShape;
 		const rules = Array.isArray(regex.rules) ? regex.rules : [];
-		const action = regex.action ?? 'reject';
+		const action = regex.action ?? 'mask';
 		const builtins = rules.flatMap(rule =>
 			'builtin' in rule ? [rule.builtin as BuiltinRule] : []
 		);
@@ -1283,13 +1334,14 @@ function draftsFromGuard(guard: GuardObject): GuardDraft[] {
 	}
 	if ('webhook' in guard && guard.webhook && typeof guard.webhook === 'object') {
 		const webhook = guard.webhook as Record<string, unknown>;
+		if ('service' in valueRecord(webhook.target)) return [{ kind: 'unsupported', raw: guard }];
 		return [
 			{
 				...base,
 				kind: 'webhook',
 				target: targetToHost(webhook.target),
-				policies: valueRecord(webhook.target).policies,
-				failureMode: webhook.failureMode === 'failOpen' ? 'failOpen' : 'failClosed'
+				...remoteDraft(webhook),
+				policies: valueRecord(webhook.target).policies
 			}
 		];
 	}
@@ -1302,6 +1354,7 @@ function draftsFromGuard(guard: GuardObject): GuardDraft[] {
 		return [
 			{
 				...base,
+				...remoteDraft(moderation),
 				kind: 'openAIModeration',
 				model: String(moderation.model ?? ''),
 				policies: moderation.policies
@@ -1317,6 +1370,7 @@ function draftsFromGuard(guard: GuardObject): GuardDraft[] {
 		return [
 			{
 				...base,
+				...remoteDraft(bedrock),
 				kind: 'bedrockGuardrails',
 				guardrailIdentifier: String(bedrock.guardrailIdentifier ?? ''),
 				guardrailVersion: String(bedrock.guardrailVersion ?? ''),
@@ -1334,6 +1388,7 @@ function draftsFromGuard(guard: GuardObject): GuardDraft[] {
 		return [
 			{
 				...base,
+				...remoteDraft(google),
 				kind: 'googleModelArmor',
 				templateId: String(google.templateId ?? ''),
 				projectId: String(google.projectId ?? ''),
@@ -1353,6 +1408,7 @@ function draftsFromGuard(guard: GuardObject): GuardDraft[] {
 		return [
 			{
 				...base,
+				...remoteDraft(azure),
 				kind: 'azureContentSafety',
 				endpoint: String(azure.endpoint ?? ''),
 				severityThreshold:
@@ -1369,6 +1425,15 @@ function draftsFromGuard(guard: GuardObject): GuardDraft[] {
 		];
 	}
 	return [{ kind: 'unsupported', raw: guard }];
+}
+
+function remoteDraft(
+	value: Record<string, unknown>
+): Pick<RemoteGuardDraftBase, 'failureMode' | 'action'> {
+	return {
+		failureMode: value.failureMode === 'failOpen' ? 'failOpen' : 'failClosed',
+		action: value.action === 'audit' ? 'audit' : 'reject'
+	};
 }
 
 function rejectionDraft(
@@ -1401,12 +1466,13 @@ function buildGuard(guard: GuardDraft): GuardObject {
 			return withRejection(guard, {
 				webhook: cleanEmpty({
 					target: cleanEmpty({ host: guard.target.trim(), policies: guard.policies }),
-					failureMode: guard.failureMode === 'failClosed' ? undefined : guard.failureMode
+					...remoteValue(guard)
 				})
 			});
 		case 'openAIModeration':
 			return withRejection(guard, {
 				openAIModeration: cleanEmpty({
+					...remoteValue(guard),
 					model: guard.model.trim() || undefined,
 					policies: guard.policies
 				})
@@ -1414,6 +1480,7 @@ function buildGuard(guard: GuardDraft): GuardObject {
 		case 'bedrockGuardrails':
 			return withRejection(guard, {
 				bedrockGuardrails: cleanEmpty({
+					...remoteValue(guard),
 					guardrailIdentifier: guard.guardrailIdentifier.trim(),
 					guardrailVersion: guard.guardrailVersion.trim(),
 					region: guard.region.trim(),
@@ -1423,6 +1490,7 @@ function buildGuard(guard: GuardDraft): GuardObject {
 		case 'googleModelArmor':
 			return withRejection(guard, {
 				googleModelArmor: cleanEmpty({
+					...remoteValue(guard),
 					templateId: guard.templateId.trim(),
 					projectId: guard.projectId.trim(),
 					location: guard.location.trim() || undefined,
@@ -1432,6 +1500,7 @@ function buildGuard(guard: GuardDraft): GuardObject {
 		case 'azureContentSafety':
 			return withRejection(guard, {
 				azureContentSafety: cleanEmpty({
+					...remoteValue(guard),
 					endpoint: guard.endpoint.trim(),
 					policies: guard.policies,
 					analyzeText: cleanEmpty({
@@ -1450,6 +1519,13 @@ function buildGuard(guard: GuardDraft): GuardObject {
 				})
 			});
 	}
+}
+
+function remoteValue(guard: RemoteGuardDraftBase) {
+	return {
+		failureMode: guard.failureMode === 'failClosed' ? undefined : guard.failureMode,
+		action: guard.action === 'reject' ? undefined : guard.action
+	};
 }
 
 function buildBuiltinGuard(guard: BuiltinGuardDraft): GuardObject {
@@ -1488,28 +1564,29 @@ function withRejection(guard: GuardDraftBase, value: Record<string, unknown>): G
 
 function emptyGuardDraft(kind: GuardKind = 'builtin'): SupportedGuardDraft {
 	const base = { kind, rejectionStatus: '', rejectionBody: '' };
+	const remote = { ...base, failureMode: 'failClosed', action: 'reject' } as const;
 	switch (kind) {
 		case 'builtin':
 			return { ...base, kind, action: 'reject', builtins: ['email'] };
 		case 'regex':
 			return { ...base, kind, action: 'reject', patterns: [''] };
 		case 'webhook':
-			return { ...base, kind, target: '', failureMode: 'failClosed' };
+			return { ...remote, kind, target: '' };
 		case 'openAIModeration':
-			return { ...base, kind, model: '' };
+			return { ...remote, kind, model: '' };
 		case 'bedrockGuardrails':
 			return {
-				...base,
+				...remote,
 				kind,
 				guardrailIdentifier: '',
 				guardrailVersion: '',
 				region: ''
 			};
 		case 'googleModelArmor':
-			return { ...base, kind, templateId: '', projectId: '', location: '' };
+			return { ...remote, kind, templateId: '', projectId: '', location: '' };
 		case 'azureContentSafety':
 			return {
-				...base,
+				...remote,
 				kind,
 				endpoint: '',
 				severityThreshold: '',
@@ -1612,9 +1689,12 @@ function guardDrawerIndex(value: string | null, phase: GuardPhase, guardCount: n
 function guardSummary(guard: GuardDraft) {
 	if (guard.kind === 'unsupported')
 		return 'Raw guard YAML is preserved. Use Raw Configuration for unsupported edits.';
-	const rejection = guard.rejectionStatus.trim()
-		? ` Rejects with ${guard.rejectionStatus.trim()}.`
-		: '';
+	const rejection =
+		'failureMode' in guard && guard.action === 'audit'
+			? ' Audit only.'
+			: guard.rejectionStatus.trim()
+				? ` Rejects with ${guard.rejectionStatus.trim()}.`
+				: '';
 	switch (guard.kind) {
 		case 'builtin':
 			return `${capitalize(guard.action)} ${guard.builtins.length} built-in detector${guard.builtins.length === 1 ? '' : 's'}.${rejection}`;

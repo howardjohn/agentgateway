@@ -485,7 +485,11 @@ function GatewayEditor(props: {
 		preview
 	);
 	// Normalize after merging so fields this cleanup drops still count as edited.
-	const saved = cleanGateway(merged.value);
+	// TLS without cert/key (e.g. SPIFFE) shows as `tls: null` either way, so the
+	// merge keeps it; drop it when the gateway no longer allows TLS.
+	const saved = cleanGateway(
+		!multipleListeners && hasTls ? merged.value : { ...merged.value, tls: null }
+	);
 
 	return (
 		<Drawer
@@ -770,7 +774,10 @@ function GatewayListenerEditor(props: {
 		preview
 	);
 	// Normalize after merging so fields this cleanup drops still count as edited.
-	const saved = cleanGatewayListener(merged.value);
+	// See GatewayEditor for why TLS is dropped here.
+	const saved = cleanGatewayListener(
+		protocol === 'HTTPS' || protocol === 'TLS' ? merged.value : { ...merged.value, tls: null }
+	);
 	const originalGateway = props.config?.gateways?.[props.editing.gatewayName];
 	const modifiedGateway = originalGateway ? structuredClone(originalGateway) : undefined;
 	if (modifiedGateway) {
