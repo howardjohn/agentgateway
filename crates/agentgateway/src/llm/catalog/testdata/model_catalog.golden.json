@@ -41,7 +41,8 @@
             "input": "3",
             "output": "15",
             "cacheRead": "0.3",
-            "cacheWrite": "3.75"
+            "cacheWrite": "3.75",
+            "cacheWrite1h": "6"
           },
           "tags": [
             "legacy_thinking"

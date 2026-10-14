@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generatedAt": "2026-10-13T23:02:55Z"
+    "generatedAt": "2026-10-14T21:14:36Z"
   },
   "providers": {
     "anthropic": {
@@ -12,7 +12,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "1",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking"
@@ -54,7 +55,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "0.25",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking"
@@ -96,7 +98,8 @@
             "input": "1",
             "output": "5",
             "cacheRead": "0.1",
-            "cacheWrite": "1.25"
+            "cacheWrite": "1.25",
+            "cacheWrite1h": "2"
           },
           "tags": [
             "legacy_thinking"
@@ -134,7 +137,8 @@
             "input": "1",
             "output": "5",
             "cacheRead": "0.1",
-            "cacheWrite": "1.25"
+            "cacheWrite": "1.25",
+            "cacheWrite1h": "2"
           },
           "tags": [
             "legacy_thinking"
@@ -172,7 +176,8 @@
             "input": "0.1",
             "output": "0.5",
             "cacheRead": "0.01",
-            "cacheWrite": "0.125"
+            "cacheWrite": "0.125",
+            "cacheWrite1h": "0.2"
           },
           "tiers": [
             {
@@ -181,7 +186,8 @@
                 "input": "0.5",
                 "output": "2.5",
                 "cacheRead": "0.05",
-                "cacheWrite": "0.625"
+                "cacheWrite": "0.625",
+                "cacheWrite1h": "1"
               }
             }
           ],
@@ -226,7 +232,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "legacy_thinking"
@@ -269,7 +276,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "legacy_thinking"
@@ -312,7 +320,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "legacy_thinking",
@@ -357,7 +366,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking"
@@ -399,7 +409,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking"
@@ -441,7 +452,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking"
@@ -483,7 +495,8 @@
             "input": "4",
             "output": "20",
             "cacheRead": "0.2",
-            "cacheWrite": "5"
+            "cacheWrite": "5",
+            "cacheWrite1h": "8"
           },
           "tags": [
             "adaptive_thinking"
@@ -525,7 +538,8 @@
             "input": "3",
             "output": "15",
             "cacheRead": "0.3",
-            "cacheWrite": "3.75"
+            "cacheWrite": "3.75",
+            "cacheWrite1h": "6"
           },
           "tags": [
             "legacy_thinking"
@@ -563,7 +577,8 @@
             "input": "3",
             "output": "15",
             "cacheRead": "0.3",
-            "cacheWrite": "3.75"
+            "cacheWrite": "3.75",
+            "cacheWrite1h": "6"
           },
           "tags": [
             "legacy_thinking"
@@ -601,7 +616,8 @@
             "input": "3",
             "output": "15",
             "cacheRead": "0.3",
-            "cacheWrite": "3.75"
+            "cacheWrite": "3.75",
+            "cacheWrite1h": "6"
           },
           "tags": [
             "legacy_thinking",
@@ -646,7 +662,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.2",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking"
@@ -689,7 +706,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.1",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking"
@@ -922,7 +940,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "1",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking",
@@ -966,7 +985,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "0.25",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking",
@@ -1010,7 +1030,8 @@
             "input": "1",
             "output": "5",
             "cacheRead": "0.1",
-            "cacheWrite": "1.25"
+            "cacheWrite": "1.25",
+            "cacheWrite1h": "2"
           },
           "tags": [
             "legacy_thinking",
@@ -1052,7 +1073,8 @@
             "input": "0.1",
             "output": "0.5",
             "cacheRead": "0.01",
-            "cacheWrite": "0.125"
+            "cacheWrite": "0.125",
+            "cacheWrite1h": "0.2"
           },
           "tiers": [
             {
@@ -1061,7 +1083,8 @@
                 "input": "0.5",
                 "output": "2.5",
                 "cacheRead": "0.05",
-                "cacheWrite": "0.625"
+                "cacheWrite": "0.625",
+                "cacheWrite1h": "1"
               }
             }
           ],
@@ -1125,7 +1148,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "legacy_thinking",
@@ -1170,7 +1194,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "legacy_thinking",
@@ -1217,7 +1242,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking",
@@ -1262,7 +1288,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking",
@@ -1307,7 +1334,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking",
@@ -1352,7 +1380,8 @@
             "input": "4",
             "output": "20",
             "cacheRead": "0.2",
-            "cacheWrite": "5"
+            "cacheWrite": "5",
+            "cacheWrite1h": "8"
           },
           "tags": [
             "adaptive_thinking"
@@ -1393,7 +1422,8 @@
             "input": "3",
             "output": "15",
             "cacheRead": "0.3",
-            "cacheWrite": "3.75"
+            "cacheWrite": "3.75",
+            "cacheWrite1h": "6"
           },
           "tags": [
             "legacy_thinking",
@@ -1433,7 +1463,8 @@
             "input": "3.3",
             "output": "16.5",
             "cacheRead": "0.33",
-            "cacheWrite": "4.125"
+            "cacheWrite": "4.125",
+            "cacheWrite1h": "6.6"
           },
           "tags": [
             "legacy_thinking",
@@ -1480,7 +1511,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.2",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking",
@@ -1526,7 +1558,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.1",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking"
@@ -1669,7 +1702,8 @@
             "input": "1.1",
             "output": "5.5",
             "cacheRead": "0.11",
-            "cacheWrite": "1.375"
+            "cacheWrite": "1.375",
+            "cacheWrite1h": "2.2"
           },
           "tags": [
             "legacy_thinking",
@@ -1711,7 +1745,8 @@
             "input": "0.11",
             "output": "0.55",
             "cacheRead": "0.011",
-            "cacheWrite": "0.1375"
+            "cacheWrite": "0.1375",
+            "cacheWrite1h": "0.22"
           },
           "tiers": [
             {
@@ -1720,7 +1755,8 @@
                 "input": "0.55",
                 "output": "2.75",
                 "cacheRead": "0.055",
-                "cacheWrite": "0.6875"
+                "cacheWrite": "0.6875",
+                "cacheWrite1h": "1.1"
               }
             }
           ],
@@ -1765,7 +1801,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "legacy_thinking",
@@ -1812,7 +1849,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -1857,7 +1895,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -1902,7 +1941,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -1947,7 +1987,8 @@
             "input": "4.4",
             "output": "22",
             "cacheRead": "0.22",
-            "cacheWrite": "5.5"
+            "cacheWrite": "5.5",
+            "cacheWrite1h": "8.8"
           },
           "tags": [
             "adaptive_thinking"
@@ -1988,7 +2029,8 @@
             "input": "3.3",
             "output": "16.5",
             "cacheRead": "0.33",
-            "cacheWrite": "4.125"
+            "cacheWrite": "4.125",
+            "cacheWrite1h": "6.6"
           },
           "tags": [
             "legacy_thinking",
@@ -2028,7 +2070,8 @@
             "input": "3.3",
             "output": "16.5",
             "cacheRead": "0.33",
-            "cacheWrite": "4.125"
+            "cacheWrite": "4.125",
+            "cacheWrite1h": "6.6"
           },
           "tags": [
             "legacy_thinking",
@@ -2075,7 +2118,8 @@
             "input": "2.2",
             "output": "11",
             "cacheRead": "0.22",
-            "cacheWrite": "2.75"
+            "cacheWrite": "2.75",
+            "cacheWrite1h": "4.4"
           },
           "tags": [
             "adaptive_thinking",
@@ -2421,7 +2465,8 @@
             "input": "11",
             "output": "55",
             "cacheRead": "1.1",
-            "cacheWrite": "13.75"
+            "cacheWrite": "13.75",
+            "cacheWrite1h": "22"
           },
           "tags": [
             "adaptive_thinking",
@@ -2465,7 +2510,8 @@
             "input": "1.1",
             "output": "5.5",
             "cacheRead": "0.11",
-            "cacheWrite": "1.375"
+            "cacheWrite": "1.375",
+            "cacheWrite1h": "2.2"
           },
           "tags": [
             "legacy_thinking",
@@ -2507,7 +2553,8 @@
             "input": "0.11",
             "output": "0.55",
             "cacheRead": "0.011",
-            "cacheWrite": "0.1375"
+            "cacheWrite": "0.1375",
+            "cacheWrite1h": "0.22"
           },
           "tiers": [
             {
@@ -2516,7 +2563,8 @@
                 "input": "0.55",
                 "output": "2.75",
                 "cacheRead": "0.055",
-                "cacheWrite": "0.6875"
+                "cacheWrite": "0.6875",
+                "cacheWrite1h": "1.1"
               }
             }
           ],
@@ -2561,7 +2609,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "legacy_thinking",
@@ -2606,7 +2655,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "legacy_thinking",
@@ -2653,7 +2703,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -2698,7 +2749,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -2743,7 +2795,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -2788,7 +2841,8 @@
             "input": "4.4",
             "output": "22",
             "cacheRead": "0.22",
-            "cacheWrite": "5.5"
+            "cacheWrite": "5.5",
+            "cacheWrite1h": "8.8"
           },
           "tags": [
             "adaptive_thinking"
@@ -2834,7 +2888,8 @@
             "input": "3.3",
             "output": "16.5",
             "cacheRead": "0.33",
-            "cacheWrite": "4.125"
+            "cacheWrite": "4.125",
+            "cacheWrite1h": "6.6"
           },
           "tags": [
             "legacy_thinking",
@@ -2874,7 +2929,8 @@
             "input": "3.3",
             "output": "16.5",
             "cacheRead": "0.33",
-            "cacheWrite": "4.125"
+            "cacheWrite": "4.125",
+            "cacheWrite1h": "6.6"
           },
           "tags": [
             "legacy_thinking",
@@ -2921,7 +2977,8 @@
             "input": "2.2",
             "output": "11",
             "cacheRead": "0.22",
-            "cacheWrite": "2.75"
+            "cacheWrite": "2.75",
+            "cacheWrite1h": "4.4"
           },
           "tags": [
             "adaptive_thinking",
@@ -2967,7 +3024,8 @@
             "input": "2.2",
             "output": "11",
             "cacheRead": "0.11",
-            "cacheWrite": "2.75"
+            "cacheWrite": "2.75",
+            "cacheWrite1h": "4.4"
           },
           "tags": [
             "adaptive_thinking"
@@ -3076,7 +3134,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "1",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking",
@@ -3120,7 +3179,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "0.25",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking",
@@ -3164,7 +3224,8 @@
             "input": "1",
             "output": "5",
             "cacheRead": "0.1",
-            "cacheWrite": "1.25"
+            "cacheWrite": "1.25",
+            "cacheWrite1h": "2"
           },
           "tags": [
             "legacy_thinking",
@@ -3206,7 +3267,8 @@
             "input": "0.1",
             "output": "0.5",
             "cacheRead": "0.01",
-            "cacheWrite": "0.125"
+            "cacheWrite": "0.125",
+            "cacheWrite1h": "0.2"
           },
           "tiers": [
             {
@@ -3215,7 +3277,8 @@
                 "input": "0.5",
                 "output": "2.5",
                 "cacheRead": "0.05",
-                "cacheWrite": "0.625"
+                "cacheWrite": "0.625",
+                "cacheWrite1h": "1"
               }
             }
           ],
@@ -3260,7 +3323,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "legacy_thinking",
@@ -3305,7 +3369,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "legacy_thinking",
@@ -3352,7 +3417,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking",
@@ -3397,7 +3463,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking",
@@ -3442,7 +3509,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking",
@@ -3487,7 +3555,8 @@
             "input": "4",
             "output": "20",
             "cacheRead": "0.2",
-            "cacheWrite": "5"
+            "cacheWrite": "5",
+            "cacheWrite1h": "8"
           },
           "tags": [
             "adaptive_thinking"
@@ -3533,7 +3602,8 @@
             "input": "3",
             "output": "15",
             "cacheRead": "0.3",
-            "cacheWrite": "3.75"
+            "cacheWrite": "3.75",
+            "cacheWrite1h": "6"
           },
           "tags": [
             "legacy_thinking",
@@ -3573,7 +3643,8 @@
             "input": "3",
             "output": "15",
             "cacheRead": "0.3",
-            "cacheWrite": "3.75"
+            "cacheWrite": "3.75",
+            "cacheWrite1h": "6"
           },
           "tags": [
             "legacy_thinking",
@@ -3620,7 +3691,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.2",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking",
@@ -3666,7 +3738,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.1",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking"
@@ -4464,7 +4537,8 @@
             "input": "1.1",
             "output": "5.5",
             "cacheRead": "0.11",
-            "cacheWrite": "1.375"
+            "cacheWrite": "1.375",
+            "cacheWrite1h": "2.2"
           },
           "tags": [
             "legacy_thinking",
@@ -4506,7 +4580,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -4551,7 +4626,8 @@
             "input": "2.2",
             "output": "11",
             "cacheRead": "0.22",
-            "cacheWrite": "2.75"
+            "cacheWrite": "2.75",
+            "cacheWrite1h": "4.4"
           },
           "tags": [
             "adaptive_thinking",
@@ -4754,7 +4830,8 @@
             "input": "1.1",
             "output": "5.5",
             "cacheRead": "0.11",
-            "cacheWrite": "1.375"
+            "cacheWrite": "1.375",
+            "cacheWrite1h": "2.2"
           },
           "tags": [
             "legacy_thinking",
@@ -4796,7 +4873,8 @@
             "input": "0.11",
             "output": "0.55",
             "cacheRead": "0.011",
-            "cacheWrite": "0.1375"
+            "cacheWrite": "0.1375",
+            "cacheWrite1h": "0.22"
           },
           "tiers": [
             {
@@ -4805,7 +4883,8 @@
                 "input": "0.55",
                 "output": "2.75",
                 "cacheRead": "0.055",
-                "cacheWrite": "0.6875"
+                "cacheWrite": "0.6875",
+                "cacheWrite1h": "1.1"
               }
             }
           ],
@@ -4850,7 +4929,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -4895,7 +4975,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -4940,7 +5021,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -4985,7 +5067,8 @@
             "input": "4.4",
             "output": "22",
             "cacheRead": "0.22",
-            "cacheWrite": "5.5"
+            "cacheWrite": "5.5",
+            "cacheWrite1h": "8.8"
           },
           "tags": [
             "adaptive_thinking"
@@ -5026,7 +5109,8 @@
             "input": "3.3",
             "output": "16.5",
             "cacheRead": "0.33",
-            "cacheWrite": "4.125"
+            "cacheWrite": "4.125",
+            "cacheWrite1h": "6.6"
           },
           "tags": [
             "legacy_thinking",
@@ -5066,7 +5150,8 @@
             "input": "3.3",
             "output": "16.5",
             "cacheRead": "0.33",
-            "cacheWrite": "4.125"
+            "cacheWrite": "4.125",
+            "cacheWrite1h": "6.6"
           },
           "tags": [
             "legacy_thinking",
@@ -5113,7 +5198,8 @@
             "input": "2.2",
             "output": "11",
             "cacheRead": "0.22",
-            "cacheWrite": "2.75"
+            "cacheWrite": "2.75",
+            "cacheWrite1h": "4.4"
           },
           "tags": [
             "adaptive_thinking",
@@ -7183,7 +7269,8 @@
             "input": "11",
             "output": "55",
             "cacheRead": "1.1",
-            "cacheWrite": "13.75"
+            "cacheWrite": "13.75",
+            "cacheWrite1h": "22"
           },
           "tags": [
             "adaptive_thinking",
@@ -7227,7 +7314,8 @@
             "input": "11",
             "output": "55",
             "cacheRead": "0.275",
-            "cacheWrite": "13.75"
+            "cacheWrite": "13.75",
+            "cacheWrite1h": "22"
           },
           "tags": [
             "adaptive_thinking",
@@ -7271,7 +7359,8 @@
             "input": "1.1",
             "output": "5.5",
             "cacheRead": "0.11",
-            "cacheWrite": "1.375"
+            "cacheWrite": "1.375",
+            "cacheWrite1h": "2.2"
           },
           "tags": [
             "legacy_thinking",
@@ -7313,7 +7402,8 @@
             "input": "0.11",
             "output": "0.55",
             "cacheRead": "0.011",
-            "cacheWrite": "0.1375"
+            "cacheWrite": "0.1375",
+            "cacheWrite1h": "0.22"
           },
           "tiers": [
             {
@@ -7322,7 +7412,8 @@
                 "input": "0.55",
                 "output": "2.75",
                 "cacheRead": "0.055",
-                "cacheWrite": "0.6875"
+                "cacheWrite": "0.6875",
+                "cacheWrite1h": "1.1"
               }
             }
           ],
@@ -7372,7 +7463,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "legacy_thinking",
@@ -7417,7 +7509,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "legacy_thinking",
@@ -7464,7 +7557,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -7509,7 +7603,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -7554,7 +7649,8 @@
             "input": "5.5",
             "output": "27.5",
             "cacheRead": "0.55",
-            "cacheWrite": "6.875"
+            "cacheWrite": "6.875",
+            "cacheWrite1h": "11"
           },
           "tags": [
             "adaptive_thinking",
@@ -7599,7 +7695,8 @@
             "input": "4.4",
             "output": "22",
             "cacheRead": "0.22",
-            "cacheWrite": "5.5"
+            "cacheWrite": "5.5",
+            "cacheWrite1h": "8.8"
           },
           "tags": [
             "adaptive_thinking"
@@ -7645,7 +7742,8 @@
             "input": "3.3",
             "output": "16.5",
             "cacheRead": "0.33",
-            "cacheWrite": "4.125"
+            "cacheWrite": "4.125",
+            "cacheWrite1h": "6.6"
           },
           "tags": [
             "legacy_thinking",
@@ -7685,7 +7783,8 @@
             "input": "3.3",
             "output": "16.5",
             "cacheRead": "0.33",
-            "cacheWrite": "4.125"
+            "cacheWrite": "4.125",
+            "cacheWrite1h": "6.6"
           },
           "tags": [
             "legacy_thinking",
@@ -7732,7 +7831,8 @@
             "input": "2.2",
             "output": "11",
             "cacheRead": "0.22",
-            "cacheWrite": "2.75"
+            "cacheWrite": "2.75",
+            "cacheWrite1h": "4.4"
           },
           "tags": [
             "adaptive_thinking",
@@ -7778,7 +7878,8 @@
             "input": "2.2",
             "output": "11",
             "cacheRead": "0.11",
-            "cacheWrite": "2.75"
+            "cacheWrite": "2.75",
+            "cacheWrite1h": "4.4"
           },
           "tags": [
             "adaptive_thinking"
@@ -8867,7 +8968,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "1",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking"
@@ -8908,7 +9010,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "0.25",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking"
@@ -8950,7 +9053,8 @@
             "input": "1",
             "output": "5",
             "cacheRead": "0.1",
-            "cacheWrite": "1.25"
+            "cacheWrite": "1.25",
+            "cacheWrite1h": "2"
           },
           "tags": [
             "legacy_thinking"
@@ -8988,7 +9092,8 @@
             "input": "0.1",
             "output": "0.5",
             "cacheRead": "0.01",
-            "cacheWrite": "0.125"
+            "cacheWrite": "0.125",
+            "cacheWrite1h": "0.2"
           },
           "tiers": [
             {
@@ -8997,7 +9102,8 @@
                 "input": "0.5",
                 "output": "2.5",
                 "cacheRead": "0.05",
-                "cacheWrite": "0.625"
+                "cacheWrite": "0.625",
+                "cacheWrite1h": "1"
               }
             }
           ],
@@ -9043,7 +9149,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "1",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking"
@@ -9085,7 +9192,8 @@
             "input": "15",
             "output": "75",
             "cacheRead": "1.5",
-            "cacheWrite": "18.75"
+            "cacheWrite": "18.75",
+            "cacheWrite1h": "30"
           },
           "tags": [
             "legacy_thinking"
@@ -9123,7 +9231,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "legacy_thinking"
@@ -9165,7 +9274,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tiers": [
             {
@@ -9174,7 +9284,8 @@
                 "input": "10",
                 "output": "37.5",
                 "cacheRead": "1",
-                "cacheWrite": "12.5"
+                "cacheWrite": "12.5",
+                "cacheWrite1h": "20"
               }
             }
           ],
@@ -9220,7 +9331,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking"
@@ -9261,7 +9373,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tiers": [
             {
@@ -9270,7 +9383,8 @@
                 "input": "10",
                 "output": "37.5",
                 "cacheRead": "1",
-                "cacheWrite": "12.5"
+                "cacheWrite": "12.5",
+                "cacheWrite1h": "20"
               }
             }
           ],
@@ -9313,7 +9427,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking"
@@ -9355,7 +9470,8 @@
             "input": "4",
             "output": "20",
             "cacheRead": "0.2",
-            "cacheWrite": "5"
+            "cacheWrite": "5",
+            "cacheWrite1h": "8"
           },
           "tags": [
             "adaptive_thinking"
@@ -9397,7 +9513,8 @@
             "input": "3",
             "output": "15",
             "cacheRead": "0.3",
-            "cacheWrite": "3.75"
+            "cacheWrite": "3.75",
+            "cacheWrite1h": "6"
           },
           "tags": [
             "legacy_thinking"
@@ -9435,7 +9552,8 @@
             "input": "3",
             "output": "15",
             "cacheRead": "0.3",
-            "cacheWrite": "3.75"
+            "cacheWrite": "3.75",
+            "cacheWrite1h": "6"
           },
           "tags": [
             "legacy_thinking",
@@ -9480,7 +9598,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.2",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking"
@@ -9523,7 +9642,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.2",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking"
@@ -12835,7 +12955,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "1",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking"
@@ -12876,7 +12997,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "0.25",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking"
@@ -12917,7 +13039,8 @@
             "input": "1",
             "output": "5",
             "cacheRead": "0.1",
-            "cacheWrite": "1.25"
+            "cacheWrite": "1.25",
+            "cacheWrite1h": "2"
           },
           "tags": [
             "legacy_thinking"
@@ -12956,7 +13079,8 @@
             "input": "0.1",
             "output": "0.5",
             "cacheRead": "0.01",
-            "cacheWrite": "0.125"
+            "cacheWrite": "0.125",
+            "cacheWrite1h": "0.2"
           },
           "tiers": [
             {
@@ -12965,7 +13089,8 @@
                 "input": "0.5",
                 "output": "2.5",
                 "cacheRead": "0.05",
-                "cacheWrite": "0.625"
+                "cacheWrite": "0.625",
+                "cacheWrite1h": "1"
               }
             }
           ],
@@ -13009,7 +13134,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking"
@@ -13051,7 +13177,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking"
@@ -13093,7 +13220,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking"
@@ -13136,7 +13264,8 @@
             "input": "4",
             "output": "20",
             "cacheRead": "0.2",
-            "cacheWrite": "5"
+            "cacheWrite": "5",
+            "cacheWrite1h": "8"
           },
           "tags": [
             "adaptive_thinking"
@@ -13177,7 +13306,8 @@
             "input": "3",
             "output": "15",
             "cacheRead": "0.3",
-            "cacheWrite": "3.75"
+            "cacheWrite": "3.75",
+            "cacheWrite1h": "6"
           },
           "tags": [
             "legacy_thinking",
@@ -13223,7 +13353,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.2",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking"
@@ -13264,7 +13395,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.1",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking"
@@ -18259,7 +18391,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "0.25",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking"
@@ -18301,7 +18434,8 @@
             "input": "10",
             "output": "50",
             "cacheRead": "1",
-            "cacheWrite": "12.5"
+            "cacheWrite": "12.5",
+            "cacheWrite1h": "20"
           },
           "tags": [
             "adaptive_thinking"
@@ -18342,7 +18476,8 @@
             "input": "1",
             "output": "5",
             "cacheRead": "0.1",
-            "cacheWrite": "1.25"
+            "cacheWrite": "1.25",
+            "cacheWrite1h": "2"
           },
           "tags": [
             "legacy_thinking"
@@ -18379,7 +18514,8 @@
             "input": "0.1",
             "output": "0.5",
             "cacheRead": "0.01",
-            "cacheWrite": "0.125"
+            "cacheWrite": "0.125",
+            "cacheWrite1h": "0.2"
           },
           "tiers": [
             {
@@ -18388,7 +18524,8 @@
                 "input": "0.5",
                 "output": "2.5",
                 "cacheRead": "0.05",
-                "cacheWrite": "0.625"
+                "cacheWrite": "0.625",
+                "cacheWrite1h": "1"
               }
             }
           ],
@@ -18433,7 +18570,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "legacy_thinking"
@@ -18475,7 +18613,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "legacy_thinking",
@@ -18519,7 +18658,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking"
@@ -18560,7 +18700,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking"
@@ -18601,7 +18742,8 @@
             "input": "4",
             "output": "20",
             "cacheRead": "0.2",
-            "cacheWrite": "5"
+            "cacheWrite": "5",
+            "cacheWrite1h": "8"
           },
           "tags": [
             "adaptive_thinking"
@@ -18643,7 +18785,8 @@
             "input": "5",
             "output": "25",
             "cacheRead": "0.5",
-            "cacheWrite": "6.25"
+            "cacheWrite": "6.25",
+            "cacheWrite1h": "10"
           },
           "tags": [
             "adaptive_thinking"
@@ -18684,7 +18827,8 @@
             "input": "3",
             "output": "15",
             "cacheRead": "0.3",
-            "cacheWrite": "3.75"
+            "cacheWrite": "3.75",
+            "cacheWrite1h": "6"
           },
           "tags": [
             "legacy_thinking",
@@ -18728,7 +18872,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.1",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking"
@@ -18770,7 +18915,8 @@
             "input": "2",
             "output": "10",
             "cacheRead": "0.2",
-            "cacheWrite": "2.5"
+            "cacheWrite": "2.5",
+            "cacheWrite1h": "4"
           },
           "tags": [
             "adaptive_thinking"

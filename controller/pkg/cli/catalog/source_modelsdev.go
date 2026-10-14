@@ -265,7 +265,8 @@ func modelsDevBuildModel(provider, model string, m modelsDevModel, warn func(for
 			warn("%s: skipping unsupported reasoning option %q", label, option.Type)
 		}
 	}
-	if strings.HasPrefix(m.Family, "claude-") {
+	claude := strings.HasPrefix(m.Family, "claude-")
+	if claude {
 		var effort, budgetTokens bool
 		for _, option := range m.ReasoningOptions {
 			switch option.Type {
@@ -310,7 +311,32 @@ func modelsDevBuildModel(provider, model string, m modelsDevModel, warn func(for
 		entry.Tiers = append(entry.Tiers, Tier{ServiceTier: serviceTier, Rates: rates})
 	}
 
+	if claude {
+		deriveCacheWrite1h(&entry.Rates)
+		for i := range entry.Tiers {
+			deriveCacheWrite1h(&entry.Tiers[i].Rates)
+		}
+	}
+
 	return entry, nil
+}
+
+// deriveCacheWrite1h fills the 1h cache write rate, which models.dev does not publish. Anthropic
+// prices 1h writes at 2x input and 5m writes at 1.25x; only derive when the 5m rate follows that
+// rule, so a source with a different pricing scheme is left to fall back to cacheWrite.
+func deriveCacheWrite1h(r *Rates) {
+	if r.CacheWrite == "" {
+		return
+	}
+	input, err := r.Input.Decimal()
+	if err != nil {
+		return
+	}
+	cacheWrite, err := r.CacheWrite.Decimal()
+	if err != nil || !cacheWrite.Equal(input.Mul(decimal.RequireFromString("1.25"))) {
+		return
+	}
+	r.CacheWrite1h = Money(input.Mul(decimal.NewFromInt(2)).String())
 }
 
 func modelsDevBuildTiers(src []modelsDevTier, label string, warn func(format string, args ...any)) ([]Tier, error) {
