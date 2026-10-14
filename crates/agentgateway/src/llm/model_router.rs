@@ -115,6 +115,17 @@ static SERVING_ENDPOINTS: LazyLock<Vec<(EndpointMatch, Option<llm::RouteType>, &
 				));
 			}
 		}
+		// After the Gemini routes, so `/v1/models/{model}:generateContent` is classified as Gemini.
+		for (pattern, template) in [
+			(r"^/v1/models/.+$", "/v1/models/{model}"),
+			(r"^/models/.+$", "/models/{model}"),
+		] {
+			endpoints.push((
+				EndpointMatch::Regex(regex::Regex::new(pattern).expect("valid model route regex")),
+				Some(Models),
+				template,
+			));
+		}
 		endpoints.push((
 			EndpointMatch::Regex(
 				regex::Regex::new(
@@ -470,12 +481,16 @@ impl ModelRouter {
 		};
 		let targets = targets
 			.into_iter()
-			.filter_map(|target| {
-				let route = self
+			.map(|target| {
+				// An unresolved target leaves its metadata unknown rather than being skipped.
+				match self
 					.models
 					.iter()
-					.find(|route| model_name_matches(&route.name, target))?;
-				Some(model_info(route, target.to_string(), catalog))
+					.find(|route| model_name_matches(&route.name, target))
+				{
+					Some(route) => model_info(route, target.to_string(), catalog),
+					None => llm::model_list::ModelInfo::default(),
+				}
 			})
 			.collect::<Vec<_>>();
 		llm::model_list::ModelInfo::combine(model.name.clone(), model.created, &targets)
@@ -763,7 +778,7 @@ fn model_info(
 	};
 	let entry = catalog
 		.model_ids(&discovery.provider)
-		.and_then(|ids| discovery.catalog_model(&name, ids))
+		.map(|ids| discovery.catalog_model(&name, ids))
 		.and_then(|id| catalog.model(&discovery.provider, &id));
 	llm::model_list::ModelInfo::new(name, route.created, Some(discovery.provider.clone()), entry)
 }
@@ -788,6 +803,9 @@ fn is_responses_websocket(req: &Request) -> bool {
 }
 
 fn is_model_list_request(req: &Request) -> bool {
+	if req.method() != ::http::Method::GET {
+		return false;
+	}
 	let path = req.uri().path().trim_end_matches('/');
 	path == "/v1/models"
 		|| path

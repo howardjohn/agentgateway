@@ -665,7 +665,12 @@ llm:
 	let limited: Value = serde_json::from_slice(&read_body_raw(res.into_body()).await).unwrap();
 	assert_eq!(limited["data"].as_array().unwrap().len(), 1);
 
-	let res = send_request(io.clone(), Method::GET, "http://lo/v1/models/openai/gpt-5.5").await;
+	let res = send_request(
+		io.clone(),
+		Method::GET,
+		"http://lo/v1/models/openai/gpt-5.5",
+	)
+	.await;
 	assert_eq!(res.status(), StatusCode::OK);
 	let model: Value = serde_json::from_slice(&read_body_raw(res.into_body()).await).unwrap();
 	assert_eq!(model["id"], "openai/gpt-5.5");

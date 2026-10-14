@@ -31,13 +31,6 @@ impl ModelDiscovery {
 		model: Option<Strng>,
 		transformation: Option<&cel::Expression>,
 	) -> Option<Self> {
-		if model.is_some() {
-			return Some(Self {
-				provider,
-				transformation: ModelTransformation::Identity,
-				model,
-			});
-		}
 		let transformation = match transformation {
 			Some(expression) => crate::llm::model_transform::reverse_model_transformation(expression)?,
 			None => ModelTransformation::Identity,
@@ -45,7 +38,7 @@ impl ModelDiscovery {
 		Some(Self {
 			provider,
 			transformation,
-			model: None,
+			model,
 		})
 	}
 
@@ -55,21 +48,21 @@ impl ModelDiscovery {
 	}
 
 	/// Finds the catalog model ID backing a served name.
-	pub fn catalog_model<'a>(
-		&self,
-		served: &str,
-		mut ids: impl Iterator<Item = &'a str>,
-	) -> Option<String> {
-		if let Some(model) = &self.model {
-			return Some(model.to_string());
-		}
-		ids
-			.find(|id| {
+	pub fn catalog_model<'a>(&self, served: &str, mut ids: impl Iterator<Item = &'a str>) -> String {
+		// A fixed model replaces the served name before the transformation runs.
+		let target = self.model.as_deref().unwrap_or(served);
+		if !matches!(self.transformation, ModelTransformation::Identity)
+			&& let Some(id) = ids.find(|id| {
 				self
 					.transformation
 					.apply(*id)
-					.is_some_and(|name| name == served)
-			})
-			.map(str::to_owned)
+					.is_some_and(|name| name == target)
+			}) {
+			return id.to_owned();
+		}
+		// Otherwise the target is the upstream model: either there is no transformation, or it left
+		// the name unchanged (e.g. stripPrefix without the prefix). The catalog resolves provider
+		// aliases such as Vertex publisher prefixes.
+		target.to_string()
 	}
 }

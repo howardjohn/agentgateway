@@ -121,7 +121,8 @@ backends:
           models:
             - discovery:
                 provider: anthropic
-                transformation: identity
+                transformation:
+                  prefix: anthropic/
                 model: claude-sonnet-4-5-20250929
               name: anthropic/*
               created: 0
