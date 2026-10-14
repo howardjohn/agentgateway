@@ -164,12 +164,17 @@ impl Catalog {
 	}
 
 	pub fn resolve(&self, provider: &str, model: &str) -> Option<&Model> {
+		self.resolve_entry(provider, model).map(|(_, m)| m)
+	}
+
+	/// Like `resolve`, but also returns the catalog model ID that matched.
+	pub fn resolve_entry(&self, provider: &str, model: &str) -> Option<(&String, &Model)> {
 		let models = &self.providers.get(provider)?.models;
-		models.get(model).or_else(|| {
+		models.get_key_value(model).or_else(|| {
 			if provider != vertex::Provider::NAME.as_str() {
 				return None;
 			}
-			models.get(vertex::Provider::canonical_model(model).as_str())
+			models.get_key_value(vertex::Provider::canonical_model(model).as_str())
 		})
 	}
 }
@@ -250,7 +255,7 @@ pub struct Model {
 	pub unknown: Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ::cel::DynamicType)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
 #[serde(rename_all = "camelCase")]
@@ -267,10 +272,11 @@ pub struct Limits {
 	/// Fields not understood by this version.
 	#[serde(flatten, skip_serializing)]
 	#[cfg_attr(feature = "schema", schemars(skip))]
+	#[dynamic(skip)]
 	pub unknown: Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ::cel::DynamicType)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
 #[serde(rename_all = "camelCase")]
@@ -284,10 +290,11 @@ pub struct Modalities {
 	/// Fields not understood by this version.
 	#[serde(flatten, skip_serializing)]
 	#[cfg_attr(feature = "schema", schemars(skip))]
+	#[dynamic(skip)]
 	pub unknown: Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ::cel::DynamicType)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
 #[serde(rename_all = "camelCase")]
@@ -297,9 +304,11 @@ pub struct Capabilities {
 	pub reasoning: Option<bool>,
 	/// Whether the model supports JSON Schema structured outputs.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[dynamic(rename = "structuredOutput")]
 	pub structured_output: Option<bool>,
 	/// Whether the model supports tool calling.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[dynamic(rename = "toolCall")]
 	pub tool_call: Option<bool>,
 	/// Whether the model accepts the temperature parameter.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
@@ -307,10 +316,11 @@ pub struct Capabilities {
 	/// Fields not understood by this version.
 	#[serde(flatten, skip_serializing)]
 	#[cfg_attr(feature = "schema", schemars(skip))]
+	#[dynamic(skip)]
 	pub unknown: Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ::cel::DynamicType)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
 #[serde(rename_all = "camelCase")]
@@ -323,14 +333,16 @@ pub struct Reasoning {
 	pub effort: Vec<String>,
 	/// Accepted reasoning token budget range.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[dynamic(rename = "budgetTokens")]
 	pub budget_tokens: Option<BudgetTokens>,
 	/// Fields not understood by this version.
 	#[serde(flatten, skip_serializing)]
 	#[cfg_attr(feature = "schema", schemars(skip))]
+	#[dynamic(skip)]
 	pub unknown: Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ::cel::DynamicType)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "schema", schemars(deny_unknown_fields))]
 #[serde(rename_all = "camelCase")]
@@ -344,6 +356,7 @@ pub struct BudgetTokens {
 	/// Fields not understood by this version.
 	#[serde(flatten, skip_serializing)]
 	#[cfg_attr(feature = "schema", schemars(skip))]
+	#[dynamic(skip)]
 	pub unknown: Unknown,
 }
 

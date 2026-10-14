@@ -1653,6 +1653,10 @@ pub struct LLMContext {
 	#[dynamic(rename = "costRates")]
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub cost_rates: Option<llm::catalog::CostRates>,
+	/// Model catalog metadata for the model that served the request.
+	/// Unset when the model is not in the catalog.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub model: Option<Arc<llm::catalog::ModelInfo>>,
 	#[serde(skip)]
 	#[dynamic(skip)]
 	pub cost_status: Option<llm::catalog::CostLookupStatus>,
@@ -1726,6 +1730,7 @@ impl LLMContext {
 		if let Some(projection) = projection {
 			base.cost = projection.cost;
 			base.cost_rates = projection.cost_rates;
+			base.model = projection.model;
 			base.cost_status = Some(projection.status);
 		}
 
@@ -1800,6 +1805,7 @@ impl From<llm::LLMRequest> for LLMContext {
 			cost: None,
 			cost_rates: None,
 			cost_status: None,
+			model: None,
 		}
 	}
 }
@@ -2541,6 +2547,7 @@ pub fn full_example_executor() -> ExecutorSerde {
 			cost: None,
 			cost_rates: None,
 			cost_status: None,
+			model: None,
 		}),
 		mcp: Some(MCPInfo {
 			method_name: Some("tools/call".into()),

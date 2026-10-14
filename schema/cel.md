@@ -114,6 +114,30 @@
 |`llm.costRates.inputAudio`|number||
 |`llm.costRates.outputAudio`|number||
 |`llm.costRates.perPage`|number||
+|`llm.model`|object|Model catalog metadata for the model that served the request.<br>Unset when the model is not in the catalog.|
+|`llm.model.id`|string|The catalog model ID the request resolved to.|
+|`llm.model.name`|string|Human-readable display name.|
+|`llm.model.status`|string|Lifecycle stage (alpha, beta, deprecated); absent means generally available.|
+|`llm.model.released`|string|Release date, as YYYY-MM-DD or YYYY-MM.|
+|`llm.model.tags`|[]string|Freeform capability/routing tags for this model.|
+|`llm.model.limits`|object|Token limits.|
+|`llm.model.limits.context`|integer|Total context window, shared by input and output.|
+|`llm.model.limits.input`|integer|Maximum input tokens, when tighter than the context window allows.|
+|`llm.model.limits.output`|integer|Maximum output tokens.|
+|`llm.model.modalities`|object|Supported input and output modalities.|
+|`llm.model.modalities.input`|[]string|Input modalities, such as text, image, pdf, audio, or video.|
+|`llm.model.modalities.output`|[]string|Output modalities, such as text, image, audio, or video.|
+|`llm.model.capabilities`|object|Supported features. Absent fields are unknown.|
+|`llm.model.capabilities.reasoning`|boolean|Whether the model supports reasoning.|
+|`llm.model.capabilities.structuredOutput`|boolean|Whether the model supports JSON Schema structured outputs.|
+|`llm.model.capabilities.toolCall`|boolean|Whether the model supports tool calling.|
+|`llm.model.capabilities.temperature`|boolean|Whether the model accepts the temperature parameter.|
+|`llm.model.reasoning`|object|How reasoning can be controlled.|
+|`llm.model.reasoning.toggle`|boolean|Whether reasoning can be turned on and off.|
+|`llm.model.reasoning.effort`|[]string|Accepted effort levels.|
+|`llm.model.reasoning.budgetTokens`|object|Accepted reasoning token budget range.|
+|`llm.model.reasoning.budgetTokens.min`|integer|Minimum reasoning token budget.|
+|`llm.model.reasoning.budgetTokens.max`|integer|Maximum reasoning token budget.|
 |`llmRequest`|any|`llmRequest` contains the raw LLM request before processing. This is only present *during* LLM policies;<br>policies occurring after the LLM policy, such as logs, will not have this field present even for LLM requests.|
 |`source`|object|`source` contains attributes about the source of the request.|
 |`source.address`|string|The IP address of the downstream connection.|

@@ -276,6 +276,8 @@ pub struct CatalogSnapshot {
 	catalog: Option<CatalogData>,
 	/// Precomputed `model_id -> tags` (merged across providers) for O(1) attribute lookups.
 	model_tags: std::collections::HashMap<String, Arc<std::collections::BTreeSet<String>>>,
+	/// Precomputed CEL view of each model, keyed by provider then model ID.
+	model_info: std::collections::HashMap<String, std::collections::HashMap<String, Arc<ModelInfo>>>,
 }
 
 impl fmt::Debug for CatalogSnapshot {
@@ -329,9 +331,22 @@ impl CatalogSnapshot {
 			.filter(|(_, m)| !m.tags.is_empty())
 			.map(|(id, m)| (id.clone(), Arc::new(m.tags.clone())))
 			.collect();
+		let model_info = merged
+			.providers
+			.iter()
+			.map(|(provider, p)| {
+				let models = p
+					.models
+					.iter()
+					.map(|(id, m)| (id.clone(), Arc::new(ModelInfo::new(id, m))))
+					.collect();
+				(provider.clone(), models)
+			})
+			.collect();
 		CatalogSnapshot {
 			catalog: Some(merged),
 			model_tags,
+			model_info,
 		}
 	}
 
@@ -339,6 +354,7 @@ impl CatalogSnapshot {
 		CatalogSnapshot {
 			catalog: None,
 			model_tags: std::collections::HashMap::new(),
+			model_info: std::collections::HashMap::new(),
 		}
 	}
 
@@ -405,8 +421,8 @@ impl CatalogSnapshot {
 			);
 			return CostProjection::unpriced(CostLookupStatus::NoCatalog);
 		};
-		let entry = catalog.resolve(provider, model);
-		let Some(entry) = entry else {
+		let entry = catalog.resolve_entry(provider, model);
+		let Some((id, entry)) = entry else {
 			if trace_missing {
 				crate::proxy::dtrace::pol_event!(
 					TRACE_POLICY_KIND,
@@ -421,6 +437,11 @@ impl CatalogSnapshot {
 			}
 			return CostProjection::unpriced(CostLookupStatus::Missing);
 		};
+		let model_info = self
+			.model_info
+			.get(provider)
+			.and_then(|models| models.get(id))
+			.cloned();
 
 		let provisional_usage = usage_for(convention, resp, true, true);
 		let pricing_tier = resp
@@ -446,7 +467,10 @@ impl CatalogSnapshot {
 					"usage": &provisional_usage,
 				}),
 			);
-			return CostProjection::unpriced(CostLookupStatus::Unpriced);
+			return CostProjection {
+				model: model_info,
+				..CostProjection::unpriced(CostLookupStatus::Unpriced)
+			};
 		}
 
 		let prices_cache_read = rates.cache_read.is_some();
@@ -480,6 +504,7 @@ impl CatalogSnapshot {
 			status: CostLookupStatus::Exact,
 			cost: Some(breakdown),
 			cost_rates: Some(cost_rates),
+			model: model_info,
 		}
 	}
 }
@@ -503,6 +528,7 @@ pub struct CostProjection {
 	pub status: CostLookupStatus,
 	pub cost: Option<Breakdown>,
 	pub cost_rates: Option<CostRates>,
+	pub model: Option<Arc<ModelInfo>>,
 }
 
 impl CostProjection {
@@ -511,6 +537,55 @@ impl CostProjection {
 			status,
 			cost: None,
 			cost_rates: None,
+			model: None,
+		}
+	}
+}
+
+/// Catalog metadata for the model that served an LLM request.
+#[apply(schema!)]
+#[derive(::cel::DynamicType)]
+pub struct ModelInfo {
+	/// The catalog model ID the request resolved to.
+	pub id: String,
+	/// Human-readable display name.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub name: Option<String>,
+	/// Lifecycle stage (alpha, beta, deprecated); absent means generally available.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub status: Option<String>,
+	/// Release date, as YYYY-MM-DD or YYYY-MM.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub released: Option<String>,
+	/// Freeform capability/routing tags for this model.
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub tags: Vec<String>,
+	/// Token limits.
+	#[serde(default)]
+	pub limits: Limits,
+	/// Supported input and output modalities.
+	#[serde(default)]
+	pub modalities: Modalities,
+	/// Supported features. Absent fields are unknown.
+	#[serde(default)]
+	pub capabilities: Capabilities,
+	/// How reasoning can be controlled.
+	#[serde(default)]
+	pub reasoning: Reasoning,
+}
+
+impl ModelInfo {
+	fn new(id: &str, m: &Model) -> Self {
+		ModelInfo {
+			id: id.to_string(),
+			name: m.name.clone(),
+			status: m.status.clone(),
+			released: m.released.clone(),
+			tags: m.tags.iter().cloned().collect(),
+			limits: m.limits.clone(),
+			modalities: m.modalities.clone(),
+			capabilities: m.capabilities.clone(),
+			reasoning: m.reasoning.clone(),
 		}
 	}
 }
@@ -1394,6 +1469,41 @@ mod tests {
 			projection.cost.is_none(),
 			"provider model was found, so request model fallback must not hide unpriced rates"
 		);
+	}
+
+	#[test]
+	fn model_info_is_exposed_to_cel() {
+		let catalog = model_catalog(
+			r#"{"providers":{"openai":{"models":{
+				"provider-model":{
+					"name":"Provider Model",
+					"status":"deprecated",
+					"tags":["frontier"],
+					"limits":{"context":128000},
+					"capabilities":{"toolCall":true},
+					"reasoning":{"budgetTokens":{"max":32000}}
+				}
+			}}}}"#,
+		);
+		let ctx = crate::cel::LLMContext::from_llm_info(
+			test_llm_info("my-model", Some("provider-model")),
+			Some(&catalog),
+		);
+		let exec = crate::cel::Executor::new_llm_rate_limit_streaming(None, &ctx);
+		for expr in [
+			r#"llm.model.id == "provider-model""#,
+			r#"llm.model.name == "Provider Model""#,
+			r#"llm.model.status == "deprecated""#,
+			r#""frontier" in llm.model.tags"#,
+			"llm.model.limits.context == 128000",
+			"llm.model.capabilities.toolCall",
+			"llm.model.reasoning.budgetTokens.max == 32000",
+		] {
+			assert!(
+				exec.eval_bool(&crate::cel::Expression::new_strict(expr).unwrap()),
+				"{expr}"
+			);
+		}
 	}
 
 	#[test]
