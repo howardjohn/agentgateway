@@ -420,10 +420,38 @@ impl ModelRouter {
 			)
 			.unique_by(|model| model.id.clone())
 			.collect::<Vec<_>>();
+		let path = req.uri().path().trim_end_matches('/');
+		let body = match path
+			.strip_prefix("/v1/models/")
+			.or_else(|| path.strip_prefix("/models/"))
+		{
+			Some(id) => {
+				let id = percent_encoding::percent_decode_str(id).decode_utf8_lossy();
+				let Some(model) = data.iter().find(|model| model.id == id) else {
+					return llm_error_response(
+						::http::StatusCode::NOT_FOUND,
+						&format!("The model `{id}` does not exist"),
+						"model_not_found",
+					);
+				};
+				llm::model_list::render_model(model)
+			},
+			None => {
+				let limit = req
+					.uri()
+					.query()
+					.and_then(|query| {
+						url::form_urlencoded::parse(query.as_bytes()).find(|(key, _)| key == "limit")
+					})
+					.and_then(|(_, limit)| limit.parse::<usize>().ok())
+					.unwrap_or(data.len());
+				llm::model_list::render(&data[..limit.min(data.len())])
+			},
+		};
 		::http::Response::builder()
 			.status(::http::StatusCode::OK)
 			.header(::http::header::CONTENT_TYPE, "application/json")
-			.body(http::Body::from(llm::model_list::render(&data)))
+			.body(http::Body::from(body))
 			.expect("LLM model list response is valid")
 	}
 

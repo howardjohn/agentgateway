@@ -657,9 +657,22 @@ llm:
 		},
 	]).await.unwrap();
 	let io = t.serve_http(strng::literal!("bind/0"));
-	let res = send_request(io, Method::GET, "http://lo/v1/models").await;
+	let res = send_request(io.clone(), Method::GET, "http://lo/v1/models").await;
 	assert_eq!(res.status(), StatusCode::OK);
 	let mut models: Value = serde_json::from_slice(&read_body_raw(res.into_body()).await).unwrap();
+
+	let res = send_request(io.clone(), Method::GET, "http://lo/v1/models?limit=1").await;
+	let limited: Value = serde_json::from_slice(&read_body_raw(res.into_body()).await).unwrap();
+	assert_eq!(limited["data"].as_array().unwrap().len(), 1);
+
+	let res = send_request(io.clone(), Method::GET, "http://lo/v1/models/openai/gpt-5.5").await;
+	assert_eq!(res.status(), StatusCode::OK);
+	let model: Value = serde_json::from_slice(&read_body_raw(res.into_body()).await).unwrap();
+	assert_eq!(model["id"], "openai/gpt-5.5");
+	assert_eq!(model["max_tokens"], 128000);
+
+	let res = send_request(io, Method::GET, "http://lo/v1/models/missing").await;
+	assert_eq!(res.status(), StatusCode::NOT_FOUND);
 	// Entries without catalog metadata carry the config load time.
 	for model in models["data"].as_array_mut().unwrap() {
 		if model["id"] == "local-model" || model["id"] == "blend" {

@@ -139,6 +139,11 @@ pub fn render(models: &[ModelInfo]) -> Vec<u8> {
 	serde_json::to_vec(&list).expect("model list serializes")
 }
 
+/// Renders a single model, as returned by `/v1/models/{id}`.
+pub fn render_model(model: &ModelInfo) -> Vec<u8> {
+	serde_json::to_vec(&Entry::new(model)).expect("model serializes")
+}
+
 #[derive(Serialize)]
 struct List<'a> {
 	object: &'static str,
