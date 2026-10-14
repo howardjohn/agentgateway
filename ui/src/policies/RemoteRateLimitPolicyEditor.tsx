@@ -158,6 +158,7 @@ export function RemoteRateLimitPolicyEditor(props: {
 				</div>
 				<TargetEditor
 					value={target}
+					help={props.help}
 					tooltip={props.help.field<RemoteRateLimit>('RemoteRateLimit', 'host')}
 					onChange={setTarget}
 				/>

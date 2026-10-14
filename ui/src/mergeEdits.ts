@@ -61,9 +61,11 @@ function merge(
 // Baseline items correspond to original items by index. Edited items that are
 // unchanged from some baseline item keep that original item, so removing or
 // reordering entries preserves the rest. Changed items between two unchanged
-// neighbours pair with the unused baseline items there only when the counts
-// match (edits in place); otherwise which entry is which is ambiguous, so they
-// are taken as new and the replaced originals are reported.
+// neighbours pair in order with the unused baseline items there when the counts
+// match (edits in place), or after the last unchanged item when there are more
+// changed items (edits followed by appended entries). Otherwise which entry is
+// which is ambiguous, so they are taken as new and the replaced originals are
+// reported.
 function mergeArray(
 	original: unknown[],
 	baseline: unknown[],
@@ -82,8 +84,10 @@ function mergeArray(
 	let after = -1;
 	const flush = (before: number) => {
 		const free = baseline.flatMap((_, j) => (j > after && j < before && !used.has(j) ? [j] : []));
-		if (free.length === run.length) {
-			run.forEach((k, n) => {
+		const appended = before === baseline.length && run.length > free.length;
+		if (free.length === run.length || appended) {
+			for (const k of run.slice(free.length)) result[k] = edited[k];
+			run.slice(0, free.length).forEach((k, n) => {
 				result[k] = merge(
 					original[free[n]],
 					baseline[free[n]],
@@ -134,8 +138,8 @@ export function deepEqual(a: unknown, b: unknown): boolean {
 // An editor that shows none of a non-empty original's fields in place has
 // rewritten it into another shape (e.g. `{backend, path}` or `{host, port, path}`
 // shown as `{host: url}`), so the original's fields cannot be kept alongside
-// the edit. A field is in place when the baseline has it unchanged, or as an
-// object too (its own fields are then merged the same way).
+// the edit. A field is in place when the baseline has it unchanged, or as the
+// same kind of container (its contents are then merged the same way).
 function keepsAField(original: Record<string, unknown>, baseline: Record<string, unknown>) {
 	const keys = Object.keys(original).filter(key => original[key] !== undefined);
 	return (
@@ -144,7 +148,8 @@ function keepsAField(original: Record<string, unknown>, baseline: Record<string,
 		keys.some(
 			key =>
 				deepEqual(original[key], baseline[key]) ||
-				(isRecord(original[key]) && isRecord(baseline[key]))
+				(isRecord(original[key]) && isRecord(baseline[key])) ||
+				(Array.isArray(original[key]) && Array.isArray(baseline[key]))
 		)
 	);
 }

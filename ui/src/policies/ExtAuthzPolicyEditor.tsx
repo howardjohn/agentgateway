@@ -138,6 +138,7 @@ export function ExtAuthzPolicyEditor(props: {
 			<LostFieldsWarning lost={merged.lost} />
 			<TargetEditor
 				value={target}
+				help={props.help}
 				tooltip={props.help.field<ExtAuthz>('ExtAuthz', 'host')}
 				onChange={setTarget}
 			/>

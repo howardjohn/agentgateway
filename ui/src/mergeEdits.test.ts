@@ -52,6 +52,14 @@ test('aligns list entries across removals, in-place edits, and additions', () =>
 	]);
 });
 
+test('pairs edits in order when entries are appended in the same save', () => {
+	const original = [{ name: 'a', scope: ['messages'] }];
+	assert.deepEqual(mergeEdits(original, [{ name: 'a' }], [{ name: 'a2' }, { name: 'b' }]), {
+		value: [{ name: 'a2', scope: ['messages'] }, { name: 'b' }],
+		lost: []
+	});
+});
+
 test('does not move hidden fields between entries when pairing is ambiguous', () => {
 	const original = [
 		{ name: 'a', hidden: 'A' },
@@ -74,6 +82,16 @@ test('keeps hidden fields when every field has hidden subfields', () => {
 	const edited = { openAIModeration: { model: 'b' }, rejection: { body: 'blocked' } };
 	assert.deepEqual(mergeEdits(original, baseline, edited), {
 		value: { ...original, openAIModeration: { model: 'b', failureMode: 'failOpen' } },
+		lost: []
+	});
+});
+
+test('keeps hidden fields of list entries under an object', () => {
+	const original = { request: [{ webhook: { host: 'a' }, scope: ['messages'] }] };
+	const baseline = { request: [{ webhook: { host: 'a' } }] };
+	const edited = { request: [{ webhook: { host: 'b' } }] };
+	assert.deepEqual(mergeEdits(original, baseline, edited), {
+		value: { request: [{ webhook: { host: 'b' }, scope: ['messages'] }] },
 		lost: []
 	});
 });

@@ -35,6 +35,7 @@ import type {
 	Webhook
 } from '@/gateway-config';
 import { useDeleteConfigResource, useLlmConfigData, useUpsertPolicyResource } from '@/hooks';
+import { BackendPoliciesField } from '@/policies/PolicyFormControls';
 import { cleanEmpty } from '@/policies/policyUtils';
 import { type SchemaHelp, useSchemaHelp } from '@/schemaHelp';
 import type { GatewayConfig, LlmGuardrail } from '@/types';
@@ -572,7 +573,7 @@ function GuardCard(props: {
 			) : null}
 			{props.guard.kind !== 'unsupported' && props.guard.policies ? (
 				<details>
-					<summary>Backend policies preserved</summary>
+					<summary>Backend policies</summary>
 					<YamlBlock value={props.guard.policies} />
 				</details>
 			) : null}
@@ -698,12 +699,20 @@ function GuardFields(props: {
 				/>
 			) : null}
 			{props.guard.kind !== 'builtin' && props.guard.kind !== 'regex' ? (
-				<RejectionFields
-					phase={props.phase}
-					help={props.help}
-					guard={props.guard}
-					onChange={patch}
-				/>
+				<>
+					<BackendPoliciesField
+						key={props.guard.kind}
+						help={props.help}
+						value={props.guard.policies}
+						onChange={policies => patch({ policies })}
+					/>
+					<RejectionFields
+						phase={props.phase}
+						help={props.help}
+						guard={props.guard}
+						onChange={patch}
+					/>
+				</>
 			) : null}
 		</>
 	);
@@ -1279,6 +1288,7 @@ function draftsFromGuard(guard: GuardObject): GuardDraft[] {
 				...base,
 				kind: 'webhook',
 				target: targetToHost(webhook.target),
+				policies: valueRecord(webhook.target).policies,
 				failureMode: webhook.failureMode === 'failOpen' ? 'failOpen' : 'failClosed'
 			}
 		];
@@ -1390,7 +1400,7 @@ function buildGuard(guard: GuardDraft): GuardObject {
 		case 'webhook':
 			return withRejection(guard, {
 				webhook: cleanEmpty({
-					target: { host: guard.target.trim() },
+					target: cleanEmpty({ host: guard.target.trim(), policies: guard.policies }),
 					failureMode: guard.failureMode === 'failClosed' ? undefined : guard.failureMode
 				})
 			});

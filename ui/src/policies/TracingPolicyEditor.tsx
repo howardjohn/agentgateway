@@ -84,7 +84,12 @@ export function TracingPolicyEditor(props: {
 				props.onSave(policy);
 			}}
 		>
-			<TargetEditor value={target} tooltip="OTLP collector address." onChange={setTarget} />
+			<TargetEditor
+				value={target}
+				help={props.help}
+				tooltip="OTLP collector address."
+				onChange={setTarget}
+			/>
 			<PolicySection
 				icon={<Send size={17} />}
 				title="Export"

@@ -168,6 +168,7 @@ export function ExtProcPolicyEditor(props: {
 			<LostFieldsWarning lost={merged.lost} />
 			<TargetEditor
 				value={target}
+				help={props.help}
 				tooltip={props.help.field<ExtProc>('ExtProc', 'host')}
 				onChange={setTarget}
 			/>
