@@ -4663,32 +4663,15 @@ async fn convert_llm_config(
 			pols.push(BackendTrafficPolicy::backend_auth(backend_auth));
 		}
 
-		let discovery = if !model_config.name.contains('*')
-			|| provider.override_model().is_some()
-			|| model_config
-				.overrides
-				.as_ref()
-				.is_some_and(|p| p.contains_key("model"))
-			|| model_config
-				.final_transformation
-				.as_ref()
-				.is_some_and(|p| p.contains_key("model"))
-		{
-			None
-		} else {
-			match model_config
+		let discovery = llm::discovery::ModelDiscovery::new(
+			provider.provider(),
+			provider.override_model(),
+			model_config
 				.transformation
 				.as_ref()
 				.and_then(|p| p.get("model"))
-			{
-				Some(expression) => llm::model_transform::reverse_model_transformation(expression),
-				None => Some(llm::model_transform::ModelTransformation::Identity),
-			}
-			.map(|transformation| llm::discovery::ModelDiscovery {
-				provider: provider.provider(),
-				transformation,
-			})
-		};
+				.map(AsRef::as_ref),
+		);
 
 		// Create AI backend
 		let named_provider = NamedAIProvider {

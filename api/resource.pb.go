@@ -18006,7 +18006,7 @@ type ModelRoute_ConcreteModel struct {
 	ModelVisibility ModelRoute_ConcreteModel_ModelVisibility `protobuf:"varint,1,opt,name=model_visibility,json=modelVisibility,proto3,enum=agentgateway.dev.resource.ModelRoute_ConcreteModel_ModelVisibility" json:"model_visibility,omitempty"`
 	Backend         *BackendReference                        `protobuf:"bytes,2,opt,name=backend,proto3" json:"backend,omitempty"`
 	BackendPolicies []*BackendPolicySpec                     `protobuf:"bytes,3,rep,name=backend_policies,json=backendPolicies,proto3" json:"backend_policies,omitempty"`
-	// Catalog provider identity for wildcard discovery.
+	// Catalog provider identity, used to expand wildcards and look up model metadata.
 	DiscoveryProvider *string `protobuf:"bytes,4,opt,name=discovery_provider,json=discoveryProvider,proto3,oneof" json:"discovery_provider,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache

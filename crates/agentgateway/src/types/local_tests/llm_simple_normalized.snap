@@ -427,7 +427,10 @@ backends:
         target:
           discovery: catalog
           models:
-            - name: llama-3.1-8b-instant
+            - discovery:
+                provider: groq
+                transformation: identity
+              name: llama-3.1-8b-instant
               created: 0
               visibility: public
               headerMatches: []
@@ -438,7 +441,10 @@ backends:
                 llm: {}
                 authorization: ~
               backendPolicies: []
-            - name: fireworks-llama
+            - discovery:
+                provider: fireworks
+                transformation: identity
+              name: fireworks-llama
               created: 0
               visibility: public
               headerMatches: []
@@ -449,7 +455,11 @@ backends:
                 llm: {}
                 authorization: ~
               backendPolicies: []
-            - name: claude-3-haiku
+            - discovery:
+                provider: anthropic
+                transformation: identity
+                model: claude-haiku-4-5-20251001
+              name: claude-3-haiku
               created: 0
               visibility: public
               headerMatches:
@@ -463,7 +473,10 @@ backends:
                 llm: {}
                 authorization: ~
               backendPolicies: []
-            - name: gpt-3.5-turbo
+            - discovery:
+                provider: openai
+                transformation: identity
+              name: gpt-3.5-turbo
               created: 0
               visibility: public
               headerMatches: []
@@ -474,7 +487,11 @@ backends:
                 llm: {}
                 authorization: ~
               backendPolicies: []
-            - name: gpt-7-max
+            - discovery:
+                provider: azure
+                transformation: identity
+                model: gpt-3.5-turbo
+              name: gpt-7-max
               created: 0
               visibility: public
               headerMatches: []
@@ -485,7 +502,11 @@ backends:
                 llm: {}
                 authorization: ~
               backendPolicies: []
-            - name: "*"
+            - discovery:
+                provider: gcp.vertex_ai
+                transformation: identity
+                model: claude-haiku-4-5-20251001
+              name: "*"
               created: 0
               visibility: public
               headerMatches: []

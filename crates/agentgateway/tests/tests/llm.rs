@@ -620,6 +620,56 @@ llm:
 }
 
 #[tokio::test]
+async fn llm_model_list_metadata() {
+	let config = r#"
+llm:
+  port: 0
+  models:
+  - name: gpt-5.5
+    provider: openAI
+  - name: fast
+    provider: openAI
+    params:
+      model: gpt-5-mini
+  - name: openai/*
+    provider: openAI
+    transformation:
+      model: llmRequest.model.stripPrefix("openai/")
+  - name: local-model
+    provider: openAI
+  virtualModels:
+  - name: blend
+    routing:
+      weighted:
+        targets:
+        - model: gpt-5.5
+          weight: 1
+        - model: fast
+          weight: 1
+"#;
+	let mut t = setup_local_llm_config(config).await;
+	Arc::get_mut(&mut t.pi).unwrap().model_catalog = agentgateway::llm::catalog::ModelCatalog::new(vec![
+		agentgateway::ModelCatalogSource::Inline {
+			inline: r#"{"metadata":{"generatedAt":"2099-01-01T00:00:00Z"},"providers":{"openai":{"models":{
+				"gpt-5.5":{"name":"GPT-5.5","released":"2026-04-23","limits":{"context":1050000,"input":922000,"output":128000},"modalities":{"input":["text","image","pdf"],"output":["text"]},"capabilities":{"reasoning":true,"structuredOutput":true,"toolCall":true,"temperature":false},"reasoning":{"effort":["low","high"]}},
+				"gpt-5-mini":{"name":"GPT-5 mini","released":"2025-08","limits":{"context":400000,"output":64000},"modalities":{"input":["text","image"],"output":["text"]},"capabilities":{"reasoning":true,"toolCall":true,"temperature":true},"reasoning":{"effort":["low","medium"]}}
+			}}}}"#.to_string(),
+		},
+	]).await.unwrap();
+	let io = t.serve_http(strng::literal!("bind/0"));
+	let res = send_request(io, Method::GET, "http://lo/v1/models").await;
+	assert_eq!(res.status(), StatusCode::OK);
+	let mut models: Value = serde_json::from_slice(&read_body_raw(res.into_body()).await).unwrap();
+	// Entries without catalog metadata carry the config load time.
+	for model in models["data"].as_array_mut().unwrap() {
+		if model["id"] == "local-model" || model["id"] == "blend" {
+			model["created"] = json!(0);
+		}
+	}
+	insta::assert_json_snapshot!(models);
+}
+
+#[tokio::test]
 async fn llm_local_router_handles_models_virtual_model_and_missing_model() {
 	let mock = body_mock(llm_body!("response/completions/basic.json")).await;
 	let config = format!(

@@ -30,6 +30,7 @@ use crate::telemetry::log::{AsyncLog, GuardrailLog, RequestLog};
 use crate::types::agent::{BackendTrafficPolicy, SimpleBackendReference, Target};
 use crate::types::loadbalancer::{ActiveHandle, EndpointWithInfo};
 use crate::*;
+pub mod model_list;
 pub mod model_router;
 pub mod model_transform;
 pub mod router_callout;

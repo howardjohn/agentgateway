@@ -961,13 +961,22 @@
       ]
     },
     "ModelDiscovery": {
+      "description": "Links a served model name to its model catalog entries.",
       "type": "object",
       "properties": {
         "provider": {
           "type": "string"
         },
         "transformation": {
+          "description": "Maps catalog model IDs to served model names.",
           "$ref": "#/$defs/ModelTransformation"
+        },
+        "model": {
+          "description": "The upstream model when it is fixed regardless of the served name.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false,

@@ -104,6 +104,7 @@ output:
       concreteModel:
         backend:
           backend: default/bedrock/backend.llm
+        discoveryProvider: aws.bedrock
       key: default/bedrock.llm
       listenerKey: default/llm-only.llm
       match:
@@ -116,6 +117,7 @@ output:
       concreteModel:
         backend:
           backend: default/vertexai/backend.llm
+        discoveryProvider: gcp.vertex_ai
       key: default/vertexai.llm
       listenerKey: default/llm-only.llm
       match:

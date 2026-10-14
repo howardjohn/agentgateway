@@ -251,6 +251,7 @@ output:
       concreteModel:
         backend:
           backend: default/gpt-5-mini/backend.llm
+        discoveryProvider: openai
       key: default/gpt-5-mini.llm
       listenerKey: default/virtual-models.llm
       match:

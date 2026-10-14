@@ -1771,30 +1771,15 @@ impl ModelRoute {
 				};
 				ModelRouteKind::Concrete(llm::model_router::ModelRoute {
 					discovery: concrete.discovery_provider.as_ref().and_then(|provider| {
-						if !name.contains('*')
-							|| llm_policy
-								.overrides
+						llm::discovery::ModelDiscovery::new(
+							strng::new(provider),
+							None,
+							llm_policy
+								.transformations
 								.as_ref()
-								.is_some_and(|p| p.contains_key("model"))
-							|| llm_policy
-								.final_transformations
-								.as_ref()
-								.is_some_and(|p| p.contains_key("model"))
-						{
-							return None;
-						}
-						let transformation = match llm_policy
-							.transformations
-							.as_ref()
-							.and_then(|p| p.get("model"))
-						{
-							Some(expression) => llm::model_transform::reverse_model_transformation(expression)?,
-							None => llm::model_transform::ModelTransformation::Identity,
-						};
-						Some(llm::discovery::ModelDiscovery {
-							provider: strng::new(provider),
-							transformation,
-						})
+								.and_then(|p| p.get("model"))
+								.map(AsRef::as_ref),
+						)
 					}),
 					id: None,
 					name: model_match.model.clone(),

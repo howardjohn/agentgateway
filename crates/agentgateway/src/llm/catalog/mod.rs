@@ -5,7 +5,9 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use arc_swap::ArcSwap;
-pub use model::{Breakdown, Catalog, CatalogMetadata};
+pub use model::{
+	Breakdown, Capabilities, Catalog, CatalogMetadata, Limits, Modalities, Model, Reasoning,
+};
 use model::{Catalog as CatalogData, Rates, Usage};
 use prometheus_client::encoding::EncodeLabelValue;
 use rust_decimal::Decimal;
@@ -338,6 +340,11 @@ impl CatalogSnapshot {
 			catalog: None,
 			model_tags: std::collections::HashMap::new(),
 		}
+	}
+
+	/// Looks up one model in this immutable snapshot.
+	pub(crate) fn model(&self, provider: &str, model: &str) -> Option<&Model> {
+		self.catalog.as_ref()?.resolve(provider, model)
 	}
 
 	/// Borrow model IDs for one provider from this immutable snapshot.
