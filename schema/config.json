@@ -891,7 +891,10 @@
       "properties": {
         "toggle": {
           "description": "Whether reasoning can be turned on and off.",
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "effort": {
           "description": "Accepted effort levels.",

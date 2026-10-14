@@ -172,3 +172,13 @@ providers:
 		t.Fatal("wildcard was emitted as a literal model")
 	}
 }
+
+func TestOverlayWithMergesReasoning(t *testing.T) {
+	base := Model{Reasoning: Reasoning{Toggle: new(true), BudgetTokens: &BudgetTokens{Min: new(uint64(1024)), Max: new(uint64(32000))}}}
+	base.overlayWith(Model{Reasoning: Reasoning{Toggle: new(false), BudgetTokens: &BudgetTokens{Min: new(uint64(2048))}}})
+
+	want := Reasoning{Toggle: new(false), BudgetTokens: &BudgetTokens{Min: new(uint64(2048)), Max: new(uint64(32000))}}
+	if !reflect.DeepEqual(base.Reasoning, want) {
+		t.Errorf("reasoning = %+v, want %+v", base.Reasoning, want)
+	}
+}

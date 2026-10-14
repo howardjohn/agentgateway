@@ -244,7 +244,7 @@ func modelsDevBuildModel(provider, model string, m modelsDevModel, warn func(for
 	for _, option := range m.ReasoningOptions {
 		switch option.Type {
 		case "toggle":
-			entry.Reasoning.Toggle = true
+			entry.Reasoning.Toggle = new(true)
 		case "effort":
 			for _, v := range option.Values {
 				if v != nil {

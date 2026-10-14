@@ -102,7 +102,13 @@ func (m *Model) overlayWith(overlay Model) {
 	overlayNonZero(&m.Limits, overlay.Limits)
 	overlayNonZero(&m.Capabilities, overlay.Capabilities)
 	overlayNonZero(&m.Modalities, overlay.Modalities)
+	budget := m.Reasoning.BudgetTokens
 	overlayNonZero(&m.Reasoning, overlay.Reasoning)
+	if budget != nil && overlay.Reasoning.BudgetTokens != nil {
+		merged := *budget
+		overlayNonZero(&merged, *overlay.Reasoning.BudgetTokens)
+		m.Reasoning.BudgetTokens = &merged
+	}
 	m.Rates.overlayWith(overlay.Rates)
 	if len(overlay.Tiers) > 0 {
 		// Replace each supplied service tier while preserving other service tiers.
@@ -177,10 +183,10 @@ type Model struct {
 	Tags     []string `json:"tags,omitempty"`
 	// Limits are token limits. Context is the total window shared by input and output; Input,
 	// when set, is a tighter cap on the input alone.
-	Limits           Limits            `json:"limits,omitzero"`
-	Modalities       Modalities        `json:"modalities,omitzero"`
-	Capabilities     Capabilities      `json:"capabilities,omitzero"`
-	Reasoning        Reasoning         `json:"reasoning,omitzero"`
+	Limits       Limits       `json:"limits,omitzero"`
+	Modalities   Modalities   `json:"modalities,omitzero"`
+	Capabilities Capabilities `json:"capabilities,omitzero"`
+	Reasoning    Reasoning    `json:"reasoning,omitzero"`
 }
 
 type Limits struct {
@@ -205,7 +211,7 @@ type Capabilities struct {
 // Reasoning describes how reasoning can be controlled. A model may support several mechanisms.
 type Reasoning struct {
 	// Toggle reports that reasoning can be turned on and off.
-	Toggle bool `json:"toggle,omitempty"`
+	Toggle *bool `json:"toggle,omitempty"`
 	// Effort lists the accepted effort levels.
 	Effort []string `json:"effort,omitempty"`
 	// BudgetTokens is the accepted reasoning token budget range.

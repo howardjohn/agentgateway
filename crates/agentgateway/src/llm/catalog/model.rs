@@ -140,13 +140,19 @@ impl Catalog {
 							temperature: om.capabilities.temperature.or(bm.capabilities.temperature),
 							unknown: Unknown::new(),
 						};
-						bm.reasoning.toggle |= om.reasoning.toggle;
+						bm.reasoning.toggle = om.reasoning.toggle.or(bm.reasoning.toggle);
 						if !om.reasoning.effort.is_empty() {
 							bm.reasoning.effort = om.reasoning.effort;
 						}
-						if om.reasoning.budget_tokens.is_some() {
-							bm.reasoning.budget_tokens = om.reasoning.budget_tokens;
-						}
+						bm.reasoning.budget_tokens =
+							match (om.reasoning.budget_tokens, bm.reasoning.budget_tokens) {
+								(Some(o), Some(b)) => Some(BudgetTokens {
+									min: o.min.or(b.min),
+									max: o.max.or(b.max),
+									unknown: Unknown::new(),
+								}),
+								(o, b) => o.or(b),
+							};
 						bm
 					},
 					None => om,
@@ -310,8 +316,8 @@ pub struct Capabilities {
 #[serde(rename_all = "camelCase")]
 pub struct Reasoning {
 	/// Whether reasoning can be turned on and off.
-	#[serde(default, skip_serializing_if = "crate::serdes::is_default")]
-	pub toggle: bool,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub toggle: Option<bool>,
 	/// Accepted effort levels.
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub effort: Vec<String>,
@@ -670,6 +676,23 @@ mod tests {
 		assert_eq!(model.rates.input, Some(m("3")), "base cost preserved");
 		assert_eq!(model.rates.output, Some(m("6")));
 		assert!(model.tags.contains("preview"), "overlay tag applied");
+	}
+
+	#[test]
+	fn override_with_merges_reasoning() {
+		let base = from_json(
+			r#"{"providers":{"openai":{"models":{"m":{"reasoning":{"toggle":true,"budgetTokens":{"min":1024,"max":32000}}}}}}}"#,
+		)
+		.unwrap();
+		let overlay = from_json(
+			r#"{"providers":{"openai":{"models":{"m":{"reasoning":{"toggle":false,"budgetTokens":{"min":2048}}}}}}}"#,
+		)
+		.unwrap();
+		let merged = base.override_with(overlay);
+		let reasoning = &merged.resolve("openai", "m").unwrap().reasoning;
+		assert_eq!(reasoning.toggle, Some(false), "explicit false wins");
+		let budget = reasoning.budget_tokens.as_ref().unwrap();
+		assert_eq!((budget.min, budget.max), (Some(2048), Some(32000)));
 	}
 
 	#[test]
