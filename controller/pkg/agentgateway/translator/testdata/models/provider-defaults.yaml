@@ -143,6 +143,7 @@ output:
       concreteModel:
         backend:
           backend: default/copilot/backend.llm
+        discoveryProvider: copilot
       key: default/copilot.llm
       listenerKey: default/llm-only.llm
       match:
