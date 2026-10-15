@@ -65,6 +65,9 @@ export function configValueErrors(
 		subschemaAjv = new Ajv2020({ allErrors: true, validateFormats: false, strict: false });
 		subschemaAjv.addSchema(schema, 'config');
 	}
+	// Narrowing only picks which errors to report; validity comes from the
+	// full schema, which a narrowed one can be stricter than.
+	if (subschemaAjv.getSchema(`config#/${path.join('/')}`)?.(value)) return [];
 	const narrowed = JSON.stringify(
 		narrowSchema(
 			configSchemaNode(path),
@@ -168,7 +171,7 @@ function narrowSchema(schema: unknown, value: unknown, fields: string[][]): unkn
 			)
 		};
 	}
-	if (Array.isArray(value) && node.items) {
+	if (Array.isArray(value) && value.length && node.items) {
 		const items = node.items;
 		node = {
 			...node,
@@ -211,8 +214,10 @@ function resolveRef(schema: unknown): SchemaNode {
 	return { ...resolveRef(configSchemaNode($ref.slice(2).split('/'))), ...rest };
 }
 
-// How many of the value's fields a branch knows, less those it forbids. Ties
-// go to the branch with more fields, the general shape over a special case.
+// How well a branch fits the value, in order: how many of the value's fields
+// it knows (less those it forbids), how many of the form's fields it has, and
+// how few of its required fields are missing. Remaining ties go to the branch
+// with more fields, the general shape over a special case.
 function fitScore(schema: unknown, value: unknown, fields: string[][]) {
 	if (!isPlainRecord(value)) return 0;
 	const nodes = schemaVariants(schema);
@@ -223,7 +228,9 @@ function fitScore(schema: unknown, value: unknown, fields: string[][]) {
 		0
 	);
 	const shown = fields.filter(field => field.length && known.has(field[0])).length;
-	return fit + shown / 100 + known.size / 10000;
+	const required = resolveRef(schema).required;
+	const missing = Array.isArray(required) ? required.filter(key => !(key in value)).length : 0;
+	return fit * 10000 + shown * 100 - missing + known.size / 10000;
 }
 
 function fieldsUnder(fields: string[][], key: string) {

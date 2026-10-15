@@ -173,11 +173,12 @@ export function OidcPolicyEditor(props: {
 					tooltip={props.help.field<LocalOidcConfig>('LocalOidcConfig', 'issuer')}
 					path="issuer"
 				>
-					{(id, hintId) => (
+					{(id, hintId, invalid) => (
 						<>
 							<input
 								id={id}
 								aria-describedby={hintId}
+								aria-invalid={invalid}
 								value={issuer}
 								onChange={event => setIssuer(event.target.value)}
 								placeholder="https://issuer.example.com"

@@ -962,7 +962,9 @@ h4.field-label {
 	color: var(--bad);
 }
 
-.field-required {
+/* Not part of the label's text or accessible name. */
+.field-required::after {
+	content: ' *' / '';
 	color: var(--bad);
 }
 

@@ -75,13 +75,14 @@ const FieldErrorsContext = createContext<{
 	register: (path: string) => () => void;
 } | null>(null);
 
-// Forms hold unset text fields as '', which the schema would accept as set.
+// Forms hold unset text fields as '' (or whitespace), which the schema would
+// accept as set. Only the check sees this; the saved value is unchanged.
 function withoutEmptyStrings(value: unknown): unknown {
 	if (Array.isArray(value)) return value.map(withoutEmptyStrings);
 	if (!value || typeof value !== 'object') return value;
 	return Object.fromEntries(
 		Object.entries(value).flatMap(([key, item]) =>
-			item === '' ? [] : [[key, withoutEmptyStrings(item)]]
+			typeof item === 'string' && !item.trim() ? [] : [[key, withoutEmptyStrings(item)]]
 		)
 	);
 }
@@ -1068,7 +1069,7 @@ export function Field(props: {
 	label: string;
 	children:
 		| ReactElement<{ id?: string; 'aria-describedby'?: string; 'aria-invalid'?: boolean }>
-		| ((id: string, hintId?: string) => ReactNode);
+		| ((id: string, hintId?: string, invalid?: boolean) => ReactNode);
 	hint?: string;
 	className?: string;
 	tooltip?: string;
@@ -1090,13 +1091,12 @@ export function Field(props: {
 	const control = (
 		<div className={props.tooltip ? 'field field-control' : className}>
 			<span className="field-label">
-				<label htmlFor={id}>
+				<label htmlFor={id} className={field.required ? 'field-required' : undefined}>
 					{props.label}
-					{field.required ? <RequiredMark /> : null}
 				</label>
 			</span>
 			{typeof props.children === 'function'
-				? props.children(id, describedBy)
+				? props.children(id, describedBy, Boolean(field.error))
 				: cloneElement(props.children, {
 						id,
 						'aria-describedby':
@@ -1138,8 +1138,7 @@ export function FieldGroup(props: {
 				.join(' ')}
 		>
 			<span className="field-label">
-				{props.label}
-				{field.required ? <RequiredMark /> : null}
+				{field.required ? <span className="field-required">{props.label}</span> : props.label}
 				{props.tooltip ? (
 					<Tooltip content={props.tooltip} side="right">
 						<button className="help-icon" type="button" aria-label={props.tooltip}>
@@ -1151,14 +1150,6 @@ export function FieldGroup(props: {
 			{props.children}
 			{hint ? <small>{hint}</small> : null}
 		</div>
-	);
-}
-
-function RequiredMark() {
-	return (
-		<span className="field-required" aria-hidden="true">
-			{' *'}
-		</span>
 	);
 }
 
