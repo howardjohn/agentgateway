@@ -587,6 +587,13 @@ function McpServerEditor(props: {
 	} = form;
 	const network = networkTarget(source);
 	const [error, setError] = useState<string | null>(null);
+	// A target naming a backend takes that backend's policies; editing the URL
+	// connects it directly instead.
+	const backendReference =
+		network && 'backend' in network && url.trim() === networkUrl(network, targetKind(source))
+			? String(network.backend)
+			: null;
+
 	const merged = useMergedEdits(
 		props.previousName ? props.initial : undefined,
 		safeTargetPreview(),
@@ -597,7 +604,8 @@ function McpServerEditor(props: {
 		const base = {
 			...source,
 			name: name.trim(),
-			policies
+			// The gateway rejects target policies on stdio and backend references.
+			policies: kind === 'stdio' || backendReference ? undefined : policies
 		} as McpTarget;
 		delete (base as Record<string, unknown>).mcp;
 		delete (base as Record<string, unknown>).sse;
@@ -877,11 +885,13 @@ function McpServerEditor(props: {
 							)}
 						</>
 					) : null}
-					<BackendPoliciesField
-						help={props.help}
-						value={policies}
-						onChange={value => update({ policies: value as McpTarget['policies'] })}
-					/>
+					{backendReference ? null : (
+						<BackendPoliciesField
+							help={props.help}
+							value={policies}
+							onChange={value => update({ policies: value as McpTarget['policies'] })}
+						/>
+					)}
 				</>
 			)}
 			{error ? (
