@@ -13,9 +13,7 @@ spec:
                   "namespace": "agentgateway",
                   "metrics": [
                     {
-                      "agentgateway_controller_reconciliations": "controller.reconciliations",
-                      "agentgateway_controller_reconcile_duration_seconds": "controller.reconcile.duration",
-                      "agentgateway_controller_reconciliations_running": "controller.reconciliations_running"
+                      "agentgateway_controller_reconciliations": "controller.reconciliations"
                     },
                     ".*"
                   ],

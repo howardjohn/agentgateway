@@ -282,11 +282,6 @@ func (r *gatewayReconciler) Start(ctx context.Context) error {
 }
 
 func (r *gatewayReconciler) Reconcile(req types.NamespacedName) (rErr error) {
-	finishMetrics := collectReconciliationMetrics("gateway", req)
-	defer func() {
-		finishMetrics(rErr)
-	}()
-
 	gw := r.gwClient.Get(req.Name, req.Namespace)
 	if gw == nil || gw.GetDeletionTimestamp() != nil {
 		// ignore the event if the Gateway is not found. A subsequent event should handle this if needed
@@ -306,6 +301,9 @@ func (r *gatewayReconciler) Reconcile(req types.NamespacedName) (rErr error) {
 		// Not our GatewayClass at all
 		return nil
 	}
+	defer func() {
+		recordReconciliation("gateway", rErr)
+	}()
 
 	logger.Info("reconciling Gateway", "ref", req)
 	ctx := context.Background()
