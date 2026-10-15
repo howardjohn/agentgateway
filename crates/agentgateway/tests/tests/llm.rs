@@ -883,14 +883,13 @@ llm:
 }
 
 #[tokio::test]
-async fn llm_route_policies_see_incoming_request_model() {
+async fn llm_policies_see_request_model() {
 	let mock = body_mock(llm_body!("response/completions/basic.json")).await;
-	let transformations = r#"
-      transformations:
-        request:
-          set:
+	let set = r#"
             x-request-model: llm.requestModel
             x-messages: string(llmRequest.messages.size())"#;
+	// The AI backend reads them from a route policy; the model router from a provider policy,
+	// which is only known once the model is resolved.
 	let config = format!(
 		r#"
 gateways:
@@ -898,7 +897,10 @@ gateways:
     port: 0
 routes:
 - hostnames: [ai.example]
-  policies:{transformations}
+  policies:
+    transformations:
+      request:
+        set:{set}
   backends:
   - ai:
       name: ai
@@ -907,25 +909,34 @@ routes:
         openAI:
           model: upstream-model
 llm:
-  policies:{transformations}
   models:
   - name: router-model
     provider: openAI
     params:
       model: upstream-model
       baseUrl: http://{addr}/v1
+    requestTransformation:
+      set:{set}
 "#,
 		addr = mock.address(),
 	);
 	let t = setup_local_llm_config(&config).await;
 
-	for (host, model) in [("ai.example", "ai-model"), ("lo", "router-model")] {
-		let res = RequestBuilder::new(Method::POST, &format!("http://{host}/v1/chat/completions"))
+	for (host, model, encoding) in [
+		("ai.example", "ai-model", None),
+		("ai.example", "identity-model", Some("identity")),
+		("lo", "router-model", None),
+	] {
+		let mut req = RequestBuilder::new(Method::POST, &format!("http://{host}/v1/chat/completions"));
+		if let Some(encoding) = encoding {
+			req = req.header(header::CONTENT_ENCODING, encoding);
+		}
+		let res = req
 			.body(Body::from(completions_request_body_with_model(model)))
 			.send(t.serve_http(strng::literal!("bind/0")))
 			.await
 			.expect("completions request");
-		assert_eq!(res.status(), StatusCode::OK, "{host}");
+		assert_eq!(res.status(), StatusCode::OK, "{model}");
 	}
 	let got: Vec<_> = mock
 		.received_requests()
@@ -948,7 +959,14 @@ llm:
 			"upstream-model".to_string(),
 		)
 	};
-	assert_eq!(got, vec![want("ai-model"), want("router-model")]);
+	assert_eq!(
+		got,
+		vec![
+			want("ai-model"),
+			want("identity-model"),
+			want("router-model")
+		]
+	);
 }
 
 #[tokio::test]

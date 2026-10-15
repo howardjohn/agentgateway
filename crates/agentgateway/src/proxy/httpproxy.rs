@@ -103,16 +103,19 @@ async fn set_protocol_cel_context(
 	protocol: RequestProtocol,
 	backend: &Backend,
 	ctx: &cel::ContextBuilder,
-) {
+) -> Result<(), ProxyResponse> {
 	match (protocol, backend) {
 		(RequestProtocol::Mcp, Backend::MCP(_, backend)) if ctx.needs_mcp() => {
 			set_mcp_cel_context(req, backend).await;
 		},
 		(RequestProtocol::AI, _) if ctx.needs_llm_request_context() => {
-			model_router::set_llm_cel_context(req, ctx.needs_llm_request()).await;
+			model_router::set_llm_cel_context(req, ctx.needs_llm_request())
+				.await
+				.map_err(ProxyResponse::DirectResponse)?;
 		},
 		_ => {},
 	}
+	Ok(())
 }
 
 async fn set_mcp_cel_context(req: &mut Request, backend: &McpBackend) {
@@ -1092,7 +1095,9 @@ impl HTTPProxy {
 					.backend_protocol()
 					.unwrap_or(cel::BackendProtocol::http),
 			});
-			set_protocol_cel_context(&mut req, request_protocol, backend, log.cel.ctx()).await;
+			set_protocol_cel_context(&mut req, request_protocol, backend, log.cel.ctx())
+				.await
+				.snapshot_on_err(log, &mut req)?;
 		}
 
 		let policy_client = self.policy_client().with_parent(&req);
@@ -1134,7 +1139,8 @@ impl HTTPProxy {
 			&selected_backend.backend.backend,
 			log.cel.ctx(),
 		)
-		.await;
+		.await
+		.snapshot_on_err(log, &mut req)?;
 		log.cel.ctx().maybe_buffer_request_body(&mut req).await;
 		log.health_policy = backend_policies.health.clone();
 		log.backend_info = Some(selected_backend.backend.backend.backend_info());
@@ -2766,6 +2772,16 @@ async fn make_backend_call(
 		backend_call
 			.backend_policies
 			.register_cel_expressions(log.cel.ctx());
+		// Provider policies are only known once a provider is selected.
+		if let Backend::AI(..) = backend {
+			Box::pin(set_protocol_cel_context(
+				&mut req,
+				RequestProtocol::AI,
+				backend,
+				log.cel.ctx(),
+			))
+			.await?;
+		}
 	}
 	set_backend_cel_context(
 		&mut req,

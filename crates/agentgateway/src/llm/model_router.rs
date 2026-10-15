@@ -824,15 +824,16 @@ fn model_name_matches(pattern: &str, model: &str) -> bool {
 	pattern == model
 }
 
-/// Exposes the incoming model as `llm.requestModel` and, if requested, the parsed JSON body as
-/// `llmRequest` to request-policy CEL.
-pub(crate) async fn set_llm_cel_context(req: &mut Request, include_body: bool) {
+/// Exposes the request model as `llm.requestModel` and, if requested, the parsed JSON body as
+/// `llmRequest` to policy CEL.
+pub(crate) async fn set_llm_cel_context(req: &mut Request, include_body: bool) -> RouterResult<()> {
 	// Clear first so a failed parse below leaves no model rather than a stale one.
 	req.extensions_mut().remove::<cel::RequestModel>();
-	// Decoding replaces the body (losing it on failure) and strips encoding headers, so leave
-	// compressed bodies to LLM processing.
-	if req.headers().contains_key(::http::header::CONTENT_ENCODING) {
-		return;
+	let path_model = llm::types::detect::extract_model_from_path(req.uri().path()).is_some();
+	if include_body || !path_model {
+		// Reject unreadable bodies (too large, or failing to decode) rather than evaluating policies
+		// without the model. A failed decode also leaves the body unusable.
+		body_bytes(req).await?;
 	}
 	if include_body {
 		let _ = json_body(req).await;
@@ -842,6 +843,7 @@ pub(crate) async fn set_llm_cel_context(req: &mut Request, include_body: bool) {
 			request_model: requested.model.into(),
 		});
 	}
+	Ok(())
 }
 
 /// The request body parsed as JSON. It is parsed once and cached on the body for later readers.
