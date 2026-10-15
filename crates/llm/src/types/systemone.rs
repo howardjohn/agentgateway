@@ -126,8 +126,8 @@ pub mod typed {
 		Choice {
 			/// A string, object, or array.
 			instructions: serde_json::Value,
-			/// Option name to optional description.
-			criteria: IndexMap<String, Option<String>>,
+			/// Option name to optional description. A string, object, or array.
+			criteria: IndexMap<String, Option<serde_json::Value>>,
 		},
 		Score {
 			/// A string, object, or array.
@@ -139,10 +139,12 @@ pub mod typed {
 
 	#[derive(Debug, Clone, Serialize, Deserialize)]
 	pub struct NoulCriteria {
-		#[serde(rename = "true")]
-		pub true_: String,
-		#[serde(rename = "false")]
-		pub false_: String,
+		/// A string, object, or array.
+		#[serde(rename = "true", default, skip_serializing_if = "Option::is_none")]
+		pub true_: Option<serde_json::Value>,
+		/// A string, object, or array.
+		#[serde(rename = "false", default, skip_serializing_if = "Option::is_none")]
+		pub false_: Option<serde_json::Value>,
 	}
 
 	#[derive(Debug, Clone, Serialize, Deserialize)]
@@ -167,9 +169,9 @@ pub mod typed {
 		},
 		Score {
 			score: serde_json::Number,
-			/// Level to label.
+			/// Level to its criteria. A string, object, or array.
 			#[serde(default, skip_serializing_if = "Option::is_none")]
-			legend: Option<IndexMap<String, String>>,
+			legend: Option<IndexMap<String, serde_json::Value>>,
 			probabilities: IndexMap<String, f64>,
 			confidence: f64,
 		},

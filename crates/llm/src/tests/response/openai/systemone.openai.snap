@@ -7,8 +7,6 @@ info:
     - type: predicate
       name: refund
       probability: 0.93
-    - type: refusal
-      name: policy
     - type: choice
       name: category
       choice: damage
@@ -67,9 +65,15 @@ info:
         "type": "score",
         "score": 2,
         "legend": {
-          "0": "Low",
+          "0": {
+            "label": "Low",
+            "description": "Can wait"
+          },
           "1": "Medium",
-          "2": "High"
+          "2": {
+            "label": "High",
+            "sla_minutes": 5
+          }
         },
         "probabilities": {
           "0": 0.05,

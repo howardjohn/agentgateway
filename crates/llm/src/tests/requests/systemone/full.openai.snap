@@ -34,22 +34,12 @@ info:
           description: Can wait
         - Medium
         - label: High
+          sla_minutes: 5
 ---
 {
   "request": {
     "model": "jev-1.13.0",
-    "input": [
-      {
-        "type": "message",
-        "role": "user",
-        "content": "My order arrived with a cracked screen."
-      },
-      {
-        "type": "message",
-        "role": "user",
-        "content": "I want my money back."
-      }
-    ],
+    "input": "[{\"role\":\"user\",\"content\":\"My order arrived with a cracked screen.\"},{\"role\":\"user\",\"content\":\"I want my money back.\"}]",
     "questions": [
       {
         "type": "predicate",
@@ -88,7 +78,8 @@ info:
             "label": "Medium"
           },
           {
-            "label": "High"
+            "label": "High",
+            "description": "{\"sla_minutes\":5}"
           }
         ]
       }

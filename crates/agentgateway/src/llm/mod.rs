@@ -1973,7 +1973,9 @@ impl AIProvider {
 					.non_chat_provider_format_for(InputFormat::SystemOne, &llm.request_model)
 				{
 					Some(custom::ProviderFormat::Decisions) => {
-						conversion::systemone::from_systemone::translate(req)
+						let (body, state) = conversion::systemone::from_systemone::translate(req)?;
+						llm.provider_state = Some(ProviderState::DecisionsSystemOne(Arc::new(state)));
+						Ok(body)
 					},
 					_ => serde_json::to_vec(req).map_err(AIError::RequestMarshal),
 				},
@@ -2975,10 +2977,9 @@ impl AIProvider {
 		req: &LLMRequest,
 		bytes: Bytes,
 	) -> Result<(LLMResponse, Bytes), AIError> {
-		let bytes = match self.non_chat_provider_format_for(InputFormat::SystemOne, &req.request_model)
-		{
-			Some(custom::ProviderFormat::Decisions) => Bytes::from(
-				conversion::systemone::from_systemone::translate_response(&bytes)?,
+		let bytes = match &req.provider_state {
+			Some(ProviderState::DecisionsSystemOne(state)) => Bytes::from(
+				conversion::systemone::from_systemone::translate_response(&bytes, state)?,
 			),
 			_ => bytes,
 		};

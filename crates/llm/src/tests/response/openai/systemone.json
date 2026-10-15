@@ -2,7 +2,6 @@
   "model": "gpt-6-luna",
   "answers": [
     {"type": "predicate", "name": "refund", "probability": 0.93},
-    {"type": "refusal", "name": "policy"},
     {
       "type": "choice",
       "name": "category",
