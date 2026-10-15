@@ -962,6 +962,10 @@ h4.field-label {
 	color: var(--bad);
 }
 
+.field-required {
+	color: var(--bad);
+}
+
 .custom-select-trigger {
 	display: flex;
 	align-items: center;
