@@ -883,6 +883,75 @@ llm:
 }
 
 #[tokio::test]
+async fn llm_route_policies_see_incoming_request_model() {
+	let mock = body_mock(llm_body!("response/completions/basic.json")).await;
+	let transformations = r#"
+      transformations:
+        request:
+          set:
+            x-request-model: llm.requestModel
+            x-messages: string(llmRequest.messages.size())"#;
+	let config = format!(
+		r#"
+gateways:
+  default:
+    port: 0
+routes:
+- hostnames: [ai.example]
+  policies:{transformations}
+  backends:
+  - ai:
+      name: ai
+      hostOverride: {addr}
+      provider:
+        openAI:
+          model: upstream-model
+llm:
+  policies:{transformations}
+  models:
+  - name: router-model
+    provider: openAI
+    params:
+      model: upstream-model
+      baseUrl: http://{addr}/v1
+"#,
+		addr = mock.address(),
+	);
+	let t = setup_local_llm_config(&config).await;
+
+	for (host, model) in [("ai.example", "ai-model"), ("lo", "router-model")] {
+		let res = RequestBuilder::new(Method::POST, &format!("http://{host}/v1/chat/completions"))
+			.body(Body::from(completions_request_body_with_model(model)))
+			.send(t.serve_http(strng::literal!("bind/0")))
+			.await
+			.expect("completions request");
+		assert_eq!(res.status(), StatusCode::OK, "{host}");
+	}
+	let got: Vec<_> = mock
+		.received_requests()
+		.await
+		.expect("request recording should be enabled")
+		.iter()
+		.map(|req| {
+			let body: Value = serde_json::from_slice(&req.body).unwrap();
+			(
+				req.headers["x-request-model"].to_str().unwrap().to_string(),
+				req.headers["x-messages"].to_str().unwrap().to_string(),
+				body["model"].as_str().unwrap().to_string(),
+			)
+		})
+		.collect();
+	let want = |model: &str| {
+		(
+			model.to_string(),
+			"2".to_string(),
+			"upstream-model".to_string(),
+		)
+	};
+	assert_eq!(got, vec![want("ai-model"), want("router-model")]);
+}
+
+#[tokio::test]
 async fn llm_conditional_virtual_model_no_match_returns_json_error() {
 	let mock = body_mock(llm_body!("response/completions/basic.json")).await;
 	let config = format!(
