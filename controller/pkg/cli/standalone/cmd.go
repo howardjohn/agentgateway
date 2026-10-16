@@ -53,6 +53,8 @@ type resource struct {
 	Revision  *int64          `json:"revision,omitempty" yaml:"revision,omitempty"`
 	CreatedAt string          `json:"createdAt,omitempty" yaml:"createdAt,omitempty"`
 	UpdatedAt string          `json:"updatedAt,omitempty" yaml:"updatedAt,omitempty"`
+	// Result is set on write responses: created, updated, or unchanged.
+	Result string `json:"result,omitempty" yaml:"result,omitempty"`
 }
 
 type resourceList struct {
@@ -168,7 +170,9 @@ func getCommand(c *client) *cobra.Command {
 			}
 			if noMetadata {
 				for i := range result.Resources {
-					result.Resources[i].ID = ""
+					if !identifiedByID(result.Resources[i].Kind) {
+						result.Resources[i].ID = ""
+					}
 					result.Resources[i].Revision = nil
 					result.Resources[i].CreatedAt = ""
 					result.Resources[i].UpdatedAt = ""
@@ -232,9 +236,7 @@ Each resource has a kind and value, for example:
 				}{}
 				var results []resource
 				for _, r := range byKind[kind] {
-					// API keys and policies are not identified by their value, so updates must
-					// target the existing ID; the kind-level PUT would create a new API key.
-					if r.ID != "" && (kind == "llm.apiKey" || strings.HasSuffix(kind, ".policy")) {
+					if r.ID != "" && identifiedByID(kind) {
 						var result resourceList
 						item := struct {
 							Value json.RawMessage `json:"value"`
@@ -257,15 +259,11 @@ Each resource has a kind and value, for example:
 					}
 					results = append(results, result.Resources...)
 				}
-				// The server only bumps the revision on a real change.
-				applied := map[string]*int64{}
-				for _, r := range byKind[kind] {
-					applied[r.ID] = r.Revision
-				}
 				for _, r := range results {
-					status := "applied"
-					if prev := applied[r.ID]; prev != nil && r.Revision != nil && *prev == *r.Revision {
-						status = "unchanged"
+					status := r.Result
+					// File-backed gateways do not report a result.
+					if status == "" {
+						status = "applied"
 					}
 					fmt.Fprintf(cmd.OutOrStdout(), "%s/%s %s\n", r.Kind, r.ID, status)
 				}
@@ -498,6 +496,12 @@ func printResources(w io.Writer, result resourceList, output string) error {
 	default:
 		return fmt.Errorf("output format %q not supported", output)
 	}
+}
+
+// identifiedByID reports whether a kind's ID is not derived from its value. Updates to these
+// must target the existing ID; the kind-level PUT would create a new API key.
+func identifiedByID(kind string) bool {
+	return kind == "llm.apiKey" || strings.HasSuffix(kind, ".policy")
 }
 
 func requireKind(input string, allowAll bool) (string, error) {
