@@ -36,22 +36,7 @@ var kinds = []string{
 	"traffic.route",
 	"traffic.tcpRoute",
 	"ui.policy",
-}
-
-var kindAliases = map[string]string{
-	"modelCatalogs":     "modelCatalog",
-	"llm.providers":     "llm.provider",
-	"llm.models":        "llm.model",
-	"llm.virtualModels": "llm.virtualModel",
-	"llm.apiKeys":       "llm.apiKey",
-	"llm.policies":      "llm.policy",
-	"mcp.targets":       "mcp.target",
-	"mcp.settings":      "mcp.settings",
-	"mcp.policies":      "mcp.policy",
-	"traffic.gateways":  "traffic.gateway",
-	"traffic.routes":    "traffic.route",
-	"traffic.tcpRoutes": "traffic.tcpRoute",
-	"ui.policies":       "ui.policy",
+	"frontend.policy",
 }
 
 type client struct {
@@ -82,8 +67,9 @@ func Command() *cobra.Command {
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}}
 	cmd := &cobra.Command{
-		Use:   "standalone",
-		Short: "Manage a standalone agentgateway",
+		Use:     "standalone",
+		Aliases: []string{"s"},
+		Short:   "Manage a standalone agentgateway",
 		Long: `Manage configuration resources through a standalone agentgateway admin API.
 
 The gateway address is taken from --gateway, --address, $AGCTL_STANDALONE_ADDRESS,
@@ -244,16 +230,34 @@ Each resource has a kind and value, for example:
 						Value json.RawMessage `json:"value"`
 					} `json:"resources"`
 				}{}
+				var results []resource
 				for _, r := range byKind[kind] {
+					// API keys and policies are not identified by their value, so updates must
+					// target the existing ID; the kind-level PUT would create a new API key.
+					if r.ID != "" && (kind == "llm.apiKey" || strings.HasSuffix(kind, ".policy")) {
+						var result resourceList
+						item := struct {
+							Value json.RawMessage `json:"value"`
+						}{Value: r.Value}
+						path := "/api/config/resources/" + url.PathEscape(kind) + "/" + url.PathEscape(r.ID)
+						if err := c.do(cmd.Context(), http.MethodPut, path, item, &result); err != nil {
+							return err
+						}
+						results = append(results, result.Resources...)
+						continue
+					}
 					body.Resources = append(body.Resources, struct {
 						Value json.RawMessage `json:"value"`
 					}{Value: r.Value})
 				}
-				var result resourceList
-				if err := c.do(cmd.Context(), http.MethodPut, "/api/config/resources/"+url.PathEscape(kind), body, &result); err != nil {
-					return err
+				if len(body.Resources) > 0 {
+					var result resourceList
+					if err := c.do(cmd.Context(), http.MethodPut, "/api/config/resources/"+url.PathEscape(kind), body, &result); err != nil {
+						return err
+					}
+					results = append(results, result.Resources...)
 				}
-				for _, r := range result.Resources {
+				for _, r := range results {
 					fmt.Fprintf(cmd.OutOrStdout(), "%s/%s applied\n", r.Kind, r.ID)
 				}
 			}
@@ -400,22 +404,24 @@ func readResources(filename string) ([]resource, error) {
 		if len(bytes.TrimSpace(raw)) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
 			continue
 		}
-		var list resourceList
-		if err := json.Unmarshal(raw, &list); err != nil {
-			return nil, fmt.Errorf("decode %s: %w", filename, err)
+		var items []resource
+		if bytes.HasPrefix(bytes.TrimSpace(raw), []byte("[")) {
+			if err := json.Unmarshal(raw, &items); err != nil {
+				return nil, fmt.Errorf("decode %s: %w", filename, err)
+			}
+		} else {
+			var item resource
+			if err := json.Unmarshal(raw, &item); err != nil {
+				return nil, fmt.Errorf("decode %s: %w", filename, err)
+			}
+			items = []resource{item}
 		}
-		if len(list.Resources) > 0 {
-			resources = append(resources, list.Resources...)
-			continue
+		for _, item := range items {
+			if item.Kind == "" {
+				return nil, fmt.Errorf("resource in %s has no kind", filename)
+			}
 		}
-		var item resource
-		if err := json.Unmarshal(raw, &item); err != nil {
-			return nil, fmt.Errorf("decode %s: %w", filename, err)
-		}
-		if item.Kind == "" {
-			return nil, fmt.Errorf("resource in %s has no kind", filename)
-		}
-		resources = append(resources, item)
+		resources = append(resources, items...)
 	}
 	if len(resources) == 0 {
 		return nil, fmt.Errorf("no resources found in %s", filename)
@@ -459,18 +465,26 @@ func printResources(w io.Writer, result resourceList, output string) error {
 		}
 		return tw.Flush()
 	case "json":
-		data, err := json.MarshalIndent(result, "", "  ")
+		if result.Resources == nil {
+			result.Resources = []resource{}
+		}
+		data, err := json.MarshalIndent(result.Resources, "", "  ")
 		if err != nil {
 			return err
 		}
 		fmt.Fprintf(w, "%s\n", data)
 		return nil
 	case "yaml":
-		data, err := yaml.Marshal(result)
-		if err != nil {
-			return err
+		for i, r := range result.Resources {
+			data, err := yaml.Marshal(r)
+			if err != nil {
+				return err
+			}
+			if i > 0 {
+				fmt.Fprintln(w, "---")
+			}
+			fmt.Fprint(w, string(data))
 		}
-		fmt.Fprint(w, string(data))
 		return nil
 	default:
 		return fmt.Errorf("output format %q not supported", output)
@@ -488,11 +502,15 @@ func requireKind(input string, allowAll bool) (string, error) {
 }
 
 func canonicalKind(input string) string {
-	if kind, found := kindAliases[input]; found {
-		return kind
-	}
 	for _, kind := range kinds {
-		if input == kind {
+		// Plural forms are accepted as aliases, e.g. llm.policies for llm.policy.
+		plural := kind + "s"
+		if strings.HasSuffix(kind, "y") {
+			plural = strings.TrimSuffix(kind, "y") + "ies"
+		} else if strings.HasSuffix(kind, "s") {
+			plural = kind
+		}
+		if input == kind || input == plural {
 			return kind
 		}
 	}
@@ -501,9 +519,6 @@ func canonicalKind(input string) string {
 
 func kindCompletions(includeAll bool) []string {
 	result := append([]string(nil), kinds...)
-	for alias := range kindAliases {
-		result = append(result, alias)
-	}
 	if includeAll {
 		result = append(result, "all")
 	}

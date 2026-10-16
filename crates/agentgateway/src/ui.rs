@@ -721,6 +721,7 @@ async fn update_file_config_resource(
 			id.to_string(),
 			value,
 			crate::config_store::file_api_key_created_at(&config, id),
+			crate::config_store::file_config_resource(&config, kind, id),
 		)
 		.map_err(resource_api_error)?,
 		ConfigResourceKind::LlmPolicy
@@ -760,8 +761,13 @@ fn prepare_stored_update(
 			})?;
 			let created_at = crate::config_store::api_key_created_at(&existing.value)
 				.or_else(|| Some(existing.created_at.timestamp()));
-			crate::config_store::prepare_api_key_update(id.to_string(), value, created_at)
-				.map_err(resource_api_error)
+			crate::config_store::prepare_api_key_update(
+				id.to_string(),
+				value,
+				created_at,
+				Some(&existing.value),
+			)
+			.map_err(resource_api_error)
 		},
 		ConfigResourceKind::LlmPolicy
 		| ConfigResourceKind::McpPolicy

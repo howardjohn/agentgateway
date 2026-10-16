@@ -824,9 +824,10 @@ pub(crate) fn prepare_file_api_key_update(
 	id: String,
 	mut value: Value,
 	created_at: Option<i64>,
+	existing: Option<&Value>,
 ) -> anyhow::Result<PreparedResource> {
 	validate_id(&id)?;
-	validate_api_key_metadata(&value)?;
+	validate_api_key_update_metadata(&mut value, &id, created_at, existing)?;
 	if !id.starts_with("@index:") {
 		set_api_key_managed_metadata(&mut value, id.clone(), created_at)?;
 	}
@@ -851,9 +852,10 @@ pub(crate) fn prepare_api_key_update(
 	id: String,
 	mut value: Value,
 	created_at: Option<i64>,
+	existing: Option<&Value>,
 ) -> anyhow::Result<PreparedResource> {
 	validate_id(&id)?;
-	validate_api_key_metadata(&value)?;
+	validate_api_key_update_metadata(&mut value, &id, created_at, existing)?;
 	set_api_key_managed_metadata(&mut value, id.clone(), created_at)?;
 	Ok(PreparedResource {
 		kind: ConfigResourceKind::LlmApiKey,
@@ -1509,6 +1511,44 @@ fn validate_api_key_metadata(value: &Value) -> anyhow::Result<()> {
 			))
 			.into(),
 		);
+	}
+	Ok(())
+}
+
+/// Updates may echo back server-managed metadata from a previous read, as long as it is unchanged.
+/// Echoed fields are removed so the server-owned values are re-applied.
+fn validate_api_key_update_metadata(
+	value: &mut Value,
+	id: &str,
+	created_at: Option<i64>,
+	existing: Option<&Value>,
+) -> anyhow::Result<()> {
+	let Some(metadata) = value.get_mut("metadata").and_then(Value::as_object_mut) else {
+		return Ok(());
+	};
+	let reserved = metadata
+		.keys()
+		.filter(|field| field.starts_with(API_KEY_METADATA_PREFIX) && *field != API_KEY_HINT_METADATA)
+		.cloned()
+		.collect::<Vec<_>>();
+	for field in reserved {
+		let current = match field.as_str() {
+			API_KEY_ID_METADATA if !id.starts_with("@index:") => Some(Value::String(id.to_string())),
+			API_KEY_CREATED_AT_METADATA => created_at.map(Value::from),
+			_ => existing
+				.and_then(api_key_metadata)
+				.and_then(|existing| existing.get(&field))
+				.cloned(),
+		};
+		if metadata.get(&field) != current.as_ref() {
+			return Err(
+				ConfigResourceError::InvalidRequest(format!(
+					"llm.apiKey metadata field {field} cannot be changed"
+				))
+				.into(),
+			);
+		}
+		metadata.remove(&field);
 	}
 	Ok(())
 }
@@ -2427,6 +2467,7 @@ mod tests {
 			created.id.clone(),
 			json!({"metadata": {"name": "updated"}}),
 			Some(created_at),
+			Some(&created.value),
 		)
 		.expect("API key update");
 		assert_eq!(api_key_created_at(&updated.value), Some(created_at));
@@ -2444,14 +2485,31 @@ mod tests {
 				.to_string()
 				.contains("reserved agentgateway.dev/ prefix")
 		);
-		assert!(
-			prepare_api_key_update(
-				"key-id".to_string(),
-				json!({"metadata": {"agentgateway.dev/owner": "client"}}),
-				None,
-			)
-			.is_err()
+		let existing = json!({"metadata": {"agentgateway.dev/owner": "client"}});
+		let updated = prepare_api_key_update(
+			"key-id".to_string(),
+			json!({"metadata": {"agentgateway.dev/owner": "client", "agentgateway.dev/id": "key-id"}}),
+			None,
+			Some(&existing),
+		)
+		.expect("API key update with unchanged managed metadata");
+		assert_eq!(
+			updated.value["metadata"],
+			json!({"agentgateway.dev/id": "key-id"})
 		);
+		for metadata in [
+			json!({"agentgateway.dev/owner": "other"}),
+			json!({"agentgateway.dev/id": "other"}),
+		] {
+			let err = prepare_api_key_update(
+				"key-id".to_string(),
+				json!({"metadata": metadata}),
+				None,
+				Some(&existing),
+			)
+			.expect_err("changed managed metadata should fail");
+			assert!(err.to_string().contains("cannot be changed"));
+		}
 		assert!(
 			prepare_policy_upsert(
 				ConfigResourceKind::LlmPolicy,
@@ -2884,9 +2942,13 @@ routes:
 		assert_eq!(config.pointer("/gateways/public/port"), Some(&json!(8080)));
 		assert_eq!(config.pointer("/gateways/private/port"), Some(&json!(8081)));
 
-		let missing_key =
-			prepare_file_api_key_update("missing".to_string(), json!({"key": "agw_missing"}), None)
-				.expect("prepare API key update");
+		let missing_key = prepare_file_api_key_update(
+			"missing".to_string(),
+			json!({"key": "agw_missing"}),
+			None,
+			None,
+		)
+		.expect("prepare API key update");
 		let err = upsert_file_config_resource(&mut config, &missing_key, Some("missing"))
 			.expect_err("missing API key update must fail");
 		assert!(err.to_string().contains("not found"));
