@@ -29,6 +29,27 @@ pub struct ConfigResource {
 	pub revision: i64,
 	pub created_at: DateTime<Utc>,
 	pub updated_at: DateTime<Utc>,
+	/// Set on resources returned from an upsert.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub result: Option<WriteResult>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum WriteResult {
+	Created,
+	Updated,
+	Unchanged,
+}
+
+impl WriteResult {
+	fn of(written: bool, revision: i64) -> Self {
+		match (written, revision) {
+			(false, _) => Self::Unchanged,
+			(true, 1) => Self::Created,
+			(true, _) => Self::Updated,
+		}
+	}
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -282,7 +303,10 @@ impl ConfigResourceStore {
 				.await?
 			},
 		};
-		if !resources.is_empty() {
+		if resources
+			.iter()
+			.any(|resource| resource.result != Some(WriteResult::Unchanged))
+		{
 			self.notify_changed();
 		}
 		Ok(ConfigResourcesResponse {
@@ -950,6 +974,7 @@ pub(crate) fn apply_prepared_upsert(
 			revision: 1,
 			created_at: Utc::now(),
 			updated_at: Utc::now(),
+			result: None,
 		});
 	}
 	Ok(resources)
@@ -1759,7 +1784,7 @@ async fn upsert_sqlite(
 		value.sort_all_objects();
 		let now = Utc::now().to_rfc3339();
 		// Unchanged resources are left alone so their revision only moves on real changes.
-		sqlx::query(
+		let written = sqlx::query(
 			"INSERT INTO agw_config_resources \
 			 (kind, id, value_json, revision, created_at, updated_at, deleted_at) \
 			 VALUES (?, ?, ?, 1, ?, ?, NULL) \
@@ -1777,13 +1802,16 @@ async fn upsert_sqlite(
 		.bind(&now)
 		.bind(&now)
 		.execute(&mut *tx)
-		.await?;
-		changed.push((kind, id));
+		.await?
+		.rows_affected()
+			> 0;
+		changed.push((kind, id, written));
 	}
 
 	let mut resources = Vec::with_capacity(changed.len());
-	for (kind, id) in changed {
-		if let Some(resource) = fetch_sqlite_resource(&mut tx, kind, &id).await? {
+	for (kind, id, written) in changed {
+		if let Some(mut resource) = fetch_sqlite_resource(&mut tx, kind, &id).await? {
+			resource.result = Some(WriteResult::of(written, resource.revision));
 			resources.push(resource);
 		}
 	}
@@ -1823,13 +1851,15 @@ async fn upsert_postgres(
 		.bind(now)
 		.execute(&mut *tx)
 		.await?;
-		wrote |= result.rows_affected() > 0;
-		changed.push((kind, id));
+		let written = result.rows_affected() > 0;
+		wrote |= written;
+		changed.push((kind, id, written));
 	}
 
 	let mut resources = Vec::with_capacity(changed.len());
-	for (kind, id) in changed {
-		if let Some(resource) = fetch_postgres_resource(&mut tx, kind, &id).await? {
+	for (kind, id, written) in changed {
+		if let Some(mut resource) = fetch_postgres_resource(&mut tx, kind, &id).await? {
+			resource.result = Some(WriteResult::of(written, resource.revision));
 			resources.push(resource);
 		}
 	}
@@ -2092,6 +2122,7 @@ fn sqlite_row_to_resource(row: sqlx::sqlite::SqliteRow) -> anyhow::Result<Config
 		revision: row.try_get("revision")?,
 		created_at: created_at.parse()?,
 		updated_at: updated_at.parse()?,
+		result: None,
 	})
 }
 
@@ -2105,6 +2136,7 @@ fn postgres_row_to_resource(row: sqlx::postgres::PgRow) -> anyhow::Result<Config
 		revision: row.try_get("revision")?,
 		created_at: row.try_get("created_at")?,
 		updated_at: row.try_get("updated_at")?,
+		result: None,
 	})
 }
 
@@ -2170,6 +2202,7 @@ mod tests {
 			revision: 1,
 			created_at: Utc::now(),
 			updated_at: Utc::now(),
+			result: None,
 		}
 	}
 
@@ -2285,33 +2318,32 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn unchanged_upsert_keeps_revision() {
+	async fn upsert_reports_write_result() {
 		let dir = tempfile::tempdir().expect("tempdir");
 		let store = file_backed_store(&dir).await;
-		let revision = |response: ConfigResourcesResponse| response.resources[0].revision;
-		let created = store
-			.upsert_prepared(vec![test_provider("a")], None)
-			.await
-			.expect("create resource");
+		let upsert = |prepared: PreparedResource| async {
+			let resource = store
+				.upsert_prepared(vec![prepared], None)
+				.await
+				.expect("upsert")
+				.resources
+				.remove(0);
+			(resource.result, resource.revision)
+		};
+		assert_eq!(
+			upsert(test_provider("a")).await,
+			(Some(WriteResult::Created), 1)
+		);
 		// Same value with keys in a different order.
 		let same = PreparedResource {
 			kind: ConfigResourceKind::LlmProvider,
 			id: "a".to_string(),
 			value: json!({"provider": "openAI", "name": "a"}),
 		};
-		let unchanged = store
-			.upsert_prepared(vec![same], None)
-			.await
-			.expect("unchanged upsert");
-		assert_eq!(revision(unchanged), revision(created.clone()));
-
+		assert_eq!(upsert(same).await, (Some(WriteResult::Unchanged), 1));
 		let mut different = test_provider("a");
 		different.value["provider"] = json!("anthropic");
-		let updated = store
-			.upsert_prepared(vec![different], None)
-			.await
-			.expect("changed upsert");
-		assert_eq!(revision(updated), revision(created) + 1);
+		assert_eq!(upsert(different).await, (Some(WriteResult::Updated), 2));
 	}
 
 	#[tokio::test]

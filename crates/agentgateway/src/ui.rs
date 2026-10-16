@@ -255,6 +255,8 @@ struct UiConfigResource {
 	created_at: Option<chrono::DateTime<Utc>>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	updated_at: Option<chrono::DateTime<Utc>>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	result: Option<crate::config_store::WriteResult>,
 }
 
 #[derive(Serialize)]
@@ -272,6 +274,7 @@ impl From<ConfigResource> for UiConfigResource {
 			revision: Some(resource.revision),
 			created_at: Some(resource.created_at),
 			updated_at: Some(resource.updated_at),
+			result: resource.result,
 		}
 	}
 }
@@ -285,6 +288,7 @@ impl From<PreparedResource> for UiConfigResource {
 			revision: None,
 			created_at: None,
 			updated_at: None,
+			result: None,
 		}
 	}
 }
