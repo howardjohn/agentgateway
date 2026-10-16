@@ -1748,9 +1748,17 @@ async fn upsert_sqlite(
 	let mut tx = pool.begin_with(SQLITE_BEGIN_IMMEDIATE).await?;
 	let generation = bump_generation_sqlite(&mut tx, expected_generation).await?;
 	let mut changed = Vec::with_capacity(prepared.len());
-	for PreparedResource { kind, id, value } in prepared {
+	for PreparedResource {
+		kind,
+		id,
+		mut value,
+	} in prepared
+	{
 		validate_id(&id)?;
+		// Sorted keys make the text comparison below independent of key order.
+		value.sort_all_objects();
 		let now = Utc::now().to_rfc3339();
+		// Unchanged resources are left alone so their revision only moves on real changes.
 		sqlx::query(
 			"INSERT INTO agw_config_resources \
 			 (kind, id, value_json, revision, created_at, updated_at, deleted_at) \
@@ -1759,7 +1767,9 @@ async fn upsert_sqlite(
 				value_json = excluded.value_json, \
 				revision = agw_config_resources.revision + 1, \
 				updated_at = excluded.updated_at, \
-				deleted_at = NULL",
+				deleted_at = NULL \
+			 WHERE agw_config_resources.deleted_at IS NOT NULL \
+				OR agw_config_resources.value_json IS NOT excluded.value_json",
 		)
 		.bind(kind.as_str())
 		.bind(&id)
@@ -1790,10 +1800,12 @@ async fn upsert_postgres(
 	let mut tx = pool.begin().await?;
 	let generation = bump_generation_postgres(&mut tx, expected_generation).await?;
 	let mut changed = Vec::with_capacity(prepared.len());
+	let mut wrote = false;
 	for PreparedResource { kind, id, value } in prepared {
 		validate_id(&id)?;
 		let now = Utc::now();
-		sqlx::query(
+		// Unchanged resources are left alone so their revision only moves on real changes.
+		let result = sqlx::query(
 			"INSERT INTO agw_config_resources \
 			 (kind, id, value_json, revision, created_at, updated_at, deleted_at) \
 			 VALUES ($1, $2, $3, 1, $4, $4, NULL) \
@@ -1801,7 +1813,9 @@ async fn upsert_postgres(
 				value_json = excluded.value_json, \
 				revision = agw_config_resources.revision + 1, \
 				updated_at = excluded.updated_at, \
-				deleted_at = NULL",
+				deleted_at = NULL \
+			 WHERE agw_config_resources.deleted_at IS NOT NULL \
+				OR agw_config_resources.value_json IS DISTINCT FROM excluded.value_json",
 		)
 		.bind(kind.as_str())
 		.bind(&id)
@@ -1809,6 +1823,7 @@ async fn upsert_postgres(
 		.bind(now)
 		.execute(&mut *tx)
 		.await?;
+		wrote |= result.rows_affected() > 0;
 		changed.push((kind, id));
 	}
 
@@ -1818,7 +1833,7 @@ async fn upsert_postgres(
 			resources.push(resource);
 		}
 	}
-	if !resources.is_empty() {
+	if wrote {
 		notify_postgres(&mut tx, notification_id).await?;
 	}
 	tx.commit().await?;
@@ -2267,6 +2282,36 @@ mod tests {
 			start + 3,
 			"every mutation advances the generation"
 		);
+	}
+
+	#[tokio::test]
+	async fn unchanged_upsert_keeps_revision() {
+		let dir = tempfile::tempdir().expect("tempdir");
+		let store = file_backed_store(&dir).await;
+		let revision = |response: ConfigResourcesResponse| response.resources[0].revision;
+		let created = store
+			.upsert_prepared(vec![test_provider("a")], None)
+			.await
+			.expect("create resource");
+		// Same value with keys in a different order.
+		let same = PreparedResource {
+			kind: ConfigResourceKind::LlmProvider,
+			id: "a".to_string(),
+			value: json!({"provider": "openAI", "name": "a"}),
+		};
+		let unchanged = store
+			.upsert_prepared(vec![same], None)
+			.await
+			.expect("unchanged upsert");
+		assert_eq!(revision(unchanged), revision(created.clone()));
+
+		let mut different = test_provider("a");
+		different.value["provider"] = json!("anthropic");
+		let updated = store
+			.upsert_prepared(vec![different], None)
+			.await
+			.expect("changed upsert");
+		assert_eq!(revision(updated), revision(created) + 1);
 	}
 
 	#[tokio::test]

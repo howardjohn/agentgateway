@@ -257,8 +257,17 @@ Each resource has a kind and value, for example:
 					}
 					results = append(results, result.Resources...)
 				}
+				// The server only bumps the revision on a real change.
+				applied := map[string]*int64{}
+				for _, r := range byKind[kind] {
+					applied[r.ID] = r.Revision
+				}
 				for _, r := range results {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s/%s applied\n", r.Kind, r.ID)
+					status := "applied"
+					if prev := applied[r.ID]; prev != nil && r.Revision != nil && *prev == *r.Revision {
+						status = "unchanged"
+					}
+					fmt.Fprintf(cmd.OutOrStdout(), "%s/%s %s\n", r.Kind, r.ID, status)
 				}
 			}
 			return nil
