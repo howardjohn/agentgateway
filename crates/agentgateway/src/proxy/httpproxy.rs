@@ -3157,7 +3157,7 @@ async fn make_backend_call(
 				.as_ref()
 				.and_then(|h| h.max_connection_duration),
 		},
-		deny_loopback: matches!(backend, Backend::Dynamic(_, _)),
+		dynamic_backend: matches!(backend, Backend::Dynamic(_, _)),
 	};
 	let span_target = backend_call.span_target;
 	dtrace::trace(|trace| trace.backend_call_started(&call.target));

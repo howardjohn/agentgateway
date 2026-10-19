@@ -46,14 +46,16 @@ pub struct Call {
 	pub req: http::Request,
 	pub target: Target,
 	pub connection: ConnectionConfig,
-	pub deny_loopback: bool,
+	/// The target came from a dynamic backend, so loopback destinations are rejected unless allowed.
+	pub dynamic_backend: bool,
 }
 
 pub struct TCPCall {
 	pub source: Socket,
 	pub target: Target,
 	pub connection: ConnectionConfig,
-	pub deny_loopback: bool,
+	/// The target came from a dynamic backend, so loopback destinations are rejected unless allowed.
+	pub dynamic_backend: bool,
 }
 
 #[derive(Default, Debug, Clone, Hash, PartialEq, Eq)]
@@ -648,7 +650,7 @@ impl Client {
 					tcp,
 					max_connection_duration: None,
 				},
-				deny_loopback: false,
+				dynamic_backend: false,
 			})
 			.await
 	}
@@ -659,14 +661,14 @@ impl Client {
 			source,
 			target,
 			connection,
-			deny_loopback,
+			dynamic_backend,
 		} = call;
 
 		let dest = self
 			.connector
 			.resolve_target(connection.transport.skip_dns_resolution(), &target)
 			.await?;
-		if deny_loopback && !self.allow_dynamic_loopback {
+		if dynamic_backend && !self.allow_dynamic_loopback {
 			check_not_loopback(dest)?;
 		}
 
@@ -735,7 +737,7 @@ impl Client {
 	) -> impl std::future::Future<Output = Result<http::Response, ProxyError>> + '_ {
 		let client = &self.client;
 		let connector = &self.connector;
-		let deny_loopback = call.deny_loopback && !self.allow_dynamic_loopback;
+		let deny_loopback = call.dynamic_backend && !self.allow_dynamic_loopback;
 		let start = std::time::Instant::now();
 		let Call {
 			mut req,
