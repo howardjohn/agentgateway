@@ -113,6 +113,24 @@ pub enum ConfigResourceKind {
 }
 
 impl ConfigResourceKind {
+	pub(crate) const ALL: [Self; 15] = [
+		Self::ModelCatalog,
+		Self::LlmProvider,
+		Self::LlmModel,
+		Self::LlmVirtualModel,
+		Self::LlmApiKey,
+		Self::LlmPolicy,
+		Self::McpTarget,
+		Self::McpPolicy,
+		Self::LlmSettings,
+		Self::McpSettings,
+		Self::TrafficGateway,
+		Self::TrafficRoute,
+		Self::TrafficTcpRoute,
+		Self::UiPolicy,
+		Self::FrontendPolicy,
+	];
+
 	pub(crate) fn settings_fields(self) -> Option<(&'static str, &'static [&'static str])> {
 		match self {
 			Self::LlmSettings => Some(("llm", &["gateways", "port", "tls"])),
@@ -478,6 +496,52 @@ fn file_resource_collection(kind: ConfigResourceKind) -> Option<FileResourceColl
 		| ConfigResourceKind::McpSettings
 		| ConfigResourceKind::LlmSettings => None,
 	}
+}
+
+/// Lists the resources defined in a file-backed config. API keys are listed as `llm.apiKey`
+/// resources rather than inside `llm.policy/apiKey`; singleton settings are not listed.
+pub(crate) fn file_config_resources(
+	config: &Value,
+	kind: Option<ConfigResourceKind>,
+) -> Vec<PreparedResource> {
+	let array = |path: &[&str]| {
+		crate::json::traverse(config, path)
+			.and_then(Value::as_array)
+			.into_iter()
+			.flatten()
+	};
+	let kinds = kind.map_or(ConfigResourceKind::ALL.to_vec(), |kind| vec![kind]);
+	let mut resources = Vec::new();
+	for kind in kinds {
+		let items: Vec<(String, Value)> = match file_resource_collection(kind) {
+			Some(FileResourceCollection::List(path)) => array(path)
+				.filter_map(|value| Some((resource_id(kind, value).ok()?, value.clone())))
+				.collect(),
+			Some(FileResourceCollection::Map(path)) => crate::json::traverse(config, path)
+				.and_then(Value::as_object)
+				.into_iter()
+				.flatten()
+				.map(|(id, value)| (id.clone(), value.clone()))
+				.collect(),
+			None if kind == ConfigResourceKind::LlmApiKey => {
+				array(&["llm", "policies", "apiKey", "keys"])
+					.enumerate()
+					.map(|(index, value)| (file_api_key_id(value, index), value.clone()))
+					.collect()
+			},
+			None => Vec::new(),
+		};
+		for (id, mut value) in items {
+			if kind == ConfigResourceKind::LlmPolicy
+				&& id == "apiKey"
+				&& let Some(policy) = value.as_object_mut()
+			{
+				policy.remove("keys");
+			}
+			resources.push(PreparedResource { kind, id, value });
+		}
+	}
+	resources
 }
 
 pub(crate) fn file_config_resource<'a>(

@@ -108,6 +108,9 @@ that request including its stored prompt and completion.`,
 			var result struct {
 				Logs []json.RawMessage `json:"logs"`
 			}
+			// Without a cursor the server tails from when the stream opens, which would miss
+			// requests that complete between the search and the tail.
+			searchedAt := time.Now().UTC().Format(time.RFC3339Nano)
 			if err := c.do(cmd.Context(), http.MethodPost, "/api/logs/search", search, &result); err != nil {
 				return err
 			}
@@ -132,7 +135,7 @@ that request including its stored prompt and completion.`,
 			if output == "table" {
 				printFollowRow(w, logHeader)
 			}
-			print := func(raw json.RawMessage) error {
+			printEntry := func(raw json.RawMessage) error {
 				switch output {
 				case "table":
 					printFollowRow(w, logRow(raw))
@@ -152,9 +155,10 @@ that request including its stored prompt and completion.`,
 			tail := map[string]any{
 				"filters":           filters,
 				"includeAttributes": attributes,
+				"cursor":            searchedAt + "|",
 			}
 			for _, raw := range result.Logs {
-				if err := print(raw); err != nil {
+				if err := printEntry(raw); err != nil {
 					return err
 				}
 			}
@@ -163,7 +167,7 @@ that request including its stored prompt and completion.`,
 				_ = json.Unmarshal(result.Logs[n-1], &last)
 				tail["cursor"] = last.CompletedAt + "|" + last.ID
 			}
-			return c.tailLogs(cmd.Context(), tail, print)
+			return c.tailLogs(cmd.Context(), tail, printEntry)
 		},
 	}
 	cmd.Flags().StringVarP(&output, "output", "o", "table", "Output format: table, yaml, or json")

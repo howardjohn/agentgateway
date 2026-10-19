@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -21,13 +21,15 @@ import (
 
 const defaultAddress = "http://localhost:15000"
 
+// kinds is in dependency order; apply writes kinds in this order so that references
+// (e.g. a model's provider, or API keys requiring llm.policy/apiKey) already exist.
 var kinds = []string{
 	"modelCatalog",
 	"llm.provider",
 	"llm.model",
 	"llm.virtualModel",
-	"llm.apiKey",
 	"llm.policy",
+	"llm.apiKey",
 	"llm.settings",
 	"mcp.target",
 	"mcp.policy",
@@ -223,12 +225,10 @@ Each resource has a kind and value, for example:
 				}
 				byKind[kind] = append(byKind[kind], r)
 			}
-			orderedKinds := make([]string, 0, len(byKind))
-			for kind := range byKind {
-				orderedKinds = append(orderedKinds, kind)
-			}
-			sort.Strings(orderedKinds)
-			for _, kind := range orderedKinds {
+			for _, kind := range kinds {
+				if len(byKind[kind]) == 0 {
+					continue
+				}
 				body := struct {
 					Resources []struct {
 						Value json.RawMessage `json:"value"`
@@ -518,8 +518,8 @@ func canonicalKind(input string) string {
 	for _, kind := range kinds {
 		// Plural forms are accepted as aliases, e.g. llm.policies for llm.policy.
 		plural := kind + "s"
-		if strings.HasSuffix(kind, "y") {
-			plural = strings.TrimSuffix(kind, "y") + "ies"
+		if before, ok := strings.CutSuffix(kind, ".policy"); ok {
+			plural = before + ".policies"
 		} else if strings.HasSuffix(kind, "s") {
 			plural = kind
 		}
@@ -531,11 +531,11 @@ func canonicalKind(input string) string {
 }
 
 func kindCompletions(includeAll bool) []string {
-	result := append([]string(nil), kinds...)
+	result := slices.Clone(kinds)
 	if includeAll {
 		result = append(result, "all")
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result
 }
 
@@ -554,7 +554,7 @@ func completeResourceNames(c *client, inputKind string) []string {
 	for _, r := range result.Resources {
 		names = append(names, resourceName(r))
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

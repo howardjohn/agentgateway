@@ -175,7 +175,8 @@ func budgetsCommand(c *client) *cobra.Command {
 						Exceeded  bool   `json:"exceeded"`
 					} `json:"usage"`
 					Window struct {
-						End int64 `json:"end"`
+						// End is null for lifetime budgets, which never reset.
+						End *int64 `json:"end"`
 					} `json:"window"`
 					OnBudgetExceeded string `json:"onBudgetExceeded"`
 				} `json:"budgets"`
@@ -190,7 +191,10 @@ func budgetsCommand(c *client) *cobra.Command {
 				if b.Usage.Exceeded {
 					status = "exceeded"
 				}
-				resets := time.UnixMilli(b.Window.End).Local().Format("2006-01-02 15:04")
+				resets := "never"
+				if b.Window.End != nil {
+					resets = time.UnixMilli(*b.Window.End).Local().Format("2006-01-02 15:04")
+				}
 				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 					b.APIKeyName, b.Name,
 					formatBudgetAmount(b.Limit.Unit, b.Usage.Used),

@@ -1,10 +1,11 @@
 package standalone
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
+	"slices"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -91,11 +92,8 @@ attribute such as agentgateway.user. --interval breaks results down over time.`,
 			rows := result.Buckets
 			if interval == 0 {
 				rows = result.Groups
-				sort.SliceStable(rows, func(i, j int) bool {
-					if rows[i].Cost != rows[j].Cost {
-						return rows[i].Cost > rows[j].Cost
-					}
-					return rows[i].Requests > rows[j].Requests
+				slices.SortStableFunc(rows, func(a, b analyticsRow) int {
+					return cmp.Or(cmp.Compare(b.Cost, a.Cost), cmp.Compare(b.Requests, a.Requests))
 				})
 			}
 			var header []string

@@ -544,8 +544,14 @@ async fn list_stored_config_resources(
 	kind: Option<ConfigResourceKind>,
 ) -> Result<UiConfigResourcesResponse, ErrorResponse> {
 	if app.state.storage.mode != ConfigStoreMode::Hybrid {
+		let resources = if app.state.xds.local_config.is_some() {
+			let config = read_file_config(app).await?;
+			crate::config_store::file_config_resources(&config, kind)
+		} else {
+			Vec::new()
+		};
 		return Ok(UiConfigResourcesResponse {
-			resources: Vec::new(),
+			resources: resources.into_iter().map(UiConfigResource::from).collect(),
 		});
 	}
 	let resources = app
