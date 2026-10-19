@@ -191,7 +191,7 @@ func buildHTTPRouteGroupBindings(
 	// TODO: this can only get 1 layer. If we have multiple levels we will not have a binding since there is no parent.
 	raw := krt.NewManyCollection(httpRouteCol, func(krtctx krt.HandlerContext, obj *gwv1.HTTPRoute) []routeGroupBindingKey {
 		ctx := inputs.WithCtx(krtctx)
-		parentRefs := extractParentReferenceInfo(ctx, inputs.RouteParents, obj)
+		parentRefs := extractParentReferenceInfo(ctx, obj)
 		allowedParents := FilteredReferences(parentRefs)
 		bindings := make([]routeGroupBindingKey, 0)
 		seen := sets.New[string]()
@@ -455,13 +455,6 @@ func AgwRouteCollection(
 	inputs RouteContextInputs,
 	krtopts krtutil.KrtOptions,
 ) (krt.Collection[agwir.AgwResource], krt.Collection[*plugins.RouteAttachment], krt.Collection[*utils.AncestorBackend]) {
-	inputs.parentRefs = krt.JoinCollection([]krt.Collection[RouteParentRefs]{
-		routeParentRefsCollection(inputs, httpRouteCol, wellknown.HTTPRouteGVK, krtopts),
-		routeParentRefsCollection(inputs, grpcRouteCol, wellknown.GRPCRouteGVK, krtopts),
-		routeParentRefsCollection(inputs, tcpRouteCol, wellknown.TCPRouteGVK, krtopts),
-		routeParentRefsCollection(inputs, tlsRouteCol, wellknown.TLSRouteGVK, krtopts),
-	}, krtopts.ToOptions("translator/RouteParentRefs")...)
-
 	// Build delegation bindings before creating the HTTPRoute status collection,
 	// so we can set parent status for delegated routes.
 	httpRouteGroupBindings := buildHTTPRouteGroupBindings(httpRouteCol, inputs, krtopts)
@@ -1004,7 +997,7 @@ func computeRoute[T controllers.Object, O comparable](ctx RouteContext, obj T, t
 	obj T,
 ) iter.Seq2[O, *reporter.RouteCondition],
 ) ([]RouteParentReference, ConversionResult[O]) {
-	parentRefs := extractParentReferenceInfo(ctx, ctx.RouteParents, obj)
+	parentRefs := extractParentReferenceInfo(ctx, obj)
 
 	convertRules := func() ConversionResult[O] {
 		res := ConversionResult[O]{}
@@ -1052,8 +1045,28 @@ type RouteContextInputs struct {
 	ControllerName      string
 	BackendRefGrantMode apisettings.BackendRefGrantMode
 
-	// parentRefs, if set, holds the resolved parent references of each route.
-	parentRefs krt.Collection[RouteParentRefs]
+	// ParentRefs holds the resolved parent references of each route and model. Build it with RouteParentRefsCollection.
+	ParentRefs krt.Collection[RouteParentRefs]
+}
+
+// RouteParentRefsCollection resolves the parent references of each route and model, so the many collections
+// that need them resolve them once.
+func RouteParentRefsCollection(
+	inputs RouteContextInputs,
+	httpRouteCol krt.Collection[*gwv1.HTTPRoute],
+	grpcRouteCol krt.Collection[*gwv1.GRPCRoute],
+	tcpRouteCol krt.Collection[*gwv1.TCPRoute],
+	tlsRouteCol krt.Collection[*gwv1.TLSRoute],
+	models krt.Collection[*agentgateway.AgentgatewayModel],
+	krtopts krtutil.KrtOptions,
+) krt.Collection[RouteParentRefs] {
+	return krt.JoinCollection([]krt.Collection[RouteParentRefs]{
+		routeParentRefsCollection(inputs, httpRouteCol, wellknown.HTTPRouteGVK, krtopts),
+		routeParentRefsCollection(inputs, grpcRouteCol, wellknown.GRPCRouteGVK, krtopts),
+		routeParentRefsCollection(inputs, tcpRouteCol, wellknown.TCPRouteGVK, krtopts),
+		routeParentRefsCollection(inputs, tlsRouteCol, wellknown.TLSRouteGVK, krtopts),
+		routeParentRefsCollection(inputs, models, wellknown.AgentgatewayModelGVK, krtopts),
+	}, krtopts.ToOptions("translator/RouteParentRefs")...)
 }
 
 // RouteParentRefs holds the resolved parent references of a route, so the many collections that
@@ -1125,7 +1138,7 @@ func gatewayRouteAttachmentCollection[T controllers.Object](
 			NamespacedName: config.NamespacedName(obj),
 		}
 
-		parentRefs := extractParentReferenceInfo(ctx, inputs.RouteParents, obj)
+		parentRefs := extractParentReferenceInfo(ctx, obj)
 		return slices.MapFilter(FilteredReferences(parentRefs), func(e RouteParentReference) **plugins.RouteAttachment {
 			if e.ParentKey.Kind == wellknown.ListenerSetGVK.Kind {
 				return new(&plugins.RouteAttachment{
@@ -1183,7 +1196,7 @@ func extractAncestorBackends[T controllers.Object, RT, BT any](ctx RouteContext,
 		Kind:      sourceGVK.Kind,
 	}
 	gateways := sets.Set[types.NamespacedName]{}
-	for _, parent := range FilteredReferences(extractParentReferenceInfo(ctx, ctx.RouteParents, obj)) {
+	for _, parent := range FilteredReferences(extractParentReferenceInfo(ctx, obj)) {
 		gateways.Insert(parent.ParentGateway)
 	}
 	backends := sets.Set[utils.TypedNamespacedName]{}

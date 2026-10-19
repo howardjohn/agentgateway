@@ -662,9 +662,9 @@ func BuildRouteParents(
 	gateways krt.Collection[*GatewayListener],
 	krtopts krtutil.KrtOptions,
 ) RouteParents {
-	parents := krt.NewCollection(gateways, func(ctx krt.HandlerContext, gw *GatewayListener) **RouteParent {
-		return new(&RouteParent{Name: gw.Name, ParentObject: gw.ParentObject, ParentInfo: gw.ParentInfo})
-	}, krtopts.ToOptions("translator/RouteParents")...)
+	parents := krt.MapCollection(gateways, func(gw *GatewayListener) *RouteParent {
+		return &RouteParent{Name: gw.Name, ParentObject: gw.ParentObject, ParentInfo: gw.ParentInfo}
+	}, append(krtopts.ToOptions("translator/RouteParents"), krt.WithMapDiscardEqual())...)
 	idx := krt.NewIndex(parents, "Parent", func(o *RouteParent) []utils.TypedNamespacedName {
 		return []utils.TypedNamespacedName{o.ParentObject}
 	})

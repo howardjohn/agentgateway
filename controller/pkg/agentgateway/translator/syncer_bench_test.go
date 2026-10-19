@@ -24,7 +24,6 @@ import (
 	"istio.io/istio/pkg/slices"
 	"istio.io/istio/pkg/test"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	agwv1alpha1 "github.com/agentgateway/agentgateway/controller/api/v1alpha1/agentgateway"
@@ -175,7 +174,7 @@ func benchRefresh(b *testing.B, templates map[string]*template.Template, configs
 	}
 	staticObjs := []any{}
 	for ns := range namespaces {
-		staticObjs = append(staticObjs, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}})
+		staticObjs = append(staticObjs, &corev1.Namespace{Name: ns})
 	}
 	mutableObjs := map[reflect.Type][]any{}
 	for _, instances := range initial {
@@ -250,7 +249,7 @@ func benchRefresh(b *testing.B, templates map[string]*template.Template, configs
 		waitIdle()
 	}
 	b.ReportMetric(float64(xdsChanges.Load())/float64(b.N), "xds-changes/op")
-	b.ReportMetric(float64(retained), "retained-bytes")
+	b.ReportMetric(retained, "retained-bytes")
 }
 
 type renderedObject struct {
@@ -311,7 +310,7 @@ func renderInstance(t testing.TB, tmpl *template.Template, cfg benchConfig, inst
 		t.Fatalf("render %s: %v", cfg.Template, err)
 	}
 	var res []renderedObject
-	for _, doc := range strings.Split(buf.String(), "\n---\n") {
+	for doc := range strings.SplitSeq(buf.String(), "\n---\n") {
 		if isEmptyYAML(doc) {
 			continue
 		}
@@ -339,7 +338,7 @@ func renderInstance(t testing.TB, tmpl *template.Template, cfg benchConfig, inst
 }
 
 func isEmptyYAML(doc string) bool {
-	for _, line := range strings.Split(doc, "\n") {
+	for line := range strings.SplitSeq(doc, "\n") {
 		line = strings.TrimSpace(line)
 		if line != "" && !strings.HasPrefix(line, "#") {
 			return false
@@ -430,9 +429,9 @@ func waitIdle() {
 }
 
 // liveHeapBytes returns the heap in use after a full garbage collection.
-func liveHeapBytes() int64 {
+func liveHeapBytes() float64 {
 	runtime.GC()
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	return int64(m.HeapAlloc)
+	return float64(m.HeapAlloc)
 }

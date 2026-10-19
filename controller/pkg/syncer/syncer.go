@@ -636,6 +636,15 @@ func (s *Syncer) buildAgwResources(
 		References:          referenceTypes,
 		BackendRefGrantMode: s.agwCollections.Settings.BackendRefGrantMode,
 	}
+	routeInputs.ParentRefs = translator.RouteParentRefsCollection(
+		routeInputs,
+		s.agwCollections.HTTPRoutes,
+		s.agwCollections.GRPCRoutes,
+		s.agwCollections.TCPRoutes,
+		s.agwCollections.TLSRoutes,
+		s.agwCollections.Models,
+		krtopts,
+	)
 
 	baseAgwRoutes, routeAttachments, ancestorBackends := translator.AgwRouteCollection(s.statusCollections, s.agwCollections.HTTPRoutes, s.agwCollections.GRPCRoutes, s.agwCollections.TCPRoutes, s.agwCollections.TLSRoutes, routeInputs, krtopts)
 	routeCollections := []krt.Collection[agwir.AgwResource]{baseAgwRoutes}
