@@ -70,7 +70,7 @@ impl<K: Eq + Hash + Clone, V: Clone> ExpiringCache<K, V> {
 	}
 
 	/// Returns the cached value, or fetches it. Concurrent misses for the same key share
-	/// one fetch. A failed refresh keeps serving the cached value until it expires.
+	/// one fetch. If a refresh fails, the cached value is served until it expires.
 	/// `fetch` returns the value and how long to cache it, or `None` to not cache it.
 	pub async fn get_or_fetch<F, Fut, E>(&self, key: K, fetch: F) -> Result<V, E>
 	where
@@ -83,28 +83,25 @@ impl<K: Eq + Hash + Clone, V: Clone> ExpiringCache<K, V> {
 			.0
 			.entry_async(&key, |_, entry| match entry.lookup(now) {
 				Lookup::Hit(value) => EntryAction::Retain(Ok(value)),
-				Lookup::Refresh => EntryAction::Retain(Err(entry.clone())),
+				Lookup::Refresh => EntryAction::Retain(Err(entry.value.clone())),
 				Lookup::Expired | Lookup::Vacant => EntryAction::ReplaceWithGuard,
 			})
 			.await
 		{
 			EntryResult::Retained(Ok(value)) => return Ok(value),
 			EntryResult::Retained(Err(stale)) => {
-				return match fetch().await {
-					Ok((value, Some(ttl))) => {
-						self.insert(key, value.clone(), ttl);
-						Ok(value)
-					},
-					Ok((value, None)) => {
-						stale.refreshing.store(false, Ordering::Release);
-						Ok(value)
+				return Ok(match fetch().await {
+					Ok((value, ttl)) => {
+						if let Some(ttl) = ttl {
+							self.insert(key, value.clone(), ttl);
+						}
+						value
 					},
 					Err(e) => {
 						tracing::debug!("refresh failed, serving cached value: {e}");
-						stale.refreshing.store(false, Ordering::Release);
-						Ok(stale.value)
+						stale
 					},
-				};
+				});
 			},
 			EntryResult::Vacant(guard) | EntryResult::Replaced(guard, _) => guard,
 			EntryResult::Removed(_, _) | EntryResult::Timeout => unreachable!(),
@@ -182,12 +179,10 @@ mod tests {
 			.get_or_fetch("k", || async { Err::<(i32, _), _>("down") })
 			.await;
 		assert_eq!(v, Ok(1));
-		// The failed refresher releases the election for the next caller.
+		// The election stays taken, so no further refresh is attempted before expiry.
 		let v = cache
-			.get_or_fetch("k", || async {
-				Ok::<_, &str>((2, Some(Duration::from_secs(60))))
-			})
+			.get_or_fetch("k", || async { panic!("unexpected refresh") })
 			.await;
-		assert_eq!(v, Ok(2));
+		assert_eq!(v, Ok::<_, &str>(1));
 	}
 }
