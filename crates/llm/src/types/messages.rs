@@ -166,6 +166,8 @@ pub struct Usage {
 
 #[derive(Debug, Deserialize, Clone, Serialize, PartialEq, Eq)]
 pub struct UsageIteration {
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub model: Option<String>,
 	#[serde(default)]
 	pub input_tokens: u64,
 	#[serde(default)]
@@ -238,6 +240,23 @@ impl AccountingUsage {
 		.or(self.cache_creation_1h_input_tokens);
 		self
 	}
+}
+
+pub(crate) fn usage_lines(iterations: &[UsageIteration]) -> Vec<crate::UsageLine> {
+	iterations
+		.iter()
+		.map(|i| crate::UsageLine {
+			model: i.model.as_deref().map(strng::new),
+			input_tokens: i.input_tokens,
+			output_tokens: i.output_tokens,
+			cache_creation_input_tokens: i.cache_creation_input_tokens,
+			cache_creation_1h_input_tokens: i
+				.cache_creation
+				.as_ref()
+				.and_then(|c| c.ephemeral_1h_input_tokens),
+			cached_input_tokens: i.cache_read_input_tokens,
+		})
+		.collect()
 }
 
 fn sum_optional(values: impl Iterator<Item = Option<u64>>) -> Option<u64> {
@@ -806,6 +825,7 @@ impl ResponseType for Response {
 			cache_creation_1h_input_tokens: usage.cache_creation_1h_input_tokens,
 			cached_input_tokens: usage.cache_read_input_tokens,
 			service_tier: self.usage.service_tier.as_deref().map(Into::into),
+			usage_lines: usage_lines(&self.usage.iterations),
 			completion: if log_content.completion {
 				Some(
 					self
@@ -1648,6 +1668,7 @@ pub mod typed {
 				cache_creation_1h_input_tokens: usage.cache_creation_1h_input_tokens,
 				cached_input_tokens: usage.cache_read_input_tokens,
 				service_tier: self.usage.service_tier.as_deref().map(Into::into),
+				usage_lines: super::usage_lines(&self.usage.iterations),
 				provider_model: Some(agent_core::strng::new(&self.model)),
 				count_tokens: None,
 				completion: if log_content.completion {

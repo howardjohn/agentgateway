@@ -535,6 +535,7 @@ pub mod from_completions {
 			input_tokens: usage.input_tokens,
 			total_tokens: usage.input_tokens.saturating_add(usage.output_tokens),
 			cache_creation_1h_input_tokens: usage.cache_creation_1h_input_tokens,
+			usage_lines: crate::types::messages::usage_lines(&resp.usage.iterations),
 			..Default::default()
 		});
 		let openai = translate_response_internal(resp);
@@ -654,9 +655,9 @@ pub mod from_completions {
 			) {
 				(None, None) => None,
 				(cached_tokens, cache_write_tokens) => Some(UsagePromptDetails {
-					cached_tokens: cached_tokens.map(|i| i as u64),
+					cached_tokens,
 					audio_tokens: None,
-					cache_write_tokens: cache_write_tokens.map(|i| i as u64),
+					cache_write_tokens,
 					rest: Default::default(),
 				}),
 			},
@@ -888,6 +889,9 @@ pub mod from_completions {
 						.and_then(crate::types::serialize_str);
 					log.update(|r| {
 						usage_acc.apply(&mut r.response);
+						if !usage.iterations.is_empty() {
+							r.response.usage_lines = crate::types::messages::usage_lines(&usage.iterations);
+						}
 						if let Some(completion) = completion.take() {
 							r.response.completion = Some(vec![completion]);
 						}
@@ -1158,6 +1162,9 @@ pub fn passthrough_stream(
 					.and_then(crate::types::serialize_str);
 				log.update(|r| {
 					usage_acc.apply(&mut r.response);
+					if !usage.iterations.is_empty() {
+						r.response.usage_lines = crate::types::messages::usage_lines(&usage.iterations);
+					}
 					if let Some(c) = completion.take() {
 						r.response.completion = Some(vec![c]);
 					}

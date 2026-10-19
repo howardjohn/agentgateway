@@ -20,6 +20,12 @@
         "cache_read_input_tokens": 50
       },
       {
+        "type": "advisor_message",
+        "model": "claude-opus-4-6",
+        "input_tokens": 40,
+        "output_tokens": 200
+      },
+      {
         "type": "message",
         "input_tokens": 23,
         "output_tokens": 10,
