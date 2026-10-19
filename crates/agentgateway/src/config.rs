@@ -1135,11 +1135,15 @@ async fn persist_session_key(path: &Path) -> anyhow::Result<String> {
 	let current = fs_err::tokio::read_to_string(path).await?;
 	let mut document = yaml_serde_edit::YamlObject::<serde_json::Value>::parse(&current)?;
 	let mut cfg = document.get().clone();
-	cfg
+	let section = cfg
 		.as_object_mut()
 		.context("config file must be an object")?
 		.entry("config")
-		.or_insert_with(|| serde_json::json!({}))
+		.or_insert(serde_json::Value::Null);
+	if section.is_null() {
+		*section = serde_json::json!({});
+	}
+	section
 		.as_object_mut()
 		.context("config.config must be an object")?
 		.insert("session".to_string(), serde_json::json!({ "key": key }));
