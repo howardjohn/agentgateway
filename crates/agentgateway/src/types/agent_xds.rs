@@ -4564,7 +4564,7 @@ mod tests {
 			..Default::default()
 		};
 		let err = convert_backend_ai_policy(&ai, &mut Diagnostics::default()).unwrap_err();
-		assert!(err.to_string().contains("non-default scope"), "{err}");
+		assert!(err.to_string().contains("do not support scope"), "{err}");
 
 		// response guards: regex can opt in to tool calls, webhook cannot
 		let convert_response_guard = |kind, scope| {

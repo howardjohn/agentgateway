@@ -2072,7 +2072,11 @@ pub struct RequestGuard {
 }
 
 pub fn default_content_scope() -> Vec<ContentScope> {
-	vec![ContentScope::SystemPrompt, ContentScope::Messages]
+	vec![
+		ContentScope::SystemPrompt,
+		ContentScope::Messages,
+		ContentScope::ToolOutput,
+	]
 }
 
 // disallow explicitly empty scope (effectively disables the guard)
@@ -2082,26 +2086,27 @@ fn de_content_scope<'de, D: serde::Deserializer<'de>>(
 	let scope = <Vec<ContentScope> as serde::Deserialize>::deserialize(deserializer)?;
 	if scope.is_empty() {
 		return Err(serde::de::Error::custom(
-			"scope must not be empty; omit it to use the default (systemPrompt + messages)",
+			"scope must not be empty; omit it to use the default (systemPrompt + messages + toolOutput)",
 		));
 	}
 	Ok(scope)
 }
 
 impl RequestGuard {
-	/// Webhooks always inspect the default scope; reject anything else rather than silently ignore it.
+	/// Webhooks always inspect systemPrompt + messages; reject any other explicit scope rather than
+	/// silently ignore it. The (omitted) default scope is accepted as well.
 	pub(crate) fn validate_scope(&self) -> Result<(), String> {
 		if !matches!(self.kind, RequestGuardKind::Webhook(_)) {
 			return Ok(());
 		}
-		let default = default_content_scope();
-		let is_default =
-			self.scope.len() == default.len() && default.iter().all(|s| self.scope.contains(s));
-		if is_default {
+		let is = |want: &[ContentScope]| {
+			self.scope.len() == want.len() && want.iter().all(|s| self.scope.contains(s))
+		};
+		if is(&default_content_scope()) || is(&[ContentScope::SystemPrompt, ContentScope::Messages]) {
 			return Ok(());
 		}
 		Err(
-			"scope: webhook guards do not support a non-default scope; they always inspect the default (systemPrompt + messages)"
+			"scope: webhook guards do not support scope; they always inspect systemPrompt + messages"
 				.into(),
 		)
 	}
