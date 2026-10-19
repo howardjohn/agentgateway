@@ -586,7 +586,6 @@ pub fn parse_config(
 		dns: client::Config {
 			resolver_cfg,
 			resolver_opts,
-			deny_dynamic_loopback: true,
 		},
 		proxy_metadata: crate::ProxyMetadata {
 			instance_ip: ENV.instance_ip.clone(),

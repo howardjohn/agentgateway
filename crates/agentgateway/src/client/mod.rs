@@ -29,7 +29,7 @@ pub struct Client {
 	client: agent_pool::Client<Connector, PoolKey>,
 	connector: Connector,
 	callout_proxy: Option<Arc<callout::Proxy>>,
-	deny_dynamic_loopback: bool,
+	allow_dynamic_loopback: bool,
 }
 
 impl Debug for Client {
@@ -542,8 +542,6 @@ impl tower::Service<::http::Extensions> for Connector {
 pub struct Config {
 	pub resolver_cfg: ResolverConfig,
 	pub resolver_opts: ResolverOpts,
-	/// Reject dynamic backends that resolve to loopback or link-local addresses.
-	pub deny_dynamic_loopback: bool,
 }
 
 /// Rejects loopback and link-local destinations, checked after DNS resolution.
@@ -596,6 +594,7 @@ impl Client {
 			b.http2_keep_alive_while_idle(true);
 		}
 
+		let allow_dynamic_loopback = backend_config.allow_dynamic_loopback;
 		let connector = Connector {
 			resolver: Arc::new(resolver),
 			hbone_pool,
@@ -608,7 +607,7 @@ impl Client {
 			client,
 			connector,
 			callout_proxy: None,
-			deny_dynamic_loopback: cfg.deny_dynamic_loopback,
+			allow_dynamic_loopback,
 		}
 	}
 
@@ -667,7 +666,7 @@ impl Client {
 			.connector
 			.resolve_target(connection.transport.skip_dns_resolution(), &target)
 			.await?;
-		if deny_loopback && self.deny_dynamic_loopback {
+		if deny_loopback && !self.allow_dynamic_loopback {
 			check_not_loopback(dest)?;
 		}
 
@@ -736,7 +735,7 @@ impl Client {
 	) -> impl std::future::Future<Output = Result<http::Response, ProxyError>> + '_ {
 		let client = &self.client;
 		let connector = &self.connector;
-		let deny_loopback = call.deny_loopback && self.deny_dynamic_loopback;
+		let deny_loopback = call.deny_loopback && !self.allow_dynamic_loopback;
 		let start = std::time::Instant::now();
 		let Call {
 			mut req,
@@ -914,7 +913,6 @@ mod tests {
 			&Config {
 				resolver_cfg: hickory_resolver::config::ResolverConfig::default(),
 				resolver_opts: hickory_resolver::config::ResolverOpts::default(),
-				deny_dynamic_loopback: true,
 			},
 			None,
 			crate::BackendConfig::default(),
@@ -974,7 +972,6 @@ mod tests {
 			&Config {
 				resolver_cfg: hickory_resolver::config::ResolverConfig::default(),
 				resolver_opts: hickory_resolver::config::ResolverOpts::default(),
-				deny_dynamic_loopback: true,
 			},
 			None,
 			crate::BackendConfig::default(),

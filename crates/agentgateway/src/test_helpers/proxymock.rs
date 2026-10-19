@@ -1489,13 +1489,13 @@ pub fn setup_proxy_test_with_config_and_spiffe(
 	spiffe: Option<Arc<crate::control::spiffe::SpiffeClient>>,
 ) -> TestBind {
 	// Mock backends listen on loopback.
-	config.dns.deny_dynamic_loopback = false;
+	config.backend.allow_dynamic_loopback = true;
 	agent_core::telemetry::testing::setup_test_logging();
 	crate::crypto::init();
 	let encoder = config.session_encoder.clone();
 	let histogram_mode = config.histograms;
 	let stores = Stores::new(config.ipv6_enabled, config.threading_mode);
-	let client = client::Client::new(&config.dns, None, Default::default(), None);
+	let client = client::Client::new(&config.dns, None, config.backend.clone(), None);
 	let (drain_tx, drain_rx) = drain::new();
 	let pi = Arc::new(ProxyInputs {
 		cfg: Arc::new(config),
