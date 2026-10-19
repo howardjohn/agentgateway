@@ -35,6 +35,9 @@ pub struct MCPSessionState {
 	/// This is mostly for logging/etc purposes
 	#[serde(default, rename = "r", skip_serializing_if = "Option::is_none")]
 	random_identifier: Option<String>,
+	/// Backend that issued the session. If set, resuming requires it to match the serving backend.
+	#[serde(default, rename = "k", skip_serializing_if = "Option::is_none")]
+	pub backend: Option<String>,
 }
 
 fn session_id() -> String {
@@ -42,7 +45,7 @@ fn session_id() -> String {
 }
 
 impl MCPSessionState {
-	pub fn new(sessions: Vec<MCPSession>) -> Self {
+	pub fn new(sessions: Vec<MCPSession>, backend: Option<String>) -> Self {
 		let random_identifier = if sessions.iter().any(|s| s.session.is_none()) {
 			Some(session_id())
 		} else {
@@ -51,6 +54,7 @@ impl MCPSessionState {
 		Self {
 			sessions,
 			random_identifier,
+			backend,
 		}
 	}
 }
