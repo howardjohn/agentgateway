@@ -44,7 +44,7 @@ func (r *analyticsRow) add(o analyticsRow) {
 func (r analyticsRow) cells() []string {
 	ttft, tps, cache := "-", "-", "-"
 	if r.TTFTRequests > 0 {
-		ttft = (time.Duration(r.TTFTMs/float64(r.TTFTRequests)) * time.Millisecond).Round(time.Millisecond).String()
+		ttft = time.Duration(r.TTFTMs / float64(r.TTFTRequests) * float64(time.Millisecond)).Round(time.Millisecond).String()
 	}
 	if r.GenerationMs > 0 {
 		tps = fmt.Sprintf("%.0f", float64(r.GenerationTokens)/r.GenerationMs*1000)
