@@ -3459,8 +3459,12 @@ async fn persisted_stateful_session_cannot_cross_mcp_backends() {
 		route_b.key = "route-b".into();
 		route_b.name.name = "route-b".into();
 		route_b.matches[0].path = crate::types::agent::PathMatch::Exact("/b".into());
-		setup_proxy_test("{}")
-			.unwrap()
+		let mut config = crate::config::parse_config("{}".to_string(), None).unwrap();
+		config.session_encoder = http::sessionpersistence::Encoder::aes(
+			"00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+		)
+		.unwrap();
+		setup_proxy_test_with_config(config)
 			.with_mcp_backend(a.addr, true, false)
 			.with_mcp_backend(b.addr, true, false)
 			.with_bind(simple_bind())

@@ -36,6 +36,7 @@ pub struct MCPSessionState {
 	#[serde(default, rename = "r", skip_serializing_if = "Option::is_none")]
 	random_identifier: Option<String>,
 	/// Backend that issued the session. If set, resuming requires it to match the serving backend.
+	/// Only set with AES encoding, since base64 session IDs would expose backend names to clients.
 	#[serde(default, rename = "k", skip_serializing_if = "Option::is_none")]
 	pub backend: Option<String>,
 }

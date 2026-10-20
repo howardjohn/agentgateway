@@ -128,7 +128,12 @@ impl Session {
 						let s = http::sessionpersistence::SessionState::MCP(
 							http::sessionpersistence::MCPSessionState::new(
 								sessions,
-								self.relay.backend_id.as_ref().map(ToString::to_string),
+								self
+									.relay
+									.backend_id
+									.as_ref()
+									.filter(|_| matches!(self.encoder, http::sessionpersistence::Encoder::Aes(_)))
+									.map(ToString::to_string),
 							),
 						);
 						if let Ok(id) = s.encode(&self.encoder) {
@@ -524,7 +529,12 @@ impl Session {
 							let s = http::sessionpersistence::SessionState::MCP(
 								http::sessionpersistence::MCPSessionState::new(
 									sessions,
-									self.relay.backend_id.as_ref().map(ToString::to_string),
+									self
+										.relay
+										.backend_id
+										.as_ref()
+										.filter(|_| matches!(self.encoder, http::sessionpersistence::Encoder::Aes(_)))
+										.map(ToString::to_string),
 								),
 							);
 							if let Ok(id) = s.encode(&self.encoder) {
