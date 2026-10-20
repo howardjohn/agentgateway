@@ -405,7 +405,7 @@ impl ProxyError {
 			ProxyError::BindNotFound => "bind not found",
 			ProxyError::ListenerNotFound => "listener not found",
 			ProxyError::RouteNotFound => "route not found",
-			ProxyError::RouteCycleDetected => "route cycle detected",
+			ProxyError::RouteCycleDetected => "route delegation cycle detected",
 			ProxyError::MisdirectedRequest => "misdirected request",
 			ProxyError::NoValidBackends
 			| ProxyError::NoHealthyEndpoints
