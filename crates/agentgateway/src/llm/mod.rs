@@ -579,19 +579,17 @@ impl ChatTranslation {
 		req: types::ChatRequest,
 		ctx: &ChatRequestContext<'_>,
 	) -> Result<RenderedChatRequest, AIError> {
+		let mut req = req;
+		if let AIProvider::Bedrock(p) = ctx.provider {
+			p.sanitize_runtime_request(&mut req, ctx.catalog);
+		}
 		let body = match self.output {
 			ChatFormat::OpenAICompletions => return render_openai_completions(req, ctx),
 			ChatFormat::OpenAIResponses => render_openai_responses(req, ctx),
 			ChatFormat::AnthropicMessages if matches!(ctx.provider, AIProvider::Vertex(_)) => {
 				vertex::prepare_anthropic_message_body(render_anthropic_messages(req, ctx.catalog)?)
 			},
-			ChatFormat::AnthropicMessages => {
-				let mut req = req;
-				if let AIProvider::Bedrock(p) = ctx.provider {
-					p.sanitize_messages_user_id(&mut req, ctx.catalog);
-				}
-				render_anthropic_messages(req, ctx.catalog)
-			},
+			ChatFormat::AnthropicMessages => render_anthropic_messages(req, ctx.catalog),
 			ChatFormat::BedrockConverse => return render_bedrock_converse(req, ctx),
 			ChatFormat::VertexGemini => {
 				return Ok(RenderedChatRequest {
@@ -1722,6 +1720,24 @@ impl AIProvider {
 				if anthropic_native {
 					set_default_anthropic_version(&mut req.headers);
 					conversion::bedrock::filter_native_beta_header(&mut req.headers)?;
+				}
+				// Converse carries the guardrail in the body; the native APIs take it as headers.
+				if matches!(
+					route_type,
+					RouteType::Messages | RouteType::Responses | RouteType::Completions
+				) && bedrock_endpoint == Some(bedrock::BedrockEndpoint::Runtime)
+					&& provider.native_chat(bedrock::BedrockEndpoint::Runtime)
+					&& let (Some(identifier), Some(version)) =
+						(&provider.guardrail_identifier, &provider.guardrail_version)
+				{
+					req.headers.insert(
+						"x-amzn-bedrock-guardrailidentifier",
+						HeaderValue::from_str(identifier)?,
+					);
+					req.headers.insert(
+						"x-amzn-bedrock-guardrailversion",
+						HeaderValue::from_str(version)?,
+					);
 				}
 				Ok(())
 			}),

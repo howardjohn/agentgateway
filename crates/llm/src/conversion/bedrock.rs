@@ -3870,26 +3870,35 @@ mod helpers {
 	use crate::types::messages::typed::{CacheControlEphemeral, CacheCreation};
 	use crate::types::responses::typed::PromptCacheBreakpointConfig;
 
-	// Betas Bedrock accepts on its Anthropic Messages APIs (Runtime, Mantle, and InvokeModel); it
-	// rejects any other value. Checked against Bedrock 2026-10-07.
+	// Betas Bedrock accepts (Runtime, Mantle, and Converse); it rejects any other value. Checked
+	// against Bedrock 2026-10-19. Native Anthropic Messages requests pass betas through unless
+	// AGENTGATEWAY_BEDROCK_ANTHROPIC_BETA_HEADERS is set; Converse always filters.
 	const DEFAULT_ALLOWED_BETA_HEADERS: &[&str] = &[
+		"afk-mode-2026-01-31",
+		"auto-mode-classifier-2026-07-16",
 		"claude-code-20250219",
 		"compact-2026-01-12",
 		"computer-use-2025-01-24",
 		"computer-use-2025-11-24",
 		"context-1m-2025-08-07",
 		"context-management-2025-06-27",
+		"dangerous-tool-use-2026-09-03",
 		"dev-full-thinking-2025-05-14",
 		"effort-2025-11-24",
 		"fallback-credit-2026-06-01",
 		"fine-grained-tool-streaming-2025-05-14",
 		"interleaved-thinking-2025-05-14",
+		"mid-conversation-output-config-2026-07-01",
+		"mid-conversation-system-2026-04-07",
 		"mid-conversation-tool-changes-2026-07-01",
 		"output-128k-2025-02-19",
 		"pdfs-2024-09-25",
+		"per-turn-control-2026-07-01",
 		"server-side-fallback-2026-06-01",
 		"structured-outputs-2025-11-13",
+		"structured-outputs-2025-12-15",
 		"task-budgets-2026-03-13",
+		"thinking-token-count-2026-05-13",
 		"token-counting-2024-11-01",
 		"token-efficient-tools-2025-02-19",
 		"tool-examples-2025-10-29",
@@ -3902,6 +3911,8 @@ mod helpers {
 	const ALLOWED_BETA_HEADERS_ENV: &str = "AGENTGATEWAY_BEDROCK_ANTHROPIC_BETA_HEADERS";
 	const DEFAULT_SENTINEL: &str = "default";
 
+	static FILTER_NATIVE_BETA_HEADERS: LazyLock<bool> =
+		LazyLock::new(|| std::env::var_os(ALLOWED_BETA_HEADERS_ENV).is_some());
 	static ALLOWED_BETA_HEADERS: LazyLock<Vec<String>> = LazyLock::new(|| {
 		let default_allowed_beta_headers = || {
 			DEFAULT_ALLOWED_BETA_HEADERS
@@ -4230,8 +4241,12 @@ mod helpers {
 		))
 	}
 
-	/// Drops `anthropic-beta` values Bedrock would reject from a native Anthropic Messages request.
+	/// Drops `anthropic-beta` values outside the allowlist from a native Anthropic Messages request,
+	/// only when the allowlist is explicitly configured.
 	pub fn filter_native_beta_header(headers: &mut http::HeaderMap) -> Result<(), AIError> {
+		if !*FILTER_NATIVE_BETA_HEADERS {
+			return Ok(());
+		}
 		let joined = allowed_beta_headers(headers, |_| true)?.join(",");
 		headers.remove("anthropic-beta");
 		if !joined.is_empty() {
