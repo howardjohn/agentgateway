@@ -60,7 +60,12 @@ impl Csrf {
 			filters::Error::InvalidFilterConfiguration("missing authority in URI".to_string())
 		})?;
 		let origin_uri = origin.parse::<::http::Uri>().ok();
-		if origin_uri.as_ref().and_then(|u| u.authority()) == Some(target_host) {
+		if origin_uri
+			.as_ref()
+			.filter(|u| u.scheme().is_some())
+			.and_then(|u| u.authority())
+			== Some(target_host)
+		{
 			return Ok(Default::default());
 		}
 
