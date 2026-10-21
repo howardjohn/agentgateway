@@ -8,7 +8,7 @@ pub mod request_builder;
 pub mod tcpproxy;
 
 use std::borrow::Cow;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use agent_pool::Error as HyperError;
 pub use gateway::Gateway;
@@ -177,6 +177,18 @@ impl Display for ProxyResponseReason {
 /// Marks responses whose rate-limit headers come from a denying policy.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RateLimitDenied;
+
+/// Unsafe, debugging only: return full internal error details to clients instead of generic messages.
+pub(crate) static EXPOSE_ERROR_DETAILS: LazyLock<bool> = LazyLock::new(|| {
+	let enabled =
+		std::env::var("AGENTGATEWAY_UNSAFE_EXPOSE_ERROR_DETAILS").is_ok_and(|v| v == "true");
+	if enabled {
+		warn!(
+			"AGENTGATEWAY_UNSAFE_EXPOSE_ERROR_DETAILS is enabled; internal error details are sent to clients"
+		);
+	}
+	enabled
+});
 
 #[derive(thiserror::Error, Debug)]
 pub enum ProxyError {
@@ -388,6 +400,7 @@ impl ProxyError {
 	pub fn external_message(&self) -> Cow<'static, str> {
 		let msg = match self {
 			ProxyError::MCP(e) => return e.external_message(),
+			_ if *EXPOSE_ERROR_DETAILS => return self.to_string().into(),
 			// Client request errors only describe the client's own request, so keep their detail.
 			ProxyError::AIRequest(e) if classify_ai_request(e).status.is_client_error() => {
 				return self.to_string().into();

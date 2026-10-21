@@ -221,6 +221,9 @@ impl Error {
 	/// A client-safe message; Display retains the internal diagnostic details.
 	pub fn external_message(&self) -> Cow<'static, str> {
 		let msg = match self {
+			// Hides whether the resource exists, so it is never exposed.
+			Error::Authorization(_, _, _) => "unknown resource",
+			_ if *crate::proxy::EXPOSE_ERROR_DETAILS => return self.to_string().into(),
 			// Client request errors only describe the client's own request, so keep their detail.
 			Error::MethodNotAllowed
 			| Error::GetStreamNotSupported
@@ -247,7 +250,6 @@ impl Error {
 			Error::StartSession(_) => "failed to create session",
 			Error::Stdio(_) => "failed to start stdio server",
 			Error::SendError(_, _) => "failed to send message",
-			Error::Authorization(_, _, _) => "unknown resource",
 			Error::EstablishGetStream(_) => "failed to establish stream",
 			Error::ForwardLegacySse(_) => "failed to forward message",
 			Error::CreateSseUrl(_) => "failed to create sse url",
