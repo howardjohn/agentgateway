@@ -50,10 +50,6 @@ func GetCommonExemptFeatures() sets.Set[features.Feature] {
 	for _, feature := range features.UDPRouteFeatures.UnsortedList() {
 		exemptFeatures.Insert(feature)
 	}
-	exemptFeatures.Insert(
-		features.GatewayAddressRoutabilityFeature,
-		features.GatewayAddressRoutabilityClusterFeature,
-	)
 	return exemptFeatures
 }
 

@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"istio.io/istio/pkg/slices"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -19,6 +20,9 @@ var (
 
 	// ErrNoValidIPAddress is returned when no valid IP address is found in Gateway.spec.addresses
 	ErrNoValidIPAddress = errors.New("IP address in Gateway.spec.addresses not valid")
+
+	// ErrMixedRoutability is returned when Gateway.spec.addresses mixes Cluster and default routability
+	ErrMixedRoutability = errors.New("addresses with Cluster routability cannot be mixed with other routabilities")
 )
 
 // This file contains helper functions that generate helm values in the format needed
@@ -139,12 +143,35 @@ func GetLoadBalancerIPFromGatewayAddresses(gw *gwv1.Gateway) (*string, error) {
 	return nil, ErrNoValidIPAddress
 }
 
-// SetLoadBalancerIPFromGatewayForAgentgateway extracts the IP address from Gateway.spec.addresses
-// and sets it on the AgentgatewayHelmService.
-// Only sets the IP if exactly one valid IP address is found in Gateway.spec.addresses.
+// SetServiceFromGatewayAddresses configures the AgentgatewayHelmService from Gateway.spec.addresses.
+// Addresses with Cluster routability produce a ClusterIP Service, using the address value (if any) as the cluster IP.
+// Otherwise, the Service is a LoadBalancer, using the address value (if any) as the load balancer IP.
 // Returns an error if more than one address is specified or no valid IP address is found.
-// Note: Agentgateway services are always LoadBalancer type, so no service type check is needed.
-func SetLoadBalancerIPFromGatewayForAgentgateway(gw *gwv1.Gateway, svc *AgentgatewayHelmService) error {
+func SetServiceFromGatewayAddresses(gw *gwv1.Gateway, svc *AgentgatewayHelmService) error {
+	clusterAddresses := slices.Filter(gw.Spec.Addresses, func(addr gwv1.GatewaySpecAddress) bool {
+		return addr.Routability == gwv1.GatewayAddressRoutabilityCluster
+	})
+	if len(clusterAddresses) > 0 {
+		if len(clusterAddresses) != len(gw.Spec.Addresses) {
+			return ErrMixedRoutability
+		}
+		if len(clusterAddresses) > 1 {
+			return fmt.Errorf("%w: gateway %s/%s has %d addresses", ErrMultipleAddresses, gw.Namespace, gw.Name, len(gw.Spec.Addresses))
+		}
+		svc.Type = new(string(corev1.ServiceTypeClusterIP))
+		addr := clusterAddresses[0]
+		if addr.Value == "" {
+			return nil
+		}
+		if addr.Type != nil && *addr.Type != gwv1.IPAddressType {
+			return ErrNoValidIPAddress
+		}
+		if _, err := netip.ParseAddr(addr.Value); err != nil {
+			return ErrNoValidIPAddress
+		}
+		svc.ClusterIP = new(addr.Value)
+		return nil
+	}
 	ip, err := GetLoadBalancerIPFromGatewayAddresses(gw)
 	if err != nil {
 		return err
