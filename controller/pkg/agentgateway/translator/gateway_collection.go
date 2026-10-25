@@ -14,6 +14,7 @@ import (
 	"istio.io/istio/pkg/ptr"
 	"istio.io/istio/pkg/slices"
 	"istio.io/istio/pkg/util/sets"
+	certificatesv1 "k8s.io/api/certificates/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -219,6 +220,7 @@ type GatewayCollectionConfig struct {
 	Grants                   ReferenceGrants
 	Secrets                  krt.Collection[*corev1.Secret]
 	ConfigMaps               krt.Collection[*corev1.ConfigMap]
+	ClusterTrustBundles      krt.Collection[*certificatesv1.ClusterTrustBundle]
 	KrtOpts                  krtutil.KrtOptions
 	EnableAgentgatewayModels bool
 
@@ -293,7 +295,7 @@ func GatewayTransformationFunc(cfg GatewayCollectionConfig) func(ctx krt.Handler
 			// Attached Routes count starts at 0 and gets updated later in the status syncer
 			// when the real count is available after route processing
 
-			hostnames, tlsInfo, updatedStatus, programmed := BuildListener(ctx, cfg.Secrets, cfg.ConfigMaps, cfg.Grants, cfg.Namespaces, obj, status.Listeners, kgw, l, i, nil, false, cfg.EnableAgentgatewayModels)
+			hostnames, tlsInfo, updatedStatus, programmed := BuildListener(ctx, cfg.Secrets, cfg.ConfigMaps, cfg.ClusterTrustBundles, cfg.Grants, cfg.Namespaces, obj, status.Listeners, kgw, l, i, nil, false, cfg.EnableAgentgatewayModels)
 			status.Listeners = updatedStatus
 
 			lstatus := status.Listeners[i]
@@ -549,6 +551,7 @@ func ListenerSetBuilder(
 	grants ReferenceGrants,
 	secrets krt.Collection[*corev1.Secret],
 	configMaps krt.Collection[*corev1.ConfigMap],
+	clusterTrustBundles krt.Collection[*certificatesv1.ClusterTrustBundle],
 	enableAgentgatewayModels bool,
 ) (*gwv1.ListenerSetStatus, []*ListenerSet) {
 	result := []*ListenerSet{}
@@ -607,7 +610,7 @@ func ListenerSetBuilder(
 		l.Port = port
 		standardListener := convertListenerSetToListener(l)
 		originalStatus := slices.Map(status.Listeners, convertListenerSetStatusToStandardStatus)
-		hostnames, tlsInfo, updatedStatus, programmed := BuildListener(ctx, secrets, configMaps, grants, namespaces,
+		hostnames, tlsInfo, updatedStatus, programmed := BuildListener(ctx, secrets, configMaps, clusterTrustBundles, grants, namespaces,
 			obj, originalStatus, parentGwObj.Spec, standardListener, i, portErr, true, enableAgentgatewayModels)
 		status.Listeners = slices.Map(updatedStatus, convertStandardStatusToListenerSetStatus)
 

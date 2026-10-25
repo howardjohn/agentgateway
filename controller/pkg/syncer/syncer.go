@@ -383,6 +383,7 @@ func (s *Syncer) buildGatewayCollection(
 		Grants:                   refGrants,
 		Secrets:                  s.agwCollections.Secrets,
 		ConfigMaps:               s.agwCollections.ConfigMaps,
+		ClusterTrustBundles:      s.agwCollections.ClusterTrustBundles,
 		KrtOpts:                  krtopts,
 		EnableAgentgatewayModels: s.agwCollections.Settings.EnableAgentgatewayModels,
 	}, s.gatewayCollectionOptions...)
@@ -407,6 +408,7 @@ func (s *Syncer) buildListenerSetCollection(
 				refGrants,
 				s.agwCollections.Secrets,
 				s.agwCollections.ConfigMaps,
+				s.agwCollections.ClusterTrustBundles,
 				s.agwCollections.Settings.EnableAgentgatewayModels,
 			)
 		}, krtopts.ToOptions("translator/ListenerSetListeners")...)

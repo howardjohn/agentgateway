@@ -20,6 +20,7 @@ import (
 	"istio.io/istio/pkg/ptr"
 	"istio.io/istio/pkg/slices"
 	"istio.io/istio/pkg/util/sets"
+	certificatesv1 "k8s.io/api/certificates/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	klabels "k8s.io/apimachinery/pkg/labels"
@@ -1111,6 +1112,7 @@ func BuildListener(
 	ctx krt.HandlerContext,
 	secrets krt.Collection[*corev1.Secret],
 	configMaps krt.Collection[*corev1.ConfigMap],
+	clusterTrustBundles krt.Collection[*certificatesv1.ClusterTrustBundle],
 	grants ReferenceGrants,
 	namespaces krt.Collection[*corev1.Namespace],
 	obj controllers.Object,
@@ -1144,7 +1146,7 @@ func BuildListener(
 
 	ok := true
 	gwFrontendTLS, gwBackendTLS := resolveGatewayTLS(l.Port, gw.TLS)
-	tlsInfo, err := buildTLS(ctx, secrets, configMaps, grants, gwFrontendTLS, l.TLS, obj)
+	tlsInfo, err := buildTLS(ctx, secrets, configMaps, clusterTrustBundles, grants, gwFrontendTLS, l.TLS, obj)
 	var backendTLSErr *ConfigError
 	if err == nil {
 		// Resolve backend client cert references for status/reporting. Actual backend TLS behavior
@@ -1443,6 +1445,7 @@ func bundleCaCertificates(
 	ctx krt.HandlerContext,
 	secrets krt.Collection[*corev1.Secret],
 	configMaps krt.Collection[*corev1.ConfigMap],
+	clusterTrustBundles krt.Collection[*certificatesv1.ClusterTrustBundle],
 	grants ReferenceGrants,
 	gw controllers.Object,
 	caCertRefs []gwv1.ObjectReference,
@@ -1453,7 +1456,7 @@ func bundleCaCertificates(
 	var statusErr *ConfigError
 
 	for _, ref := range caCertRefs {
-		cred, err := buildCaCertificateReference(ctx, ref, gw, configMaps, secrets)
+		cred, err := buildCaCertificateReference(ctx, ref, gw, configMaps, clusterTrustBundles, secrets)
 		if err != nil {
 			statusErr = updateError(statusErr, err)
 			continue
@@ -1491,6 +1494,7 @@ func buildTLS(
 	ctx krt.HandlerContext,
 	secrets krt.Collection[*corev1.Secret],
 	configMaps krt.Collection[*corev1.ConfigMap],
+	clusterTrustBundles krt.Collection[*certificatesv1.ClusterTrustBundle],
 	grants ReferenceGrants,
 	gatewayTLS *gwv1.TLSConfig,
 	tls *gwv1.ListenerTLSConfig,
@@ -1571,7 +1575,7 @@ func buildTLS(
 
 		if gatewayTLS != nil && gatewayTLS.Validation != nil && len(gatewayTLS.Validation.CACertificateRefs) > 0 {
 			// TODO: add 'Mode'
-			caBundle, err := bundleCaCertificates(ctx, secrets, configMaps, grants, gw, gatewayTLS.Validation.CACertificateRefs)
+			caBundle, err := bundleCaCertificates(ctx, secrets, configMaps, clusterTrustBundles, grants, gw, gatewayTLS.Validation.CACertificateRefs)
 			if caBundle == nil && err != nil {
 				return dummyTls, err
 			}
@@ -1628,6 +1632,7 @@ func buildCaCertificateReference(
 	ref gwv1.ObjectReference,
 	gw controllers.Object,
 	configMaps krt.Collection[*corev1.ConfigMap],
+	clusterTrustBundles krt.Collection[*certificatesv1.ClusterTrustBundle],
 	secrets krt.Collection[*corev1.Secret],
 ) (*SecretReference, *ConfigError) {
 	namespace := ptr.OrDefault((*string)(ref.Namespace), gw.GetNamespace())
@@ -1675,10 +1680,28 @@ func buildCaCertificateReference(
 			}
 		}
 		res.Info.CaCert = certInfo.Cert
+	case wellknown.ClusterTrustBundleGVK.GroupKind():
+		if clusterTrustBundles == nil {
+			return nil, &ConfigError{
+				Reason:  InvalidTLSCAKind,
+				Message: fmt.Sprintf("invalid CA certificate reference %v, the cluster does not serve the ClusterTrustBundle API", plainObjectReferenceString(ref)),
+			}
+		}
+		// ClusterTrustBundles are cluster scoped; keep the Gateway namespace so no ReferenceGrant is required.
+		res.Kind = wellknown.ClusterTrustBundleGVK.Kind
+		res.Source.Namespace = gw.GetNamespace()
+		bundle := ptr.Flatten(krt.FetchOne(ctx, clusterTrustBundles, krt.FilterKey(name)))
+		if bundle == nil {
+			return nil, &ConfigError{
+				Reason:  InvalidTLSCA,
+				Message: fmt.Sprintf("invalid CA certificate reference, clustertrustbundle %v not found", name),
+			}
+		}
+		res.Info.CaCert = []byte(bundle.Spec.TrustBundle)
 	default:
 		return nil, &ConfigError{
 			Reason:  InvalidTLSCAKind,
-			Message: fmt.Sprintf("invalid CA certificate reference %v, only secret and configmap are allowed", plainObjectReferenceString(ref)),
+			Message: fmt.Sprintf("invalid CA certificate reference %v, only secret, configmap, and clustertrustbundle are allowed", plainObjectReferenceString(ref)),
 		}
 	}
 

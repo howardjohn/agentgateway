@@ -11,6 +11,7 @@ import (
 	"istio.io/istio/pkg/slices"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gwxv1a1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
@@ -166,19 +167,32 @@ func translateXBackendTLS(
 	} else {
 		var roots strings.Builder
 		for _, ref := range validation.CACertificateRefs {
-			if ref.Group != gwv1.Group(wellknown.ConfigMapGVK.Group) || ref.Kind != gwv1.Kind(wellknown.ConfigMapKind) {
-				return nil, fmt.Errorf("CA certificate reference %s must refer to a core ConfigMap", ref.Name)
-			}
-			configMap := ptr.Flatten(krt.FetchOne(krtctx, agw.ConfigMaps, krt.FilterObjectName(types.NamespacedName{
-				Namespace: backend.Namespace,
-				Name:      string(ref.Name),
-			})))
-			if configMap == nil {
-				return nil, fmt.Errorf("CA certificate ConfigMap %s/%s not found", backend.Namespace, ref.Name)
-			}
-			root, err := plugins.GetCACertFromConfigMap(configMap)
-			if err != nil {
-				return nil, fmt.Errorf("invalid CA certificate ConfigMap %s/%s: %w", backend.Namespace, ref.Name, err)
+			var root string
+			switch (schema.GroupKind{Group: string(ref.Group), Kind: string(ref.Kind)}) {
+			case wellknown.ConfigMapGVK.GroupKind():
+				configMap := ptr.Flatten(krt.FetchOne(krtctx, agw.ConfigMaps, krt.FilterObjectName(types.NamespacedName{
+					Namespace: backend.Namespace,
+					Name:      string(ref.Name),
+				})))
+				if configMap == nil {
+					return nil, fmt.Errorf("CA certificate ConfigMap %s/%s not found", backend.Namespace, ref.Name)
+				}
+				var err error
+				root, err = plugins.GetCACertFromConfigMap(configMap)
+				if err != nil {
+					return nil, fmt.Errorf("invalid CA certificate ConfigMap %s/%s: %w", backend.Namespace, ref.Name, err)
+				}
+			case wellknown.ClusterTrustBundleGVK.GroupKind():
+				if agw.ClusterTrustBundles == nil {
+					return nil, fmt.Errorf("CA certificate reference %s: the cluster does not serve the ClusterTrustBundle API", ref.Name)
+				}
+				bundle := ptr.Flatten(krt.FetchOne(krtctx, agw.ClusterTrustBundles, krt.FilterKey(string(ref.Name))))
+				if bundle == nil {
+					return nil, fmt.Errorf("CA certificate ClusterTrustBundle %s not found", ref.Name)
+				}
+				root = bundle.Spec.TrustBundle
+			default:
+				return nil, fmt.Errorf("CA certificate reference %s must refer to a core ConfigMap or ClusterTrustBundle", ref.Name)
 			}
 			if roots.Len() > 0 {
 				roots.WriteByte('\n')
