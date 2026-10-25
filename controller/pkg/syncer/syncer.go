@@ -649,6 +649,10 @@ func (s *Syncer) buildAgwResources(
 		krtopts,
 	)
 
+	listenerPolicies := krt.NewCollection(filteredGateways, func(ctx krt.HandlerContext, obj *translator.GatewayListener) *agwir.AgwResource {
+		return translator.BuildListenerFilterPolicy(translator.RouteContext{Krt: ctx, RouteContextInputs: routeInputs}, obj)
+	}, krtopts.ToOptions("translator/ListenerFilterPolicies")...)
+
 	baseAgwRoutes, routeAttachments, ancestorBackends := translator.AgwRouteCollection(s.statusCollections, s.agwCollections.HTTPRoutes, s.agwCollections.GRPCRoutes, s.agwCollections.TCPRoutes, s.agwCollections.TLSRoutes, routeInputs, krtopts)
 	routeCollections := []krt.Collection[agwir.AgwResource]{baseAgwRoutes}
 	if s.agwCollections.Settings.EnableAgentgatewayModels {
@@ -729,7 +733,7 @@ func (s *Syncer) buildAgwResources(
 		status.RegisterStatus(s.statusCollections, col, translator.GetStatus)
 	}
 	// Join all Agw resources
-	allAgwResources := krt.JoinCollection([]krt.Collection[agwir.AgwResource]{binds, listeners, agwRoutes, agwPolicies, agwBackends}, krtopts.ToOptions("resources/AllResources")...)
+	allAgwResources := krt.JoinCollection([]krt.Collection[agwir.AgwResource]{binds, listeners, listenerPolicies, agwRoutes, agwPolicies, agwBackends}, krtopts.ToOptions("resources/AllResources")...)
 
 	return allAgwResources, routeAttachments, referenceIndex
 }

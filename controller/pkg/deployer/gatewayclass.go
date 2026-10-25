@@ -48,7 +48,6 @@ func GetCommonExemptFeatures() sets.Set[features.Feature] {
 		exemptFeatures.Insert(feature)
 	}
 	exemptFeatures.Insert(
-		features.GatewayListenerFiltersFeature,
 		features.GatewayAddressRoutabilityFeature,
 		features.GatewayAddressRoutabilityClusterFeature,
 		features.ClusterTrustBundleFeature,

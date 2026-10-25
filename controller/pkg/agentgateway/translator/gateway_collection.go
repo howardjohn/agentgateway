@@ -15,6 +15,7 @@ import (
 	"istio.io/istio/pkg/slices"
 	"istio.io/istio/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -175,6 +176,7 @@ type GatewayListener struct {
 	ParentObject utils.TypedNamespacedName
 	ParentInfo   ParentInfo
 	TLSInfo      *TLSInfo
+	Filters      *gwv1.ListenerFilters
 	Valid        bool
 	Conflict     ListenerConflict
 }
@@ -201,6 +203,7 @@ func (g *GatewayListener) Equals(other *GatewayListener) bool {
 	}
 	return g.Valid == other.Valid &&
 		g.Conflict == other.Conflict &&
+		apiequality.Semantic.DeepEqual(g.Filters, other.Filters) &&
 		g.Name == other.Name &&
 		g.ParentGateway == other.ParentGateway &&
 		g.ParentObject == other.ParentObject &&
@@ -336,6 +339,7 @@ func GatewayTransformationFunc(cfg GatewayCollectionConfig) func(ctx krt.Handler
 				Name:          name,
 				Valid:         programmed,
 				TLSInfo:       tlsInfo,
+				Filters:       l.Filters,
 				ParentGateway: config.NamespacedName(obj),
 				ParentObject: utils.TypedNamespacedName{
 					Kind: wellknown.GatewayGVK.Kind,
@@ -632,6 +636,7 @@ func ListenerSetBuilder(
 			Name:          name,
 			Valid:         programmed,
 			TLSInfo:       tlsInfo,
+			Filters:       l.Filters,
 			ParentObject:  utils.TypedNamespacedName{Kind: wellknown.ListenerSetGVK.Kind, NamespacedName: config.NamespacedName(obj)},
 			ParentGateway: parentGwObj.NamespacedName,
 			ParentInfo:    pri,
