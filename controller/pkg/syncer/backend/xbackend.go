@@ -90,7 +90,7 @@ func buildXBackend(
 							Hostname:  string(backend.Spec.ExternalHostname.Hostname),
 							Namespace: backend.Namespace,
 						}},
-						Port: uint32(backend.Spec.Port.Port), //nolint:gosec // G115: validated 1-65535 by the Gateway API CRD
+						Port: uint32(backend.Spec.Port.Number), //nolint:gosec // G115: validated 1-65535 by the Gateway API CRD
 					},
 					Protocol: api.MCPTarget_STREAMABLE_HTTP,
 				}},
@@ -107,7 +107,7 @@ func buildXBackend(
 		Name: name,
 		Kind: &api.Backend_Static{Static: &api.StaticBackend{
 			Host: string(backend.Spec.ExternalHostname.Hostname),
-			Port: int32(backend.Spec.Port.Port),
+			Port: int32(backend.Spec.Port.Number),
 		}},
 		InlinePolicies: inlinePolicies,
 	}, nil
@@ -145,9 +145,13 @@ func translateXBackendTLS(
 	grants plugins.ReferenceGrantChecker,
 ) (*api.BackendPolicySpec_BackendTLS, error) {
 	tls := backend.Spec.TLS
+	validation := tls.Validation
+	if validation == nil {
+		return nil, fmt.Errorf("validation is required for TLS mode %s", tls.Mode)
+	}
 	result := &api.BackendPolicySpec_BackendTLS{
-		Hostname: new(string(tls.Validation.Hostname)),
-		VerifySubjectAltNames: slices.Map(tls.Validation.SubjectAltNames, func(san gwv1.SubjectAltName) string {
+		Hostname: new(string(validation.Hostname)),
+		VerifySubjectAltNames: slices.Map(validation.SubjectAltNames, func(san gwv1.SubjectAltName) string {
 			if san.Type == gwv1.URISubjectAltNameType {
 				return string(san.URI)
 			}
@@ -155,13 +159,13 @@ func translateXBackendTLS(
 		}),
 	}
 
-	if wellKnown := tls.Validation.WellKnownCACertificates; wellKnown != nil {
+	if wellKnown := validation.WellKnownCACertificates; wellKnown != nil {
 		if *wellKnown != gwv1.WellKnownCACertificatesSystem {
 			return nil, fmt.Errorf("unsupported wellKnownCACertificates %q", *wellKnown)
 		}
 	} else {
 		var roots strings.Builder
-		for _, ref := range tls.Validation.CACertificateRefs {
+		for _, ref := range validation.CACertificateRefs {
 			if ref.Group != gwv1.Group(wellknown.ConfigMapGVK.Group) || ref.Kind != gwv1.Kind(wellknown.ConfigMapKind) {
 				return nil, fmt.Errorf("CA certificate reference %s must refer to a core ConfigMap", ref.Name)
 			}

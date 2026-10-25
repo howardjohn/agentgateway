@@ -1209,6 +1209,14 @@ func BuildListener(
 		ok = false
 	}
 
+	if l.Filters != nil && len(l.Filters.Requests) > 0 {
+		listenerConditions[string(gwv1.ListenerConditionAccepted)].Error = &ConfigError{
+			Reason:  string(gwv1.ListenerReasonUnsupportedValue),
+			Message: "listener filters are not supported",
+		}
+		ok = false
+	}
+
 	updatedStatus := reportListenerCondition(listenerIndex, l, obj, status, listenerConditions, enableAgentgatewayModels)
 	return hostnames, tlsInfo, updatedStatus, ok
 }

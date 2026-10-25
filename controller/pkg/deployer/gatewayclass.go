@@ -47,6 +47,12 @@ func GetCommonExemptFeatures() sets.Set[features.Feature] {
 	for _, feature := range features.UDPRouteFeatures.UnsortedList() {
 		exemptFeatures.Insert(feature)
 	}
+	exemptFeatures.Insert(
+		features.GatewayListenerFiltersFeature,
+		features.GatewayAddressRoutabilityFeature,
+		features.GatewayAddressRoutabilityClusterFeature,
+		features.ClusterTrustBundleFeature,
+	)
 	return exemptFeatures
 }
 
