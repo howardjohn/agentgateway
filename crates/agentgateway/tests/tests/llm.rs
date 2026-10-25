@@ -1068,8 +1068,10 @@ async fn llm_model_router_handles_multipart_audio_detect_request() {
 llm:
   port: 0
   models:
-  - name: real-model
+  - name: openai/*
     provider: openAI
+    transformation:
+      model: llmRequest.model.stripPrefix("openai/")
     params:
       baseUrl: http://{}/v1
     passthrough: detect
@@ -1078,7 +1080,7 @@ llm:
 	);
 	let t = setup_local_llm_config(&config).await;
 	let io = t.serve_http(strng::literal!("bind/0"));
-	let body = multipart_audio_body("real-model");
+	let body = multipart_audio_body("openai/audio-model");
 
 	let res = send_multipart_audio(io.clone(), body.clone()).await;
 	assert_eq!(res.status(), StatusCode::OK);
@@ -1089,12 +1091,12 @@ llm:
 		&request.url[Position::BeforePath..Position::AfterPath],
 		"/v1/audio/transcriptions"
 	);
-	assert_eq!(request.body, body);
+	assert_multipart_audio_body(&request.body, "audio-model").await;
 
 	let log = agent_core::telemetry::testing::eventually_find(&[
 		("scope", "request"),
 		("http.path", "/v1/audio/transcriptions"),
-		("gen_ai.provider.name", "openai"),
+		("gen_ai.request.model", "audio-model"),
 	])
 	.await
 	.unwrap();

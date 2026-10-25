@@ -2199,8 +2199,33 @@ impl AIProvider {
 			}
 			.unwrap_or_else(|_| types::detect::Request::new_raw(bytes))
 		} else if let Some(boundary) = multipart_boundary {
-			let model = model_router::multipart_model(&bytes, &boundary).await.ok();
-			types::detect::Request::Multipart { body: bytes, model }
+			// Multipart bodies (e.g. audio transcriptions, image edits) are forwarded as-is, but we still
+			// read `model` so it can be logged and transformed like a JSON request's.
+			let mut body = bytes;
+			let mut model = model_router::multipart_model(&body, &boundary).await.ok();
+			// Body mutations (`transformation`, `overrides`, `defaults`) are defined over a JSON object,
+			// such as `model: llmRequest.model.stripPrefix("openai/")`. To reuse them, we evaluate them
+			// against a stand-in object holding only the form's `model`. Of the result we only take
+			// `model` back: other form fields are opaque, so mutations to them cannot apply here.
+			if let Some(p) = policies
+				&& p.has_request_body_mutations()
+				&& let Some(original) = &model
+			{
+				let mutated =
+					p.apply_request_body_mutations(serde_json::json!({ "model": original }), log)?;
+				// Rewrite only the `model` form field, leaving the rest (such as the uploaded file)
+				// byte-for-byte intact. A body we cannot parse is forwarded unchanged, as Detect does
+				// with malformed JSON.
+				if let Some(target) = mutated.get("model").and_then(serde_json::Value::as_str)
+					&& target != original
+					&& let Ok(Some(rewritten)) =
+						model_router::rewrite_multipart_body_model(&body, &boundary, target).await
+				{
+					body = rewritten;
+					model = Some(target.to_string());
+				}
+			}
+			types::detect::Request::Multipart { body, model }
 		} else {
 			types::detect::Request::new_raw(bytes)
 		};

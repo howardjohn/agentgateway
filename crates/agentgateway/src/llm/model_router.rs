@@ -1125,7 +1125,7 @@ pub(crate) async fn multipart_model(body: &Bytes, boundary: &str) -> RouterResul
 	)))
 }
 
-async fn rewrite_multipart_body_model(
+pub(crate) async fn rewrite_multipart_body_model(
 	body: &Bytes,
 	boundary: &str,
 	target: &str,
