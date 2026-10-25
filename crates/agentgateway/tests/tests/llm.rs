@@ -267,7 +267,7 @@ async fn llm_detect_mode_passthrough_without_rewrite() {
 	.await
 	.unwrap();
 	let want = json!({
-		"gen_ai.operation.name": "unknown",
+		"gen_ai.operation.name": "chat",
 		"gen_ai.provider.name": "openai",
 		"gen_ai.request.model": "replaceme",
 		"gen_ai.response.model": "gpt-3.5-turbo-0125",
@@ -330,7 +330,7 @@ async fn llm_detect_mode_respects_model_rewrite() {
 	.await
 	.unwrap();
 	let want = json!({
-		"gen_ai.operation.name": "unknown",
+		"gen_ai.operation.name": "chat",
 		"gen_ai.provider.name": "openai",
 		"gen_ai.request.model": "replaceme-overwrite",
 		"gen_ai.response.model": "gpt-3.5-turbo-0125",
@@ -1103,6 +1103,61 @@ llm:
 		"gen_ai.response.model": "gpt-3.5-turbo-0125",
 		"gen_ai.usage.input_tokens": 17,
 		"gen_ai.usage.output_tokens": 23
+	});
+	assert!(is_json_subset(&want, &log), "want={want:#?} got={log:#?}");
+}
+
+#[tokio::test]
+async fn llm_detect_reads_usage_from_unrequested_event_stream() {
+	// The client did not set `stream`, so only the response content type marks this as a stream.
+	let mock = MockServer::start().await;
+	Mock::given(wiremock::matchers::path_regex("/.*"))
+		.respond_with(ResponseTemplate::new(StatusCode::OK.as_u16()).set_body_raw(
+			concat!(
+				"data: {\"type\":\"image_generation.partial_image\",\"b64_json\":\"AAAA\"}\n\n",
+				"data: {\"type\":\"image_generation.completed\",\"b64_json\":\"AAAA\",\"usage\":{",
+				"\"input_tokens\":14,\"output_tokens\":45,\"total_tokens\":59,",
+				"\"input_tokens_details\":{\"text_tokens\":14,\"image_tokens\":0}}}\n\n",
+			),
+			"text/event-stream",
+		))
+		.mount(&mock)
+		.await;
+	let config = format!(
+		r#"
+llm:
+  port: 0
+  models:
+  - name: stream-model
+    provider: openAI
+    params:
+      baseUrl: http://{}/v1
+"#,
+		mock.address()
+	);
+	let t = setup_local_llm_config(&config).await;
+	let io = t.serve_http(strng::literal!("bind/0"));
+
+	let res = RequestBuilder::new(Method::POST, "http://lo/v1/images/generations")
+		.header(header::CONTENT_TYPE, "application/json")
+		.body(Body::from(r#"{"model":"stream-model","prompt":"a cat"}"#))
+		.send(io)
+		.await
+		.expect("image generation request");
+	assert_eq!(res.status(), StatusCode::OK);
+	let _ = read_body_raw(res.into_body()).await;
+
+	let log = agent_core::telemetry::testing::eventually_find(&[
+		("scope", "request"),
+		("http.path", "/v1/images/generations"),
+		("gen_ai.request.model", "stream-model"),
+	])
+	.await
+	.unwrap();
+	let want = json!({
+		"gen_ai.operation.name": "image_generation",
+		"gen_ai.usage.input_tokens": 14,
+		"gen_ai.usage.output_tokens": 45
 	});
 	assert!(is_json_subset(&want, &log), "want={want:#?} got={log:#?}");
 }
