@@ -279,6 +279,8 @@ github.com/hashicorp/golang-lru/arc/v2 v2.0.6 h1:4NU7uP5vSoK6TbaMj3NtY478TTAWLso
 github.com/hashicorp/golang-lru/arc/v2 v2.0.6/go.mod h1:cfdDIX05DWvYV6/shsxDfa/OVcRieOt+q4FnM8x+Xno=
 github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs4luLUK2k=
 github.com/hashicorp/golang-lru/v2 v2.0.7/go.mod h1:QeFd9opnmA6QUJc5vARoKUSoFhyfM2/ZepoAG6RGpeM=
+github.com/howardjohn/istio v0.0.0-20261025212238-e2d4b3044bef h1:j/BuS2MQXKusVyepp5ozI7D+fR4bBrVhNRR1aKrrjKE=
+github.com/howardjohn/istio v0.0.0-20261025212238-e2d4b3044bef/go.mod h1:2TOVtd8PjLIXSb5JCpmpXUT3eSjFNZqcXYkRvsLRQ4c=
 github.com/huandu/xstrings v1.5.0 h1:2ag3IFq9ZDANvthTwTiqSSZLjDc+BedvHPAp5tJy2TI=
 github.com/huandu/xstrings v1.5.0/go.mod h1:y5/lhBue+AyNmUVz9RLU9xbLR0o4KIIExikq4ovT0aE=
 github.com/ianlancetaylor/demangle v0.0.0-20240805132620-81f5be970eca h1:T54Ema1DU8ngI+aef9ZhAhNGQhcRTrWxVeG07F+c/Rw=

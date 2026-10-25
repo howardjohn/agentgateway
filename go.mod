@@ -247,4 +247,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
 
-replace istio.io/istio => /home/john/go/src/istio.io/istio
+replace istio.io/istio => github.com/howardjohn/istio v0.0.0-20261025212238-e2d4b3044bef

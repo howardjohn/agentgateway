@@ -309,7 +309,7 @@ func (r *gatewayReconciler) Reconcile(req types.NamespacedName) (rErr error) {
 	ctx := context.Background()
 	objs, err := r.deployer.GetObjsToDeploy(ctx, gw)
 	if err != nil {
-		if errors.Is(err, deployer.ErrNoValidPorts) {
+		if errors.Is(err, deployer.ErrNoValidPorts) || errors.Is(err, deployer.ErrUnsupportedRoutability) {
 			// status is reported from translator, so return normally
 			return err
 		}

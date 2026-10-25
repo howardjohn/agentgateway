@@ -21,8 +21,9 @@ var (
 	// ErrNoValidIPAddress is returned when no valid IP address is found in Gateway.spec.addresses
 	ErrNoValidIPAddress = errors.New("IP address in Gateway.spec.addresses not valid")
 
-	// ErrMixedRoutability is returned when Gateway.spec.addresses mixes Cluster and default routability
-	ErrMixedRoutability = errors.New("addresses with Cluster routability cannot be mixed with other routabilities")
+	// ErrUnsupportedRoutability is returned when Gateway.spec.addresses requests an unsupported routability,
+	// or mixes Cluster and default routability.
+	ErrUnsupportedRoutability = errors.New("unsupported routability in Gateway.spec.addresses")
 )
 
 // This file contains helper functions that generate helm values in the format needed
@@ -134,6 +135,10 @@ func GetLoadBalancerIPFromGatewayAddresses(gw *gwv1.Gateway) (*string, error) {
 	}
 
 	addr := ipAddresses[0]
+	if addr == "" {
+		// No value requested; let the load balancer assign one.
+		return nil, nil
+	}
 
 	// Validate IP format
 	parsedIP, err := netip.ParseAddr(addr)
@@ -146,14 +151,21 @@ func GetLoadBalancerIPFromGatewayAddresses(gw *gwv1.Gateway) (*string, error) {
 // SetServiceFromGatewayAddresses configures the AgentgatewayHelmService from Gateway.spec.addresses.
 // Addresses with Cluster routability produce a ClusterIP Service, using the address value (if any) as the cluster IP.
 // Otherwise, the Service is a LoadBalancer, using the address value (if any) as the load balancer IP.
-// Returns an error if more than one address is specified or no valid IP address is found.
+// Returns an error if more than one address is specified, no valid IP address is found, or the routability is unsupported.
 func SetServiceFromGatewayAddresses(gw *gwv1.Gateway, svc *AgentgatewayHelmService) error {
-	clusterAddresses := slices.Filter(gw.Spec.Addresses, func(addr gwv1.GatewaySpecAddress) bool {
-		return addr.Routability == gwv1.GatewayAddressRoutabilityCluster
-	})
+	var clusterAddresses []gwv1.GatewaySpecAddress
+	for _, addr := range gw.Spec.Addresses {
+		switch addr.Routability {
+		case gwv1.GatewayAddressRoutabilityDefault:
+		case gwv1.GatewayAddressRoutabilityCluster:
+			clusterAddresses = append(clusterAddresses, addr)
+		default:
+			return fmt.Errorf("%w: %q", ErrUnsupportedRoutability, addr.Routability)
+		}
+	}
 	if len(clusterAddresses) > 0 {
 		if len(clusterAddresses) != len(gw.Spec.Addresses) {
-			return ErrMixedRoutability
+			return fmt.Errorf("%w: Cluster cannot be mixed with other routabilities", ErrUnsupportedRoutability)
 		}
 		if len(clusterAddresses) > 1 {
 			return fmt.Errorf("%w: gateway %s/%s has %d addresses", ErrMultipleAddresses, gw.Namespace, gw.Name, len(gw.Spec.Addresses))
