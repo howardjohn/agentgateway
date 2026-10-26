@@ -973,7 +973,7 @@ impl HTTPProxy {
 		let gateway_policies = inputs
 			.stores
 			.read_binds()
-			.gateway_policies(&selected_listener.name);
+			.gateway_policies(&bind_name, &selected_listener);
 		gateway_policies.register_cel_expressions(log.cel.ctx());
 		// This is unfortunate but we record the request twice possibly; we want to record it as early as possible
 		// (for logging, etc) and also after we register the expressions since new fields may be available.
@@ -5603,6 +5603,7 @@ mod route_chain_tests {
 				name: Default::default(),
 				hostname: Default::default(),
 				protocol: ListenerProtocol::HTTP,
+				..Default::default()
 			}])),
 		}
 	}

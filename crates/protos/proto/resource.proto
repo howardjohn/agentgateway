@@ -96,6 +96,8 @@ message Listener {
   string hostname = 4;
   Protocol protocol = 5;
   TLSConfig tls = 6;
+  // Traffic policies applied to all requests on the listener, before route selection.
+  repeated TrafficPolicySpec traffic_policies = 7;
 }
 
 message Route {

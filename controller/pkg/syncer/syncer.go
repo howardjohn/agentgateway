@@ -601,16 +601,6 @@ func (s *Syncer) buildAgwResources(
 	}
 	binds := krt.JoinCollection(bindCollections, krtopts.ToOptions("resources/Binds")...)
 
-	// Build listeners
-	baseListeners := krt.NewCollection(filteredGateways, func(ctx krt.HandlerContext, obj *translator.GatewayListener) *agwir.AgwResource {
-		return s.buildListenerFromGateway(obj)
-	}, krtopts.ToOptions("translator/Listeners")...)
-	listenerCollections := []krt.Collection[agwir.AgwResource]{baseListeners}
-	if s.agwPlugins.AddResourceExtension != nil && s.agwPlugins.AddResourceExtension.Listeners != nil {
-		listenerCollections = append(listenerCollections, s.agwPlugins.AddResourceExtension.Listeners)
-	}
-	listeners := krt.JoinCollection(listenerCollections, krtopts.ToOptions("resources/Listeners")...)
-
 	// Build routes
 	var routeParents translator.ParentResolver = translator.BuildRouteParents(routeGateways, krtopts)
 
@@ -651,9 +641,15 @@ func (s *Syncer) buildAgwResources(
 		krtopts,
 	)
 
-	listenerPolicies := krt.NewCollection(filteredGateways, func(ctx krt.HandlerContext, obj *translator.GatewayListener) *agwir.AgwResource {
-		return translator.BuildListenerFilterPolicy(translator.RouteContext{Krt: ctx, RouteContextInputs: routeInputs}, obj)
-	}, krtopts.ToOptions("translator/ListenerFilterPolicies")...)
+	// Build listeners
+	baseListeners := krt.NewCollection(filteredGateways, func(ctx krt.HandlerContext, obj *translator.GatewayListener) *agwir.AgwResource {
+		return s.buildListenerFromGateway(translator.RouteContext{Krt: ctx, RouteContextInputs: routeInputs}, obj)
+	}, krtopts.ToOptions("translator/Listeners")...)
+	listenerCollections := []krt.Collection[agwir.AgwResource]{baseListeners}
+	if s.agwPlugins.AddResourceExtension != nil && s.agwPlugins.AddResourceExtension.Listeners != nil {
+		listenerCollections = append(listenerCollections, s.agwPlugins.AddResourceExtension.Listeners)
+	}
+	listeners := krt.JoinCollection(listenerCollections, krtopts.ToOptions("resources/Listeners")...)
 
 	baseAgwRoutes, routeAttachments, ancestorBackends := translator.AgwRouteCollection(s.statusCollections, s.agwCollections.HTTPRoutes, s.agwCollections.GRPCRoutes, s.agwCollections.TCPRoutes, s.agwCollections.TLSRoutes, routeInputs, krtopts)
 	routeCollections := []krt.Collection[agwir.AgwResource]{baseAgwRoutes}
@@ -735,7 +731,7 @@ func (s *Syncer) buildAgwResources(
 		status.RegisterStatus(s.statusCollections, col, translator.GetStatus)
 	}
 	// Join all Agw resources
-	allAgwResources := krt.JoinCollection([]krt.Collection[agwir.AgwResource]{binds, listeners, listenerPolicies, agwRoutes, agwPolicies, agwBackends}, krtopts.ToOptions("resources/AllResources")...)
+	allAgwResources := krt.JoinCollection([]krt.Collection[agwir.AgwResource]{binds, listeners, agwRoutes, agwPolicies, agwBackends}, krtopts.ToOptions("resources/AllResources")...)
 
 	return allAgwResources, routeAttachments, referenceIndex
 }
@@ -802,17 +798,18 @@ func (s *Syncer) buildBindsFromGateway(listeners []*translator.GatewayListener) 
 }
 
 // buildListenerFromGateway creates a listener resource from a gateway
-func (s *Syncer) buildListenerFromGateway(obj *translator.GatewayListener) *agwir.AgwResource {
+func (s *Syncer) buildListenerFromGateway(ctx translator.RouteContext, obj *translator.GatewayListener) *agwir.AgwResource {
 	var ls *api.ResourceName
 	if obj.ParentObject.Kind == wellknown.ListenerSetGVK.Kind {
 		ls = &api.ResourceName{Name: obj.ParentObject.Name, Namespace: obj.ParentObject.Namespace}
 	}
 	listenerName := utils.ListenerName(obj.ParentGateway.Namespace, obj.ParentGateway.Name, string(obj.ParentInfo.SectionName), ls)
 	l := &api.Listener{
-		Key:      obj.ResourceName(),
-		Name:     listenerName,
-		BindKey:  fmt.Sprint(obj.ParentInfo.Port) + "/" + obj.ParentGateway.Namespace + "/" + obj.ParentGateway.Name,
-		Hostname: obj.ParentInfo.OriginalHostname,
+		Key:             obj.ResourceName(),
+		Name:            listenerName,
+		BindKey:         fmt.Sprint(obj.ParentInfo.Port) + "/" + obj.ParentGateway.Namespace + "/" + obj.ParentGateway.Name,
+		Hostname:        obj.ParentInfo.OriginalHostname,
+		TrafficPolicies: translator.ListenerFilterPolicies(ctx, obj),
 	}
 
 	// Set protocol and TLS configuration

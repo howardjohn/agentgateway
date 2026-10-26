@@ -31,7 +31,6 @@ import (
 
 	"github.com/agentgateway/agentgateway/api"
 	"github.com/agentgateway/agentgateway/controller/api/v1alpha1/agentgateway"
-	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/ir"
 	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/plugins"
 	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/utils"
 	"github.com/agentgateway/agentgateway/controller/pkg/pluginsdk/reporter"
@@ -1244,39 +1243,27 @@ func validateListenerFilters(filters *gwv1.ListenerFilters) string {
 	return ""
 }
 
-// BuildListenerFilterPolicy translates the listener's filters into a gateway phase policy, which runs before route
+// ListenerFilterPolicies translates the listener's filters into inline listener policies, which run before route
 // selection.
-func BuildListenerFilterPolicy(ctx RouteContext, obj *GatewayListener) *ir.AgwResource {
+func ListenerFilterPolicies(ctx RouteContext, obj *GatewayListener) []*api.TrafficPolicySpec {
 	if obj.Filters == nil || len(obj.Filters.Requests) == 0 {
 		return nil
 	}
-	parent := obj.ParentObject
 	gvk := wellknown.GatewayGVK
-	target := &api.PolicyTarget{Kind: utils.GatewayTarget(parent.Namespace, parent.Name, &obj.ParentInfo.SectionName, nil)}
-	if parent.Kind == wellknown.ListenerSetGVK.Kind {
+	if obj.ParentObject.Kind == wellknown.ListenerSetGVK.Kind {
 		gvk = wellknown.ListenerSetGVK
-		target = &api.PolicyTarget{Kind: utils.ListenerSetTarget(parent.Namespace, parent.Name, &obj.ParentInfo.SectionName)}
 	}
 	// Fail closed rather than skipping authorization if the filters cannot be applied.
-	spec := &api.TrafficPolicySpec{Kind: &api.TrafficPolicySpec_Authorization{Authorization: &api.TrafficPolicySpec_RBAC{Deny: []string{"true"}}}}
-	if validateListenerFilters(obj.Filters) == "" {
-		extAuth, err := CreateAgwExternalAuthFilter(ctx, obj.Filters.Requests[0].ExternalAuth, parent.Namespace, gvk)
-		if err != nil {
-			logger.Warn("failed to translate listener ExternalAuth filter", "listener", obj.Name, "err", err.Message)
-		} else {
-			spec = extAuth
-		}
+	denyAll := &api.TrafficPolicySpec{Kind: &api.TrafficPolicySpec_Authorization{Authorization: &api.TrafficPolicySpec_RBAC{Deny: []string{"true"}}}}
+	if validateListenerFilters(obj.Filters) != "" {
+		return []*api.TrafficPolicySpec{denyAll}
 	}
-	spec.Phase = api.TrafficPolicySpec_GATEWAY
-	return new(ToResourceForGateway(obj.ParentGateway, AgwPolicy{
-		Gateway: new(obj.ParentGateway),
-		Policy: &api.Policy{
-			Key:    obj.Name + ":listener-filters",
-			Name:   plugins.TypedResourceFromName(parent.Kind, parent.NamespacedName),
-			Target: target,
-			Kind:   &api.Policy_Traffic{Traffic: spec},
-		},
-	}))
+	extAuth, err := CreateAgwExternalAuthFilter(ctx, obj.Filters.Requests[0].ExternalAuth, obj.ParentObject.Namespace, gvk)
+	if err != nil {
+		logger.Warn("failed to translate listener ExternalAuth filter", "listener", obj.Name, "err", err.Message)
+		return []*api.TrafficPolicySpec{denyAll}
+	}
+	return []*api.TrafficPolicySpec{extAuth}
 }
 
 func resolveGatewayTLS(port gwv1.PortNumber, gw *gwv1.GatewayTLSConfig) (*gwv1.TLSConfig, *gwv1.GatewayBackendTLS) {

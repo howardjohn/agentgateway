@@ -155,6 +155,11 @@
         "protocol": {
           "$ref": "#/$defs/ListenerProtocol"
         },
+        "inlinePolicies": {
+          "description": "Gateway phase traffic policies applied to all requests on the listener.",
+          "type": "array",
+          "items": true
+        },
         "routes": {
           "type": [
             "object",

@@ -67,6 +67,10 @@ output:
         gatewayNamespace: default
         listenerName: extension-ref
       protocol: HTTP
+      trafficPolicies:
+      - authorization:
+          deny:
+          - "true"
 - gateway:
     Name: test-gateway
     Namespace: default
@@ -79,50 +83,14 @@ output:
         gatewayNamespace: default
         listenerName: http
       protocol: HTTP
-- gateway:
-    Name: test-gateway
-    Namespace: default
-  resource:
-    policy:
-      key: default/test-gateway.extension-ref:listener-filters
-      name:
-        kind: Gateway
-        name: test-gateway
-        namespace: default
-      target:
-        gateway:
-          listener: extension-ref
-          name: test-gateway
-          namespace: default
-      traffic:
-        authorization:
-          deny:
-          - "true"
-        phase: GATEWAY
-- gateway:
-    Name: test-gateway
-    Namespace: default
-  resource:
-    policy:
-      key: default/test-gateway.http:listener-filters
-      name:
-        kind: Gateway
-        name: test-gateway
-        namespace: default
-      target:
-        gateway:
-          listener: http
-          name: test-gateway
-          namespace: default
-      traffic:
-        extAuthz:
+      trafficPolicies:
+      - extAuthz:
           grpc: {}
           target:
             port: 9000
             service:
               hostname: ext-auth.default.svc.cluster.local
               namespace: default
-        phase: GATEWAY
 status:
 - apiVersion: gateway.networking.k8s.io/v1
   kind: Gateway
