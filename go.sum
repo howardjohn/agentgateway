@@ -279,8 +279,6 @@ github.com/hashicorp/golang-lru/arc/v2 v2.0.6 h1:4NU7uP5vSoK6TbaMj3NtY478TTAWLso
 github.com/hashicorp/golang-lru/arc/v2 v2.0.6/go.mod h1:cfdDIX05DWvYV6/shsxDfa/OVcRieOt+q4FnM8x+Xno=
 github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs4luLUK2k=
 github.com/hashicorp/golang-lru/v2 v2.0.7/go.mod h1:QeFd9opnmA6QUJc5vARoKUSoFhyfM2/ZepoAG6RGpeM=
-github.com/howardjohn/istio v0.0.0-20261025212238-e2d4b3044bef h1:j/BuS2MQXKusVyepp5ozI7D+fR4bBrVhNRR1aKrrjKE=
-github.com/howardjohn/istio v0.0.0-20261025212238-e2d4b3044bef/go.mod h1:2TOVtd8PjLIXSb5JCpmpXUT3eSjFNZqcXYkRvsLRQ4c=
 github.com/huandu/xstrings v1.5.0 h1:2ag3IFq9ZDANvthTwTiqSSZLjDc+BedvHPAp5tJy2TI=
 github.com/huandu/xstrings v1.5.0/go.mod h1:y5/lhBue+AyNmUVz9RLU9xbLR0o4KIIExikq4ovT0aE=
 github.com/ianlancetaylor/demangle v0.0.0-20240805132620-81f5be970eca h1:T54Ema1DU8ngI+aef9ZhAhNGQhcRTrWxVeG07F+c/Rw=
@@ -718,6 +716,8 @@ istio.io/api v1.32.0-alpha.0.0.20261021201554-855754b46d81 h1:1TkRUi9WpYhz7cSm9P
 istio.io/api v1.32.0-alpha.0.0.20261021201554-855754b46d81/go.mod h1:+brQWcBHoROuyA6fv8rbgg8Kfn0RCGuqoY0duCMuSLA=
 istio.io/client-go v1.32.0-alpha.0.0.20261021201855-5a3fa7c63379 h1:u9Xgnsm1QAFOxQ5fSL/NazfLb80shPVBQchg1HavUQo=
 istio.io/client-go v1.32.0-alpha.0.0.20261021201855-5a3fa7c63379/go.mod h1:+z5YUAuSBeGtrNQWgu3YWxaLpMDC5kK/go0GJ0iA15E=
+istio.io/istio v0.0.0-20261026125540-5a51fa09a7ea h1:5FCDTNLBKktS0EDF7+2mxb/FUn7/k91yILAz+14nDNc=
+istio.io/istio v0.0.0-20261026125540-5a51fa09a7ea/go.mod h1:tQQW9rYD5xHOyuKWLOTYzO+at2o6qYqiqm1HGendmyA=
 k8s.io/api v0.37.1 h1:l6N77U7tjwB5L056bgrBTJIEdevac/naBZ3iSvDNfpM=
 k8s.io/api v0.37.1/go.mod h1:zSlbB1YpJ1YQlFVQy20UYll81UJSJJUMLhkhvg6Z78M=
 k8s.io/apiextensions-apiserver v0.37.1 h1:7fIQG8eThDSTVYBWg/DOpI8v5wYfKCo0N8/TDMjj+zY=

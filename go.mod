@@ -52,7 +52,7 @@ require (
 	helm.sh/helm/v4 v4.3.0
 	istio.io/api v1.32.0-alpha.0.0.20261021201554-855754b46d81
 	istio.io/client-go v1.32.0-alpha.0.0.20261021201855-5a3fa7c63379
-	istio.io/istio v0.0.0-20261013151740-38c81a06fb97
+	istio.io/istio v0.0.0-20261026125540-5a51fa09a7ea
 	k8s.io/api v0.37.1
 	k8s.io/apiextensions-apiserver v0.37.1
 	k8s.io/apimachinery v0.37.1
@@ -246,5 +246,3 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
-
-replace istio.io/istio => github.com/howardjohn/istio v0.0.0-20261025212238-e2d4b3044bef
