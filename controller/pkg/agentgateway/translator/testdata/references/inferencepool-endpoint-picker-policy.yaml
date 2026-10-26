@@ -67,6 +67,23 @@ output:
   resource:
     policy:
       backend:
+        backendHttp:
+          requestTimeout: 900s
+      key: default/epp-timeout:backend-http:default/pool-epp.default.svc.cluster.local
+      name:
+        kind: AgentgatewayPolicy
+        name: epp-timeout
+        namespace: default
+      target:
+        service:
+          hostname: pool-epp.default.svc.cluster.local
+          namespace: default
+- gateway:
+    Name: test
+    Namespace: default
+  resource:
+    policy:
+      backend:
         inferenceRouting:
           endpointPicker:
             port: 9002
