@@ -128,12 +128,15 @@ pub struct Listener {
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	#[cfg_attr(feature = "schema", schemars(with = "Vec<serde_json::Value>"))]
 	pub inline_policies: Vec<TrafficPolicy>,
+	/// If set, the listener's configuration is invalid, and every request on it fails.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub error: Option<Strng>,
 }
 
 impl Listener {
 	/// Reports whether the parts of the listener that affect how it is served are equal.
-	/// Inline policies are excluded: they are resolved per request, so changing them must not
-	/// restart the serving listener.
+	/// Inline policies and the error are excluded: they are resolved per request, so changing them
+	/// must not restart the serving listener.
 	pub fn serving_eq(&self, other: &Self) -> bool {
 		self.key == other.key
 			&& self.name == other.name

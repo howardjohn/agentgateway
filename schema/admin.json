@@ -160,6 +160,13 @@
           "type": "array",
           "items": true
         },
+        "error": {
+          "description": "If set, the listener's configuration is invalid, and every request on it fails.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "routes": {
           "type": [
             "object",

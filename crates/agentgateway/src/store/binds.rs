@@ -2720,9 +2720,8 @@ mod tests {
 		let snapshot = Listener {
 			key: strng::literal!("gw.listener"),
 			name,
-			hostname: strng::EMPTY,
-			protocol: ListenerProtocol::HTTP,
 			inline_policies: vec![cors("https://inline.example.com")],
+			..Default::default()
 		};
 		store.insert_listener(snapshot.clone(), bind.clone());
 		assert_eq!(

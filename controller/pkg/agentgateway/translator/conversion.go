@@ -30,6 +30,7 @@ import (
 	gwv1b1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	"github.com/agentgateway/agentgateway/api"
+	apisettings "github.com/agentgateway/agentgateway/controller/api/settings"
 	"github.com/agentgateway/agentgateway/controller/api/v1alpha1/agentgateway"
 	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/plugins"
 	"github.com/agentgateway/agentgateway/controller/pkg/agentgateway/utils"
@@ -1113,6 +1114,8 @@ func BuildListener(
 	configMaps krt.Collection[*corev1.ConfigMap],
 	clusterTrustBundles krt.Collection[*certificatesv1.ClusterTrustBundle],
 	grants ReferenceGrants,
+	references plugins.ReferenceTypes,
+	backendRefGrantMode apisettings.BackendRefGrantMode,
 	namespaces krt.Collection[*corev1.Namespace],
 	obj controllers.Object,
 	status []gwv1.ListenerStatus,
@@ -1122,7 +1125,7 @@ func BuildListener(
 	portErr error,
 	forListenerSet bool,
 	enableAgentgatewayModels bool,
-) ([]string, *TLSInfo, []gwv1.ListenerStatus, bool) {
+) ([]string, *TLSInfo, ListenerFilterResult, []gwv1.ListenerStatus, bool) {
 	listenerConditions := map[string]*Condition{
 		string(gwv1.ListenerConditionAccepted): {
 			Reason:  string(gwv1.ListenerReasonAccepted),
@@ -1211,59 +1214,73 @@ func BuildListener(
 		ok = false
 	}
 
-	if filterErr := validateListenerFilters(l.Filters); filterErr != "" {
-		listenerConditions[string(gwv1.ListenerConditionAccepted)].Error = &ConfigError{
-			Reason:  string(gwv1.ListenerReasonUnsupportedValue),
-			Message: filterErr,
+	parentGVK := wellknown.GatewayGVK
+	if forListenerSet {
+		parentGVK = wellknown.ListenerSetGVK
+	}
+	filterCtx := RouteContext{Krt: ctx, Grants: grants, References: references, BackendRefGrantMode: backendRefGrantMode}
+	filterPolicies, filterCondition, filterErr := buildListenerFilterPolicies(filterCtx, l.Filters, obj.GetNamespace(), parentGVK)
+	filterResult := ListenerFilterResult{Policies: filterPolicies}
+	if filterErr != nil {
+		filterResult.Error = filterErr.Message
+		listenerConditions[string(filterCondition)].Error = filterErr
+		listenerConditions[string(gwv1.ListenerConditionProgrammed)].Error = &ConfigError{
+			Reason:  string(gwv1.ListenerReasonInvalid),
+			Message: filterErr.Message,
 		}
 		ok = false
 	}
 
 	updatedStatus := reportListenerCondition(listenerIndex, l, obj, status, listenerConditions, enableAgentgatewayModels)
-	return hostnames, tlsInfo, updatedStatus, ok
+	return hostnames, tlsInfo, filterResult, updatedStatus, ok
 }
 
-// validateListenerFilters returns a message describing why the listener filters cannot be applied, if any.
-func validateListenerFilters(filters *gwv1.ListenerFilters) string {
+// ListenerFilterResult is the translation of a listener's filters.
+type ListenerFilterResult struct {
+	Policies []*api.TrafficPolicySpec
+	// Error is set if the filters could not be translated.
+	Error string
+}
+
+// buildListenerFilterPolicies translates the listener's filters into inline listener policies, which run before route
+// selection. On failure, it returns the listener condition to report the error on.
+func buildListenerFilterPolicies(
+	ctx RouteContext,
+	filters *gwv1.ListenerFilters,
+	ns string,
+	k schema.GroupVersionKind,
+) ([]*api.TrafficPolicySpec, gwv1.ListenerConditionType, *ConfigError) {
 	if filters == nil {
-		return ""
+		return nil, "", nil
 	}
-	externalAuths := 0
-	for _, f := range filters.Requests {
-		switch f.Type {
-		case gwv1.ListenerFilterExternalAuth:
-			externalAuths++
-		default:
-			return fmt.Sprintf("unsupported listener filter type %q", f.Type)
+	var policies []*api.TrafficPolicySpec
+	for i, f := range filters.Requests {
+		if f.Type != gwv1.ListenerFilterExternalAuth {
+			return nil, gwv1.ListenerConditionAccepted, &ConfigError{
+				Reason:  string(gwv1.ListenerReasonUnsupportedValue),
+				Message: fmt.Sprintf("filters.requests[%d]: unsupported listener filter type %q", i, f.Type),
+			}
 		}
+		if len(policies) > 0 {
+			return nil, gwv1.ListenerConditionAccepted, &ConfigError{
+				Reason:  "InvalidListenerFilter",
+				Message: fmt.Sprintf("filters.requests[%d]: at most one ExternalAuth listener filter is supported", i),
+			}
+		}
+		pol, err := CreateAgwExternalAuthFilter(ctx, f.ExternalAuth, ns, k)
+		if err != nil {
+			reason := "InvalidListenerFilterRef"
+			if err.Reason == gwv1.RouteReasonRefNotPermitted {
+				reason = string(gwv1.ListenerReasonRefNotPermitted)
+			}
+			return nil, gwv1.ListenerConditionResolvedRefs, &ConfigError{
+				Reason:  reason,
+				Message: fmt.Sprintf("filters.requests[%d]: %s", i, err.Message),
+			}
+		}
+		policies = append(policies, pol)
 	}
-	if externalAuths > 1 {
-		return "at most one ExternalAuth listener filter is supported"
-	}
-	return ""
-}
-
-// ListenerFilterPolicies translates the listener's filters into inline listener policies, which run before route
-// selection.
-func ListenerFilterPolicies(ctx RouteContext, obj *GatewayListener) []*api.TrafficPolicySpec {
-	if obj.Filters == nil || len(obj.Filters.Requests) == 0 {
-		return nil
-	}
-	gvk := wellknown.GatewayGVK
-	if obj.ParentObject.Kind == wellknown.ListenerSetGVK.Kind {
-		gvk = wellknown.ListenerSetGVK
-	}
-	// Fail closed rather than skipping authorization if the filters cannot be applied.
-	denyAll := &api.TrafficPolicySpec{Kind: &api.TrafficPolicySpec_Authorization{Authorization: &api.TrafficPolicySpec_RBAC{Deny: []string{"true"}}}}
-	if validateListenerFilters(obj.Filters) != "" {
-		return []*api.TrafficPolicySpec{denyAll}
-	}
-	extAuth, err := CreateAgwExternalAuthFilter(ctx, obj.Filters.Requests[0].ExternalAuth, obj.ParentObject.Namespace, gvk)
-	if err != nil {
-		logger.Warn("failed to translate listener ExternalAuth filter", "listener", obj.Name, "err", err.Message)
-		return []*api.TrafficPolicySpec{denyAll}
-	}
-	return []*api.TrafficPolicySpec{extAuth}
+	return policies, "", nil
 }
 
 func resolveGatewayTLS(port gwv1.PortNumber, gw *gwv1.GatewayTLSConfig) (*gwv1.TLSConfig, *gwv1.GatewayBackendTLS) {

@@ -3729,8 +3729,10 @@ type Listener struct {
 	Tls      *TLSConfig    `protobuf:"bytes,6,opt,name=tls,proto3" json:"tls,omitempty"`
 	// Traffic policies applied to all requests on the listener, before route selection.
 	TrafficPolicies []*TrafficPolicySpec `protobuf:"bytes,7,rep,name=traffic_policies,json=trafficPolicies,proto3" json:"traffic_policies,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// If set, the listener's configuration is invalid, and every request on it fails.
+	Error         *string `protobuf:"bytes,8,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Listener) Reset() {
@@ -3810,6 +3812,13 @@ func (x *Listener) GetTrafficPolicies() []*TrafficPolicySpec {
 		return x.TrafficPolicies
 	}
 	return nil
+}
+
+func (x *Listener) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
 }
 
 type Route struct {
@@ -18590,7 +18599,7 @@ const file_resource_proto_rawDesc = "" +
 	"\x11TypedResourceName\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1c\n" +
 	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x12\n" +
-	"\x04kind\x18\x03 \x01(\tR\x04kind\"\xe2\x02\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\"\x87\x03\n" +
 	"\bListener\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x19\n" +
 	"\bbind_key\x18\x02 \x01(\tR\abindKey\x12;\n" +
@@ -18598,7 +18607,9 @@ const file_resource_proto_rawDesc = "" +
 	"\bhostname\x18\x04 \x01(\tR\bhostname\x12?\n" +
 	"\bprotocol\x18\x05 \x01(\x0e2#.agentgateway.dev.resource.ProtocolR\bprotocol\x126\n" +
 	"\x03tls\x18\x06 \x01(\v2$.agentgateway.dev.resource.TLSConfigR\x03tls\x12W\n" +
-	"\x10traffic_policies\x18\a \x03(\v2,.agentgateway.dev.resource.TrafficPolicySpecR\x0ftrafficPolicies\"\x9c\x04\n" +
+	"\x10traffic_policies\x18\a \x03(\v2,.agentgateway.dev.resource.TrafficPolicySpecR\x0ftrafficPolicies\x12\x19\n" +
+	"\x05error\x18\b \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
+	"\x06_error\"\x9c\x04\n" +
 	"\x05Route\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12!\n" +
 	"\flistener_key\x18\x02 \x01(\tR\vlistenerKey\x12C\n" +
@@ -20896,6 +20907,7 @@ func file_resource_proto_init() {
 	}
 	file_resource_proto_msgTypes[2].OneofWrappers = []any{}
 	file_resource_proto_msgTypes[4].OneofWrappers = []any{}
+	file_resource_proto_msgTypes[6].OneofWrappers = []any{}
 	file_resource_proto_msgTypes[7].OneofWrappers = []any{}
 	file_resource_proto_msgTypes[11].OneofWrappers = []any{
 		(*ConditionalPolicy_Traffic)(nil),

@@ -1705,6 +1705,7 @@ impl Listener {
 				.iter()
 				.map(|policy| traffic_policy_from_proto(policy, diagnostics))
 				.collect::<Result<Vec<_>, _>>()?,
+			error: s.error.as_deref().map(strng::new),
 		};
 		Ok((l, strng::new(&s.bind_key)))
 	}
