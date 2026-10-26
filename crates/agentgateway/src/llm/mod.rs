@@ -2626,8 +2626,14 @@ impl AIProvider {
 							llm_info.clone(),
 							model_catalog.map(Arc::as_ref),
 						));
+					let resp = Response::from_parts(parts, body);
+					// There is no usage to read, but remote rate limits with a `cost` expression still charge.
+					if !rate_limit.local_rate_limit.is_empty() || rate_limit.remote_rate_limit.is_some() {
+						let exec = cel::Executor::new_response(req_snapshot.as_deref(), &resp);
+						amend_tokens(rate_limit, &llm_info, exec);
+					}
 					logging.response.store(Some(llm_info));
-					return Ok(Response::from_parts(parts, body));
+					return Ok(resp);
 				},
 			}
 		}
