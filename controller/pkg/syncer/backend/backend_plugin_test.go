@@ -1288,7 +1288,7 @@ func createMockMCPServiceWithBothAnnotations(namespace, serviceName, labels, new
 }
 
 // createMockMCPService creates a mock service collection with a specific MCPBackend service
-func createMockMCPService(namespace, serviceName, labels string) *corev1.Service {
+func createMockMCPService(namespace, serviceName, labels string) *corev1.Service { //nolint:unparam
 	// Parse labels
 	labelsMap := make(map[string]string)
 	if labels != "" {
