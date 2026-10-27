@@ -1018,12 +1018,18 @@ mod tests {
 
 	#[tokio::test]
 	async fn failed_http_refresh_reschedules_a_retry_that_will_actually_fire() {
-		// A closed local port fails at connect time (like a real transient
-		// network blip), rather than a non-2xx status -- `fetch_direct` only
-		// treats transport-level failures as errors, not HTTP error statuses.
-		let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+		// A server that drops every connection fails at the transport level
+		// (like a real transient network blip), rather than a non-2xx status --
+		// `fetch_direct` only treats transport-level failures as errors, not HTTP
+		// error statuses. Keeping the listener bound prevents another test from
+		// reusing the port.
+		let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
 		let addr = listener.local_addr().unwrap();
-		drop(listener);
+		tokio::spawn(async move {
+			while let Ok((conn, _)) = listener.accept().await {
+				drop(conn);
+			}
+		});
 
 		let manager = ResourceManager::new(test_client()).unwrap();
 		let url: http::Uri = format!("http://{addr}/resource").parse().unwrap();
