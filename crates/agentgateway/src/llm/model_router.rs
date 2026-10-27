@@ -989,7 +989,7 @@ fn rewrite_body_model(
 	Ok(())
 }
 
-fn rewrite_uri_model(req: &mut Request, target: &str) -> RouterResult<()> {
+pub(crate) fn rewrite_uri_model(req: &mut Request, target: &str) -> RouterResult<()> {
 	let Some(path_and_query) = req.uri().path_and_query() else {
 		return Ok(());
 	};
