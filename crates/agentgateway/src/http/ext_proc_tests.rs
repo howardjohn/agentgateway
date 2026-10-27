@@ -2219,10 +2219,10 @@ mod dynamic_backend_target {
 }
 
 // Shared proxy setup helpers used by the test groups below.
-pub async fn setup_ext_proc_mock<T: Handler + Send + Sync + 'static>(
+pub async fn setup_ext_proc_mock(
 	mock: MockServer,
 	failure_mode: ext_proc::FailureMode,
-	mock_ext_proc: ExtProcMock<T>,
+	mock_ext_proc: ExtProcMock,
 	config: &str,
 ) -> (
 	MockServer,
@@ -2233,10 +2233,10 @@ pub async fn setup_ext_proc_mock<T: Handler + Send + Sync + 'static>(
 	setup_ext_proc_mock_with_meta(mock, failure_mode, mock_ext_proc, config, None, None, None).await
 }
 
-pub async fn setup_ext_proc_mock_with_processing_options<T: Handler + Send + Sync + 'static>(
+pub async fn setup_ext_proc_mock_with_processing_options(
 	mock: MockServer,
 	failure_mode: ext_proc::FailureMode,
-	mock_ext_proc: ExtProcMock<T>,
+	mock_ext_proc: ExtProcMock,
 	config: &str,
 	processing_options: Option<serde_json::Value>,
 ) -> (
@@ -2269,12 +2269,10 @@ pub async fn setup_ext_proc_mock_with_processing_options<T: Handler + Send + Syn
 	(mock, ext_proc, t, io)
 }
 
-pub async fn setup_ext_proc_mock_with_processing_options_and_frontend_policy<
-	T: Handler + Send + Sync + 'static,
->(
+pub async fn setup_ext_proc_mock_with_processing_options_and_frontend_policy(
 	mock: MockServer,
 	failure_mode: ext_proc::FailureMode,
-	mock_ext_proc: ExtProcMock<T>,
+	mock_ext_proc: ExtProcMock,
 	config: &str,
 	processing_options: Option<serde_json::Value>,
 	frontend_policy: serde_json::Value,
@@ -2310,12 +2308,10 @@ pub async fn setup_ext_proc_mock_with_processing_options_and_frontend_policy<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn setup_ext_proc_mock_with_meta_and_processing_options<
-	T: Handler + Send + Sync + 'static,
->(
+pub async fn setup_ext_proc_mock_with_meta_and_processing_options(
 	mock: MockServer,
 	failure_mode: ext_proc::FailureMode,
-	mock_ext_proc: ExtProcMock<T>,
+	mock_ext_proc: ExtProcMock,
 	config: &str,
 	metadata_context: Option<HashMap<String, HashMap<String, Arc<Expression>>>>,
 	request_attributes: Option<HashMap<String, Arc<Expression>>>,
@@ -2354,10 +2350,10 @@ pub async fn setup_ext_proc_mock_with_meta_and_processing_options<
 	(mock, ext_proc, t, io)
 }
 
-pub async fn setup_ext_proc_mock_with_meta<T: Handler + Send + Sync + 'static>(
+pub async fn setup_ext_proc_mock_with_meta(
 	mock: MockServer,
 	failure_mode: ext_proc::FailureMode,
-	mock_ext_proc: ExtProcMock<T>,
+	mock_ext_proc: ExtProcMock,
 	config: &str,
 	metadata_context: Option<HashMap<String, HashMap<String, Arc<Expression>>>>,
 	request_attributes: Option<HashMap<String, Arc<Expression>>>,
