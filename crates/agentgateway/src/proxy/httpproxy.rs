@@ -1162,7 +1162,7 @@ impl HTTPProxy {
 		let attempts = if substrate_default_retry {
 			3
 		} else {
-			retries.as_ref().map(|r| r.attempts.get() + 1).unwrap_or(1)
+			retries.as_ref().map(|r| r.attempts + 1).unwrap_or(1)
 		};
 		let retry_backoff = retries
 			.as_ref()
@@ -4047,7 +4047,7 @@ mod tests {
 
 	fn retry_policy(codes: &[u16], condition: Option<&str>) -> crate::http::retry::Policy {
 		crate::http::retry::Policy {
-			attempts: std::num::NonZeroU8::new(2).unwrap(),
+			attempts: 2,
 			backoff: None,
 			codes: codes
 				.iter()
