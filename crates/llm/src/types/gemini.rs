@@ -291,7 +291,8 @@ impl RequestType for Request {
 				dimensions: None,
 				reasoning_effort: gc
 					.and_then(|g| {
-						g.rest.get("thinkingConfig")
+						g.rest
+							.get("thinkingConfig")
 							.or_else(|| g.rest.get("thinking_config"))
 					})
 					.and_then(|t| t.get("thinkingLevel").or_else(|| t.get("thinking_level")))
