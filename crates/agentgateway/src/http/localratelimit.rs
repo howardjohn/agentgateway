@@ -437,6 +437,7 @@ mod policy_tests {
 			let mut req = request("alice");
 			req.extensions_mut().insert(crate::cel::RequestModel {
 				request_model: model.into(),
+				original_model: model.into(),
 			});
 			req
 		};

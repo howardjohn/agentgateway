@@ -237,12 +237,21 @@ impl ModelCatalog {
 					return projection;
 				}
 			}
-			snapshot.project(
+			let original_model = info.request.original_model.as_ref();
+			let projection = snapshot.project_with_missing_trace(
 				provider,
 				info.request.request_model.as_str(),
 				resp,
 				convention,
-			)
+				original_model.is_none(),
+			);
+			// Last resort: the model the client asked for, before any virtual model or alias rewrite.
+			match original_model {
+				Some(original_model) if projection.status == CostLookupStatus::Missing => {
+					snapshot.project(provider, original_model.as_str(), resp, convention)
+				},
+				_ => projection,
+			}
 		};
 		if info.response.usage_lines.is_empty() {
 			return primary(&info.response);
@@ -1140,6 +1149,7 @@ mod tests {
 				input_format: crate::llm::InputFormat::Completions,
 				cache_convention: CacheTokenConvention::InputIncludesCache,
 				request_model: request_model.into(),
+				original_model: None,
 				provider: "openai".into(),
 				streaming: false,
 				params: Default::default(),
@@ -1582,6 +1592,17 @@ mod tests {
 			Some(2.0),
 			"request model should price when provider model is absent from catalog"
 		);
+	}
+
+	#[test]
+	fn project_falls_back_to_original_model_when_rewritten_model_is_missing() {
+		let catalog = model_catalog(&test_catalog("1"));
+		let mut info = test_llm_info("arn:aws:bedrock:profile", Some("arn:aws:bedrock:profile"));
+		info.request.original_model = Some("my-model".into());
+		let projection = catalog.project(&info);
+
+		assert_eq!(projection.status, CostLookupStatus::Exact);
+		assert_eq!(projection.cost.and_then(|c| c.total().to_f64()), Some(2.0));
 	}
 
 	#[test]

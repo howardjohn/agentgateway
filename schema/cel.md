@@ -56,6 +56,7 @@
 |`llm`|object|`llm` contains attributes about an LLM request or response. This is only present when using an `ai` backend.|
 |`llm.streaming`|boolean|Whether the LLM response is streamed. If it is streamed some fields may be inconsistent based on when accessed during the response flow.|
 |`llm.requestModel`|string|The model requested for the LLM request. Before LLM processing, this is extracted from<br>the incoming URL or body, before provider overrides. This may differ from the actual model used.|
+|`llm.originalModel`|string|The model the client asked for, before any virtual model, alias, provider override, or<br>request body rewrite. Equal to `requestModel` when the model was not rewritten.|
 |`llm.responseModel`|string|The model that actually served the LLM response.|
 |`llm.provider`|string|The provider of the LLM.|
 |`llm.inputTokens`|integer|The total number of tokens in the input/prompt, including tokens read from or written to<br>cache. This has consistent semantics across providers.|

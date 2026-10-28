@@ -66,7 +66,7 @@ const EXT_PROC_RESPONSE_FUTURE_SIZE: usize = 4 * 1024;
 const INFERENCE_RESPONSE_FUTURE_SIZE: usize = 4 * 1024;
 const MCP_SERVE_FUTURE_SIZE: usize = 4 * 1024;
 const LLM_REQUEST_POLICIES_FUTURE_SIZE: usize = 3 * 1024;
-const LLM_PROCESS_RESPONSE_FUTURE_SIZE: usize = 4 * 1024;
+const LLM_PROCESS_RESPONSE_FUTURE_SIZE: usize = 5 * 1024;
 const LATE_BACKEND_AUTH_FUTURE_SIZE: usize = 2 * 1024;
 
 fn select_backend(route: &Route, _req: &Request) -> Option<RouteBackendReference> {
@@ -2572,8 +2572,8 @@ async fn make_backend_call(
 		let resolved = router
 			.resolve(&mut req, &inputs.model_catalog, &client)
 			.await;
-		if let Some(original_model) = req.extensions_mut().remove::<model_router::OriginalModel>() {
-			log.add(|log| log.original_model = Some(original_model.0));
+		if let Some(original_model) = req.extensions().get::<model_router::OriginalModel>() {
+			log.add(|log| log.original_model = Some(original_model.0.clone()));
 		}
 		let resolved = match resolved {
 			model_router::ResolveResult::DirectResponse(resp) => {
@@ -3101,6 +3101,7 @@ async fn make_backend_call(
 								input_format: InputFormat::Realtime,
 								cache_convention: llm::CacheTokenConvention::pending(),
 								request_model,
+								original_model: None,
 								streaming: true,
 								provider: llm.provider.provider(),
 								input_tokens: None,
@@ -4098,6 +4099,7 @@ mod tests {
 			input_format: llm::InputFormat::Completions,
 			cache_convention: llm::CacheTokenConvention::pending(),
 			request_model: "test-model".into(),
+			original_model: None,
 			provider: "test-provider".into(),
 			streaming: true,
 			params: Default::default(),

@@ -380,6 +380,10 @@
           "description": "The model requested for the LLM request. Before LLM processing, this is extracted from\nthe incoming URL or body, before provider overrides. This may differ from the actual model used.",
           "type": "string"
         },
+        "originalModel": {
+          "description": "The model the client asked for, before any virtual model, alias, provider override, or\nrequest body rewrite. Equal to `requestModel` when the model was not rewritten.",
+          "type": "string"
+        },
         "responseModel": {
           "description": "The model that actually served the LLM response.",
           "type": [
@@ -1065,6 +1069,7 @@
       "required": [
         "streaming",
         "requestModel",
+        "originalModel",
         "provider",
         "params"
       ]
