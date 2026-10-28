@@ -5492,8 +5492,9 @@ spec:
                     properties:
                       targets:
                         description: |-
-                          Concrete model targets evaluated in order. The first matching condition is
-                          selected. One final target may omit when to act as the fallback.
+                          Model targets evaluated in order. The first matching condition is
+                          selected. One final target may omit when to act as the fallback. Targets
+                          may be concrete or virtual models.
                         items:
                           properties:
                             model:
@@ -5586,7 +5587,9 @@ spec:
                     description: Weight-based model selection.
                     properties:
                       targets:
-                        description: Concrete model targets and their relative weights.
+                        description: |-
+                          Model targets and their relative weights. Targets may be concrete or
+                          virtual models.
                         items:
                           properties:
                             model:
