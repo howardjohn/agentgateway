@@ -370,6 +370,7 @@ dependencies = [
  "spiffe",
  "sqlx",
  "sqlx-core",
+ "sqlx-macros",
  "sse-stream 0.3.0",
  "stacker",
  "subtle",
@@ -7177,7 +7178,6 @@ dependencies = [
  "sqlx-postgres",
  "sqlx-sqlite",
  "syn 2.0.119",
- "thiserror 2.0.21",
  "tokio",
  "url",
 ]

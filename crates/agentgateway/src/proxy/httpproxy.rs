@@ -1137,15 +1137,9 @@ impl HTTPProxy {
 		}
 
 		// Backend mirrors are sent from apply_backend_policies, after backend authorization.
-		let route_request_mirrors = route_policies.request_mirror.select("request mirror", &req);
-		spawn_mirrors(
-			&inputs,
-			&self.policy_client(),
-			route_request_mirrors
-				.iter()
-				.flat_map(|mirrors| mirrors.iter()),
-			&req,
-		);
+		if let Some(mirrors) = route_policies.request_mirror.select("request mirror", &req) {
+			spawn_mirrors(&inputs, &self.policy_client(), &mirrors, &req);
+		}
 		let route_llm = route_policies.llm.select("llm", &req);
 		// Bodies up to the request buffer limit can be retried; `precondition` can opt out sooner.
 		let max_buffered_bytes = http::buffer_limit(&req);
@@ -4615,10 +4609,10 @@ pub fn parse_grpc_status(headers: &HeaderMap) -> Option<u8> {
 		.and_then(|status| status.parse().ok())
 }
 
-fn spawn_mirrors<'a>(
+fn spawn_mirrors(
 	inputs: &Arc<ProxyInputs>,
 	client: &PolicyClient,
-	mirrors: impl IntoIterator<Item = &'a filters::RequestMirror>,
+	mirrors: &[filters::RequestMirror],
 	req: &Request,
 ) {
 	for mirror in mirrors {
