@@ -21,6 +21,7 @@ pub const PROMPTS_LIST: Strng = strng::literal!(ListPromptsRequestMethod::VALUE)
 pub const RESOURCES_LIST: Strng = strng::literal!(ListResourcesRequestMethod::VALUE);
 pub const RESOURCES_TEMPLATES_LIST: Strng =
 	strng::literal!(ListResourceTemplatesRequestMethod::VALUE);
+pub const SKILLS_LIST: Strng = strng::literal!(crate::mcp::skills::LIST);
 
 // Single-target methods that don't run the request-phase hook yet; only the
 // response phase fires for them.

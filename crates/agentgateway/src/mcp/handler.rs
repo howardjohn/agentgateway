@@ -12,11 +12,11 @@ use itertools::Itertools;
 use rmcp::ErrorData;
 use rmcp::model::{
 	CacheScope, CallToolRequestMethod, ClientJsonRpcMessage, ClientNotification, ClientRequest,
-	ConstString, DiscoverResult, ExtensionCapabilities, Extensions, GetMeta, Implementation,
-	JsonRpcNotification, JsonRpcRequest, ListPromptsResult, ListResourceTemplatesResult,
-	ListResourcesResult, ListToolsResult, PaginatedRequestParams, ProtocolVersion, RequestId,
-	RequestMetaObject, ResultType, ServerCapabilities, ServerConfig, ServerJsonRpcMessage,
-	ServerNotification, ServerRequest, ServerResult, SubscriptionFilter,
+	ConstString, CustomResult, DiscoverResult, ExtensionCapabilities, Extensions, GetMeta,
+	Implementation, JsonRpcNotification, JsonRpcRequest, ListPromptsResult,
+	ListResourceTemplatesResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams,
+	ProtocolVersion, RequestId, RequestMetaObject, ResultType, ServerCapabilities, ServerConfig,
+	ServerJsonRpcMessage, ServerNotification, ServerRequest, ServerResult, SubscriptionFilter,
 };
 use tracing::{debug, info, warn};
 
@@ -857,6 +857,7 @@ impl Relay {
 		// backend is stateful. Compare `merge_discover`, where `stateful` does not apply.
 		let stateful = self.upstreams.stateful();
 		let upstreams = self.upstreams.clone();
+		let skills_routable = self.upstreams.default_target_name.is_some();
 		Box::new(move |s, _cel| {
 			if !multiplexing {
 				// Happy case: we can forward everything
@@ -867,6 +868,9 @@ impl Relay {
 					return Err(incompatible_upstream_result("initialize"));
 				};
 				upstreams.record_extensions(name.as_str(), ir.capabilities.extensions.as_ref());
+				if !skills_routable && let Some(ext) = ir.capabilities.extensions.as_mut() {
+					ext.remove(mcp::skills::EXTENSION);
+				}
 				if !stateful {
 					let caps = &mut ir.capabilities;
 					if let Some(c) = caps.tools.as_mut() {
@@ -923,6 +927,7 @@ impl Relay {
 
 	pub fn merge_discover(&self, multiplexing: bool) -> Box<MergeFn> {
 		let upstreams = self.upstreams.clone();
+		let skills_routable = self.upstreams.default_target_name.is_some();
 		Box::new(move |s, _cel| {
 			// Single server: forward the upstream's advertised versions untouched. The gateway
 			// does no version translation, so an old-only upstream must surface as-is and let
@@ -931,9 +936,13 @@ impl Relay {
 				let Some((_, result)) = s.into_iter().next() else {
 					return Err(incompatible_upstream_result("server/discover"));
 				};
-				let ServerResult::DiscoverResult(dr) = result else {
+				let ServerResult::DiscoverResult(mut dr) = result else {
 					return Err(incompatible_upstream_result("server/discover"));
 				};
+				// Skills requests are only routed when skill URIs pass through unprefixed.
+				if !skills_routable && let Some(ext) = dr.capabilities.extensions.as_mut() {
+					ext.remove(mcp::skills::EXTENSION);
+				}
 				// Cache hints describe the gateway's presented server, not the upstream.
 				// Gateway routing/backend config can change without client invalidation.
 				return Ok(
@@ -1026,6 +1035,38 @@ impl Relay {
 			)
 		})
 	}
+
+	// Only reached with a single target (see `Session::send_internal`), so the upstream result is
+	// forwarded apart from removing skills the caller may not see. Like the other list merges, the
+	// result depends on gateway policy, so it is never cached or shared.
+	pub fn merge_skills(&self) -> Box<MergeFn> {
+		let policies = self.policies.clone();
+		Box::new(move |streams, cel| {
+			let Some((server_name, ServerResult::CustomResult(CustomResult(result)))) =
+				streams.into_iter().next()
+			else {
+				return Err(incompatible_upstream_result(mcp::skills::LIST));
+			};
+			let mut list: mcp::skills::ListSkillsResult = serde_json::from_value(result)
+				.map_err(|_| incompatible_upstream_result(mcp::skills::LIST))?;
+			list.skills.retain(|skill| {
+				policies.validate(
+					&rbac::ResourceType::Resource(rbac::ResourceId::new(
+						server_name.to_string(),
+						skill.uri.clone(),
+					)),
+					&crate::mcp::guardrails::methods::SKILLS_LIST,
+					cel,
+				)
+			});
+			list.ttl_ms = Some(0);
+			list.cache_scope = Some(CacheScope::Private);
+			let result =
+				serde_json::to_value(list).map_err(|_| incompatible_upstream_result(mcp::skills::LIST))?;
+			Ok(CustomResult(result).into())
+		})
+	}
+
 	pub fn merge_resources(&self) -> Box<MergeFn> {
 		let policies = self.policies.clone();
 		let default_target_name = self.upstreams.default_target_name.clone();
