@@ -2625,6 +2625,8 @@ async fn modern_unknown_method_without_meta_returns_404() {
 	);
 }
 
+// Includes `_meta` at every level: rmcp used to decode any result carrying `_meta` as a
+// `CallToolResult`, dropping the skills payload.
 fn skills_result(method: &str) -> serde_json::Value {
 	let skill = |name: &str| {
 		serde_json::json!({
@@ -2633,16 +2635,19 @@ fn skills_result(method: &str) -> serde_json::Value {
 			"resources": [
 				{"uri": format!("skill://{name}/SKILL.md"), "digest": "sha256:d248", "size": 149},
 				{"uri": format!("skill://{name}/references/checklist.md"), "digest": "sha256:dbab", "size": 65}
-			]
+			],
+			"_meta": {"example.com/owner": "team-a"}
 		})
 	};
 	match method {
 		"skills/list" => serde_json::json!({
 			"resultType": "complete", "skills": [skill("code-review"), skill("secret")],
-			"nextCursor": "page2", "ttlMs": 300000, "cacheScope": "public"
+			"nextCursor": "page2", "ttlMs": 300000, "cacheScope": "public",
+			"_meta": {"example.com/trace": "abc"}
 		}),
 		"skills/get" => serde_json::json!({
-			"resultType": "complete", "skill": skill("code-review"), "ttlMs": 300000, "cacheScope": "public"
+			"resultType": "complete", "skill": skill("code-review"), "ttlMs": 300000, "cacheScope": "public",
+			"_meta": {"example.com/trace": "abc"}
 		}),
 		_ => serde_json::json!({
 			"resultType": "complete",
