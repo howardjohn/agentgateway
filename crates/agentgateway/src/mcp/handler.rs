@@ -1067,6 +1067,37 @@ impl Relay {
 		})
 	}
 
+	// Only reached with a single target, after the directory URI itself is authorized. Children are
+	// filtered like `resources/list` so the listing can't reveal resources the caller can't read.
+	pub fn merge_resource_directory(&self) -> Box<MergeFn> {
+		let policies = self.policies.clone();
+		Box::new(move |streams, cel| {
+			let incompatible = || incompatible_upstream_result(mcp::skills::RESOURCES_DIRECTORY_READ);
+			let Some((server_name, result)) = streams.into_iter().next() else {
+				return Err(incompatible());
+			};
+			// Directory results have the same shape as `resources/list`, so rmcp may decode them as
+			// either `ListResourcesResult` or `CustomResult`.
+			let mut dir: mcp::skills::ReadResourceDirectoryResult = serde_json::to_value(result)
+				.and_then(serde_json::from_value)
+				.map_err(|_| incompatible())?;
+			dir.resources.retain(|r| {
+				policies.validate(
+					&rbac::ResourceType::Resource(rbac::ResourceId::new(
+						server_name.to_string(),
+						r.uri.to_string(),
+					)),
+					&crate::mcp::guardrails::methods::RESOURCES_DIRECTORY_READ,
+					cel,
+				)
+			});
+			dir.ttl_ms = Some(0);
+			dir.cache_scope = Some(CacheScope::Private);
+			let result = serde_json::to_value(dir).map_err(|_| incompatible())?;
+			Ok(CustomResult(result).into())
+		})
+	}
+
 	pub fn merge_resources(&self) -> Box<MergeFn> {
 		let policies = self.policies.clone();
 		let default_target_name = self.upstreams.default_target_name.clone();

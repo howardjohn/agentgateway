@@ -768,23 +768,36 @@ impl Session {
 						let Some(service_name) = self.relay.upstreams.default_target_name.as_deref() else {
 							return Err(UpstreamError::InvalidMethod(cr.method.clone()));
 						};
-						if cr.method == mcp::skills::LIST {
-							return Box::pin(self.relay.send_fanout(r, ctx, self.relay.merge_skills())).await;
-						}
 						let invalid =
 							|_| UpstreamError::InvalidRequest(format!("invalid params for method: {method}"));
-						let params = cr.params.clone().unwrap_or_default();
-						let uri = if cr.method == mcp::skills::GET {
-							serde_json::from_value::<mcp::skills::GetSkillRequestParams>(params)
-								.map_err(invalid)?
-								.uri
-						} else {
-							serde_json::from_value::<mcp::skills::ReadResourceDirectoryRequestParams>(params)
-								.map_err(invalid)?
-								.uri
-						};
-						self.authorize_resource_request(service_name, &uri, &method, &log, &cel)?;
-						Box::pin(self.relay.send_single(r, ctx, service_name, None)).await
+						let params = || cr.params.clone().unwrap_or_default();
+						match cr.method.as_str() {
+							mcp::skills::LIST => {
+								Box::pin(self.relay.send_fanout(r, ctx, self.relay.merge_skills())).await
+							},
+							mcp::skills::GET => {
+								let uri = serde_json::from_value::<mcp::skills::GetSkillRequestParams>(params())
+									.map_err(invalid)?
+									.uri;
+								self.authorize_resource_request(service_name, &uri, &method, &log, &cel)?;
+								Box::pin(self.relay.send_single(r, ctx, service_name, None)).await
+							},
+							_ => {
+								let uri =
+									serde_json::from_value::<mcp::skills::ReadResourceDirectoryRequestParams>(
+										params(),
+									)
+									.map_err(invalid)?
+									.uri;
+								self.authorize_resource_request(service_name, &uri, &method, &log, &cel)?;
+								Box::pin(
+									self
+										.relay
+										.send_fanout(r, ctx, self.relay.merge_resource_directory()),
+								)
+								.await
+							},
+						}
 					},
 					ClientRequest::CustomRequest(_) => {
 						let method = r.request.method();

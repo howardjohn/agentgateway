@@ -2641,8 +2641,9 @@ fn skills_result(method: &str) -> serde_json::Value {
 	};
 	match method {
 		"skills/list" => serde_json::json!({
+			// Negative TTLs are invalid but seen in practice; the gateway replaces cache hints anyway.
 			"resultType": "complete", "skills": [skill("code-review"), skill("secret")],
-			"nextCursor": "page2", "ttlMs": 300000, "cacheScope": "public",
+			"nextCursor": "page2", "ttlMs": -1, "cacheScope": "public",
 			"_meta": {"example.com/trace": "abc"}
 		}),
 		"skills/get" => serde_json::json!({
@@ -2651,11 +2652,11 @@ fn skills_result(method: &str) -> serde_json::Value {
 		}),
 		_ => serde_json::json!({
 			"resultType": "complete",
-			"resources": [{
-				"uri": "skill://code-review/references/checklist.md",
-				"name": "checklist.md",
-				"mimeType": "text/markdown"
-			}]
+			"resources": [
+				{"uri": "skill://code-review/references/checklist.md", "name": "checklist.md", "mimeType": "text/markdown"},
+				{"uri": "skill://code-review/references/private.md", "name": "private.md", "mimeType": "text/markdown"}
+			],
+			"ttlMs": -1
 		}),
 	}
 }
@@ -2666,7 +2667,10 @@ async fn modern_skills_methods_single_target_authorization() {
 	let deny_secret = McpAuthorization::new(RuleSet::new(PolicySet::new(
 		vec![],
 		vec![Arc::new(
-			cel::Expression::new_strict(r#"mcp.resource.name.startsWith("skill://secret/")"#).unwrap(),
+			cel::Expression::new_strict(
+				r#"mcp.resource.name.startsWith("skill://secret/") || mcp.resource.name.endsWith("/private.md")"#,
+			)
+			.unwrap(),
 		)],
 		vec![],
 	)));
@@ -2710,16 +2714,17 @@ async fn modern_skills_methods_single_target_authorization() {
 	.await;
 	assert_eq!(denied["error"]["code"], -32602, "{denied}");
 
-	// Directory results parse as `ListResourcesResult`, which fills in default cache hints.
+	// The directory itself is allowed, but its denied child must not be listed.
 	let dir = send(
 		"resources/directory/read",
 		serde_json::json!({"uri": "skill://code-review/references"}),
 	)
 	.await;
-	assert!(
-		is_json_subset(&skills_result("resources/directory/read"), &dir["result"]),
-		"{dir}"
-	);
+	let mut expected = skills_result("resources/directory/read");
+	expected["resources"].as_array_mut().unwrap().pop();
+	expected["ttlMs"] = 0.into();
+	expected["cacheScope"] = "private".into();
+	assert_eq!(dir["result"], expected);
 }
 
 #[tokio::test]

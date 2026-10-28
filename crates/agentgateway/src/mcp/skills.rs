@@ -2,7 +2,9 @@
 //! and results as `CustomResult`. Types mirror the TypeScript definitions in
 //! https://github.com/modelcontextprotocol/ext-skills/blob/c1aa87e4c381c82b99aa37471d0eae4ab50f9985/specification/stable/skills.mdx
 
-use rmcp::model::{CacheScope, Cursor, JsonObject, MetaObject, RequestMetaObject, ResultType};
+use rmcp::model::{
+	CacheScope, Cursor, JsonObject, MetaObject, RequestMetaObject, Resource, ResultType,
+};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const EXTENSION: &str = "io.modelcontextprotocol/skills";
@@ -60,9 +62,11 @@ pub(crate) struct ListSkillsResult {
 	pub meta: Option<MetaObject>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub next_cursor: Option<Cursor>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	/// The gateway always sets its own cache hints, so the upstream's are ignored rather than
+	/// failing the request on values like a negative TTL.
+	#[serde(skip_deserializing, skip_serializing_if = "Option::is_none")]
 	pub ttl_ms: Option<u64>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[serde(skip_deserializing, skip_serializing_if = "Option::is_none")]
 	pub cache_scope: Option<CacheScope>,
 	pub skills: Vec<Skill>,
 }
@@ -83,4 +87,22 @@ pub(crate) struct ReadResourceDirectoryRequestParams {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub cursor: Option<Cursor>,
 	pub uri: String,
+}
+
+/// https://github.com/modelcontextprotocol/ext-skills/blob/c1aa87e4c381c82b99aa37471d0eae4ab50f9985/specification/stable/skills.mdx#L558
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReadResourceDirectoryResult {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub result_type: Option<ResultType>,
+	#[serde(rename = "_meta", default, skip_serializing_if = "Option::is_none")]
+	pub meta: Option<MetaObject>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub next_cursor: Option<Cursor>,
+	/// See `ListSkillsResult::ttl_ms`.
+	#[serde(skip_deserializing, skip_serializing_if = "Option::is_none")]
+	pub ttl_ms: Option<u64>,
+	#[serde(skip_deserializing, skip_serializing_if = "Option::is_none")]
+	pub cache_scope: Option<CacheScope>,
+	pub resources: Vec<Resource>,
 }
