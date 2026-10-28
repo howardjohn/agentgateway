@@ -75,6 +75,7 @@ type Syncer struct {
 	gatewayCollectionOptions []translator.GatewayCollectionConfigOption
 
 	customResourceCollections   func(cfg CustomResourceCollectionsConfig)
+	finalStatusCollections      []func(FinalStatusCollectionsConfig)
 	buildAddressCollectionsFunc AgentgatewayAddressBuilderFunc
 	buildReferenceTypesFunc     func(agw *plugins.AgwCollections, base plugins.ReferenceTypes) plugins.ReferenceTypes
 	extraListenerSets           ExtraListenerSetsBuilderFunc
@@ -104,6 +105,7 @@ func NewAgwSyncer(
 			translator.WithGatewayTransformationFunc(cfg.GatewayTransformationFunc),
 		},
 		customResourceCollections:   cfg.CustomResourceCollections,
+		finalStatusCollections:      cfg.FinalStatusCollections,
 		buildAddressCollectionsFunc: cfg.BuildAddressCollectionsFunc,
 		buildReferenceTypesFunc:     cfg.BuildReferenceTypesFunc,
 		extraListenerSets:           cfg.ExtraListenerSets,
@@ -138,6 +140,18 @@ type CustomResourceCollectionsConfig struct {
 	ConfigMaps        krt.Collection[*corev1.ConfigMap]
 	KrtOpts           krtutil.KrtOptions
 	StatusCollections *status.StatusCollections
+}
+
+type FinalStatusCollectionsConfig struct {
+	ControllerName string
+	// Includes arbitration losers.
+	GatewayListeners krt.Collection[*translator.GatewayListener]
+	// Admission rejections, not arbitration conflicts.
+	RejectedListenerSets krt.Collection[RejectedListenerSet]
+	// Logical attachments, not programmed routes.
+	RouteAttachments  krt.Collection[*plugins.RouteAttachment]
+	StatusCollections *status.StatusCollections
+	KrtOpts           krtutil.KrtOptions
 }
 
 func (s *Syncer) buildResourceCollections(krtopts krtutil.KrtOptions) {
@@ -189,6 +203,16 @@ func (s *Syncer) buildResourceCollections(krtopts krtutil.KrtOptions) {
 
 	listenerSetFinalStatus := s.buildFinalListenerSetStatus(gateways, listenerSetInitialStatus, routeAttachments, krtopts)
 	status.RegisterStatus(s.statusCollections, listenerSetFinalStatus, translator.GetStatus)
+	for _, finalize := range s.finalStatusCollections {
+		finalize(FinalStatusCollectionsConfig{
+			ControllerName:       s.controllerName,
+			GatewayListeners:     gateways,
+			RejectedListenerSets: rejectedListenerSets,
+			RouteAttachments:     routeAttachments,
+			StatusCollections:    s.statusCollections,
+			KrtOpts:              krtopts,
+		})
+	}
 
 	// Build address collections
 	addressBuilder := s.buildAddressCollectionsFunc
@@ -214,17 +238,18 @@ func (s *Syncer) buildFinalGatewayStatus(
 	routeAttachments krt.Collection[*plugins.RouteAttachment],
 	krtopts krtutil.KrtOptions,
 ) krt.StatusCollection[*gwv1.Gateway, gwv1.GatewayStatus] {
-	routeAttachmentsIndex := krt.NewIndex(routeAttachments, "to", func(o *plugins.RouteAttachment) []utils.TypedNamespacedName {
-		return []utils.TypedNamespacedName{o.To}
+	routeAttachmentsIndex := krt.NewIndex(routeAttachments, "gateway", func(o *plugins.RouteAttachment) []types.NamespacedName {
+		// ListenerSet attachments are counted on the ListenerSet, not the Gateway.
+		// Delegated routes have no attribution target and do not contribute counts.
+		if o.To.Kind == wellknown.ListenerSetGVK.Kind || o.To.Kind == "" {
+			return nil
+		}
+		return []types.NamespacedName{o.Gateway}
 	})
 	return krt.NewCollection(
 		gatewayStatuses,
 		func(ctx krt.HandlerContext, i krt.ObjectWithStatus[*gwv1.Gateway, gwv1.GatewayStatus]) *krt.ObjectWithStatus[*gwv1.Gateway, gwv1.GatewayStatus] {
-			routes := krt.Fetch(ctx, routeAttachments, krt.FilterIndex(routeAttachmentsIndex, utils.TypedNamespacedName{
-				Kind:      wellknown.GatewayGVK.Kind,
-				Namespace: i.Obj.Namespace,
-				Name:      i.Obj.Name,
-			}))
+			routes := krt.Fetch(ctx, routeAttachments, krt.FilterIndex(routeAttachmentsIndex, types.NamespacedName{Namespace: i.Obj.Namespace, Name: i.Obj.Name}))
 			counts := map[string]int32{}
 			for _, r := range routes {
 				counts[r.ListenerName]++
