@@ -145,10 +145,16 @@ impl Listener {
 	}
 
 	pub fn matches(&self, hostname: &str) -> bool {
-		self.hostname == hostname
+		self.hostname.eq_ignore_ascii_case(hostname)
 			|| self.hostname.is_empty()
-			|| (self.hostname.starts_with("*") && hostname.ends_with(&self.hostname[1..]))
+			|| (self.hostname.starts_with("*")
+				&& ends_with_ignore_ascii_case(hostname, &self.hostname[1..]))
 	}
+}
+
+fn ends_with_ignore_ascii_case(s: &str, suffix: &str) -> bool {
+	s.len() >= suffix.len()
+		&& s.as_bytes()[s.len() - suffix.len()..].eq_ignore_ascii_case(suffix.as_bytes())
 }
 
 type Alpns = Vec<Vec<u8>>;
@@ -2168,7 +2174,7 @@ impl ListenerSet {
 			.inner
 			.values()
 			.filter(|l| filter(&l.protocol))
-			.find(|l| l.hostname == host)
+			.find(|l| l.hostname.eq_ignore_ascii_case(host))
 		{
 			trace!("found best match for {host} (exact)");
 			return Some(best.clone());
@@ -2179,7 +2185,7 @@ impl ListenerSet {
 			.filter(|l| {
 				filter(&l.protocol)
 					&& l.hostname.starts_with("*")
-					&& host.ends_with(&l.hostname.as_str()[1..])
+					&& ends_with_ignore_ascii_case(host, &l.hostname.as_str()[1..])
 			})
 			.max_by_key(|l| l.hostname.len())
 		{
@@ -2261,10 +2267,12 @@ impl<'a> From<&'a HostnameMatch> for HostnameMatchRef<'a> {
 
 impl From<Strng> for HostnameMatch {
 	fn from(s: Strng) -> Self {
+		// Hostnames are case-insensitive; requests are looked up lowercased.
+		let s = s.to_ascii_lowercase();
 		if let Some(s) = s.strip_prefix("*.") {
 			HostnameMatch::Wildcard(strng::new(s))
 		} else {
-			HostnameMatch::Exact(s.clone())
+			HostnameMatch::Exact(strng::new(s))
 		}
 	}
 }
