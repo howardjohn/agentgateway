@@ -39,8 +39,8 @@ use crate::mcp::{MCPInfo, MCPOperation};
 use crate::proxy::{ProxyResponseReason, dtrace};
 use crate::telemetry::metrics::{
 	CostCatalogLookupLabels, ErrorTypeLabel, GenAIErrorType, GenAILabels, GenAILabelsTokenUsage,
-	GenAIRequestDurationLabels, HTTPLabels, MCPCall, Metrics, OutboundCallLabels, RouteIdentifier,
-	SubstrateRouteLabels,
+	GenAIRequestDurationLabels, HTTPLabels, MCPCall, Metrics, OutboundCallKind, OutboundCallLabels,
+	RouteIdentifier, SubstrateRouteLabels,
 };
 use crate::telemetry::trc::TraceParent;
 use crate::telemetry::{log_store, semconv, trc};
@@ -780,6 +780,7 @@ impl CelLogging {
 				inputs.proxy,
 			)
 		};
+		executor.upstream_calls = inputs.upstream_calls;
 		if let Some(md) = inputs.mcp_guardrails {
 			executor.mcp_guardrails = cel::ExtensionOrDirect::Direct(Some(md));
 		}
@@ -805,6 +806,7 @@ pub struct CelLoggingBuildInputs<'a> {
 	pub end_time: &'a cel::RequestTime,
 	pub proxy: Option<&'a cel::ProxyContext>,
 	pub source_context: Option<&'a cel::SourceContext>,
+	pub upstream_calls: Option<&'a Vec<crate::telemetry::upstream::UpstreamCall>>,
 }
 
 #[derive(Debug)]
@@ -1113,6 +1115,7 @@ impl RequestLog {
 		tcp_info: TCPConnectionInfo,
 	) -> Self {
 		RequestLog {
+			upstream_calls: Default::default(),
 			cel,
 			access_log_preset: None,
 			database_llm: Default::default(),
@@ -1182,13 +1185,21 @@ impl RequestLog {
 
 	pub fn span_writer(&self) -> SpanWriter {
 		let inner = self.span_writer_inner().map(Arc::new);
-		SpanWriter { inner }
+		let upstream_calls = self
+			.cel
+			.cel_context
+			.needs_upstream_calls()
+			.then(|| self.upstream_calls.get_or_init(Default::default).clone());
+		SpanWriter {
+			inner,
+			upstream_calls,
+		}
 	}
 	pub fn insert_span_writer(&self, extensions: &mut ::http::Extensions) {
-		if let Some(inner) = self.span_writer_inner() {
-			extensions.insert(SpanWriter {
-				inner: Some(Arc::new(inner)),
-			});
+		// Inserted without tracing too, since it carries the `upstreamCalls` recorder.
+		let writer = self.span_writer();
+		if writer.is_enabled() || writer.upstream_calls.is_some() {
+			extensions.insert(writer);
 		}
 	}
 	fn span_writer_inner(&self) -> Option<SpanWriterInner> {
@@ -1260,6 +1271,7 @@ impl RequestLog {
 			mcp_guardrails: None,
 			end_time: &cel_end_time,
 			source_context: self.source_context.as_ref(),
+			upstream_calls: None,
 			proxy: Some(&proxy_timing),
 		});
 		let Some(rh) = self.request_handle.take() else {
@@ -1271,6 +1283,7 @@ impl RequestLog {
 
 #[derive(Debug)]
 pub struct RequestLog {
+	pub upstream_calls: std::sync::OnceLock<crate::telemetry::upstream::UpstreamCalls>,
 	pub cel: CelLogging,
 	pub access_log_preset: Option<crate::types::frontend::AccessLogPreset>,
 	/// Controls whether normalized LLM prompt/completion content is persisted in the database's
@@ -1526,6 +1539,11 @@ impl Drop for DropOnLog {
 			if let Some(resp) = log.response_snapshot.as_mut() {
 				resp.proxy = Some(proxy_timing.clone());
 			}
+			let upstream_calls = log
+				.upstream_calls
+				.get()
+				.map(|calls| calls.take())
+				.unwrap_or_default();
 			let cel_exec = log.cel.build(CelLoggingBuildInputs {
 				req: log.request_snapshot.as_deref(),
 				resp: log.response_snapshot.as_ref(),
@@ -1536,6 +1554,7 @@ impl Drop for DropOnLog {
 				end_time: &cel_end_time,
 				proxy: Some(&proxy_timing),
 				source_context: log.source_context.as_ref(),
+				upstream_calls: Some(&upstream_calls),
 			});
 			if let Some(rh) = request_handle {
 				log.finish_request_handle(rh, end_time, &cel_exec);
@@ -2619,6 +2638,7 @@ impl OtelAccessLogger {
 // SpanWriter is a construct that can start otel spans
 #[derive(Debug, Default, Clone)]
 pub struct SpanWriter {
+	pub(crate) upstream_calls: Option<crate::telemetry::upstream::UpstreamCalls>,
 	inner: Option<Arc<SpanWriterInner>>,
 }
 
@@ -2633,15 +2653,36 @@ impl SpanWriter {
 		self.inner.is_some()
 	}
 
-	pub fn start(&self, name: impl Into<Cow<'static, str>>) -> SpanWriteOnDrop {
-		match &self.inner {
-			Some(i) => i.start(name),
-			None => SpanWriteOnDrop::default(),
+	/// Marks an outbound request to be recorded in `upstreamCalls` when it is sent.
+	pub(crate) fn record_outbound(
+		&self,
+		extensions: &mut ::http::Extensions,
+		labels: OutboundCallLabels,
+	) {
+		// Mirrors run detached and can finish after the request is logged, so they aren't recorded.
+		if matches!(labels.kind, OutboundCallKind::Mirror) {
+			extensions.remove::<crate::telemetry::upstream::OutboundRequest>();
+			return;
+		}
+		if let Some(calls) = &self.upstream_calls {
+			extensions.insert(crate::telemetry::upstream::OutboundRequest {
+				calls: calls.clone(),
+				labels,
+			});
 		}
 	}
 
+	pub fn start(&self, name: impl Into<Cow<'static, str>>) -> SpanWriteOnDrop {
+		let mut span = match &self.inner {
+			Some(i) => i.start(name),
+			None => SpanWriteOnDrop::default(),
+		};
+		span.upstream_calls = self.upstream_calls.clone();
+		span
+	}
+
 	pub fn start_outbound(&self, labels: OutboundCallLabels) -> SpanWriteOnDrop {
-		match &self.inner {
+		let mut span = match &self.inner {
 			Some(i) => i.start_with_details(
 				labels.subtype.as_str(),
 				SpanKind::Client,
@@ -2651,7 +2692,9 @@ impl SpanWriter {
 				],
 			),
 			None => SpanWriteOnDrop::default(),
-		}
+		};
+		span.upstream_calls = self.upstream_calls.clone();
+		span
 	}
 }
 
@@ -2676,6 +2719,7 @@ impl SpanWriterInner {
 		let child = self.parent.new_span();
 
 		SpanWriteOnDrop {
+			upstream_calls: None,
 			name: Some(name.into()),
 			span_kind,
 			start_time: Some(SystemTime::now()),
@@ -2689,6 +2733,7 @@ impl SpanWriterInner {
 }
 
 pub struct SpanWriteOnDrop {
+	upstream_calls: Option<crate::telemetry::upstream::UpstreamCalls>,
 	name: Option<Cow<'static, str>>,
 	span_kind: SpanKind,
 	start_time: Option<SystemTime>,
@@ -2701,6 +2746,7 @@ pub struct SpanWriteOnDrop {
 impl Default for SpanWriteOnDrop {
 	fn default() -> Self {
 		Self {
+			upstream_calls: None,
 			name: None,
 			span_kind: SpanKind::Internal,
 			start_time: None,
@@ -2720,7 +2766,10 @@ impl SpanWriteOnDrop {
 				inner: self.inner.clone(),
 			})
 		});
-		SpanWriter { inner }
+		SpanWriter {
+			inner,
+			upstream_calls: self.upstream_calls.clone(),
+		}
 	}
 
 	pub fn rename_span(&mut self, name: impl Into<Cow<'static, str>>) {

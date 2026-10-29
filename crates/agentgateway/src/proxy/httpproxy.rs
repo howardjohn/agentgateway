@@ -1503,8 +1503,8 @@ impl HTTPProxy {
 			ns.set_sampled(true);
 			ns.insert_header(req);
 			log.outgoing_span = Some(ns);
-			log.insert_span_writer(req.extensions_mut());
 		}
+		log.insert_span_writer(req.extensions_mut());
 	}
 
 	fn detect_misdirected(
@@ -3212,6 +3212,11 @@ async fn make_backend_call(
 		kind: OutboundCallKind::Primary,
 		subtype: outbound_subtype,
 	};
+	if let Some(log) = log.as_ref() {
+		log
+			.span_writer()
+			.record_outbound(call.req.extensions_mut(), outbound_labels);
+	}
 	let mut span = log.as_ref().and_then(|log| {
 		let writer = log.span_writer();
 		writer.is_enabled().then(|| {
@@ -5197,6 +5202,21 @@ impl PolicyClient {
 		})
 	}
 
+	fn record_outbound(&self, req: &mut Request) {
+		let Some(labels) = self.outbound() else {
+			return;
+		};
+		let writer = req.extensions().get::<SpanWriter>().cloned().or_else(|| {
+			self
+				.context
+				.as_ref()
+				.map(|context| context.span_writer.clone())
+		});
+		if let Some(writer) = writer {
+			writer.record_outbound(req.extensions_mut(), labels);
+		}
+	}
+
 	fn start_outbound_span(&self, req: &mut Request) -> Option<Box<SpanWriteOnDrop>> {
 		let labels = self.outbound()?;
 		let writer = req.extensions().get::<SpanWriter>().cloned().or_else(|| {
@@ -5415,6 +5435,7 @@ impl PolicyClient {
 		req
 			.extensions_mut()
 			.get_or_insert(BackendRequestTimeout(Duration::from_secs(10)));
+		self.record_outbound(&mut req);
 		if !matches!(
 			self.outbound(),
 			Some(OutboundCallLabels {
@@ -5456,6 +5477,7 @@ impl PolicyClient {
 		req
 			.extensions_mut()
 			.get_or_insert(BackendRequestTimeout(Duration::from_secs(10)));
+		self.record_outbound(&mut req);
 		Box::pin(async move {
 			let start = std::time::Instant::now();
 			let mut span = self.start_outbound_span(&mut req);
