@@ -1483,7 +1483,8 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "default": null
         }
       },
       "additionalProperties": false
