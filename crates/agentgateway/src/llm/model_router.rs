@@ -227,10 +227,20 @@ pub enum VirtualModelRouting {
 	Callout(Arc<llm::router_callout::VirtualModelCallout>),
 }
 
-/// The model name the client asked for, before any virtual model rewrite. The router stores it as
-/// a request extension so the proxy can attach it to the request log.
+/// The model name the client asked for, before any virtual model or alias rewrite. Stored as a
+/// request extension so it can be attached to the request log and used for cost lookups.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OriginalModel(pub String);
+
+impl OriginalModel {
+	/// Records the client's model before a rewrite. A model router runs first, so keep its value:
+	/// that is the name the client actually sent.
+	pub(crate) fn record(extensions: &mut ::http::Extensions, model: String) {
+		if extensions.get::<OriginalModel>().is_none() {
+			extensions.insert(OriginalModel(model));
+		}
+	}
+}
 
 #[apply(schema_ser_schema!)]
 pub struct WeightedTarget {
@@ -864,8 +874,12 @@ fn model_name_matches(pattern: &str, model: &str) -> bool {
 /// Exposes the request model as `llm.requestModel` and, if requested, the parsed JSON body as
 /// `llmRequest` to policy CEL.
 pub(crate) async fn set_llm_cel_context(req: &mut Request, include_body: bool) -> RouterResult<()> {
-	// Clear first so a failed parse below leaves no model rather than a stale one.
-	req.extensions_mut().remove::<cel::RequestModel>();
+	// Clear first so a failed parse below leaves no model rather than a stale one. This runs again
+	// after route policies and virtual model rewrites, so keep the model seen first.
+	let previous = req
+		.extensions_mut()
+		.remove::<cel::RequestModel>()
+		.map(|m| m.original_model);
 	let path_model = llm::types::detect::extract_model_from_path(req.uri().path()).is_some();
 	if include_body || !path_model {
 		// Reject unreadable bodies (too large, or failing to decode) rather than evaluating policies
@@ -876,8 +890,16 @@ pub(crate) async fn set_llm_cel_context(req: &mut Request, include_body: bool) -
 		let _ = json_body(req).await;
 	}
 	if let Ok(requested) = requested_model(req).await {
+		let request_model = strng::new(requested.model);
+		let original_model = req
+			.extensions()
+			.get::<OriginalModel>()
+			.map(|m| strng::new(&m.0))
+			.or(previous)
+			.unwrap_or_else(|| request_model.clone());
 		req.extensions_mut().insert(cel::RequestModel {
-			request_model: requested.model.into(),
+			request_model,
+			original_model,
 		});
 	}
 	Ok(())
@@ -996,6 +1018,7 @@ pub(crate) fn rewrite_uri_model(req: &mut Request, target: &str) -> RouterResult
 	let Some(path) = rewrite_path_model(path_and_query.path(), target) else {
 		return Ok(());
 	};
+	let original = crate::llm::types::detect::extract_model_from_path(path_and_query.path());
 	let path_and_query = if let Some(query) = path_and_query.query() {
 		format!("{path}?{query}")
 	} else {
@@ -1019,6 +1042,9 @@ pub(crate) fn rewrite_uri_model(req: &mut Request, target: &str) -> RouterResult
 			"request_uri_rewrite_failed",
 		))
 	})?;
+	if let Some(original) = original {
+		OriginalModel::record(req.extensions_mut(), original.to_string());
+	}
 	Ok(())
 }
 
@@ -1096,9 +1122,10 @@ pub(crate) async fn rewrite_multipart_request_model(
 		return Ok(());
 	};
 	let body = body_bytes(req).await?;
-	let Some(body) = rewrite_multipart_body_model(&body, &boundary, target).await? else {
+	let Some((body, original)) = rewrite_multipart_body_model(&body, &boundary, target).await? else {
 		return Ok(());
 	};
+	OriginalModel::record(req.extensions_mut(), original);
 	req.replace_body_bytes(body);
 	req.headers_mut().remove(::http::header::TRANSFER_ENCODING);
 	Ok(())
@@ -1137,12 +1164,12 @@ pub(crate) async fn rewrite_multipart_body_model(
 	body: &Bytes,
 	boundary: &str,
 	target: &str,
-) -> RouterResult<Option<Bytes>> {
+) -> RouterResult<Option<(Bytes, String)>> {
 	// Parse once to avoid rebuilding an already-correct body. Comparing decoded text also
-	// respects a model field's declared charset.
+	// respects a model field's declared charset. Returns the rewritten body and the replaced model.
 	let stream = stream::once(std::future::ready(Ok::<Bytes, multer::Error>(body.clone())));
 	let mut multipart = multer::Multipart::new(stream, boundary);
-	let mut needs_rewrite = false;
+	let mut original = None;
 	while let Some(field) = multipart.next_field().await.map_err(|err| {
 		tracing::debug!(%err, "failed to parse LLM multipart request body for model rewrite");
 		Box::new(llm_error_response(
@@ -1162,13 +1189,13 @@ pub(crate) async fn rewrite_multipart_body_model(
 				"invalid_model",
 			))
 		})?;
-		if model != target {
-			needs_rewrite = true;
+		if model != target && original.is_none() {
+			original = Some(model);
 		}
 	}
-	if !needs_rewrite {
+	let Some(original) = original else {
 		return Ok(None);
-	}
+	};
 
 	// Multer does not expose raw offsets, so rebuild the multipart envelope from the fields it
 	// parsed. File and non-model field bytes are preserved; header formatting is normalized.
@@ -1228,7 +1255,7 @@ pub(crate) async fn rewrite_multipart_body_model(
 	rewritten.extend_from_slice(b"--");
 	rewritten.extend_from_slice(boundary.as_bytes());
 	rewritten.extend_from_slice(b"--\r\n");
-	Ok(Some(Bytes::from(rewritten)))
+	Ok(Some((Bytes::from(rewritten), original)))
 }
 
 async fn body_bytes(req: &mut Request) -> RouterResult<Bytes> {
@@ -2009,7 +2036,8 @@ mod tests {
 		let rewritten = rewrite_multipart_body_model(&body, "audio-boundary", "upstream-model")
 			.await
 			.expect("multipart body should parse")
-			.expect("model fields should change");
+			.expect("model fields should change")
+			.0;
 		let stream = stream::once(std::future::ready(Ok::<Bytes, multer::Error>(rewritten)));
 		let mut multipart = multer::Multipart::new(stream, "audio-boundary");
 		let mut model_fields = 0;
@@ -2077,7 +2105,8 @@ mod tests {
 			rewrite_multipart_body_model(&Bytes::from(body), "charset-boundary", "upstream-model")
 				.await
 				.expect("multipart body should parse")
-				.expect("model field should change");
+				.expect("model field should change")
+				.0;
 		let stream = stream::once(std::future::ready(Ok::<Bytes, multer::Error>(rewritten)));
 		let mut multipart = multer::Multipart::new(stream, "charset-boundary");
 		let field = multipart

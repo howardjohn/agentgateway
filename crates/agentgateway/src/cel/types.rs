@@ -1532,11 +1532,14 @@ impl GuardrailInfo {
 	}
 }
 
-/// The incoming request model, exposed as `llm.requestModel` before LLM processing.
+/// The incoming request model, exposed as `llm.requestModel` and `llm.originalModel` before LLM
+/// processing.
 #[derive(Clone, Debug, cel::DynamicType)]
 pub struct RequestModel {
 	#[dynamic(rename = "requestModel")]
 	pub request_model: Strng,
+	#[dynamic(rename = "originalModel")]
+	pub original_model: Strng,
 }
 
 #[derive(Debug, Default)]
@@ -1588,6 +1591,10 @@ pub struct LLMContext {
 	/// the incoming URL or body, before provider overrides. This may differ from the actual model used.
 	#[dynamic(rename = "requestModel")]
 	pub request_model: Strng,
+	/// The model the client asked for, before any virtual model, alias, provider override, or
+	/// request body rewrite. Equal to `requestModel` when the model was not rewritten.
+	#[dynamic(rename = "originalModel")]
+	pub original_model: Strng,
 	/// The model that actually served the LLM response.
 	#[dynamic(rename = "responseModel")]
 	#[serde(skip_serializing_if = "Option::is_none")]
@@ -1824,6 +1831,7 @@ impl From<llm::LLMRequest> for LLMContext {
 			input_format: _, // Expose this?
 			cache_convention: _,
 			request_model,
+			original_model,
 			provider,
 			streaming,
 			params,
@@ -1832,6 +1840,7 @@ impl From<llm::LLMRequest> for LLMContext {
 		} = info;
 		LLMContext {
 			streaming,
+			original_model: original_model.unwrap_or_else(|| request_model.clone()),
 			request_model,
 			provider,
 			input_tokens,
@@ -2574,6 +2583,7 @@ pub fn full_example_executor() -> ExecutorSerde {
 		llm: Some(LLMContext {
 			streaming: false,
 			request_model: "gpt-4".into(),
+			original_model: "gpt-4".into(),
 			response_model: Some("gpt-4-turbo".into()),
 			provider: "fake-ai".into(),
 			input_tokens: Some(100),

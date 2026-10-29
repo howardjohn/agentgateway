@@ -103,6 +103,7 @@ impl RequestType for Request {
 				_ => self.lookup(lookups::MODEL, |v| v.as_str()).map(Into::into),
 			}
 			.unwrap_or_default(),
+			original_model: None,
 			provider,
 			streaming: self
 				.lookup(lookups::STREAM, |v| v.as_bool())
@@ -213,6 +214,7 @@ mod tests {
 			input_format: crate::InputFormat::Detect(None),
 			cache_convention: crate::CacheTokenConvention::pending(),
 			request_model: strng::new("unknown"),
+			original_model: None,
 			provider: strng::new("aws.bedrock"),
 			streaming: false,
 			params: Default::default(),

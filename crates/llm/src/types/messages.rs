@@ -522,6 +522,7 @@ impl RequestType for Request {
 			input_format: InputFormat::Messages,
 			cache_convention: crate::CacheTokenConvention::pending(),
 			request_model: model,
+			original_model: None,
 			provider,
 			streaming: self.stream.unwrap_or_default(),
 			params: LLMRequestParams {

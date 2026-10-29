@@ -2216,6 +2216,7 @@ impl AIProvider {
 		if model == original.as_str() {
 			return Ok(true);
 		}
+		model_router::OriginalModel::record(&mut parts.extensions, original.to_string());
 		if !agent_llm::model_path::is_safe_resource_name(model) {
 			return Err(AIError::UnsupportedModel);
 		}
@@ -2254,15 +2255,30 @@ impl AIProvider {
 		let path_model = Self::mutate_path_model(policies, &mut parts, log)?;
 
 		let mut req = if is_json {
+			// Body mutations may rewrite the model, so record the client's first. A path model takes
+			// precedence over the body's and was recorded by mutate_path_model.
+			let mut record_body_model = |value: &serde_json::Value| {
+				if !path_model && let Some(model) = value.get("model").and_then(serde_json::Value::as_str) {
+					model_router::OriginalModel::record(&mut parts.extensions, model.to_string());
+				}
+			};
 			if let Some(json::ParsedJson(value)) = cached {
 				match policies {
-					Some(p) => p.unmarshal_request_value(value, log),
+					Some(p) => {
+						record_body_model(&value);
+						p.unmarshal_request_value(value, log)
+					},
 					None => Ok(types::detect::Request::Json(value)),
 				}
 			} else if let Some(p) = policies
 				&& p.has_request_body_mutations()
 			{
-				p.unmarshal_request(&bytes, log)
+				serde_json::from_slice::<serde_json::Value>(bytes.as_ref())
+					.map_err(|err| AIError::RequestParsing(InputFormat::Detect(None), err))
+					.and_then(|value| {
+						record_body_model(&value);
+						p.unmarshal_request_value(value, log)
+					})
 			} else {
 				serde_json::from_slice(bytes.as_ref())
 					.map_err(|err| AIError::RequestParsing(InputFormat::Detect(None), err))
@@ -2281,6 +2297,9 @@ impl AIProvider {
 				&& p.has_request_body_mutations()
 				&& let Some(original) = &model
 			{
+				if !path_model {
+					model_router::OriginalModel::record(&mut parts.extensions, original.clone());
+				}
 				let mutated =
 					p.apply_request_body_mutations(serde_json::json!({ "model": original }), log)?;
 				// Rewrite only the `model` form field, leaving the rest (such as the uploaded file)
@@ -2288,7 +2307,7 @@ impl AIProvider {
 				// with malformed JSON.
 				if let Some(target) = mutated.get("model").and_then(serde_json::Value::as_str)
 					&& target != original
-					&& let Ok(Some(rewritten)) =
+					&& let Ok(Some((rewritten, _))) =
 						model_router::rewrite_multipart_body_model(&body, &boundary, target).await
 				{
 					body = rewritten;
@@ -2476,6 +2495,16 @@ impl AIProvider {
 
 		let mut llm_info =
 			req.to_llm_request(self.provider(), tokenize && guardrail_rejection.is_none())?;
+		llm_info.original_model = parts
+			.extensions
+			.get::<model_router::OriginalModel>()
+			.map(|m| strng::new(&m.0))
+			.filter(|m| *m != llm_info.request_model);
+		if let Some(log) = log
+			&& log.original_model.is_none()
+		{
+			log.original_model = llm_info.original_model.as_ref().map(|m| m.to_string());
+		}
 		if matches!(original_format, InputFormat::Detect(_)) {
 			llm_info.input_format = original_format;
 			types::detect::amend_request_info(&mut llm_info, parts.uri.path());
@@ -3454,10 +3483,10 @@ impl AIProvider {
 				None => serde_json::from_slice(&bytes),
 			}
 			.map_err(|err| AIError::RequestParsing(T::input_format(), err))?;
-			let model = req.model();
-			if model.as_deref().is_none() {
+			let Some(model) = req.model() else {
 				return Err(AIError::MissingField("model not specified".into()));
-			}
+			};
+			model_router::OriginalModel::record(&mut parts.extensions, model.clone());
 			return Ok((parts, managed_body, req));
 		}
 
@@ -3466,7 +3495,7 @@ impl AIProvider {
 			None => serde_json::from_slice(&bytes)
 				.map_err(|err| AIError::RequestParsing(T::input_format(), err))?,
 		};
-		self.set_provider_request_model(&parts, &mut request, path_model_wins)?;
+		self.set_provider_request_model(&mut parts, &mut request, path_model_wins)?;
 		let mut request = if let Some(p) = policies {
 			p.apply_request_body_mutations(request, log)?
 		} else {
@@ -3481,21 +3510,28 @@ impl AIProvider {
 
 	fn set_provider_request_model(
 		&self,
-		parts: &Parts,
+		parts: &mut Parts,
 		req: &mut serde_json::Value,
 		path_model_wins: bool,
 	) -> Result<(), AIError> {
 		let Some(obj) = req.as_object_mut() else {
 			return Err(AIError::MissingField("request must be an object".into()));
 		};
+		let body_model = obj.get("model").and_then(serde_json::Value::as_str);
+		let path_model = if path_model_wins || body_model.is_none() {
+			types::detect::extract_model_from_path(parts.uri.path())
+		} else {
+			None
+		};
+		if let Some(client_model) = path_model.as_deref().or(body_model) {
+			model_router::OriginalModel::record(&mut parts.extensions, client_model.to_string());
+		}
 		if let Some(provider_model) = &self.override_model() {
 			obj.insert(
 				"model".to_string(),
 				serde_json::Value::String(provider_model.to_string()),
 			);
-		} else if (path_model_wins || !matches!(obj.get("model"), Some(serde_json::Value::String(_))))
-			&& let Some(path_model) = types::detect::extract_model_from_path(parts.uri.path())
-		{
+		} else if let Some(path_model) = path_model {
 			obj.insert(
 				"model".to_string(),
 				serde_json::Value::String(path_model.to_string()),
