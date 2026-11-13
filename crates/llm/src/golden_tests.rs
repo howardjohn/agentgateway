@@ -285,9 +285,8 @@ mod requests {
 		"passthrough-fields",
 	];
 
-	#[test]
-	fn from_completions() {
-		let catalog = model_catalog::TestCatalog::new([
+	fn thinking_catalog() -> model_catalog::TestCatalog {
+		model_catalog::TestCatalog::new([
 			(
 				"custom-adaptive-model",
 				&[model_catalog::tags::ADAPTIVE_THINKING][..],
@@ -299,7 +298,38 @@ mod requests {
 					model_catalog::tags::LEGACY_THINKING,
 				][..],
 			),
-		]);
+		])
+	}
+
+	/// The IR must render what the legacy converters render, so it is held to their snapshots.
+	#[test]
+	fn ir_parity() {
+		let catalog = thinking_catalog();
+		for (name, providers) in COMPLETION_REQUESTS {
+			if providers.contains(&ANTHROPIC) {
+				let path = format!("requests/completions/{name}.json");
+				test_request(ANTHROPIC, &path, |i: &mut types::completions::Request| {
+					let ir = conversion::ir::completions::parse_request(i)?;
+					let rendered = conversion::ir::messages::render_request(ir, Some(&catalog))?;
+					serde_json::to_vec(&rendered).map_err(AIError::RequestMarshal)
+				});
+			}
+		}
+		for (name, providers) in MESSAGES_REQUESTS {
+			if providers.contains(&COMPLETIONS) {
+				let path = format!("requests/messages/{name}.json");
+				test_request(COMPLETIONS, &path, |i: &mut types::messages::Request| {
+					let ir = conversion::ir::messages::parse_request(i)?;
+					let rendered = conversion::ir::completions::render_request(ir);
+					serde_json::to_vec(&rendered).map_err(AIError::RequestMarshal)
+				});
+			}
+		}
+	}
+
+	#[test]
+	fn from_completions() {
+		let catalog = thinking_catalog();
 		let bedrock = bedrock::Provider {
 			model_override: Some(strng::new("anthropic.claude-3-5-sonnet-20241022-v2:0")),
 			region: strng::new("us-west-2"),
@@ -1287,6 +1317,32 @@ mod responses {
 				)
 			},
 		);
+	}
+
+	/// The IR must render what the legacy converters render, so it is held to their snapshots.
+	#[test]
+	fn ir_parity() {
+		for (name, providers) in ANTHROPIC_RESPONSES {
+			if providers.contains(&MESSAGES_TO_COMPLETIONS) {
+				let path = format!("response/anthropic/{name}.json");
+				test_response(MESSAGES_TO_COMPLETIONS, &path, |i| {
+					conversion::ir::completions::render_response(conversion::ir::messages::parse_response(
+						&i,
+					)?)
+				});
+			}
+		}
+		for (name, providers) in COMPLETIONS_RESPONSES {
+			if providers.contains(&COMPLETIONS_TO_MESSAGES) {
+				let path = format!("response/completions/{name}.json");
+				test_response(COMPLETIONS_TO_MESSAGES, &path, |i| {
+					conversion::ir::messages::render_response(conversion::ir::completions::parse_response(
+						&i,
+						"input-model",
+					)?)
+				});
+			}
+		}
 	}
 
 	#[test]
