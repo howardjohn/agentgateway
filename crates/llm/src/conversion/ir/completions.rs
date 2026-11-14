@@ -1,16 +1,23 @@
 //! Chat Completions to and from the IR.
 
+use std::collections::HashMap;
+use std::time::Instant;
+
 use agent_core::strng;
+use agent_http::Body;
 use bytes::Bytes;
+use serde::de::DeserializeOwned;
 
 use super::{
-	Content, Effort, Message, Part, Request, Response, ResponseFormat, Role, StopReason, Thinking,
-	Tool, ToolChoice, Usage,
+	Content, Effort, Message, Part, Request, Response, ResponseFormat, Role, StopReason, StreamEvent,
+	Thinking, Tool, ToolChoice, Usage,
 };
 use crate::conversion::{ProviderUsage, ResponseWithProviderUsage};
+use crate::parse::sse::SseJsonEvent;
 use crate::types::ResponseType;
 use crate::types::completions::typed as completions;
-use crate::{AIError, json, logged_response_parsing, types};
+use crate::types::messages::typed::MessagesError;
+use crate::{AIError, StreamingUsageGuard, json, logged_response_parsing, types};
 
 pub fn parse_request(req: &types::completions::Request) -> Result<Request, AIError> {
 	let req = json::convert::<_, completions::Request>(req)
@@ -594,25 +601,7 @@ pub fn parse_response(bytes: &Bytes, model: &str) -> Result<Response, AIError> {
 		stop_reason = StopReason::StopSequence;
 	}
 
-	let usage = resp
-		.usage
-		.map(|u| {
-			let prompt = u.prompt_tokens_details.as_ref();
-			let completion = u.completion_tokens_details.as_ref();
-			Usage {
-				input_tokens: u.prompt_tokens as u64,
-				output_tokens: u.output_tokens() as u64,
-				cache_read_tokens: prompt
-					.and_then(|d| d.cached_tokens)
-					.or(u.cache_read_input_tokens),
-				cache_write_tokens: prompt
-					.and_then(|d| d.cache_write_tokens)
-					.or(u.cache_creation_input_tokens),
-				input_audio_tokens: prompt.and_then(|d| d.audio_tokens),
-				output_audio_tokens: completion.and_then(|d| d.audio_tokens),
-			}
-		})
-		.unwrap_or_default();
+	let usage = resp.usage.as_ref().map(usage).unwrap_or_default();
 
 	Ok(Response {
 		id: resp.id,
@@ -679,16 +668,7 @@ pub fn render_response(resp: Response) -> Result<Box<dyn ResponseType>, AIError>
 		},
 		..completions::ResponseMessage::assistant()
 	};
-	let finish_reason = resp.stop_reason.map(|reason| match reason {
-		StopReason::EndTurn | StopReason::StopSequence | StopReason::PauseTurn => {
-			completions::FinishReason::Stop
-		},
-		StopReason::MaxTokens | StopReason::ModelContextWindowExceeded => {
-			completions::FinishReason::Length
-		},
-		StopReason::ToolUse => completions::FinishReason::ToolCalls,
-		StopReason::Refusal => completions::FinishReason::ContentFilter,
-	});
+	let finish_reason = resp.stop_reason.map(finish_reason);
 	let usage = resp.usage;
 	let openai = completions::Response {
 		id: resp.id,
@@ -724,4 +704,419 @@ pub fn render_response(resp: Response) -> Result<Box<dyn ResponseType>, AIError>
 		response,
 		provider_usage: resp.provider_usage,
 	}))
+}
+
+fn usage(u: &completions::Usage) -> Usage {
+	let prompt = u.prompt_tokens_details.as_ref();
+	Usage {
+		input_tokens: u.prompt_tokens as u64,
+		output_tokens: u.output_tokens() as u64,
+		cache_read_tokens: prompt
+			.and_then(|d| d.cached_tokens)
+			.or(u.cache_read_input_tokens),
+		cache_write_tokens: prompt
+			.and_then(|d| d.cache_write_tokens)
+			.or(u.cache_creation_input_tokens),
+		input_audio_tokens: prompt.and_then(|d| d.audio_tokens),
+		output_audio_tokens: u
+			.completion_tokens_details
+			.as_ref()
+			.and_then(|d| d.audio_tokens),
+	}
+}
+
+/// Reads a Completions provider stream into events, recording its usage, timing and tool calls to
+/// `log`. Completions sends the finish reason and the usage in separate chunks, so the reply
+/// ends once it has both, or at `[DONE]`.
+pub fn parse_stream(
+	log: StreamingUsageGuard,
+	log_content: crate::LogContentFields,
+) -> impl FnMut(SseJsonEvent<completions::StreamResponse>) -> Vec<StreamEvent> + Send + 'static {
+	struct ToolCall {
+		id: Option<String>,
+		name: Option<String>,
+		started: bool,
+		/// Arguments that arrived before the name, sent once it is known.
+		pending: String,
+		/// Every argument, for the log.
+		arguments: String,
+	}
+	#[derive(Default)]
+	struct State {
+		started: bool,
+		ended: bool,
+		last_token_at: Option<Instant>,
+		tool_calls: HashMap<u32, ToolCall>,
+		stop_reason: Option<StopReason>,
+		stop_sequence: Option<String>,
+		usage: Option<completions::Usage>,
+	}
+	impl State {
+		fn token(&mut self, log: &StreamingUsageGuard) {
+			let now = Instant::now();
+			match self.last_token_at.replace(now) {
+				None => log.update(|r| r.response.first_token = Some(now)),
+				Some(prev) => log.update(|r| {
+					r.response
+						.inter_chunk_latencies
+						.record(now.duration_since(prev))
+				}),
+			}
+		}
+
+		/// Ends the reply once its finish reason and usage are known, or regardless when `force`d.
+		fn end(
+			&mut self,
+			out: &mut Vec<StreamEvent>,
+			log: &StreamingUsageGuard,
+			force: bool,
+			log_tool_calls: bool,
+		) {
+			if self.ended || (!force && (self.stop_reason.is_none() || self.usage.is_none())) {
+				return;
+			}
+			self.ended = true;
+			let stop_reason = self.stop_reason.take().unwrap_or(StopReason::EndTurn);
+			let provider_usage = self.usage.take();
+			let usage = provider_usage.as_ref().map(usage);
+			if let (Some(provider_usage), Some(usage)) = (&provider_usage, &usage) {
+				log.update(|r| {
+					r.response.input_tokens = Some(provider_usage.prompt_tokens as u64);
+					r.response.output_tokens = Some(provider_usage.output_tokens() as u64);
+					r.response.total_tokens = Some(provider_usage.total_tokens as u64);
+					r.response.reasoning_tokens = provider_usage
+						.completion_tokens_details
+						.as_ref()
+						.and_then(|d| d.reasoning_tokens);
+					r.response.cache_creation_input_tokens = usage.cache_write_tokens;
+					r.response.cached_input_tokens = usage.cache_read_tokens;
+				});
+			}
+			if log_tool_calls
+				&& let Some(parts) = crate::conversion::completions::finalize_streaming_tool_calls(
+					self
+						.tool_calls
+						.drain()
+						.map(|(index, call)| (index, call.id, call.name, call.arguments)),
+				) {
+				let mut parts = Some(parts);
+				let mut finish_reason = crate::types::serialize_str(&stop_reason);
+				log.update(|r| {
+					crate::conversion::completions::build_output_messages(
+						&mut r.response,
+						parts.take(),
+						finish_reason.take(),
+					);
+				});
+			}
+			out.push(StreamEvent::End {
+				stop_reason: Some(stop_reason),
+				stop_sequence: self.stop_sequence.take(),
+				usage,
+			});
+		}
+	}
+
+	let mut state = State::default();
+	move |event| {
+		let mut out = Vec::new();
+		let chunk = match event {
+			SseJsonEvent::Done => {
+				state.end(&mut out, &log, true, log_content.tool_calls);
+				return out;
+			},
+			SseJsonEvent::Data(Ok(chunk)) => chunk,
+			SseJsonEvent::Data(Err(e)) => {
+				tracing::debug!("failed to parse a Completions stream chunk: {e}");
+				return out;
+			},
+			SseJsonEvent::Eof | SseJsonEvent::Error => return out,
+		};
+		if !state.started {
+			state.started = true;
+			log.update(|r| r.response.provider_model = Some(strng::new(&chunk.model)));
+			out.push(StreamEvent::Start {
+				id: chunk.id.clone(),
+				model: chunk.model.clone(),
+				service_tier: None,
+			});
+		}
+		if let Some(usage) = chunk.usage {
+			state.usage = Some(usage);
+		}
+		if let Some(choice) = chunk.choices.first() {
+			let delta = &choice.delta;
+			if let Some(thinking) = delta.reasoning() {
+				state.token(&log);
+				out.push(StreamEvent::Reasoning(thinking.to_string()));
+			}
+			if let Some(signature) = delta
+				.reasoning_signature
+				.as_deref()
+				.filter(|s| !s.is_empty())
+			{
+				out.push(StreamEvent::Signature(signature.to_string()));
+			}
+			if let Some(text) = delta.content.as_deref().filter(|s| !s.is_empty()) {
+				state.token(&log);
+				out.push(StreamEvent::Text(text.to_string()));
+			}
+			for tool in delta.tool_calls.iter().flatten() {
+				let call = state.tool_calls.entry(tool.index).or_insert(ToolCall {
+					id: None,
+					name: None,
+					started: false,
+					pending: String::new(),
+					arguments: String::new(),
+				});
+				if let Some(id) = &tool.id {
+					call.id = Some(id.clone());
+				}
+				if let Some(function) = &tool.function {
+					if let Some(name) = &function.name {
+						call.name = Some(name.clone());
+					}
+					if let Some(arguments) = &function.arguments {
+						call.pending.push_str(arguments);
+						if log_content.tool_calls {
+							call.arguments.push_str(arguments);
+						}
+					}
+				}
+				// A call starts once its name is known.
+				let Some(name) = call.name.clone() else {
+					continue;
+				};
+				let index = tool.index as usize;
+				if !call.started {
+					call.started = true;
+					out.push(StreamEvent::ToolCallStart {
+						index,
+						id: call
+							.id
+							.clone()
+							.unwrap_or_else(|| format!("tool_call_{index}")),
+						name,
+					});
+				}
+				let json = std::mem::take(&mut call.pending);
+				if !json.is_empty() {
+					state.token(&log);
+				}
+				out.push(StreamEvent::ToolCallArguments { index, json });
+			}
+			if let Some(finish_reason) = &choice.finish_reason {
+				let mut stop_reason = match finish_reason {
+					completions::FinishReason::Stop => StopReason::EndTurn,
+					completions::FinishReason::Length => StopReason::MaxTokens,
+					completions::FinishReason::ToolCalls | completions::FinishReason::FunctionCall => {
+						StopReason::ToolUse
+					},
+					completions::FinishReason::ContentFilter => StopReason::Refusal,
+				};
+				// A named stop sequence is `stop_sequence`, not `end_turn`.
+				if stop_reason == StopReason::EndTurn
+					&& let Some(sequence) =
+						crate::conversion::completions::from_messages::choice_stop_sequence(&choice.rest)
+				{
+					stop_reason = StopReason::StopSequence;
+					state.stop_sequence = Some(sequence);
+				}
+				state.stop_reason = Some(stop_reason);
+			}
+		}
+		state.end(&mut out, &log, false, log_content.tool_calls);
+		out
+	}
+}
+
+/// Writes events as a Completions client stream, ended by `[DONE]` unless the stream fails.
+pub fn render_stream<I: DeserializeOwned + 'static>(
+	body: Body,
+	buffer_limit: usize,
+	mut parse: impl FnMut(SseJsonEvent<I>) -> Vec<StreamEvent> + Send + 'static,
+) -> Body {
+	struct ToolCall {
+		index: u32,
+		sent_arguments: bool,
+	}
+	#[derive(Default)]
+	struct Chunks {
+		id: Option<String>,
+		model: String,
+		service_tier: Option<String>,
+		created: u32,
+		/// Completions puts the role on a choice, so it waits for the first one.
+		role: Option<completions::Role>,
+		next_tool: u32,
+		tool_calls: HashMap<usize, ToolCall>,
+	}
+	impl Chunks {
+		fn chunk(
+			&mut self,
+			mut choices: Vec<completions::ChatChoiceStream>,
+			usage: Option<completions::Usage>,
+		) -> completions::ChatStreamEvent {
+			if let Some(first) = choices.first_mut() {
+				first.delta.role = self.role.take();
+			}
+			completions::ChatStreamEvent::Chunk(completions::StreamResponse {
+				id: self.id.clone().unwrap_or_else(|| "unknown".to_string()),
+				model: self.model.clone(),
+				object: "chat.completion.chunk".to_string(),
+				system_fingerprint: None,
+				service_tier: self.service_tier.clone(),
+				created: self.created,
+				choices,
+				usage,
+			})
+		}
+
+		fn delta(&mut self, delta: completions::StreamResponseDelta) -> completions::ChatStreamEvent {
+			self.chunk(vec![completions::ChatChoiceStream::with_delta(delta)], None)
+		}
+
+		fn arguments(&mut self, index: u32, arguments: String) -> completions::ChatStreamEvent {
+			self.delta(completions::StreamResponseDelta::with_tool_calls(vec![
+				completions::ChatCompletionMessageToolCallChunk {
+					index,
+					id: None,
+					r#type: None,
+					function: Some(completions::FunctionCallStream {
+						name: None,
+						arguments: Some(arguments),
+					}),
+				},
+			]))
+		}
+
+		fn write(&mut self, event: StreamEvent) -> Option<completions::ChatStreamEvent> {
+			match event {
+				StreamEvent::Start {
+					id,
+					model,
+					service_tier,
+				} => {
+					self.id = Some(id);
+					self.model = model;
+					self.service_tier = service_tier;
+					self.role = Some(completions::Role::Assistant);
+					None
+				},
+				StreamEvent::Text(text) => Some(self.delta(completions::StreamResponseDelta {
+					content: Some(text),
+					..Default::default()
+				})),
+				StreamEvent::Reasoning(text) => Some(self.delta(completions::StreamResponseDelta {
+					reasoning_content: Some(text),
+					..Default::default()
+				})),
+				StreamEvent::Signature(signature) => Some(self.delta(completions::StreamResponseDelta {
+					reasoning_signature: Some(signature),
+					..Default::default()
+				})),
+				StreamEvent::ToolCallStart { index, id, name } => {
+					let tool = self.next_tool;
+					self.next_tool += 1;
+					self.tool_calls.insert(
+						index,
+						ToolCall {
+							index: tool,
+							sent_arguments: false,
+						},
+					);
+					Some(
+						self.delta(completions::StreamResponseDelta::with_tool_calls(vec![
+							completions::ChatCompletionMessageToolCallChunk {
+								index: tool,
+								id: Some(id),
+								r#type: Some(completions::FunctionType::Function),
+								function: Some(completions::FunctionCallStream {
+									name: Some(name),
+									arguments: None,
+								}),
+							},
+						])),
+					)
+				},
+				StreamEvent::ToolCallArguments { index, json } => {
+					let call = self
+						.tool_calls
+						.get_mut(&index)
+						.filter(|_| !json.is_empty())?;
+					call.sent_arguments = true;
+					let tool = call.index;
+					Some(self.arguments(tool, json))
+				},
+				// A call that sent no arguments gets `{}`, which clients can parse.
+				StreamEvent::ToolCallEnd { index } => {
+					let call = self
+						.tool_calls
+						.remove(&index)
+						.filter(|call| !call.sent_arguments)?;
+					Some(self.arguments(call.index, "{}".to_string()))
+				},
+				StreamEvent::End {
+					stop_reason, usage, ..
+				} => {
+					let choices = stop_reason
+						.map(|reason| {
+							vec![completions::ChatChoiceStream::with_finish_reason(
+								finish_reason(reason),
+							)]
+						})
+						.unwrap_or_default();
+					let usage = usage.map(|usage| completions::Usage {
+						prompt_tokens: usage.input_tokens as u32,
+						completion_tokens: usage.output_tokens as u32,
+						total_tokens: usage.input_tokens.saturating_add(usage.output_tokens) as u32,
+						cache_read_input_tokens: usage.cache_read_tokens,
+						prompt_tokens_details: completions::UsagePromptDetails::from_cache_tokens(
+							usage.cache_read_tokens,
+							usage.cache_write_tokens,
+						),
+						cache_creation_input_tokens: usage.cache_write_tokens,
+						..Default::default()
+					});
+					Some(self.chunk(choices, usage))
+				},
+				StreamEvent::Error { kind, message } => Some(completions::ChatStreamEvent::Error(
+					crate::conversion::messages::from_completions::stream_error(MessagesError {
+						r#type: kind,
+						message,
+					}),
+				)),
+			}
+		}
+	}
+
+	let mut chunks = Chunks {
+		created: chrono::Utc::now().timestamp() as u32,
+		..Default::default()
+	};
+	let body = crate::parse::sse::json_transform_multi::<I, completions::ChatStreamEvent, _>(
+		body,
+		buffer_limit,
+		move |event| {
+			parse(event)
+				.into_iter()
+				.filter_map(|event| chunks.write(event))
+				.map(|chunk| ("", chunk))
+				.collect::<Vec<_>>()
+		},
+	);
+	crate::parse::sse::append_done_on_success(body)
+}
+
+fn finish_reason(reason: StopReason) -> completions::FinishReason {
+	match reason {
+		StopReason::EndTurn | StopReason::StopSequence | StopReason::PauseTurn => {
+			completions::FinishReason::Stop
+		},
+		StopReason::MaxTokens | StopReason::ModelContextWindowExceeded => {
+			completions::FinishReason::Length
+		},
+		StopReason::ToolUse => completions::FinishReason::ToolCalls,
+		StopReason::Refusal => completions::FinishReason::ContentFilter,
+	}
 }

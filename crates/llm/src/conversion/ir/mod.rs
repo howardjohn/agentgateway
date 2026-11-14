@@ -283,3 +283,43 @@ pub struct Usage {
 	pub input_audio_tokens: Option<u64>,
 	pub output_audio_tokens: Option<u64>,
 }
+
+/// A streamed reply, as a sequence of these. A provider stream parses into them and a client
+/// stream renders from them.
+pub enum StreamEvent {
+	Start {
+		id: String,
+		model: String,
+		service_tier: Option<String>,
+	},
+	Text(String),
+	Reasoning(String),
+	/// Attests to the reasoning so far.
+	Signature(String),
+	/// A tool call begins. `index` identifies it among the reply's calls.
+	ToolCallStart {
+		index: usize,
+		id: String,
+		name: String,
+	},
+	/// More of a tool call's arguments, as JSON text, which may be empty.
+	ToolCallArguments {
+		index: usize,
+		json: String,
+	},
+	/// A tool call's arguments are complete. Completions doesn't say, so its calls never end.
+	ToolCallEnd {
+		index: usize,
+	},
+	/// The reply ends. Usage is the total. A Messages provider may send no stop reason.
+	End {
+		stop_reason: Option<StopReason>,
+		stop_sequence: Option<String>,
+		usage: Option<Usage>,
+	},
+	/// The provider failed mid-stream, with a Messages error type.
+	Error {
+		kind: String,
+		message: String,
+	},
+}

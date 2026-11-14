@@ -1674,14 +1674,49 @@ mod responses {
 		});
 	}
 
+	const BUFFER_LIMIT: usize = 1024 * 1024;
+	const LOG_CONTENT: LogContentFields = LogContentFields {
+		completion: true,
+		tool_calls: true,
+	};
+
+	/// The IR must stream what the legacy converters stream, so it is held to their snapshots.
+	#[tokio::test]
+	async fn ir_parity_streaming() {
+		for (name, providers) in ANTHROPIC_STREAM_RESPONSES {
+			if providers.contains(&MESSAGES_TO_COMPLETIONS) {
+				let path = format!("response/anthropic/{name}.json");
+				test_streaming(MESSAGES_TO_COMPLETIONS, &path, |response, reporter| {
+					response.map(|body| {
+						conversion::ir::completions::render_stream(
+							body,
+							BUFFER_LIMIT,
+							conversion::ir::messages::parse_stream(reporter, LOG_CONTENT),
+						)
+					})
+				})
+				.await;
+			}
+		}
+		for (name, providers) in COMPLETIONS_STREAM_RESPONSES {
+			if providers.contains(&COMPLETIONS_TO_MESSAGES) {
+				let path = format!("response/completions/{name}.json");
+				test_streaming(COMPLETIONS_TO_MESSAGES, &path, |response, reporter| {
+					response.map(|body| {
+						conversion::ir::messages::render_stream(
+							body,
+							BUFFER_LIMIT,
+							conversion::ir::completions::parse_stream(reporter, LOG_CONTENT),
+						)
+					})
+				})
+				.await;
+			}
+		}
+	}
+
 	#[tokio::test]
 	async fn streaming() {
-		const BUFFER_LIMIT: usize = 1024 * 1024;
-		const LOG_CONTENT: LogContentFields = LogContentFields {
-			completion: true,
-			tool_calls: true,
-		};
-
 		for (name, providers) in BEDROCK_STREAM_RESPONSES {
 			let path = format!("response/bedrock/{name}.bin");
 			for provider in *providers {
@@ -1837,33 +1872,51 @@ mod responses {
 data: [DONE]
 
 "#;
-		let output = conversion::completions::from_messages::translate_stream(
-			agent_http::Body::from(input),
-			1024 * 1024,
-			StreamingUsageGuard::default(),
-			LogContentFields::default(),
-		)
-		.collect()
-		.await
-		.unwrap()
-		.to_bytes();
-		let delta = String::from_utf8(output.to_vec())
-			.unwrap()
-			.lines()
-			.filter_map(|line| line.strip_prefix("data: "))
-			.filter_map(|data| serde_json::from_str::<Value>(data).ok())
-			.find(|event| event["type"] == "message_delta")
-			.unwrap();
+		let streams: [fn(agent_http::Body) -> agent_http::Body; 2] = [
+			|body| {
+				conversion::completions::from_messages::translate_stream(
+					body,
+					BUFFER_LIMIT,
+					StreamingUsageGuard::default(),
+					LogContentFields::default(),
+				)
+			},
+			|body| {
+				conversion::ir::messages::render_stream(
+					body,
+					BUFFER_LIMIT,
+					conversion::ir::completions::parse_stream(
+						StreamingUsageGuard::default(),
+						LogContentFields::default(),
+					),
+				)
+			},
+		];
+		// Legacy, then the IR.
+		for stream in streams {
+			let output = stream(agent_http::Body::from(input))
+				.collect()
+				.await
+				.unwrap()
+				.to_bytes();
+			let delta = String::from_utf8(output.to_vec())
+				.unwrap()
+				.lines()
+				.filter_map(|line| line.strip_prefix("data: "))
+				.filter_map(|data| serde_json::from_str::<Value>(data).ok())
+				.find(|event| event["type"] == "message_delta")
+				.unwrap();
 
-		assert_eq!(
-			delta["usage"],
-			json!({
-				"input_tokens": 50,
-				"output_tokens": 5,
-				"cache_creation_input_tokens": 30,
-				"cache_read_input_tokens": 20,
-			})
-		);
+			assert_eq!(
+				delta["usage"],
+				json!({
+					"input_tokens": 50,
+					"output_tokens": 5,
+					"cache_creation_input_tokens": 30,
+					"cache_read_input_tokens": 20,
+				})
+			);
+		}
 	}
 
 	#[tokio::test]
@@ -1875,31 +1928,49 @@ data: {"id":"chunk","choices":[],"model":"gpt-5","usage":{"prompt_tokens":4,"com
 data: [DONE]
 
 "#;
-		let output = conversion::completions::from_messages::translate_stream(
-			agent_http::Body::from(input),
-			1024 * 1024,
-			StreamingUsageGuard::default(),
-			LogContentFields::default(),
-		)
-		.collect()
-		.await
-		.unwrap()
-		.to_bytes();
-		let delta = String::from_utf8(output.to_vec())
-			.unwrap()
-			.lines()
-			.filter_map(|line| line.strip_prefix("data: "))
-			.filter_map(|data| serde_json::from_str::<Value>(data).ok())
-			.find(|event| event["type"] == "message_delta")
-			.unwrap();
+		let streams: [fn(agent_http::Body) -> agent_http::Body; 2] = [
+			|body| {
+				conversion::completions::from_messages::translate_stream(
+					body,
+					BUFFER_LIMIT,
+					StreamingUsageGuard::default(),
+					LogContentFields::default(),
+				)
+			},
+			|body| {
+				conversion::ir::messages::render_stream(
+					body,
+					BUFFER_LIMIT,
+					conversion::ir::completions::parse_stream(
+						StreamingUsageGuard::default(),
+						LogContentFields::default(),
+					),
+				)
+			},
+		];
+		// Legacy, then the IR.
+		for stream in streams {
+			let output = stream(agent_http::Body::from(input))
+				.collect()
+				.await
+				.unwrap()
+				.to_bytes();
+			let delta = String::from_utf8(output.to_vec())
+				.unwrap()
+				.lines()
+				.filter_map(|line| line.strip_prefix("data: "))
+				.filter_map(|data| serde_json::from_str::<Value>(data).ok())
+				.find(|event| event["type"] == "message_delta")
+				.unwrap();
 
-		assert_eq!(
-			delta["delta"],
-			json!({
-				"stop_reason": "stop_sequence",
-				"stop_sequence": "STOPPROBE",
-			})
-		);
+			assert_eq!(
+				delta["delta"],
+				json!({
+					"stop_reason": "stop_sequence",
+					"stop_sequence": "STOPPROBE",
+				})
+			);
+		}
 	}
 
 	/// Anthropic streams a single empty `input_json_delta` for a tool call with no arguments.
@@ -1921,35 +1992,53 @@ event: message_stop
 data: {"type":"message_stop"}
 
 "#;
-		let output = conversion::messages::from_completions::translate_stream(
-			agent_http::Body::from(input),
-			1024 * 1024,
-			StreamingUsageGuard::default(),
-			LogContentFields::default(),
-		)
-		.collect()
-		.await
-		.unwrap()
-		.to_bytes();
+		let streams: [fn(agent_http::Body) -> agent_http::Body; 2] = [
+			|body| {
+				conversion::messages::from_completions::translate_stream(
+					body,
+					BUFFER_LIMIT,
+					StreamingUsageGuard::default(),
+					LogContentFields::default(),
+				)
+			},
+			|body| {
+				conversion::ir::completions::render_stream(
+					body,
+					BUFFER_LIMIT,
+					conversion::ir::messages::parse_stream(
+						StreamingUsageGuard::default(),
+						LogContentFields::default(),
+					),
+				)
+			},
+		];
+		// Legacy, then the IR.
+		for stream in streams {
+			let output = stream(agent_http::Body::from(input))
+				.collect()
+				.await
+				.unwrap()
+				.to_bytes();
 
-		// Accumulate `arguments` across chunks exactly as an OpenAI client does.
-		let arguments: String = String::from_utf8(output.to_vec())
-			.unwrap()
-			.lines()
-			.filter_map(|line| line.strip_prefix("data: "))
-			.filter_map(|data| serde_json::from_str::<Value>(data).ok())
-			.filter_map(|chunk| {
-				chunk["choices"][0]["delta"]["tool_calls"][0]["function"]["arguments"]
-					.as_str()
-					.map(str::to_string)
-			})
-			.collect();
+			// Accumulate `arguments` across chunks exactly as an OpenAI client does.
+			let arguments: String = String::from_utf8(output.to_vec())
+				.unwrap()
+				.lines()
+				.filter_map(|line| line.strip_prefix("data: "))
+				.filter_map(|data| serde_json::from_str::<Value>(data).ok())
+				.filter_map(|chunk| {
+					chunk["choices"][0]["delta"]["tool_calls"][0]["function"]["arguments"]
+						.as_str()
+						.map(str::to_string)
+				})
+				.collect();
 
-		assert!(
-			serde_json::from_str::<serde_json::Map<String, Value>>(&arguments).is_ok(),
-			"streamed tool arguments must concatenate to a JSON object, got {arguments:?}"
-		);
-		assert_eq!(arguments, "{}");
+			assert!(
+				serde_json::from_str::<serde_json::Map<String, Value>>(&arguments).is_ok(),
+				"streamed tool arguments must concatenate to a JSON object, got {arguments:?}"
+			);
+			assert_eq!(arguments, "{}");
+		}
 	}
 
 	#[test]

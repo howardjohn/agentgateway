@@ -1048,7 +1048,7 @@ pub mod from_completions {
 	}
 
 	// Same shape as OpenAI's mid-stream error, which the SDKs raise on.
-	fn stream_error(error: messages::MessagesError) -> async_openai::error::WrappedError {
+	pub(crate) fn stream_error(error: messages::MessagesError) -> async_openai::error::WrappedError {
 		// Anthropic error type → OpenAI type and code.
 		let (r#type, code) = match error.r#type.as_str() {
 			"rate_limit_error" => ("rate_limit_error", Some("rate_limit_exceeded")),
