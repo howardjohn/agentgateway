@@ -4,53 +4,60 @@
 //!
 //! Parsing keeps what any renderer needs; each renderer applies the rules of its own format.
 
+use std::collections::BTreeMap;
+
 use serde_json::Value;
 
-pub use crate::types::messages::typed::{StopReason, ThinkingEffort as Effort};
+pub use crate::types::messages::typed::StopReason;
 
 pub mod completions;
 pub mod messages;
+pub mod responses;
 
 pub struct Request {
-	/// Empty when a Completions request names none.
-	pub model: String,
-	/// The conversation in order, system instructions included. Completions `system` and
-	/// `developer` messages stay where they are, as `Role::System`. A Messages top-level `system`
-	/// becomes the first message, and a Messages `system` turn keeps its place. Messages has one
-	/// top-level system prompt, so its renderer gathers every system message into it.
+	/// `None` when a Completions or Responses request names none.
+	pub model: Option<String>,
+	/// The system prompt, apart from any system turns: Messages `system` as `Role::System`, and
+	/// Responses `instructions` as `Role::Developer`.
+	pub instructions: Option<Message>,
+	/// The conversation in order. Completions `system` and `developer` messages, and Messages
+	/// `system` turns, stay where they are. Messages has one system prompt, so its renderer
+	/// gathers the instructions and every system turn into it.
 	pub messages: Vec<Message>,
-	/// Function tools only: Completions custom tools and Messages server tools are dropped.
-	/// `None` when the client sent no tool list. Messages renders an empty list as `tools: []`,
-	/// and only adds a tool choice for `parallel_tool_calls` when there is a tool.
+	/// Function tools only: other tools are dropped. `None` when the client sent no tool list.
+	/// Messages renders an empty list as `tools: []`, and only adds a tool choice for
+	/// `parallel_tool_calls` when there is a tool; Completions leaves an empty list out.
 	pub tools: Option<Vec<Tool>>,
 	pub tool_choice: Option<ToolChoice>,
-	/// Completions `parallel_tool_calls`. On Messages it is the inverse of the tool choice's
-	/// `disable_parallel_tool_use`, so it is set only when the client set a choice carrying it.
+	/// Completions and Responses `parallel_tool_calls`. On Messages it is the inverse of the tool
+	/// choice's `disable_parallel_tool_use`, so it is set only when the client set a choice
+	/// carrying it.
 	pub parallel_tool_calls: Option<bool>,
-	/// The output limit, which Messages requires. On Completions it is `max_completion_tokens`,
-	/// else the deprecated `max_tokens`, else 4096; Completions renders `max_completion_tokens`.
-	pub max_tokens: usize,
+	/// The output limit. Completions `max_completion_tokens`, else the deprecated `max_tokens`;
+	/// Messages `max_tokens`, which it requires, so its renderer defaults it to 4096; Responses
+	/// `max_output_tokens`.
+	pub max_tokens: Option<usize>,
 	pub temperature: Option<f32>,
 	pub top_p: Option<f32>,
-	/// Completions `stop`, a string or a list; Messages `stop_sequences`.
+	/// Completions `stop`, a string or a list; Messages `stop_sequences`. Responses has none.
 	pub stop: Vec<String>,
-	/// Completions `stream`, false when absent; Messages `stream`. A streamed Completions request
-	/// is rendered asking for usage in the stream.
+	/// False when absent. A streamed Completions request is rendered asking for usage in the
+	/// stream.
 	pub stream: bool,
-	/// Completions `user`; Messages `metadata.user_id`. Other Messages metadata is dropped.
-	pub user: Option<String>,
+	/// Messages `metadata`. Completions `user` is its `user_id`, the only field Completions renders.
+	pub metadata: BTreeMap<String, String>,
 	/// Messages `thinking`. Completions has no such field: only an internally set budget becomes
 	/// `Enabled`. Messages renders a budget or adaptive thinking as the model's catalog entry
 	/// allows; a budget is capped below `max_tokens`, and dropped when it is under 1024 or
-	/// `max_tokens` is 1024 or less. Completions renders it as `reasoning_effort` with `effort`:
-	/// `Disabled` sends none, and `Adaptive` or a budget without an effort is mapped to one.
+	/// `max_tokens` is 1024 or less. Completions and Responses render it as an effort: `Disabled`
+	/// sends none, and `Adaptive` or a budget without an effort is mapped to one.
 	pub thinking: Option<Thinking>,
-	/// On Anthropic's scale. Messages `output_config.effort`. Completions `reasoning_effort`, where
-	/// `minimal` becomes `low` and `none` is no effort.
+	/// Messages `output_config.effort`, Completions `reasoning_effort` and Responses
+	/// `reasoning.effort`, where `none` is no effort. Messages has no `minimal`, so it renders
+	/// `low`. Completions drops it for models that take no effort.
 	pub effort: Option<Effort>,
-	/// Completions `response_format`, where `text` is none; Messages `output_config.format`. Only
-	/// a JSON schema is kept, not its name or strictness: Completions renders it named
-	/// `structured_output`.
+	/// Completions `response_format` and Responses `text.format`, where `text` is none; Messages
+	/// `output_config.format`.
 	pub response_format: Option<ResponseFormat>,
 }
 
@@ -62,25 +69,24 @@ impl Request {
 		if self.has_cache_marks() {
 			return;
 		}
-		let system = |msg: &&mut Message| msg.role == Role::System;
 		if caching.cache_system
 			&& caching.min_tokens.is_none_or(|min| {
-				let texts = self.messages.iter().filter(|msg| msg.role == Role::System);
-				crate::conversion::estimate_tokens(texts.flat_map(Message::texts)) >= min
+				let system = self.system().flat_map(Message::texts);
+				crate::conversion::estimate_tokens(system) >= min
 			}) {
-			self
-				.messages
+			let mut system: Vec<_> = self
+				.instructions
 				.iter_mut()
-				.rev()
-				.filter(system)
-				.any(Message::mark_last);
+				.chain(self.messages.iter_mut().filter(|msg| msg.role.is_system()))
+				.collect();
+			system.iter_mut().rev().any(|msg| msg.mark_last());
 		}
 		if caching.cache_messages {
 			// Counted as rendered: system instructions move out of the turns, and empty turns go.
 			let mut turns: Vec<_> = self
 				.messages
 				.iter_mut()
-				.filter(|msg| msg.role != Role::System && msg.has_content())
+				.filter(|msg| !msg.role.is_system() && msg.has_content())
 				.collect();
 			if turns.len() >= 2 {
 				let at = (turns.len() - 2).saturating_sub(caching.cache_message_offset);
@@ -94,22 +100,35 @@ impl Request {
 		}
 	}
 
+	/// The instructions, then each system turn.
+	pub fn system(&self) -> impl Iterator<Item = &Message> {
+		self
+			.instructions
+			.iter()
+			.chain(self.messages.iter().filter(|msg| msg.role.is_system()))
+	}
+
 	fn has_cache_marks(&self) -> bool {
 		fn marked(content: &Content) -> bool {
 			let Content::Parts(parts) = content else {
 				return false;
 			};
 			parts.iter().any(|part| match part {
-				Part::Text { cache, .. }
-				| Part::Image { cache, .. }
-				| Part::File { cache, .. }
+				// Empty text can't hold a mark, so a mark on it counts for nothing.
+				Part::Text { text, cache } => *cache && !text.trim().is_empty(),
+				Part::Image { cache, .. }
+				| Part::Document { cache, .. }
 				| Part::ToolCall { cache, .. }
 				| Part::Opaque { cache } => *cache,
 				Part::ToolResult { content, cache, .. } => *cache || marked(content),
 				Part::Reasoning { .. } => false,
 			})
 		}
-		self.messages.iter().any(|msg| marked(&msg.content))
+		self
+			.instructions
+			.iter()
+			.chain(&self.messages)
+			.any(|msg| marked(&msg.content))
 			|| self.tools.iter().flatten().any(|tool| tool.cache)
 	}
 }
@@ -143,7 +162,7 @@ impl Message {
 		let last = parts.iter_mut().rev().find_map(|part| match part {
 			Part::Text { text, cache } if !text.trim().is_empty() => Some(cache),
 			Part::Image { cache, .. }
-			| Part::File { cache, .. }
+			| Part::Document { cache, .. }
 			| Part::ToolCall { cache, .. }
 			| Part::ToolResult { cache, .. } => Some(cache),
 			_ => None,
@@ -172,8 +191,16 @@ impl Message {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Role {
 	System,
+	/// OpenAI's newer name for system instructions, which its formats keep apart.
+	Developer,
 	User,
 	Assistant,
+}
+
+impl Role {
+	pub fn is_system(self) -> bool {
+		matches!(self, Role::System | Role::Developer)
+	}
 }
 
 pub struct Message {
@@ -192,15 +219,14 @@ pub enum Part {
 		text: String,
 		cache: bool,
 	},
-	/// A URL, which may be a `data:` URL.
 	Image {
-		url: String,
+		source: Source,
 		cache: bool,
 	},
-	File {
-		data: Option<String>,
-		id: Option<String>,
-		name: Option<String>,
+	/// A file, such as a PDF.
+	Document {
+		source: Source,
+		title: Option<String>,
 		cache: bool,
 	},
 	ToolCall {
@@ -228,6 +254,19 @@ pub enum Part {
 	},
 }
 
+/// Where an image or document's content is.
+pub enum Source {
+	/// A URL, which may be a `data:` URL holding the content.
+	Url(String),
+	/// A file the provider stores.
+	FileId(String),
+	/// Plain text, for a document.
+	Text(String),
+	/// A source the client sent that can't be read, and why. A renderer that can't skip it
+	/// refuses the request with this reason.
+	Invalid(&'static str),
+}
+
 pub struct Tool {
 	pub name: String,
 	pub description: Option<String>,
@@ -247,6 +286,16 @@ pub enum ToolChoice {
 	Other,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Effort {
+	Minimal,
+	Low,
+	Medium,
+	High,
+	Xhigh,
+	Max,
+}
+
 pub enum Thinking {
 	Enabled { budget_tokens: u64 },
 	Adaptive,
@@ -254,23 +303,56 @@ pub enum Thinking {
 }
 
 pub enum ResponseFormat {
-	JsonSchema(Value),
-	/// Completions `json_object`. It renders as a schema for any object, since Messages has no
-	/// JSON mode.
+	/// A schema, with the name, description and strictness Completions and Responses give it.
+	JsonSchema {
+		name: Option<String>,
+		description: Option<String>,
+		schema: Value,
+		strict: Option<bool>,
+	},
+	/// Completions and Responses `json_object`. Messages has no JSON mode, so it renders a schema
+	/// for any object.
 	JsonObject,
 }
 
 pub struct Response {
 	pub id: String,
 	pub model: String,
-	/// Text, reasoning and tool calls, in order.
-	pub parts: Vec<Part>,
+	pub parts: Vec<ReplyPart>,
 	pub stop_reason: Option<StopReason>,
 	pub stop_sequence: Option<String>,
-	pub usage: Usage,
+	/// `None` when the provider reported none.
+	pub usage: Option<Usage>,
 	pub service_tier: Option<String>,
 	/// The provider's own counts, for accounting.
 	provider_usage: Option<super::ProviderUsage>,
+}
+
+/// A piece of a reply, in order.
+pub enum ReplyPart {
+	Text {
+		text: String,
+		citations: Vec<Citation>,
+	},
+	Refusal(String),
+	Reasoning {
+		text: String,
+		signature: String,
+	},
+	ToolCall {
+		id: String,
+		name: String,
+		/// The arguments as JSON text.
+		arguments: String,
+		/// Gemini's signature for the call, which must be replayed with it.
+		thought_signature: Option<String>,
+	},
+}
+
+/// A web source the text cites.
+pub struct Citation {
+	pub url: Value,
+	pub title: Value,
 }
 
 #[derive(Default)]
@@ -278,6 +360,9 @@ pub struct Usage {
 	/// Every input token, cached ones included.
 	pub input_tokens: u64,
 	pub output_tokens: u64,
+	/// As the provider reported it, when it did.
+	pub total_tokens: Option<u64>,
+	pub reasoning_tokens: Option<u64>,
 	pub cache_read_tokens: Option<u64>,
 	pub cache_write_tokens: Option<u64>,
 	pub input_audio_tokens: Option<u64>,
@@ -285,27 +370,35 @@ pub struct Usage {
 }
 
 /// A streamed reply, as a sequence of these. A provider stream parses into them and a client
-/// stream renders from them.
+/// stream renders from them. Each renderer buffers what its format needs whole.
 pub enum StreamEvent {
 	Start {
 		id: String,
 		model: String,
 		service_tier: Option<String>,
 	},
-	Text(String),
+	/// A text part begins before any of its text.
+	TextStart {
+		index: usize,
+	},
+	/// More of text part `index`, which may be empty.
+	Text {
+		index: usize,
+		text: String,
+	},
+	TextEnd {
+		index: usize,
+	},
 	Reasoning(String),
 	/// Attests to the reasoning so far.
 	Signature(String),
-	/// A tool call begins. `index` identifies it among the reply's calls.
-	ToolCallStart {
+	/// More of tool call `index`: its id and name as they arrive, and more arguments as JSON
+	/// text, which may be empty.
+	ToolCall {
 		index: usize,
-		id: String,
-		name: String,
-	},
-	/// More of a tool call's arguments, as JSON text, which may be empty.
-	ToolCallArguments {
-		index: usize,
-		json: String,
+		id: Option<String>,
+		name: Option<String>,
+		arguments: String,
 	},
 	/// A tool call's arguments are complete. Completions doesn't say, so its calls never end.
 	ToolCallEnd {

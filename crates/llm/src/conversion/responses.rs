@@ -1667,7 +1667,7 @@ pub mod from_messages {
 	}
 
 	/// Map an OpenAI Responses error code to an Anthropic error type.
-	fn error_type(code: Option<&str>) -> &'static str {
+	pub(crate) fn error_type(code: Option<&str>) -> &'static str {
 		match code {
 			Some("rate_limit_exceeded") => "rate_limit_error",
 			Some("server_is_overloaded") => "overloaded_error",
@@ -1730,7 +1730,7 @@ pub mod from_messages {
 		}
 	}
 
-	fn translate_stop_reason(
+	pub(crate) fn translate_stop_reason(
 		status: &responses::Status,
 		incomplete_details: Option<&responses::IncompleteDetails>,
 		saw_tool_call: bool,
@@ -1761,7 +1761,7 @@ pub mod from_messages {
 		}
 	}
 
-	fn incomplete_reason_to_stop_reason(reason: &str) -> Result<messages::StopReason, AIError> {
+	pub(crate) fn incomplete_reason_to_stop_reason(reason: &str) -> Result<messages::StopReason, AIError> {
 		let reason = reason.to_ascii_lowercase();
 		if reason == "content_filter" {
 			Ok(messages::StopReason::Refusal)

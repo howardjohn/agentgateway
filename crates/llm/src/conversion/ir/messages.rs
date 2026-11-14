@@ -8,9 +8,11 @@ use agent_http::Body;
 use bytes::Bytes;
 use serde::de::DeserializeOwned;
 
+use serde_json::Value;
+
 use super::{
-	Content, Message, Part, Request, Response, ResponseFormat, Role, StopReason, StreamEvent,
-	Thinking, Tool, ToolChoice, Usage,
+	Citation, Content, Effort, Message, Part, ReplyPart, Request, Response, ResponseFormat, Role,
+	Source, StopReason, StreamEvent, Thinking, Tool, ToolChoice, Usage,
 };
 use crate::conversion::completions::parse_data_url;
 use crate::conversion::messages::StreamingToolCalls;
@@ -24,30 +26,27 @@ use crate::{AIError, StreamingUsageGuard, json, logged_response_parsing, types};
 pub fn parse_request(req: &types::messages::Request) -> Result<Request, AIError> {
 	let req = json::convert::<_, messages::Request>(req)
 		.map_err(|err| AIError::RequestParsing(crate::InputFormat::Messages, err))?;
-	let mut msgs = Vec::new();
-	if let Some(system) = req.system {
-		msgs.push(Message {
-			role: Role::System,
-			content: match system {
-				messages::SystemPrompt::Text(text) => Content::Text(text),
-				messages::SystemPrompt::Blocks(blocks) => Content::Parts(
-					blocks
-						.into_iter()
-						.map(
-							|messages::SystemContentBlock::Text {
-							   text,
-							   cache_control,
-							 }| Part::Text {
-								text,
-								cache: cache_control.is_some(),
-							},
-						)
-						.collect(),
-				),
-			},
-		});
-	}
-	msgs.extend(req.messages.into_iter().filter_map(message));
+	let instructions = req.system.map(|system| Message {
+		role: Role::System,
+		content: match system {
+			messages::SystemPrompt::Text(text) => Content::Text(text),
+			messages::SystemPrompt::Blocks(blocks) => Content::Parts(
+				blocks
+					.into_iter()
+					.map(
+						|messages::SystemContentBlock::Text {
+						   text,
+						   cache_control,
+						 }| Part::Text {
+							text,
+							cache: cache_control.is_some(),
+						},
+					)
+					.collect(),
+			),
+		},
+	});
+	let msgs = req.messages.into_iter().filter_map(message).collect();
 
 	let mut parallel_tool_calls = None;
 	let tool_choice = req.tool_choice.map(|choice| match choice {
@@ -92,26 +91,39 @@ pub fn parse_request(req: &types::messages::Request) -> Result<Request, AIError>
 	});
 	let output_config = req.output_config.unwrap_or_default();
 	Ok(Request {
-		model: req.model,
+		model: Some(req.model),
+		instructions,
 		messages: msgs,
 		tools,
 		tool_choice,
 		parallel_tool_calls,
-		max_tokens: req.max_tokens,
+		max_tokens: Some(req.max_tokens),
 		temperature: req.temperature,
 		top_p: req.top_p,
 		stop: req.stop_sequences,
 		stream: req.stream,
-		user: req.metadata.and_then(|mut m| m.fields.remove("user_id")),
+		metadata: req
+			.metadata
+			.map(|metadata| metadata.fields.into_iter().collect())
+			.unwrap_or_default(),
 		thinking: req.thinking.map(|thinking| match thinking {
 			messages::ThinkingInput::Enabled { budget_tokens, .. } => Thinking::Enabled { budget_tokens },
 			messages::ThinkingInput::Adaptive { .. } => Thinking::Adaptive,
 			messages::ThinkingInput::Disabled {} => Thinking::Disabled,
 		}),
-		effort: output_config.effort,
+		effort: output_config
+			.effort
+			.map(super::completions::messages_effort),
 		response_format: output_config
 			.format
-			.map(|messages::OutputFormat::JsonSchema { schema }| ResponseFormat::JsonSchema(schema)),
+			.map(
+				|messages::OutputFormat::JsonSchema { schema }| ResponseFormat::JsonSchema {
+					name: None,
+					description: None,
+					schema,
+					strict: None,
+				},
+			),
 	})
 }
 
@@ -142,12 +154,15 @@ fn message(msg: messages::Message) -> Option<Message> {
 				text: block.text,
 				cache: block.cache_control.is_some(),
 			}),
-			messages::ContentBlock::Image(block) if role != Role::System => {
-				image_url(&block.source).map(|url| Part::Image {
-					url,
-					cache: block.cache_control.is_some(),
-				})
-			},
+			messages::ContentBlock::Image(block) if role != Role::System => Some(Part::Image {
+				source: image_source(&block.source),
+				cache: block.cache_control.is_some(),
+			}),
+			messages::ContentBlock::Document(block) if role != Role::System => Some(Part::Document {
+				source: document_source(&block.source),
+				title: block.title,
+				cache: block.cache_control.is_some(),
+			}),
 			messages::ContentBlock::ToolUse {
 				id,
 				name,
@@ -211,11 +226,28 @@ fn tool_content(content: messages::ToolResultContent) -> Content {
 						text,
 						cache: cache_control.is_some(),
 					}),
-					messages::ToolResultContentPart::Image { cache_control, .. }
-					| messages::ToolResultContentPart::Document { cache_control, .. }
-					| messages::ToolResultContentPart::SearchResult { cache_control, .. } => Some(Part::Opaque {
+					messages::ToolResultContentPart::Image {
+						source,
+						cache_control,
+					} => Some(Part::Image {
+						source: image_source(&source),
 						cache: cache_control.is_some(),
 					}),
+					messages::ToolResultContentPart::Document {
+						source,
+						cache_control,
+						title,
+						..
+					} => Some(Part::Document {
+						source: document_source(&source),
+						title,
+						cache: cache_control.is_some(),
+					}),
+					messages::ToolResultContentPart::SearchResult { cache_control, .. } => {
+						Some(Part::Opaque {
+							cache: cache_control.is_some(),
+						})
+					},
 					messages::ToolResultContentPart::Unknown => None,
 				})
 				.collect(),
@@ -223,16 +255,55 @@ fn tool_content(content: messages::ToolResultContent) -> Content {
 	}
 }
 
-/// A Messages image source as a URL: base64 data becomes a `data:` URL.
-fn image_url(source: &serde_json::Value) -> Option<String> {
-	match source.get("type")?.as_str()? {
-		"base64" => {
-			let media_type = source.get("media_type")?.as_str()?;
-			let data = source.get("data")?.as_str()?;
-			Some(format!("data:{media_type};base64,{data}"))
+/// A Messages image source. Base64 data becomes a `data:` URL.
+fn image_source(source: &Value) -> Source {
+	let field = |name: &str| source.get(name).and_then(Value::as_str).map(str::to_string);
+	let Some(kind) = field("type") else {
+		return Source::Invalid("messages image source missing type");
+	};
+	match kind.as_str() {
+		"base64" => match (field("media_type"), field("data")) {
+			(None, _) => Source::Invalid("messages base64 image source missing media_type"),
+			(_, None) => Source::Invalid("messages base64 image source missing data"),
+			(Some(media_type), Some(data)) => Source::Url(format!("data:{media_type};base64,{data}")),
 		},
-		"url" => Some(source.get("url")?.as_str()?.to_string()),
-		_ => None,
+		"url" => field("url").map_or(
+			Source::Invalid("messages url image source missing url"),
+			Source::Url,
+		),
+		"file" => field("file_id").map_or(
+			Source::Invalid("messages file image source missing file_id"),
+			Source::FileId,
+		),
+		_ => Source::Invalid("messages image source cannot be represented by responses"),
+	}
+}
+
+/// A Messages document source. Base64 data becomes a `data:` URL.
+fn document_source(source: &Value) -> Source {
+	let field = |name: &str| source.get(name).and_then(Value::as_str).map(str::to_string);
+	let Some(kind) = field("type") else {
+		return Source::Invalid("messages document source missing type");
+	};
+	match kind.as_str() {
+		"base64" => match (field("media_type"), field("data")) {
+			(None, _) => Source::Invalid("messages base64 document source missing media_type"),
+			(_, None) => Source::Invalid("messages base64 document source missing data"),
+			(Some(media_type), Some(data)) => Source::Url(format!("data:{media_type};base64,{data}")),
+		},
+		"url" => field("url").map_or(
+			Source::Invalid("messages url document source missing url"),
+			Source::Url,
+		),
+		"file" => field("file_id").map_or(
+			Source::Invalid("messages file document source missing file_id"),
+			Source::FileId,
+		),
+		"text" => field("data").map_or(
+			Source::Invalid("messages text document source missing data"),
+			Source::Text,
+		),
+		_ => Source::Invalid("messages document source cannot be represented by responses"),
 	}
 }
 
@@ -255,8 +326,8 @@ pub fn render_request(
 
 	let mut system = Vec::new();
 	let mut msgs = Vec::new();
-	for msg in req.messages {
-		if msg.role == Role::System {
+	for msg in req.instructions.into_iter().chain(req.messages) {
+		if msg.role.is_system() {
 			let parts = match msg.content {
 				Content::Text(text) => vec![(text, false)],
 				Content::Parts(parts) => parts
@@ -289,7 +360,10 @@ pub fn render_request(
 		for part in parts {
 			match part {
 				Part::Text { text: t, cache } => content.extend(text(t, cache)),
-				Part::Image { url, cache } => {
+				Part::Image {
+					source: Source::Url(url),
+					cache,
+				} => {
 					let source = match parse_data_url(&url) {
 						Some((media_type, data)) => {
 							serde_json::json!({"type": "base64", "media_type": media_type, "data": data})
@@ -301,18 +375,21 @@ pub fn render_request(
 						cache_control: cache_control(cache),
 					}));
 				},
-				Part::File {
-					data,
-					id,
-					name,
+				Part::Document {
+					source,
+					title,
 					cache,
 				} => {
-					let Some((media_type, data)) = parse_data_url(data.as_deref().unwrap_or_default()) else {
-						return Err(AIError::UnsupportedConversion(match id {
-							Some(id) => strng::new(format!(
+					let inline = match &source {
+						Source::Url(url) => parse_data_url(url),
+						_ => None,
+					};
+					let Some((media_type, data)) = inline else {
+						return Err(AIError::UnsupportedConversion(match source {
+							Source::FileId(id) => strng::new(format!(
 								"anthropic path cannot resolve OpenAI file_id ({id}); send file.file_data as an inline data: URI"
 							)),
-							None => strng::literal!(
+							_ => strng::literal!(
 								"file content part requires file.file_data as an inline base64 data: URI"
 							),
 						}));
@@ -323,7 +400,7 @@ pub fn render_request(
 							cache_control: cache_control(cache),
 							citations: None,
 							context: None,
-							title: name,
+							title,
 						},
 					));
 				},
@@ -437,8 +514,17 @@ pub fn render_request(
 		Some(ToolChoice::Other) | None => None,
 	};
 
-	let capabilities = crate::model_catalog::anthropic_thinking_capabilities(&req.model, catalog);
-	let max_tokens = req.max_tokens;
+	let model = req.model.unwrap_or_default();
+	let capabilities = crate::model_catalog::anthropic_thinking_capabilities(&model, catalog);
+	let max_tokens = req.max_tokens.unwrap_or(4096);
+	// Messages has no `minimal`.
+	let effort = req.effort.map(|effort| match effort {
+		Effort::Minimal | Effort::Low => messages::ThinkingEffort::Low,
+		Effort::Medium => messages::ThinkingEffort::Medium,
+		Effort::High => messages::ThinkingEffort::High,
+		Effort::Xhigh => messages::ThinkingEffort::Xhigh,
+		Effort::Max => messages::ThinkingEffort::Max,
+	});
 	let explicit_budget = match req.thinking {
 		Some(Thinking::Enabled { budget_tokens }) => Some(budget_tokens),
 		_ => None,
@@ -453,11 +539,11 @@ pub fn render_request(
 				display: None,
 			})
 	};
-	let (thinking, effort) = match (explicit_budget, req.effort) {
+	let (thinking, effort) = match (explicit_budget, effort) {
 		(Some(_), _) if capabilities.legacy => (enabled(explicit_budget), None),
 		(Some(_), effort) | (None, effort @ Some(_)) if capabilities.adaptive => (
 			Some(messages::ThinkingInput::Adaptive { display: None }),
-			Some(effort.unwrap_or(super::Effort::High)),
+			Some(effort.unwrap_or(messages::ThinkingEffort::High)),
 		),
 		(budget, effort) => (
 			enabled(budget.or(effort.map(crate::types::thinking_budget_for_anthropic_effort))),
@@ -469,7 +555,7 @@ pub fn render_request(
 		.response_format
 		.map(|format| messages::OutputFormat::JsonSchema {
 			schema: match format {
-				ResponseFormat::JsonSchema(schema) => schema,
+				ResponseFormat::JsonSchema { schema, .. } => schema,
 				ResponseFormat::JsonObject => {
 					serde_json::json!({"type": "object", "additionalProperties": true})
 				},
@@ -481,7 +567,7 @@ pub fn render_request(
 	Ok(messages::Request {
 		messages: msgs,
 		system,
-		model: req.model,
+		model,
 		max_tokens,
 		stop_sequences: req.stop,
 		stream: req.stream,
@@ -490,8 +576,8 @@ pub fn render_request(
 		top_k: None,
 		tools,
 		tool_choice,
-		metadata: req.user.map(|user| messages::Metadata {
-			fields: HashMap::from([("user_id".to_string(), user)]),
+		metadata: (!req.metadata.is_empty()).then(|| messages::Metadata {
+			fields: req.metadata.into_iter().collect(),
 		}),
 		thinking,
 		output_config,
@@ -516,26 +602,25 @@ pub fn parse_response(bytes: &Bytes) -> Result<Response, AIError> {
 		.content
 		.into_iter()
 		.filter_map(|block| match block {
-			messages::ContentBlock::Text(block) => Some(Part::Text {
+			messages::ContentBlock::Text(block) => Some(ReplyPart::Text {
 				text: block.text,
-				cache: false,
+				citations: Vec::new(),
 			}),
 			messages::ContentBlock::ToolUse {
 				id, name, input, ..
 			}
 			| messages::ContentBlock::ServerToolUse {
 				id, name, input, ..
-			} => Some(Part::ToolCall {
+			} => Some(ReplyPart::ToolCall {
 				arguments: serde_json::to_string(&input).ok()?,
 				id,
 				name,
 				thought_signature: None,
-				cache: false,
 			}),
 			messages::ContentBlock::Thinking {
 				thinking,
 				signature,
-			} => Some(Part::Reasoning {
+			} => Some(ReplyPart::Reasoning {
 				text: thinking,
 				signature,
 			}),
@@ -548,7 +633,7 @@ pub fn parse_response(bytes: &Bytes) -> Result<Response, AIError> {
 		parts,
 		stop_reason: resp.stop_reason,
 		stop_sequence: resp.stop_sequence,
-		usage: usage(&accounting),
+		usage: Some(usage(&accounting)),
 		service_tier: resp.usage.service_tier,
 		provider_usage: Some(provider_usage),
 	})
@@ -558,17 +643,37 @@ pub fn render_response(resp: Response) -> Result<Box<dyn ResponseType>, AIError>
 	let mut content = Vec::new();
 	for part in resp.parts {
 		match part {
-			Part::Text { text, .. } => content.push(messages::ContentBlock::text(text)),
-			Part::Reasoning { text, signature } => content.push(messages::ContentBlock::Thinking {
+			ReplyPart::Text { text, citations } => {
+				// Messages keeps a citation's source, not an excerpt or a replay index, so those are
+				// left empty.
+				let citations: Vec<_> = citations
+					.into_iter()
+					.map(|Citation { url, title }| {
+						serde_json::json!({
+							"type": "web_search_result_location",
+							"url": url,
+							"title": title,
+							"cited_text": "",
+							"encrypted_index": "",
+						})
+					})
+					.collect();
+				content.push(messages::ContentBlock::Text(messages::ContentTextBlock {
+					text,
+					citations: (!citations.is_empty()).then_some(Value::Array(citations)),
+					cache_control: None,
+				}));
+			},
+			ReplyPart::Refusal(text) => content.push(messages::ContentBlock::text(text)),
+			ReplyPart::Reasoning { text, signature } => content.push(messages::ContentBlock::Thinking {
 				thinking: text,
 				signature,
 			}),
-			Part::ToolCall {
+			ReplyPart::ToolCall {
 				id,
 				name,
 				arguments,
 				thought_signature,
-				..
 			} => {
 				// A Gemini signature rides in a thinking block ahead of its tool call.
 				if let Some(signature) = thought_signature {
@@ -584,10 +689,9 @@ pub fn render_response(resp: Response) -> Result<Box<dyn ResponseType>, AIError>
 					cache_control: None,
 				});
 			},
-			_ => {},
 		}
 	}
-	let usage = resp.usage;
+	let usage = resp.usage.unwrap_or_default();
 	let cache_write = usage.cache_write_tokens.unwrap_or_default();
 	let cache_read = usage.cache_read_tokens.unwrap_or_default();
 	let response = messages::MessagesResponse {
@@ -624,6 +728,8 @@ fn usage(accounting: &AccountingUsage) -> Usage {
 			.saturating_add(accounting.cache_read_input_tokens.unwrap_or_default())
 			.saturating_add(accounting.cache_creation_input_tokens.unwrap_or_default()),
 		output_tokens: accounting.output_tokens,
+		total_tokens: None,
+		reasoning_tokens: None,
 		cache_read_tokens: accounting.cache_read_input_tokens,
 		cache_write_tokens: accounting.cache_creation_input_tokens,
 		input_audio_tokens: None,
@@ -676,7 +782,12 @@ pub fn parse_stream(
 				// `input` is always `{}` here: the arguments arrive as deltas.
 				tool_calls.start(index, id.as_str(), name.as_str(), &input);
 				tool_blocks.insert(index);
-				vec![StreamEvent::ToolCallStart { index, id, name }]
+				vec![StreamEvent::ToolCall {
+					index,
+					id: Some(id),
+					name: Some(name),
+					arguments: String::new(),
+				}]
 			},
 			messages::MessagesStreamEvent::ContentBlockStart { .. } => Vec::new(),
 			messages::MessagesStreamEvent::ContentBlockDelta { delta, index } => {
@@ -694,16 +805,18 @@ pub fn parse_stream(
 						if let Some(completion) = completion.as_mut() {
 							completion.push_str(&text);
 						}
-						vec![StreamEvent::Text(text)]
+						vec![StreamEvent::Text { index, text }]
 					},
 					messages::ContentBlockDelta::ThinkingDelta { thinking } => {
 						vec![StreamEvent::Reasoning(thinking)]
 					},
 					messages::ContentBlockDelta::InputJsonDelta { partial_json } => {
 						tool_calls.append_arguments(index, &partial_json);
-						vec![StreamEvent::ToolCallArguments {
+						vec![StreamEvent::ToolCall {
 							index,
-							json: partial_json,
+							id: None,
+							name: None,
+							arguments: partial_json,
 						}]
 					},
 					messages::ContentBlockDelta::SignatureDelta { signature } => {
@@ -804,13 +917,22 @@ fn push(out: &mut Out, event: messages::MessagesStreamEvent) {
 }
 
 #[derive(Default)]
+struct ToolBlock {
+	id: Option<String>,
+	name: Option<String>,
+	/// Arguments that arrived before the name, sent once the block opens.
+	pending: String,
+	block: Option<usize>,
+}
+
+#[derive(Default)]
 struct Blocks {
 	next: usize,
-	text: Option<usize>,
+	/// Open text blocks by text part. A part that continues after its block closed gets a new one.
+	texts: HashMap<usize, usize>,
 	thinking: Option<usize>,
 	signature: Option<String>,
-	/// Tool calls by their index, with their block once opened.
-	tools: HashMap<usize, (Option<usize>, String, String)>,
+	tools: HashMap<usize, ToolBlock>,
 	open_tools: HashSet<usize>,
 }
 
@@ -841,8 +963,11 @@ impl Blocks {
 					self.signature = Some(signature);
 				}
 			},
-			StreamEvent::Text(text) => {
-				let index = self.open_text(out);
+			StreamEvent::TextStart { index } => {
+				self.open_text(index, out);
+			},
+			StreamEvent::Text { index, text } => {
+				let index = self.open_text(index, out);
 				push(
 					out,
 					messages::MessagesStreamEvent::ContentBlockDelta {
@@ -851,14 +976,36 @@ impl Blocks {
 					},
 				);
 			},
-			StreamEvent::ToolCallStart { index, id, name } => {
-				self.tools.insert(index, (None, id, name));
-				self.open_tool(index, out);
+			StreamEvent::TextEnd { index } => {
+				if let Some(index) = self.texts.remove(&index) {
+					push(
+						out,
+						messages::MessagesStreamEvent::ContentBlockStop { index },
+					);
+				}
 			},
-			StreamEvent::ToolCallArguments { index, json } => {
-				if let Some(block) = self.open_tool(index, out)
-					&& !json.is_empty()
-				{
+			// A call's block opens once its name is known.
+			StreamEvent::ToolCall {
+				index,
+				id,
+				name,
+				arguments,
+			} => {
+				let tool = self.tools.entry(index).or_default();
+				if id.is_some() {
+					tool.id = id;
+				}
+				if name.is_some() {
+					tool.name = name;
+				}
+				tool.pending.push_str(&arguments);
+				if tool.name.is_none() {
+					return;
+				}
+				let block = self.open_tool(index, out);
+				let tool = self.tools.get_mut(&index).expect("opened above");
+				let json = std::mem::take(&mut tool.pending);
+				if !json.is_empty() {
 					push(
 						out,
 						messages::MessagesStreamEvent::ContentBlockDelta {
@@ -868,14 +1015,23 @@ impl Blocks {
 					);
 				}
 			},
-			StreamEvent::ToolCallEnd { .. } => {},
+			StreamEvent::ToolCallEnd { index } => {
+				if self.open_tools.remove(&index)
+					&& let Some(block) = self.tools.get(&index).and_then(|tool| tool.block)
+				{
+					push(
+						out,
+						messages::MessagesStreamEvent::ContentBlockStop { index: block },
+					);
+				}
+			},
 			StreamEvent::End {
 				stop_reason,
 				stop_sequence,
 				usage,
 			} => {
 				self.close_thinking(out);
-				self.close_text(out);
+				self.close_texts(out);
 				self.close_tools(out);
 				let usage = usage.unwrap_or_default();
 				let cache_write = usage.cache_write_tokens.unwrap_or_default();
@@ -933,7 +1089,7 @@ impl Blocks {
 		if let Some(index) = self.thinking {
 			return index;
 		}
-		self.close_text(out);
+		self.close_texts(out);
 		self.close_tools(out);
 		let index = self.open_block(
 			messages::ContentBlock::Thinking {
@@ -945,26 +1101,27 @@ impl Blocks {
 		*self.thinking.insert(index)
 	}
 
-	fn open_text(&mut self, out: &mut Out) -> usize {
-		if let Some(index) = self.text {
-			return index;
+	fn open_text(&mut self, part: usize, out: &mut Out) -> usize {
+		if let Some(index) = self.texts.get(&part) {
+			return *index;
 		}
 		self.close_tools(out);
 		self.close_thinking(out);
 		let index = self.open_block(messages::ContentBlock::text(String::new()), out);
-		*self.text.insert(index)
+		self.texts.insert(part, index);
+		index
 	}
 
 	/// Opens a tool call's block, or reopens it under the same index after another block closed
-	/// it. `None` for a call that never started.
-	fn open_tool(&mut self, index: usize, out: &mut Out) -> Option<usize> {
-		self.tools.get(&index)?;
-		self.close_text(out);
+	/// it.
+	fn open_tool(&mut self, index: usize, out: &mut Out) -> usize {
+		self.close_texts(out);
 		self.close_thinking(out);
-		let (block, id, name) = self.tools.get_mut(&index)?;
-		let block = *block.get_or_insert_with(|| {
-			self.next += 1;
-			self.next - 1
+		let next = &mut self.next;
+		let tool = self.tools.get_mut(&index).expect("a call opens once known");
+		let block = *tool.block.get_or_insert_with(|| {
+			*next += 1;
+			*next - 1
 		});
 		if self.open_tools.insert(index) {
 			push(
@@ -972,19 +1129,24 @@ impl Blocks {
 				messages::MessagesStreamEvent::ContentBlockStart {
 					index: block,
 					content_block: messages::ContentBlock::ToolUse {
-						id: id.clone(),
-						name: name.clone(),
-						input: serde_json::Value::Object(serde_json::Map::new()),
+						id: tool
+							.id
+							.clone()
+							.unwrap_or_else(|| format!("tool_call_{index}")),
+						name: tool.name.clone().unwrap_or_default(),
+						input: Value::Object(serde_json::Map::new()),
 						cache_control: None,
 					},
 				},
 			);
 		}
-		Some(block)
+		block
 	}
 
-	fn close_text(&mut self, out: &mut Out) {
-		if let Some(index) = self.text.take() {
+	fn close_texts(&mut self, out: &mut Out) {
+		let mut open: Vec<_> = self.texts.drain().map(|(_, index)| index).collect();
+		open.sort();
+		for index in open {
 			push(
 				out,
 				messages::MessagesStreamEvent::ContentBlockStop { index },
@@ -1014,7 +1176,7 @@ impl Blocks {
 		let mut open: Vec<_> = self
 			.open_tools
 			.drain()
-			.filter_map(|index| self.tools.get(&index)?.0)
+			.filter_map(|index| self.tools.get(&index)?.block)
 			.collect();
 		open.sort();
 		for index in open {

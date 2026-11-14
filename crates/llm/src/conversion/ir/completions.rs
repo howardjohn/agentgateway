@@ -1,6 +1,6 @@
 //! Chat Completions to and from the IR.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::time::Instant;
 
 use agent_core::strng;
@@ -9,9 +9,10 @@ use bytes::Bytes;
 use serde::de::DeserializeOwned;
 
 use super::{
-	Content, Effort, Message, Part, Request, Response, ResponseFormat, Role, StopReason, StreamEvent,
-	Thinking, Tool, ToolChoice, Usage,
+	Content, Effort, Message, Part, ReplyPart, Request, Response, ResponseFormat, Role, Source,
+	StopReason, StreamEvent, Thinking, Tool, ToolChoice, Usage,
 };
+use crate::conversion::completions::parse_data_url;
 use crate::conversion::{ProviderUsage, ResponseWithProviderUsage};
 use crate::parse::sse::SseJsonEvent;
 use crate::types::ResponseType;
@@ -22,8 +23,9 @@ use crate::{AIError, StreamingUsageGuard, json, logged_response_parsing, types};
 pub fn parse_request(req: &types::completions::Request) -> Result<Request, AIError> {
 	let req = json::convert::<_, completions::Request>(req)
 		.map_err(|err| AIError::RequestParsing(crate::InputFormat::Completions, err))?;
-	let max_tokens = req.max_tokens();
 	let stop = req.stop_sequence();
+	#[allow(deprecated)]
+	let max_tokens = req.max_completion_tokens.or(req.max_tokens);
 	let messages = req.messages.into_iter().map(message).collect();
 	let tools = req.tools.map(|tools| {
 		tools
@@ -51,31 +53,45 @@ pub fn parse_request(req: &types::completions::Request) -> Result<Request, AIErr
 	});
 	let response_format = match req.response_format {
 		Some(completions::ResponseFormat::JsonSchema { json_schema }) => {
-			Some(ResponseFormat::JsonSchema(json_schema.schema))
+			Some(ResponseFormat::JsonSchema {
+				name: Some(json_schema.name),
+				description: json_schema.description,
+				schema: json_schema.schema,
+				strict: json_schema.strict,
+			})
 		},
 		Some(completions::ResponseFormat::JsonObject) => Some(ResponseFormat::JsonObject),
 		Some(completions::ResponseFormat::Text) | None => None,
 	};
 	Ok(Request {
-		model: req.model.unwrap_or_default(),
+		model: req.model,
+		instructions: None,
 		messages,
 		tools,
 		tool_choice,
 		parallel_tool_calls: req.parallel_tool_calls,
-		max_tokens,
+		max_tokens: max_tokens.map(|tokens| tokens as usize),
 		temperature: req.temperature,
 		top_p: req.top_p,
 		stop,
 		stream: req.stream.unwrap_or(false),
-		user: req.user,
+		metadata: req
+			.user
+			.map(|user| BTreeMap::from([("user_id".to_string(), user)]))
+			.unwrap_or_default(),
 		thinking: req
 			.vendor_extensions
 			.thinking_budget_tokens
 			.map(|budget_tokens| Thinking::Enabled { budget_tokens }),
-		effort: req
-			.reasoning_effort
-			.as_ref()
-			.and_then(crate::types::anthropic_effort_for_reasoning_effort),
+		effort: req.reasoning_effort.and_then(|effort| match effort {
+			completions::ReasoningEffort::None => None,
+			completions::ReasoningEffort::Minimal => Some(Effort::Minimal),
+			completions::ReasoningEffort::Low => Some(Effort::Low),
+			completions::ReasoningEffort::Medium => Some(Effort::Medium),
+			completions::ReasoningEffort::High => Some(Effort::High),
+			completions::ReasoningEffort::Xhigh => Some(Effort::Xhigh),
+			completions::ReasoningEffort::Max => Some(Effort::Max),
+		}),
 		response_format,
 	})
 }
@@ -99,7 +115,7 @@ fn message(msg: completions::RequestMessage) -> Message {
 			},
 		),
 		completions::RequestMessage::Developer(msg) => (
-			Role::System,
+			Role::Developer,
 			match msg.content {
 				completions::RequestDeveloperMessageContent::Text(t) => Content::Text(t),
 				completions::RequestDeveloperMessageContent::Array(parts) => Content::Parts(
@@ -120,13 +136,20 @@ fn message(msg: completions::RequestMessage) -> Message {
 						.filter_map(|part| match part {
 							completions::RequestUserMessageContentPart::Text(t) => Some(text(t)),
 							completions::RequestUserMessageContentPart::ImageUrl(image) => Some(Part::Image {
-								url: image.image_url.url,
+								source: Source::Url(image.image_url.url),
 								cache: image.prompt_cache_breakpoint.is_some(),
 							}),
-							completions::RequestUserMessageContentPart::File(file) => Some(Part::File {
-								data: file.file.file_data,
-								id: file.file.file_id,
-								name: file.file.filename,
+							completions::RequestUserMessageContentPart::File(file) => Some(Part::Document {
+								// Inline data is what other formats can take; an id names the file otherwise.
+								source: match (file.file.file_data, file.file.file_id) {
+									(Some(data), _) if parse_data_url(&data).is_some() => Source::Url(data),
+									(_, Some(id)) => Source::FileId(id),
+									(Some(data), None) => Source::Url(data),
+									(None, None) => Source::Invalid(
+										"file content part requires file.file_data as an inline base64 data: URI",
+									),
+								},
+								title: file.file.filename,
 								cache: file.prompt_cache_breakpoint.is_some(),
 							}),
 							completions::RequestUserMessageContentPart::InputAudio(_) => None,
@@ -216,7 +239,7 @@ fn message(msg: completions::RequestMessage) -> Message {
 
 #[allow(deprecated)]
 pub fn render_request(req: Request) -> completions::Request {
-	let model = req.model;
+	let model = req.model.unwrap_or_default();
 	// Explicit prompt-cache breakpoints are accepted only by GPT 5.6 and newer models.
 	let caches = crate::conversion::supports_prompt_cache_breakpoint(&model);
 	let text_part = |text: String, cache: bool| completions::RequestMessageContentPartText {
@@ -225,9 +248,9 @@ pub fn render_request(req: Request) -> completions::Request {
 	};
 
 	let output_effort = req.effort.or(match req.thinking {
-		Some(Thinking::Enabled { budget_tokens }) => Some(
+		Some(Thinking::Enabled { budget_tokens }) => Some(messages_effort(
 			crate::types::anthropic_effort_for_thinking_budget(budget_tokens),
-		),
+		)),
 		_ => None,
 	});
 	let reasoning_requested = match req.thinking {
@@ -238,6 +261,7 @@ pub fn render_request(req: Request) -> completions::Request {
 	let reasoning_effort = (reasoning_requested
 		&& crate::conversion::supports_reasoning_effort(&model))
 	.then(|| match output_effort {
+		Some(Effort::Minimal) => completions::ReasoningEffort::Minimal,
 		Some(Effort::Low) => completions::ReasoningEffort::Low,
 		Some(Effort::Medium) => completions::ReasoningEffort::Medium,
 		Some(Effort::High) => completions::ReasoningEffort::High,
@@ -247,31 +271,58 @@ pub fn render_request(req: Request) -> completions::Request {
 		None => completions::ReasoningEffort::High,
 	});
 
-	let mut msgs = Vec::new();
-	for msg in req.messages {
-		match (msg.role, msg.content) {
-			(Role::System, content) => {
-				let content = match content {
-					Content::Text(t) => completions::RequestSystemMessageContent::Text(t),
-					Content::Parts(parts) => completions::RequestSystemMessageContent::Array(
-						parts
+	let system = |role: Role, content: Content| {
+		let parts = |parts: Vec<Part>| {
+			parts
+				.into_iter()
+				.filter_map(|part| match part {
+					Part::Text { text, cache } => Some(text_part(text, cache)),
+					_ => None,
+				})
+				.collect::<Vec<_>>()
+		};
+		match (role, content) {
+			(Role::Developer, Content::Text(t)) => {
+				completions::RequestMessage::Developer(completions::RequestDeveloperMessage {
+					content: completions::RequestDeveloperMessageContent::Text(t),
+					name: None,
+				})
+			},
+			(Role::Developer, Content::Parts(p)) => {
+				completions::RequestMessage::Developer(completions::RequestDeveloperMessage {
+					content: completions::RequestDeveloperMessageContent::Array(
+						parts(p)
 							.into_iter()
-							.filter_map(|part| match part {
-								Part::Text { text, cache } => Some(
-									completions::RequestSystemMessageContentPart::Text(text_part(text, cache)),
-								),
-								_ => None,
-							})
+							.map(completions::RequestDeveloperMessageContentPart::Text)
 							.collect(),
 					),
-				};
-				msgs.push(completions::RequestMessage::System(
-					completions::RequestSystemMessage {
-						content,
-						name: None,
-					},
-				));
+					name: None,
+				})
 			},
+			(_, Content::Text(t)) => {
+				completions::RequestMessage::System(completions::RequestSystemMessage {
+					content: completions::RequestSystemMessageContent::Text(t),
+					name: None,
+				})
+			},
+			(_, Content::Parts(p)) => {
+				completions::RequestMessage::System(completions::RequestSystemMessage {
+					content: completions::RequestSystemMessageContent::Array(
+						parts(p)
+							.into_iter()
+							.map(completions::RequestSystemMessageContentPart::Text)
+							.collect(),
+					),
+					name: None,
+				})
+			},
+		}
+	};
+
+	let mut msgs = Vec::new();
+	for msg in req.instructions.into_iter().chain(req.messages) {
+		match (msg.role, msg.content) {
+			(role, content) if role.is_system() => msgs.push(system(role, content)),
 			(Role::User, Content::Text(t)) => {
 				msgs.push(completions::RequestMessage::User(
 					completions::RequestUserMessage {
@@ -288,16 +339,17 @@ pub fn render_request(req: Request) -> completions::Request {
 						Part::Text { text, cache } => user.push(
 							completions::RequestUserMessageContentPart::Text(text_part(text, cache)),
 						),
-						Part::Image { url, .. } => {
-							user.push(completions::RequestUserMessageContentPart::ImageUrl(
-								completions::RequestMessageContentPartImage {
-									image_url: completions::ImageUrl { url, detail: None },
-									// OpenAI rejects cache breakpoints on image parts even though the
-									// Chat Completions schema exposes this field.
-									prompt_cache_breakpoint: None,
-								},
-							))
-						},
+						Part::Image {
+							source: Source::Url(url),
+							..
+						} => user.push(completions::RequestUserMessageContentPart::ImageUrl(
+							completions::RequestMessageContentPartImage {
+								image_url: completions::ImageUrl { url, detail: None },
+								// OpenAI rejects cache breakpoints on image parts even though the
+								// Chat Completions schema exposes this field.
+								prompt_cache_breakpoint: None,
+							},
+						)),
 						Part::ToolResult {
 							id, content, cache, ..
 						} => msgs.push(completions::RequestMessage::Tool(
@@ -318,11 +370,15 @@ pub fn render_request(req: Request) -> completions::Request {
 					));
 				}
 			},
-			(Role::Assistant, content) => {
-				let parts = match content {
-					Content::Text(text) => vec![Part::Text { text, cache: false }],
-					Content::Parts(parts) => parts,
-				};
+			(_, Content::Text(text)) => {
+				msgs.push(completions::RequestMessage::Assistant(
+					completions::RequestAssistantMessage {
+						content: Some(completions::RequestAssistantMessageContent::Text(text)),
+						..Default::default()
+					},
+				));
+			},
+			(_, Content::Parts(parts)) => {
 				let mut text = Vec::new();
 				let mut tool_calls = Vec::new();
 				let mut reasoning_content: Option<String> = None;
@@ -433,19 +489,20 @@ pub fn render_request(req: Request) -> completions::Request {
 		ToolChoice::Other => None,
 	});
 
+	let mut metadata = req.metadata;
 	completions::Request {
-		model: Some(model),
+		model: (!model.is_empty()).then_some(model),
 		moderation: None,
 		messages: msgs,
 		stream: Some(req.stream),
 		temperature: req.temperature,
 		top_p: req.top_p,
-		max_completion_tokens: Some(req.max_tokens as u32),
+		max_completion_tokens: req.max_tokens.map(|tokens| tokens as u32),
 		max_tokens: None,
 		stop: (!req.stop.is_empty()).then_some(completions::Stop::StringArray(req.stop)),
 		tools: (!tools.is_empty()).then_some(tools),
 		tool_choice,
-		user: req.user,
+		user: metadata.remove("user_id"),
 		vendor_extensions: completions::RequestVendorExtensions::default(),
 		stream_options: req.stream.then_some(completions::StreamOptions {
 			include_usage: Some(true),
@@ -464,27 +521,39 @@ pub fn render_request(req: Request) -> completions::Request {
 		modalities: None,
 		prediction: None,
 		audio: None,
-		response_format: req.response_format.map(|format| {
-			let schema = match format {
-				ResponseFormat::JsonSchema(schema) => schema,
-				ResponseFormat::JsonObject => {
-					serde_json::json!({"type": "object", "additionalProperties": true})
-				},
-			};
-			completions::ResponseFormat::JsonSchema {
+		response_format: req.response_format.map(|format| match format {
+			ResponseFormat::JsonSchema {
+				name,
+				description,
+				schema,
+				strict,
+			} => completions::ResponseFormat::JsonSchema {
 				json_schema: completions::ResponseFormatJsonSchema {
-					description: None,
-					name: "structured_output".to_string(),
+					description,
+					name: name.unwrap_or_else(|| "structured_output".to_string()),
 					schema,
-					strict: None,
+					strict,
 				},
-			}
+			},
+			ResponseFormat::JsonObject => completions::ResponseFormat::JsonObject,
 		}),
 		function_call: None,
 		functions: None,
 		service_tier: None,
 		parallel_tool_calls: req.parallel_tool_calls,
 		web_search_options: None,
+	}
+}
+
+/// Effort on the IR's scale from Anthropic's.
+pub(super) fn messages_effort(effort: crate::types::messages::typed::ThinkingEffort) -> Effort {
+	use crate::types::messages::typed::ThinkingEffort;
+	match effort {
+		ThinkingEffort::Low => Effort::Low,
+		ThinkingEffort::Medium => Effort::Medium,
+		ThinkingEffort::High => Effort::High,
+		ThinkingEffort::Xhigh => Effort::Xhigh,
+		ThinkingEffort::Max => Effort::Max,
 	}
 }
 
@@ -516,7 +585,10 @@ fn tool_content(
 			for p in parts {
 				match p {
 					Part::Text { text, cache } => out.push((text, cache)),
-					Part::Opaque { cache } => trailing |= cache,
+					// Chat Completions tool results hold text only.
+					Part::Opaque { cache } | Part::Image { cache, .. } | Part::Document { cache, .. } => {
+						trailing |= cache
+					},
 					_ => {},
 				}
 			}
@@ -559,13 +631,16 @@ pub fn parse_response(bytes: &Bytes, model: &str) -> Result<Response, AIError> {
 	let thinking = choice.message.reasoning().unwrap_or_default().to_string();
 	let signature = choice.message.reasoning_signature.unwrap_or_default();
 	if !thinking.is_empty() || !signature.is_empty() {
-		parts.push(Part::Reasoning {
+		parts.push(ReplyPart::Reasoning {
 			text: thinking,
 			signature,
 		});
 	}
 	if let Some(text) = choice.message.content {
-		parts.push(Part::Text { text, cache: false });
+		parts.push(ReplyPart::Text {
+			text,
+			citations: Vec::new(),
+		});
 	}
 	parts.extend(
 		choice
@@ -574,9 +649,8 @@ pub fn parse_response(bytes: &Bytes, model: &str) -> Result<Response, AIError> {
 			.into_iter()
 			.flatten()
 			.filter_map(|call| match call {
-				completions::MessageToolCalls::Function(call) => Some(Part::ToolCall {
+				completions::MessageToolCalls::Function(call) => Some(ReplyPart::ToolCall {
 					thought_signature: call.thought_signature().map(str::to_string),
-					cache: false,
 					id: call.id,
 					name: call.function.name,
 					arguments: call.function.arguments,
@@ -601,7 +675,7 @@ pub fn parse_response(bytes: &Bytes, model: &str) -> Result<Response, AIError> {
 		stop_reason = StopReason::StopSequence;
 	}
 
-	let usage = resp.usage.as_ref().map(usage).unwrap_or_default();
+	let usage = resp.usage.as_ref().map(usage);
 
 	Ok(Response {
 		id: resp.id,
@@ -624,11 +698,13 @@ pub fn render_response(resp: Response) -> Result<Box<dyn ResponseType>, AIError>
 	let mut tool_calls = Vec::new();
 	let mut reasoning_content: Option<String> = None;
 	let mut signatures = Vec::new();
+	let mut refusal: Option<String> = None;
 	for part in resp.parts {
 		match part {
 			// Chat Completions has one text and one reasoning field, so several parts are joined.
-			Part::Text { text, .. } => content.get_or_insert_default().push_str(&text),
-			Part::Reasoning { text, signature } => {
+			ReplyPart::Text { text, .. } => content.get_or_insert_default().push_str(&text),
+			ReplyPart::Refusal(text) => refusal.get_or_insert_default().push_str(&text),
+			ReplyPart::Reasoning { text, signature } => {
 				match reasoning_content.as_mut() {
 					Some(content) => {
 						content.push_str("\n\n");
@@ -638,12 +714,11 @@ pub fn render_response(resp: Response) -> Result<Box<dyn ResponseType>, AIError>
 				}
 				signatures.push(signature);
 			},
-			Part::ToolCall {
+			ReplyPart::ToolCall {
 				id,
 				name,
 				arguments,
 				thought_signature,
-				..
 			} => {
 				let mut call = completions::MessageToolCall {
 					id,
@@ -655,11 +730,11 @@ pub fn render_response(resp: Response) -> Result<Box<dyn ResponseType>, AIError>
 				}
 				tool_calls.push(completions::MessageToolCalls::Function(call));
 			},
-			_ => {},
 		}
 	}
 	let message = completions::ResponseMessage {
 		content,
+		refusal,
 		tool_calls: (!tool_calls.is_empty()).then_some(tool_calls),
 		reasoning_content,
 		reasoning_signature: match signatures.as_slice() {
@@ -669,7 +744,7 @@ pub fn render_response(resp: Response) -> Result<Box<dyn ResponseType>, AIError>
 		..completions::ResponseMessage::assistant()
 	};
 	let finish_reason = resp.stop_reason.map(finish_reason);
-	let usage = resp.usage;
+	let usage = resp.usage.unwrap_or_default();
 	let openai = completions::Response {
 		id: resp.id,
 		object: "chat.completion".to_string(),
@@ -711,6 +786,11 @@ fn usage(u: &completions::Usage) -> Usage {
 	Usage {
 		input_tokens: u.prompt_tokens as u64,
 		output_tokens: u.output_tokens() as u64,
+		total_tokens: Some(u.total_tokens as u64),
+		reasoning_tokens: u
+			.completion_tokens_details
+			.as_ref()
+			.and_then(|d| d.reasoning_tokens),
 		cache_read_tokens: prompt
 			.and_then(|d| d.cached_tokens)
 			.or(u.cache_read_input_tokens),
@@ -725,28 +805,22 @@ fn usage(u: &completions::Usage) -> Usage {
 	}
 }
 
-/// Reads a Completions provider stream into events, recording its usage, timing and tool calls to
+/// Reads a Completions provider stream into events, recording its usage, timing and content to
 /// `log`. Completions sends the finish reason and the usage in separate chunks, so the reply
 /// ends once it has both, or at `[DONE]`.
 pub fn parse_stream(
 	log: StreamingUsageGuard,
 	log_content: crate::LogContentFields,
 ) -> impl FnMut(SseJsonEvent<completions::StreamResponse>) -> Vec<StreamEvent> + Send + 'static {
-	struct ToolCall {
-		id: Option<String>,
-		name: Option<String>,
-		started: bool,
-		/// Arguments that arrived before the name, sent once it is known.
-		pending: String,
-		/// Every argument, for the log.
-		arguments: String,
-	}
 	#[derive(Default)]
 	struct State {
+		log_tool_calls: bool,
 		started: bool,
 		ended: bool,
 		last_token_at: Option<Instant>,
-		tool_calls: HashMap<u32, ToolCall>,
+		completion: Option<String>,
+		/// Each call's id, name and arguments, for the log.
+		tool_calls: HashMap<u32, (Option<String>, Option<String>, String)>,
 		stop_reason: Option<StopReason>,
 		stop_sequence: Option<String>,
 		usage: Option<completions::Usage>,
@@ -765,50 +839,42 @@ pub fn parse_stream(
 		}
 
 		/// Ends the reply once its finish reason and usage are known, or regardless when `force`d.
-		fn end(
-			&mut self,
-			out: &mut Vec<StreamEvent>,
-			log: &StreamingUsageGuard,
-			force: bool,
-			log_tool_calls: bool,
-		) {
+		fn end(&mut self, out: &mut Vec<StreamEvent>, log: &StreamingUsageGuard, force: bool) {
 			if self.ended || (!force && (self.stop_reason.is_none() || self.usage.is_none())) {
 				return;
 			}
 			self.ended = true;
 			let stop_reason = self.stop_reason.take().unwrap_or(StopReason::EndTurn);
-			let provider_usage = self.usage.take();
-			let usage = provider_usage.as_ref().map(usage);
-			if let (Some(provider_usage), Some(usage)) = (&provider_usage, &usage) {
-				log.update(|r| {
-					r.response.input_tokens = Some(provider_usage.prompt_tokens as u64);
-					r.response.output_tokens = Some(provider_usage.output_tokens() as u64);
-					r.response.total_tokens = Some(provider_usage.total_tokens as u64);
-					r.response.reasoning_tokens = provider_usage
-						.completion_tokens_details
-						.as_ref()
-						.and_then(|d| d.reasoning_tokens);
+			let usage = self.usage.take().as_ref().map(usage);
+			let calls = self.tool_calls.drain();
+			let mut tool_calls = self
+				.log_tool_calls
+				.then(|| {
+					crate::conversion::completions::finalize_streaming_tool_calls(
+						calls.map(|(index, (id, name, arguments))| (index, id, name, arguments)),
+					)
+				})
+				.flatten();
+			let mut finish_reason = crate::types::serialize_str(&stop_reason);
+			let mut completion = self.completion.take();
+			log.update(|r| {
+				if let Some(usage) = &usage {
+					r.response.input_tokens = Some(usage.input_tokens);
+					r.response.output_tokens = Some(usage.output_tokens);
+					r.response.total_tokens = usage.total_tokens;
+					r.response.reasoning_tokens = usage.reasoning_tokens;
 					r.response.cache_creation_input_tokens = usage.cache_write_tokens;
 					r.response.cached_input_tokens = usage.cache_read_tokens;
-				});
-			}
-			if log_tool_calls
-				&& let Some(parts) = crate::conversion::completions::finalize_streaming_tool_calls(
-					self
-						.tool_calls
-						.drain()
-						.map(|(index, call)| (index, call.id, call.name, call.arguments)),
-				) {
-				let mut parts = Some(parts);
-				let mut finish_reason = crate::types::serialize_str(&stop_reason);
-				log.update(|r| {
-					crate::conversion::completions::build_output_messages(
-						&mut r.response,
-						parts.take(),
-						finish_reason.take(),
-					);
-				});
-			}
+				}
+				if let Some(completion) = completion.take() {
+					r.response.completion = Some(vec![completion]);
+				}
+				crate::conversion::completions::build_output_messages(
+					&mut r.response,
+					tool_calls.take(),
+					finish_reason.take(),
+				);
+			});
 			out.push(StreamEvent::End {
 				stop_reason: Some(stop_reason),
 				stop_sequence: self.stop_sequence.take(),
@@ -817,12 +883,16 @@ pub fn parse_stream(
 		}
 	}
 
-	let mut state = State::default();
+	let mut state = State {
+		log_tool_calls: log_content.tool_calls,
+		completion: log_content.completion.then(String::new),
+		..Default::default()
+	};
 	move |event| {
 		let mut out = Vec::new();
 		let chunk = match event {
 			SseJsonEvent::Done => {
-				state.end(&mut out, &log, true, log_content.tool_calls);
+				state.end(&mut out, &log, true);
 				return out;
 			},
 			SseJsonEvent::Data(Ok(chunk)) => chunk,
@@ -834,11 +904,16 @@ pub fn parse_stream(
 		};
 		if !state.started {
 			state.started = true;
-			log.update(|r| r.response.provider_model = Some(strng::new(&chunk.model)));
+			log.update(|r| {
+				r.response.provider_model = Some(strng::new(&chunk.model));
+				if let Some(tier) = &chunk.service_tier {
+					r.response.service_tier = Some(strng::new(tier));
+				}
+			});
 			out.push(StreamEvent::Start {
 				id: chunk.id.clone(),
 				model: chunk.model.clone(),
-				service_tier: None,
+				service_tier: chunk.service_tier.clone(),
 			});
 		}
 		if let Some(usage) = chunk.usage {
@@ -859,51 +934,40 @@ pub fn parse_stream(
 			}
 			if let Some(text) = delta.content.as_deref().filter(|s| !s.is_empty()) {
 				state.token(&log);
-				out.push(StreamEvent::Text(text.to_string()));
+				if let Some(completion) = state.completion.as_mut() {
+					completion.push_str(text);
+				}
+				// Completions has one text, so every piece continues the same part.
+				out.push(StreamEvent::Text {
+					index: 0,
+					text: text.to_string(),
+				});
 			}
 			for tool in delta.tool_calls.iter().flatten() {
-				let call = state.tool_calls.entry(tool.index).or_insert(ToolCall {
-					id: None,
-					name: None,
-					started: false,
-					pending: String::new(),
-					arguments: String::new(),
-				});
-				if let Some(id) = &tool.id {
-					call.id = Some(id.clone());
+				let name = tool.function.as_ref().and_then(|f| f.name.clone());
+				let arguments = tool
+					.function
+					.as_ref()
+					.and_then(|f| f.arguments.clone())
+					.unwrap_or_default();
+				let logged = state.tool_calls.entry(tool.index).or_default();
+				let new = logged.0.is_none() && logged.1.is_none() && logged.2.is_empty();
+				if tool.id.is_some() {
+					logged.0.clone_from(&tool.id);
 				}
-				if let Some(function) = &tool.function {
-					if let Some(name) = &function.name {
-						call.name = Some(name.clone());
-					}
-					if let Some(arguments) = &function.arguments {
-						call.pending.push_str(arguments);
-						if log_content.tool_calls {
-							call.arguments.push_str(arguments);
-						}
-					}
+				if name.is_some() {
+					logged.1.clone_from(&name);
 				}
-				// A call starts once its name is known.
-				let Some(name) = call.name.clone() else {
-					continue;
-				};
-				let index = tool.index as usize;
-				if !call.started {
-					call.started = true;
-					out.push(StreamEvent::ToolCallStart {
-						index,
-						id: call
-							.id
-							.clone()
-							.unwrap_or_else(|| format!("tool_call_{index}")),
-						name,
-					});
-				}
-				let json = std::mem::take(&mut call.pending);
-				if !json.is_empty() {
+				logged.2.push_str(&arguments);
+				if new || !arguments.is_empty() {
 					state.token(&log);
 				}
-				out.push(StreamEvent::ToolCallArguments { index, json });
+				out.push(StreamEvent::ToolCall {
+					index: tool.index as usize,
+					id: tool.id.clone(),
+					name,
+					arguments,
+				});
 			}
 			if let Some(finish_reason) = &choice.finish_reason {
 				let mut stop_reason = match finish_reason {
@@ -925,7 +989,7 @@ pub fn parse_stream(
 				state.stop_reason = Some(stop_reason);
 			}
 		}
-		state.end(&mut out, &log, false, log_content.tool_calls);
+		state.end(&mut out, &log, false);
 		out
 	}
 }
@@ -990,8 +1054,8 @@ pub fn render_stream<I: DeserializeOwned + 'static>(
 			]))
 		}
 
-		fn write(&mut self, event: StreamEvent) -> Option<completions::ChatStreamEvent> {
-			match event {
+		fn write(&mut self, event: StreamEvent) -> Vec<completions::ChatStreamEvent> {
+			let chunk = match event {
 				StreamEvent::Start {
 					id,
 					model,
@@ -1001,60 +1065,77 @@ pub fn render_stream<I: DeserializeOwned + 'static>(
 					self.model = model;
 					self.service_tier = service_tier;
 					self.role = Some(completions::Role::Assistant);
-					None
+					return Vec::new();
 				},
-				StreamEvent::Text(text) => Some(self.delta(completions::StreamResponseDelta {
+				StreamEvent::TextStart { .. } | StreamEvent::TextEnd { .. } => return Vec::new(),
+				StreamEvent::Text { text, .. } => self.delta(completions::StreamResponseDelta {
 					content: Some(text),
 					..Default::default()
-				})),
-				StreamEvent::Reasoning(text) => Some(self.delta(completions::StreamResponseDelta {
+				}),
+				StreamEvent::Reasoning(text) => self.delta(completions::StreamResponseDelta {
 					reasoning_content: Some(text),
 					..Default::default()
-				})),
-				StreamEvent::Signature(signature) => Some(self.delta(completions::StreamResponseDelta {
+				}),
+				StreamEvent::Signature(signature) => self.delta(completions::StreamResponseDelta {
 					reasoning_signature: Some(signature),
 					..Default::default()
-				})),
-				StreamEvent::ToolCallStart { index, id, name } => {
-					let tool = self.next_tool;
-					self.next_tool += 1;
-					self.tool_calls.insert(
-						index,
-						ToolCall {
-							index: tool,
-							sent_arguments: false,
-						},
-					);
-					Some(
-						self.delta(completions::StreamResponseDelta::with_tool_calls(vec![
-							completions::ChatCompletionMessageToolCallChunk {
+				}),
+				StreamEvent::ToolCall {
+					index,
+					id,
+					name,
+					arguments,
+				} => {
+					let mut out = Vec::new();
+					if !self.tool_calls.contains_key(&index) {
+						// More of a call that never started.
+						if id.is_none() && name.is_none() {
+							return out;
+						}
+						let tool = self.next_tool;
+						self.next_tool += 1;
+						self.tool_calls.insert(
+							index,
+							ToolCall {
 								index: tool,
-								id: Some(id),
-								r#type: Some(completions::FunctionType::Function),
-								function: Some(completions::FunctionCallStream {
-									name: Some(name),
-									arguments: None,
-								}),
+								sent_arguments: false,
 							},
-						])),
-					)
-				},
-				StreamEvent::ToolCallArguments { index, json } => {
-					let call = self
-						.tool_calls
-						.get_mut(&index)
-						.filter(|_| !json.is_empty())?;
-					call.sent_arguments = true;
-					let tool = call.index;
-					Some(self.arguments(tool, json))
+						);
+						out.push(
+							self.delta(completions::StreamResponseDelta::with_tool_calls(vec![
+								completions::ChatCompletionMessageToolCallChunk {
+									index: tool,
+									id,
+									r#type: Some(completions::FunctionType::Function),
+									function: Some(completions::FunctionCallStream {
+										name,
+										arguments: None,
+									}),
+								},
+							])),
+						);
+					}
+					if !arguments.is_empty() {
+						let call = self
+							.tool_calls
+							.get_mut(&index)
+							.expect("the call started above");
+						call.sent_arguments = true;
+						let tool = call.index;
+						out.push(self.arguments(tool, arguments));
+					}
+					return out;
 				},
 				// A call that sent no arguments gets `{}`, which clients can parse.
 				StreamEvent::ToolCallEnd { index } => {
-					let call = self
+					match self
 						.tool_calls
 						.remove(&index)
-						.filter(|call| !call.sent_arguments)?;
-					Some(self.arguments(call.index, "{}".to_string()))
+						.filter(|call| !call.sent_arguments)
+					{
+						Some(call) => self.arguments(call.index, "{}".to_string()),
+						None => return Vec::new(),
+					}
 				},
 				StreamEvent::End {
 					stop_reason, usage, ..
@@ -1078,15 +1159,16 @@ pub fn render_stream<I: DeserializeOwned + 'static>(
 						cache_creation_input_tokens: usage.cache_write_tokens,
 						..Default::default()
 					});
-					Some(self.chunk(choices, usage))
+					self.chunk(choices, usage)
 				},
-				StreamEvent::Error { kind, message } => Some(completions::ChatStreamEvent::Error(
+				StreamEvent::Error { kind, message } => completions::ChatStreamEvent::Error(
 					crate::conversion::messages::from_completions::stream_error(MessagesError {
 						r#type: kind,
 						message,
 					}),
-				)),
-			}
+				),
+			};
+			vec![chunk]
 		}
 	}
 
@@ -1100,7 +1182,7 @@ pub fn render_stream<I: DeserializeOwned + 'static>(
 		move |event| {
 			parse(event)
 				.into_iter()
-				.filter_map(|event| chunks.write(event))
+				.flat_map(|event| chunks.write(event))
 				.map(|chunk| ("", chunk))
 				.collect::<Vec<_>>()
 		},

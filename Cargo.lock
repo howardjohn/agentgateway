@@ -149,6 +149,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "rand 0.10.3",
+ "regex",
  "rstest",
  "schemars 1.2.1",
  "serde",

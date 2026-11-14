@@ -16,6 +16,64 @@ fn fixture_path(relative_path: &str) -> PathBuf {
 	Path::new("src/tests").join(relative_path)
 }
 
+/// IR output that differs from legacy only in form, so it has its own `@ir` snapshot, by
+/// fixture name and snapshot provider.
+const IR_SPLIT: &[(&str, &str)] = &[
+	// Legacy joins the system messages into the one block it marks; the IR marks the last.
+	("prompt-caching", ANTHROPIC_PROMPT_CACHING),
+	// Cache breakpoints go only to models that take them, as from Messages.
+	("cache_control", GEMINI),
+	// A Completions stream logs its text and service tier whatever the client.
+	("stream", responses::COMPLETIONS_TO_MESSAGES),
+	("stream-content_filter", responses::COMPLETIONS_TO_MESSAGES),
+	("stream-gemini_thinking", responses::COMPLETIONS_TO_MESSAGES),
+	("stream-vllm_reasoning", responses::COMPLETIONS_TO_MESSAGES),
+	(
+		"stream_mistral_reasoning",
+		responses::COMPLETIONS_TO_MESSAGES,
+	),
+	(
+		"stream_tool_empty_content",
+		responses::COMPLETIONS_TO_MESSAGES,
+	),
+	("namespace-tools-stream", responses::COMPLETIONS_TO_MESSAGES),
+	// Streamed calls keep the provider's id, as buffered ones do, and log the stop reason.
+	(
+		"stream_tool_empty_content",
+		responses::COMPLETIONS_TO_RESPONSES,
+	),
+	(
+		"namespace-tools-stream",
+		responses::COMPLETIONS_TO_RESPONSES,
+	),
+];
+
+/// Runs a snapshot assertion against the IR's own snapshot when the case is split from legacy's.
+fn ir_snapshot<R>(name: &str, provider: &str, assert: impl FnOnce() -> R) -> R {
+	let mut settings = insta::Settings::clone_current();
+	if IR_SPLIT.contains(&(name, provider)) {
+		settings.set_snapshot_suffix("ir");
+	}
+	settings.bind(assert)
+}
+
+/// Random ids differ between runs, so they are compared as their prefix.
+fn without_random_ids(text: &str) -> String {
+	let ids = regex::Regex::new(r"\b(msg|rs|resp|call)_[0-9a-f]{16}\b").unwrap();
+	ids.replace_all(text, "${1}_random").into_owned()
+}
+
+/// Every JSON fixture in a directory, in order.
+fn fixtures(relative_path: &str) -> Vec<PathBuf> {
+	let mut paths: Vec<_> = fs::read_dir(fixture_path(relative_path))
+		.unwrap()
+		.map(|entry| entry.unwrap().path())
+		.filter(|path| path.extension().is_some_and(|ext| ext == "json"))
+		.collect();
+	paths.sort();
+	paths
+}
+
 fn snapshot_path_and_name(relative_path: &str, provider: &str) -> (String, String) {
 	let rel = Path::new(relative_path);
 	let parent = rel.parent().unwrap_or_else(|| Path::new(""));
@@ -321,12 +379,6 @@ mod requests {
 		}
 	}
 
-	/// IR output that differs from legacy only in form, so it has its own `@ir` snapshot.
-	const IR_SPLIT: &[(&str, &str)] = &[
-		// Legacy joins the system messages into the one block it marks; the IR marks the last.
-		("prompt-caching", ANTHROPIC_PROMPT_CACHING),
-	];
-
 	/// The IR must render what the legacy converters render, so it is held to their snapshots.
 	#[test]
 	fn ir_parity() {
@@ -336,12 +388,8 @@ mod requests {
 				if !providers.contains(&provider) {
 					continue;
 				}
-				let mut settings = insta::Settings::clone_current();
-				if IR_SPLIT.contains(&(name, provider)) {
-					settings.set_snapshot_suffix("ir");
-				}
 				let path = format!("requests/completions/{name}.json");
-				settings.bind(|| {
+				ir_snapshot(name, provider, || {
 					test_request(provider, &path, |i: &mut types::completions::Request| {
 						let mut ir = conversion::ir::completions::parse_request(i)?;
 						if provider == ANTHROPIC_PROMPT_CACHING {
@@ -354,15 +402,119 @@ mod requests {
 			}
 		}
 		for (name, providers) in MESSAGES_REQUESTS {
+			let path = format!("requests/messages/{name}.json");
 			if providers.contains(&COMPLETIONS) {
-				let path = format!("requests/messages/{name}.json");
-				test_request(COMPLETIONS, &path, |i: &mut types::messages::Request| {
-					let ir = conversion::ir::messages::parse_request(i)?;
-					let rendered = conversion::ir::completions::render_request(ir);
-					serde_json::to_vec(&rendered).map_err(AIError::RequestMarshal)
+				ir_snapshot(name, COMPLETIONS, || {
+					test_request(COMPLETIONS, &path, |i: &mut types::messages::Request| {
+						let ir = conversion::ir::messages::parse_request(i)?;
+						let rendered = conversion::ir::completions::render_request(ir);
+						serde_json::to_vec(&rendered).map_err(AIError::RequestMarshal)
+					})
+				});
+			}
+			if providers.contains(&RESPONSES) {
+				ir_snapshot(name, RESPONSES, || {
+					test_request(RESPONSES, &path, |i: &mut types::messages::Request| {
+						let ir = conversion::ir::messages::parse_request(i)?;
+						let rendered = conversion::ir::responses::render_request(ir)?;
+						serde_json::to_vec(&rendered).map_err(AIError::RequestMarshal)
+					})
 				});
 			}
 		}
+		for (name, providers) in RESPONSES_REQUESTS {
+			if providers.contains(&GEMINI) {
+				let path = format!("requests/responses/{name}.json");
+				ir_snapshot(name, GEMINI, || {
+					test_request(GEMINI, &path, |i: &mut types::responses::Request| {
+						let (ir, _) = conversion::ir::responses::parse_request(i)?;
+						let rendered = conversion::ir::completions::render_request(ir);
+						serde_json::to_vec(&rendered).map_err(AIError::RequestMarshal)
+					})
+				});
+			}
+		}
+	}
+
+	/// Every fixture, not only those with snapshots, must render through the IR exactly as through
+	/// legacy, but for cases listed in `IR_SPLIT`.
+	#[test]
+	fn ir_matches_legacy() {
+		let catalog = thinking_catalog();
+		let mut differ = Vec::new();
+		let mut check = |path: &Path,
+		                 provider: &str,
+		                 legacy: Result<Vec<u8>, AIError>,
+		                 ir: Result<Vec<u8>, AIError>| {
+			let name = path
+				.file_stem()
+				.and_then(|stem| stem.to_str())
+				.unwrap_or_default();
+			if IR_SPLIT.contains(&(name, provider)) {
+				return;
+			}
+			let text = |body: Result<Vec<u8>, AIError>| match body {
+				Ok(body) => without_random_ids(&String::from_utf8(body).unwrap()),
+				Err(err) => format!("error: {err}"),
+			};
+			let (legacy, ir) = (text(legacy), text(ir));
+			if legacy != ir {
+				differ.push(format!(
+					"{} ({provider})\n  legacy: {legacy}\n  ir:     {ir}",
+					path.display()
+				));
+			}
+		};
+		for path in fixtures("requests/completions") {
+			let req: types::completions::Request =
+				serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+			for (provider, caching) in [
+				(ANTHROPIC, None),
+				(
+					ANTHROPIC_PROMPT_CACHING,
+					Some(crate::PromptCachingConfig::default()),
+				),
+				(ANTHROPIC_PROMPT_CACHING, Some(prompt_caching())),
+			] {
+				let legacy =
+					conversion::messages::from_completions::translate(&req, caching.as_ref(), Some(&catalog));
+				let ir = conversion::ir::completions::parse_request(&req).and_then(|mut ir| {
+					if let Some(caching) = &caching {
+						ir.apply_prompt_caching(caching);
+					}
+					let rendered = conversion::ir::messages::render_request(ir, Some(&catalog))?;
+					serde_json::to_vec(&rendered).map_err(AIError::RequestMarshal)
+				});
+				check(&path, provider, legacy, ir);
+			}
+		}
+		for path in fixtures("requests/messages") {
+			let req: types::messages::Request =
+				serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+			let legacy = conversion::completions::from_messages::translate(&req);
+			let ir = conversion::ir::messages::parse_request(&req).and_then(|ir| {
+				serde_json::to_vec(&conversion::ir::completions::render_request(ir))
+					.map_err(AIError::RequestMarshal)
+			});
+			check(&path, COMPLETIONS, legacy, ir);
+			let legacy = conversion::responses::from_messages::translate(&req);
+			let ir = conversion::ir::messages::parse_request(&req).and_then(|ir| {
+				serde_json::to_vec(&conversion::ir::responses::render_request(ir)?)
+					.map_err(AIError::RequestMarshal)
+			});
+			check(&path, RESPONSES, legacy, ir);
+		}
+		for path in fixtures("requests/responses") {
+			let req: types::responses::Request =
+				serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+			let legacy = conversion::openai_compat::from_responses::translate(&req);
+			let ir = conversion::ir::responses::parse_request(&req).and_then(|(ir, _)| {
+				serde_json::to_vec(&conversion::ir::completions::render_request(ir))
+					.map_err(AIError::RequestMarshal)
+			});
+			check(&path, GEMINI, legacy, ir);
+		}
+		assert!(differ.is_empty(), "{}", differ.join("\n"));
 	}
 
 	#[test]
@@ -940,17 +1092,8 @@ mod responses {
 		fn report_usage(&mut self) {}
 	}
 
-	async fn test_streaming(
-		provider: &str,
-		relative_path: &str,
-		xlate: impl FnOnce(
-			http::Response<agent_http::Body>,
-			StreamingUsageGuard,
-		) -> http::Response<agent_http::Body>,
-	) {
-		let input_path = fixture_path(relative_path);
-		let input_bytes = fs::read(&input_path)
-			.unwrap_or_else(|e| panic!("{relative_path}: failed to read streaming input file: {e}"));
+	/// A streamed reply's log, and the guard that records into it.
+	fn streaming_log() -> (Arc<Mutex<LLMInfo>>, StreamingUsageGuard) {
 		let info = Arc::new(Mutex::new(LLMInfo::new(
 			LLMRequest {
 				input_tokens: None,
@@ -967,11 +1110,26 @@ mod responses {
 			LLMResponse::default(),
 		)));
 		let reporter = TestStreamingReporter { info: info.clone() };
+		(info, StreamingUsageGuard::new(Box::new(reporter)))
+	}
+
+	async fn test_streaming(
+		provider: &str,
+		relative_path: &str,
+		xlate: impl FnOnce(
+			http::Response<agent_http::Body>,
+			StreamingUsageGuard,
+		) -> http::Response<agent_http::Body>,
+	) {
+		let input_path = fixture_path(relative_path);
+		let input_bytes = fs::read(&input_path)
+			.unwrap_or_else(|e| panic!("{relative_path}: failed to read streaming input file: {e}"));
+		let (info, log) = streaming_log();
 		let mut response = http::Response::new(agent_http::Body::from(input_bytes));
 		response
 			.headers_mut()
 			.insert("x-amzn-requestid", "request_id".parse().unwrap());
-		let response = xlate(response, StreamingUsageGuard::new(Box::new(reporter)));
+		let response = xlate(response, log);
 		let response_bytes = response.collect().await.unwrap().to_bytes();
 		let llm_response = info.lock().unwrap().response.clone();
 		let response_body = match String::from_utf8(response_bytes.to_vec()) {
@@ -1018,8 +1176,8 @@ mod responses {
 	}
 
 	const COMPLETIONS_TO_COMPLETIONS: &str = "completions-completions";
-	const COMPLETIONS_TO_MESSAGES: &str = "completions-messages";
-	const COMPLETIONS_TO_RESPONSES: &str = "completions-responses";
+	pub(super) const COMPLETIONS_TO_MESSAGES: &str = "completions-messages";
+	pub(super) const COMPLETIONS_TO_RESPONSES: &str = "completions-responses";
 	const COMPLETIONS_TO_DETECT: &str = "completions-detect";
 	const MESSAGES_TO_MESSAGES: &str = "messages-messages";
 	const MESSAGES_TO_COMPLETIONS: &str = "messages-completions";
@@ -1370,21 +1528,48 @@ mod responses {
 		for (name, providers) in ANTHROPIC_RESPONSES {
 			if providers.contains(&MESSAGES_TO_COMPLETIONS) {
 				let path = format!("response/anthropic/{name}.json");
-				test_response(MESSAGES_TO_COMPLETIONS, &path, |i| {
-					conversion::ir::completions::render_response(conversion::ir::messages::parse_response(
-						&i,
-					)?)
+				ir_snapshot(name, MESSAGES_TO_COMPLETIONS, || {
+					test_response(MESSAGES_TO_COMPLETIONS, &path, |i| {
+						conversion::ir::completions::render_response(conversion::ir::messages::parse_response(
+							&i,
+						)?)
+					})
 				});
 			}
 		}
 		for (name, providers) in COMPLETIONS_RESPONSES {
+			let path = format!("response/completions/{name}.json");
 			if providers.contains(&COMPLETIONS_TO_MESSAGES) {
-				let path = format!("response/completions/{name}.json");
-				test_response(COMPLETIONS_TO_MESSAGES, &path, |i| {
-					conversion::ir::messages::render_response(conversion::ir::completions::parse_response(
-						&i,
-						"input-model",
-					)?)
+				ir_snapshot(name, COMPLETIONS_TO_MESSAGES, || {
+					test_response(COMPLETIONS_TO_MESSAGES, &path, |i| {
+						conversion::ir::messages::render_response(conversion::ir::completions::parse_response(
+							&i,
+							"input-model",
+						)?)
+					})
+				});
+			}
+			if providers.contains(&COMPLETIONS_TO_RESPONSES) {
+				ir_snapshot(name, COMPLETIONS_TO_RESPONSES, || {
+					test_response(COMPLETIONS_TO_RESPONSES, &path, |i| {
+						conversion::ir::responses::render_response(
+							conversion::ir::completions::parse_response(&i, "input-model")?,
+							"input-model",
+							None,
+						)
+					})
+				});
+			}
+		}
+		for (name, providers) in RESPONSES_RESPONSES {
+			if providers.contains(&RESPONSES_TO_MESSAGES) {
+				let path = format!("response/responses/{name}.json");
+				ir_snapshot(name, RESPONSES_TO_MESSAGES, || {
+					test_response(RESPONSES_TO_MESSAGES, &path, |i| {
+						conversion::ir::messages::render_response(conversion::ir::responses::parse_response(
+							&i,
+						)?)
+					})
 				});
 			}
 		}
@@ -1680,37 +1865,298 @@ mod responses {
 		tool_calls: true,
 	};
 
-	/// The IR must stream what the legacy converters stream, so it is held to their snapshots.
+	/// Every reply fixture, buffered or streamed, must render through the IR exactly as through
+	/// legacy, along with what it logs, but for cases listed in `IR_SPLIT`.
 	#[tokio::test]
-	async fn ir_parity_streaming() {
-		for (name, providers) in ANTHROPIC_STREAM_RESPONSES {
-			if providers.contains(&MESSAGES_TO_COMPLETIONS) {
-				let path = format!("response/anthropic/{name}.json");
-				test_streaming(MESSAGES_TO_COMPLETIONS, &path, |response, reporter| {
-					response.map(|body| {
+	async fn ir_matches_legacy() {
+		// Completions stamps replies with the time they are rendered.
+		fn without_created(mut value: Value) -> Value {
+			if let Some(object) = value.as_object_mut() {
+				object.remove("created");
+				object.remove("created_at");
+			}
+			if let Some(response) = value.get_mut("response").and_then(Value::as_object_mut) {
+				response.remove("created_at");
+			}
+			value
+		}
+		fn buffered(reply: Result<Box<dyn ResponseType>, AIError>) -> String {
+			match reply {
+				Ok(reply) => {
+					let body = serde_json::from_slice(&reply.serialize().unwrap()).unwrap();
+					let logged = serde_json::to_string(&reply.to_llm_response(LOG_CONTENT)).unwrap();
+					without_random_ids(&format!("{}\n{logged}", without_created(body)))
+				},
+				Err(err) => format!("error: {err}"),
+			}
+		}
+		async fn streamed(
+			input: &[u8],
+			xlate: impl FnOnce(agent_http::Body, StreamingUsageGuard) -> agent_http::Body,
+		) -> String {
+			let (info, log) = streaming_log();
+			let output = xlate(agent_http::Body::from(input.to_vec()), log)
+				.collect()
+				.await
+				.unwrap()
+				.to_bytes();
+			let events = String::from_utf8_lossy(&output)
+				.lines()
+				.map(|line| {
+					match line
+						.strip_prefix("data: ")
+						.and_then(|data| serde_json::from_str::<Value>(data).ok())
+					{
+						Some(data) => without_created(data).to_string(),
+						None => line.to_string(),
+					}
+				})
+				.collect::<Vec<_>>()
+				.join("\n");
+			let logged = serde_json::to_string(&info.lock().unwrap().response).unwrap();
+			without_random_ids(&format!("{events}\n{logged}"))
+		}
+		let mut differ = Vec::new();
+		let mut check = |path: &Path, provider: &str, legacy: String, ir: String| {
+			let name = path
+				.file_stem()
+				.and_then(|stem| stem.to_str())
+				.unwrap_or_default();
+			if legacy != ir && !IR_SPLIT.contains(&(name, provider)) {
+				differ.push(format!(
+					"{} ({provider})\n  legacy: {legacy}\n  ir:     {ir}",
+					path.display()
+				));
+			}
+		};
+		let stream = |path: &Path| path.to_string_lossy().contains("stream");
+
+		for path in fixtures("response/anthropic") {
+			let input = fs::read(&path).unwrap();
+			let (legacy, ir) = if stream(&path) {
+				(
+					streamed(&input, |body, log| {
+						conversion::messages::from_completions::translate_stream(
+							body,
+							BUFFER_LIMIT,
+							log,
+							LOG_CONTENT,
+						)
+					})
+					.await,
+					streamed(&input, |body, log| {
 						conversion::ir::completions::render_stream(
 							body,
 							BUFFER_LIMIT,
-							conversion::ir::messages::parse_stream(reporter, LOG_CONTENT),
+							conversion::ir::messages::parse_stream(log, LOG_CONTENT),
 						)
 					})
+					.await,
+				)
+			} else {
+				let input = Bytes::from(input);
+				(
+					buffered(conversion::messages::from_completions::translate_response(
+						&input,
+					)),
+					buffered(
+						conversion::ir::messages::parse_response(&input)
+							.and_then(conversion::ir::completions::render_response),
+					),
+				)
+			};
+			check(&path, MESSAGES_TO_COMPLETIONS, legacy, ir);
+		}
+		for path in fixtures("response/completions") {
+			let input = fs::read(&path).unwrap();
+			if stream(&path) {
+				let legacy = streamed(&input, |body, log| {
+					conversion::completions::from_messages::translate_stream(
+						body,
+						BUFFER_LIMIT,
+						log,
+						LOG_CONTENT,
+					)
 				})
 				.await;
+				let ir = streamed(&input, |body, log| {
+					conversion::ir::messages::render_stream(
+						body,
+						BUFFER_LIMIT,
+						conversion::ir::completions::parse_stream(log, LOG_CONTENT),
+					)
+				})
+				.await;
+				check(&path, COMPLETIONS_TO_MESSAGES, legacy, ir);
+				let legacy = streamed(&input, |body, log| {
+					conversion::openai_compat::to_responses::translate_stream(
+						body,
+						BUFFER_LIMIT,
+						log,
+						LOG_CONTENT,
+						None,
+					)
+				})
+				.await;
+				let ir = streamed(&input, |body, log| {
+					conversion::ir::responses::render_stream(
+						body,
+						BUFFER_LIMIT,
+						conversion::ir::completions::parse_stream(log, LOG_CONTENT),
+						None,
+					)
+				})
+				.await;
+				check(&path, COMPLETIONS_TO_RESPONSES, legacy, ir);
+			} else {
+				let input = Bytes::from(input);
+				let legacy = buffered(conversion::completions::from_messages::translate_response(
+					&input,
+					"input-model",
+				));
+				let ir = buffered(
+					conversion::ir::completions::parse_response(&input, "input-model")
+						.and_then(conversion::ir::messages::render_response),
+				);
+				check(&path, COMPLETIONS_TO_MESSAGES, legacy, ir);
+				let legacy = buffered(conversion::openai_compat::to_responses::translate_response(
+					&input,
+					"input-model",
+					None,
+				));
+				let ir = buffered(
+					conversion::ir::completions::parse_response(&input, "input-model").and_then(|reply| {
+						conversion::ir::responses::render_response(reply, "input-model", None)
+					}),
+				);
+				check(&path, COMPLETIONS_TO_RESPONSES, legacy, ir);
 			}
 		}
-		for (name, providers) in COMPLETIONS_STREAM_RESPONSES {
-			if providers.contains(&COMPLETIONS_TO_MESSAGES) {
-				let path = format!("response/completions/{name}.json");
-				test_streaming(COMPLETIONS_TO_MESSAGES, &path, |response, reporter| {
-					response.map(|body| {
+		for path in fixtures("response/responses") {
+			let input = fs::read(&path).unwrap();
+			let (legacy, ir) = if stream(&path) {
+				(
+					streamed(&input, |body, log| {
+						conversion::responses::from_messages::translate_stream(
+							body,
+							BUFFER_LIMIT,
+							log,
+							LOG_CONTENT,
+						)
+					})
+					.await,
+					streamed(&input, |body, log| {
 						conversion::ir::messages::render_stream(
 							body,
 							BUFFER_LIMIT,
-							conversion::ir::completions::parse_stream(reporter, LOG_CONTENT),
+							conversion::ir::responses::parse_stream(log, LOG_CONTENT),
 						)
 					})
-				})
-				.await;
+					.await,
+				)
+			} else {
+				let input = Bytes::from(input);
+				(
+					buffered(conversion::responses::from_messages::translate_response(
+						&input,
+					)),
+					buffered(
+						conversion::ir::responses::parse_response(&input)
+							.and_then(conversion::ir::messages::render_response),
+					),
+				)
+			};
+			check(&path, RESPONSES_TO_MESSAGES, legacy, ir);
+		}
+		assert!(differ.is_empty(), "{}", differ.join("\n"));
+	}
+
+	/// The IR must stream what the legacy converters stream, so it is held to their snapshots.
+	#[tokio::test]
+	async fn ir_parity_streaming() {
+		let split = |name: &str, provider: &str| {
+			let mut settings = insta::Settings::clone_current();
+			if IR_SPLIT.contains(&(name, provider)) {
+				settings.set_snapshot_suffix("ir");
+			}
+			settings
+		};
+		for (name, providers) in ANTHROPIC_STREAM_RESPONSES {
+			if providers.contains(&MESSAGES_TO_COMPLETIONS) {
+				let path = format!("response/anthropic/{name}.json");
+				split(name, MESSAGES_TO_COMPLETIONS)
+					.bind_async(test_streaming(
+						MESSAGES_TO_COMPLETIONS,
+						&path,
+						|response, reporter| {
+							response.map(|body| {
+								conversion::ir::completions::render_stream(
+									body,
+									BUFFER_LIMIT,
+									conversion::ir::messages::parse_stream(reporter, LOG_CONTENT),
+								)
+							})
+						},
+					))
+					.await;
+			}
+		}
+		for (name, providers) in COMPLETIONS_STREAM_RESPONSES {
+			let path = format!("response/completions/{name}.json");
+			if providers.contains(&COMPLETIONS_TO_MESSAGES) {
+				split(name, COMPLETIONS_TO_MESSAGES)
+					.bind_async(test_streaming(
+						COMPLETIONS_TO_MESSAGES,
+						&path,
+						|response, reporter| {
+							response.map(|body| {
+								conversion::ir::messages::render_stream(
+									body,
+									BUFFER_LIMIT,
+									conversion::ir::completions::parse_stream(reporter, LOG_CONTENT),
+								)
+							})
+						},
+					))
+					.await;
+			}
+			if providers.contains(&COMPLETIONS_TO_RESPONSES) {
+				split(name, COMPLETIONS_TO_RESPONSES)
+					.bind_async(test_streaming(
+						COMPLETIONS_TO_RESPONSES,
+						&path,
+						|response, reporter| {
+							response.map(|body| {
+								conversion::ir::responses::render_stream(
+									body,
+									BUFFER_LIMIT,
+									conversion::ir::completions::parse_stream(reporter, LOG_CONTENT),
+									None,
+								)
+							})
+						},
+					))
+					.await;
+			}
+		}
+		for (name, providers) in RESPONSES_STREAM_RESPONSES {
+			if providers.contains(&RESPONSES_TO_MESSAGES) {
+				let path = format!("response/responses/{name}.json");
+				split(name, RESPONSES_TO_MESSAGES)
+					.bind_async(test_streaming(
+						RESPONSES_TO_MESSAGES,
+						&path,
+						|response, reporter| {
+							response.map(|body| {
+								conversion::ir::messages::render_stream(
+									body,
+									BUFFER_LIMIT,
+									conversion::ir::responses::parse_stream(reporter, LOG_CONTENT),
+								)
+							})
+						},
+					))
+					.await;
 			}
 		}
 	}
