@@ -11,7 +11,10 @@ use crate::{AIError, StreamingUsageGuard, parse, types};
 
 const ANTHROPIC_MIN_THINKING_BUDGET_TOKENS: u64 = 1024;
 
-pub(super) fn cap_thinking_budget_to_max_tokens(budget_tokens: u64, max_tokens: usize) -> Option<u64> {
+pub(super) fn cap_thinking_budget_to_max_tokens(
+	budget_tokens: u64,
+	max_tokens: usize,
+) -> Option<u64> {
 	let max_tokens = u64::try_from(max_tokens).unwrap_or(u64::MAX);
 	if budget_tokens < ANTHROPIC_MIN_THINKING_BUDGET_TOKENS
 		|| max_tokens <= ANTHROPIC_MIN_THINKING_BUDGET_TOKENS

@@ -27,6 +27,7 @@ pub fn parse_request(req: &types::completions::Request) -> Result<Request, AIErr
 					description: tool.function.description,
 					parameters: tool.function.parameters,
 					strict: tool.function.strict,
+					cache: false,
 				}),
 				_ => None,
 			})
@@ -160,6 +161,7 @@ fn message(msg: completions::RequestMessage) -> Message {
 			parts.extend(msg.tool_calls.into_iter().flatten().map(|call| match call {
 				completions::MessageToolCalls::Function(call) => Part::ToolCall {
 					thought_signature: call.thought_signature().map(str::to_string),
+					cache: false,
 					id: call.id,
 					name: call.function.name,
 					arguments: call.function.arguments,
@@ -169,6 +171,7 @@ fn message(msg: completions::RequestMessage) -> Message {
 					name: call.custom_tool.name,
 					arguments: call.custom_tool.input,
 					thought_signature: None,
+					cache: false,
 				},
 			}));
 			(Role::Assistant, Content::Parts(parts))
@@ -327,6 +330,7 @@ pub fn render_request(req: Request) -> completions::Request {
 							name,
 							arguments,
 							thought_signature,
+							..
 						} => {
 							let mut call = completions::MessageToolCall {
 								id,
@@ -565,6 +569,7 @@ pub fn parse_response(bytes: &Bytes, model: &str) -> Result<Response, AIError> {
 			.filter_map(|call| match call {
 				completions::MessageToolCalls::Function(call) => Some(Part::ToolCall {
 					thought_signature: call.thought_signature().map(str::to_string),
+					cache: false,
 					id: call.id,
 					name: call.function.name,
 					arguments: call.function.arguments,
@@ -649,6 +654,7 @@ pub fn render_response(resp: Response) -> Result<Box<dyn ResponseType>, AIError>
 				name,
 				arguments,
 				thought_signature,
+				..
 			} => {
 				let mut call = completions::MessageToolCall {
 					id,

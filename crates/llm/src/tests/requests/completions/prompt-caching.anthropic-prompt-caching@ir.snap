@@ -1,0 +1,160 @@
+---
+source: crates/llm/src/golden_tests.rs
+description: src/tests/requests/completions/prompt-caching.json
+info:
+  model: claude-sonnet-4-5
+  max_tokens: 4096
+  messages:
+    - role: system
+      content: You are a weather assistant.
+    - role: developer
+      content: Answer in one sentence.
+    - role: user
+      content: "What's the weather in Paris?"
+    - role: assistant
+      content: ~
+      tool_calls:
+        - id: call_1
+          type: function
+          function:
+            name: get_weather
+            arguments: "{\"location\":\"Paris\"}"
+    - role: tool
+      tool_call_id: call_1
+      content: 18C and sunny
+    - role: user
+      content: And tomorrow?
+  tools:
+    - type: function
+      function:
+        name: get_weather
+        description: Get the weather for a location
+        parameters:
+          type: object
+          properties:
+            location:
+              type: string
+          required:
+            - location
+---
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What's the weather in Paris?"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "call_1",
+            "name": "get_weather",
+            "input": {
+              "location": "Paris"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "call_1",
+            "content": "18C and sunny",
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "And tomorrow?"
+          }
+        ]
+      }
+    ],
+    "system": [
+      {
+        "type": "text",
+        "text": "You are a weather assistant."
+      },
+      {
+        "type": "text",
+        "text": "Answer in one sentence.",
+        "cache_control": {
+          "type": "ephemeral"
+        }
+      }
+    ],
+    "model": "claude-sonnet-4-5",
+    "max_tokens": 4096,
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Get the weather for a location",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "location"
+          ]
+        },
+        "cache_control": {
+          "type": "ephemeral"
+        }
+      }
+    ]
+  },
+  "parsed": {
+    "input_format": "Completions",
+    "cache_convention": "InputIncludesCache",
+    "request_model": "claude-sonnet-4-5",
+    "provider": "anthropic",
+    "streaming": false,
+    "params": {
+      "max_tokens": 4096
+    },
+    "prompt": [
+      {
+        "role": "system",
+        "content": "You are a weather assistant."
+      },
+      {
+        "role": "developer",
+        "content": "Answer in one sentence."
+      },
+      {
+        "role": "user",
+        "content": "What's the weather in Paris?"
+      },
+      {
+        "role": "assistant",
+        "content": ""
+      },
+      {
+        "role": "tool",
+        "content": "18C and sunny"
+      },
+      {
+        "role": "user",
+        "content": "And tomorrow?"
+      }
+    ]
+  }
+}

@@ -42,6 +42,7 @@ const BEDROCK_COHERE: &str = "bedrock-cohere";
 const BEDROCK_COHERE_V4: &str = "bedrock-cohere-v4";
 const BEDROCK_NOVA: &str = "bedrock-nova";
 const BEDROCK_PROMPT_CACHING: &str = "bedrock-prompt-caching";
+const ANTHROPIC_PROMPT_CACHING: &str = "anthropic-prompt-caching";
 const COHERE: &str = "cohere";
 const COPILOT: &str = "copilot";
 const VERTEX_GEMINI: &str = "vertex-gemini";
@@ -76,6 +77,7 @@ mod requests {
 					| BEDROCK_OPENAI_GPT
 					| BEDROCK_PROMPT_CACHING => BEDROCK,
 					VERTEX_GEMINI => VERTEX,
+					ANTHROPIC_PROMPT_CACHING => ANTHROPIC,
 					provider => provider,
 				}),
 				false,
@@ -149,15 +151,25 @@ mod requests {
 
 	const COMPLETION_REQUESTS: &[(&str, &[&str])] = &[
 		("basic", &[ANTHROPIC, BEDROCK, VERTEX_GEMINI]),
-		("prompt-cache-breakpoint", &[ANTHROPIC, BEDROCK]),
+		(
+			"prompt-cache-breakpoint",
+			&[ANTHROPIC, ANTHROPIC_PROMPT_CACHING, BEDROCK],
+		),
+		("prompt-caching", &[ANTHROPIC_PROMPT_CACHING]),
 		("cache_control_blank_text", &[BEDROCK]),
-		("full", &[ANTHROPIC, BEDROCK]),
-		("tool-call", &[ANTHROPIC, BEDROCK, VERTEX_GEMINI]),
+		("full", &[ANTHROPIC, ANTHROPIC_PROMPT_CACHING, BEDROCK]),
+		(
+			"tool-call",
+			&[ANTHROPIC, ANTHROPIC_PROMPT_CACHING, BEDROCK, VERTEX_GEMINI],
+		),
 		("parallel-tool-call", &[BEDROCK, VERTEX_GEMINI]),
 		("reasoning", &[ANTHROPIC, BEDROCK, VERTEX_GEMINI]),
 		("reasoning-adaptive", &[ANTHROPIC, BEDROCK]),
 		("reasoning_max", &[ANTHROPIC, VERTEX_GEMINI]),
-		("reasoning_replay", &[ANTHROPIC, BEDROCK]),
+		(
+			"reasoning_replay",
+			&[ANTHROPIC, ANTHROPIC_PROMPT_CACHING, BEDROCK],
+		),
 		("reasoning_replay_unsigned", &[ANTHROPIC, BEDROCK]),
 		("image-url", &[ANTHROPIC]),
 		("image-inline", &[VERTEX_GEMINI]),
@@ -301,17 +313,43 @@ mod requests {
 		])
 	}
 
+	fn prompt_caching() -> crate::PromptCachingConfig {
+		crate::PromptCachingConfig {
+			cache_tools: true,
+			min_tokens: None,
+			..Default::default()
+		}
+	}
+
+	/// IR output that differs from legacy only in form, so it has its own `@ir` snapshot.
+	const IR_SPLIT: &[(&str, &str)] = &[
+		// Legacy joins the system messages into the one block it marks; the IR marks the last.
+		("prompt-caching", ANTHROPIC_PROMPT_CACHING),
+	];
+
 	/// The IR must render what the legacy converters render, so it is held to their snapshots.
 	#[test]
 	fn ir_parity() {
 		let catalog = thinking_catalog();
 		for (name, providers) in COMPLETION_REQUESTS {
-			if providers.contains(&ANTHROPIC) {
+			for provider in [ANTHROPIC, ANTHROPIC_PROMPT_CACHING] {
+				if !providers.contains(&provider) {
+					continue;
+				}
+				let mut settings = insta::Settings::clone_current();
+				if IR_SPLIT.contains(&(name, provider)) {
+					settings.set_snapshot_suffix("ir");
+				}
 				let path = format!("requests/completions/{name}.json");
-				test_request(ANTHROPIC, &path, |i: &mut types::completions::Request| {
-					let ir = conversion::ir::completions::parse_request(i)?;
-					let rendered = conversion::ir::messages::render_request(ir, Some(&catalog))?;
-					serde_json::to_vec(&rendered).map_err(AIError::RequestMarshal)
+				settings.bind(|| {
+					test_request(provider, &path, |i: &mut types::completions::Request| {
+						let mut ir = conversion::ir::completions::parse_request(i)?;
+						if provider == ANTHROPIC_PROMPT_CACHING {
+							ir.apply_prompt_caching(&prompt_caching());
+						}
+						let rendered = conversion::ir::messages::render_request(ir, Some(&catalog))?;
+						serde_json::to_vec(&rendered).map_err(AIError::RequestMarshal)
+					})
 				});
 			}
 		}
@@ -343,6 +381,13 @@ mod requests {
 				match *provider {
 					ANTHROPIC => test_request(ANTHROPIC, &path, |i| {
 						conversion::messages::from_completions::translate(i, None, Some(&catalog))
+					}),
+					ANTHROPIC_PROMPT_CACHING => test_request(ANTHROPIC_PROMPT_CACHING, &path, |i| {
+						conversion::messages::from_completions::translate(
+							i,
+							Some(&prompt_caching()),
+							Some(&catalog),
+						)
 					}),
 					BEDROCK => test_request(BEDROCK, &path, |i| {
 						conversion::bedrock::from_completions::translate(

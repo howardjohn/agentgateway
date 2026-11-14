@@ -75,6 +75,7 @@ pub fn parse_request(req: &types::messages::Request) -> Result<Request, AIError>
 					description: tool.description,
 					parameters: Some(tool.input_schema),
 					strict: tool.strict,
+					cache: tool.cache_control.is_some(),
 				}),
 				messages::Tool::Server(tool) => {
 					tracing::warn!("dropping unsupported server tool {:?}", tool.tool_type);
@@ -142,8 +143,12 @@ fn message(msg: messages::Message) -> Option<Message> {
 				})
 			},
 			messages::ContentBlock::ToolUse {
-				id, name, input, ..
+				id,
+				name,
+				input,
+				cache_control,
 			} if role != Role::System => Some(Part::ToolCall {
+				cache: cache_control.is_some(),
 				thought_signature: gemini_signatures.remove(&id),
 				arguments: serde_json::to_string(&input).unwrap_or_default(),
 				id,
@@ -320,12 +325,13 @@ pub fn render_request(
 					id,
 					name,
 					arguments,
+					cache,
 					..
 				} => content.push(messages::ContentBlock::ToolUse {
 					id,
 					name,
 					input: crate::conversion::tool_arguments_to_input(&arguments),
-					cache_control: None,
+					cache_control: cache_control(cache),
 				}),
 				Part::ToolResult {
 					id,
@@ -400,7 +406,7 @@ pub fn render_request(
 					description: tool.description,
 					input_schema: tool.parameters.unwrap_or_default(),
 					strict: None,
-					cache_control: None,
+					cache_control: cache_control(tool.cache),
 				})
 			})
 			.collect::<Vec<_>>()
@@ -518,6 +524,7 @@ pub fn parse_response(bytes: &Bytes) -> Result<Response, AIError> {
 				id,
 				name,
 				thought_signature: None,
+				cache: false,
 			}),
 			messages::ContentBlock::Thinking {
 				thinking,
@@ -567,6 +574,7 @@ pub fn render_response(resp: Response) -> Result<Box<dyn ResponseType>, AIError>
 				name,
 				arguments,
 				thought_signature,
+				..
 			} => {
 				// A Gemini signature rides in a thinking block ahead of its tool call.
 				if let Some(signature) = thought_signature {
