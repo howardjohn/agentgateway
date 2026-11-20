@@ -48,7 +48,7 @@ pub struct EndpointWithInfo<T> {
 	/// Hash of the endpoint's stable key, computed with the endpoint so there is no uninitialized
 	/// state. Affinity selection therefore needs only an integer mix per candidate.
 	#[serde(skip)]
-	pub(crate) endpoint_hash: u64,
+	endpoint_hash: u64,
 }
 
 impl<T> EndpointWithInfo<T> {
@@ -115,8 +115,8 @@ fn build_sampler<T>(active: &IndexMap<EndpointKey, EndpointWithInfo<T>>) -> Samp
 
 #[derive(Debug, Clone, Serialize)]
 pub struct EndpointGroup<T> {
-	pub(crate) active: IndexMap<EndpointKey, EndpointWithInfo<T>>,
-	pub(crate) rejected: IndexMap<EndpointKey, EndpointWithInfo<T>>,
+	active: IndexMap<EndpointKey, EndpointWithInfo<T>>,
+	rejected: IndexMap<EndpointKey, EndpointWithInfo<T>>,
 	#[serde(skip)]
 	sampler: Sampler,
 }
@@ -259,11 +259,16 @@ impl EndpointSet<Endpoint> {
 
 		let c = match override_dest {
 			Some(o) => self.select_override(workloads, o)?,
-			None => match affinity_key {
-				Some(key) => self.select_affinity(workloads, svc_port, target_port, key)?,
-				None => self
-					.select_p2c(workloads, svc, svc_port, target_port)
-					.or_else(|| self.select_fallback(workloads, svc_port, target_port))?,
+			None => {
+				let (endpoint, info, workload) = self.select(affinity_key, |ewi, _| {
+					let workload = viable(workloads, target_port, svc_port, &ewi.endpoint)?;
+					Some((ewi.info.score(), workload))
+				})?;
+				Candidate {
+					endpoint,
+					info,
+					workload: workload.clone(),
+				}
 			},
 		};
 
@@ -273,91 +278,49 @@ impl EndpointSet<Endpoint> {
 		Some((c.endpoint, handle, c.workload))
 	}
 
-	/// Mean score of the endpoints in the first bucket with a viable active endpoint for `svc_port`.
-	/// Rejected and non-viable endpoints count as 0. `None` when no bucket has a viable active
-	/// endpoint.
-	pub fn mean_score(
+	/// Score of the first bucket with a viable active endpoint for `svc_port`: the mean of its
+	/// endpoints' scores, counting rejected and non-viable endpoints as 0. Without `mean`, 1.0 is
+	/// returned as soon as a viable active endpoint is found. `None` when no bucket has one.
+	pub fn active_score(
 		&self,
 		workloads: &store::WorkloadStore,
 		svc: &Service,
 		svc_port: u16,
+		mean: bool,
 	) -> Option<f64> {
 		let target_port = *svc.ports.get(&svc_port)?;
 		self.buckets.iter().find_map(|bucket| {
 			let group = bucket.load();
-			let (viable_count, total) = group
-				.active
-				.values()
-				.filter(|ewi| {
-					ewi.capacity > 0 && viable(workloads, target_port, svc_port, &ewi.endpoint).is_some()
-				})
-				.fold((0usize, 0.0), |(n, sum), ewi| {
-					(n + 1, sum + ewi.info.score())
-				});
-			(viable_count > 0).then(|| total / (group.active.len() + group.rejected.len()) as f64)
+			let mut viable_active = group.active.values().filter(|ewi| {
+				ewi.capacity > 0 && viable(workloads, target_port, svc_port, &ewi.endpoint).is_some()
+			});
+			if !mean {
+				return viable_active.next().map(|_| 1.0);
+			}
+			let (count, total) = viable_active.fold((0usize, 0.0), |(n, sum), ewi| {
+				(n + 1, sum + ewi.info.score())
+			});
+			(count > 0).then(|| total / (group.active.len() + group.rejected.len()) as f64)
 		})
 	}
 
-	/// Selects one endpoint using weighted rendezvous hashing. Locality and health semantics match
-	/// normal endpoint selection: the first locality bucket with a viable active endpoint wins;
-	/// rejected endpoints are considered only when no active endpoint is viable in any bucket.
-	fn select_affinity(
+	/// Whether any rejected endpoint is viable for `svc_port`.
+	pub fn has_viable_rejected(
 		&self,
 		workloads: &store::WorkloadStore,
+		svc: &Service,
 		svc_port: u16,
-		target_port: u16,
-		affinity_key: u64,
-	) -> Option<Candidate> {
-		for active_phase in [true, false] {
-			// Preserve normal health and locality behavior: exhaust active endpoints across priority
-			// buckets before considering rejected endpoints, and stop at the first bucket with a
-			// viable winner. The affinity hash never overrides priority or health.
-			for bucket in &self.buckets {
-				let group = bucket.load_full();
-				if group.sampler.is_drained() {
-					continue;
-				}
-				let endpoints = if active_phase {
-					&group.active
-				} else {
-					&group.rejected
-				};
-				let unit_weights = if active_phase {
-					matches!(&group.sampler, Sampler::Uniform)
-				} else {
-					endpoints.values().all(|ewi| ewi.capacity == 1)
-				};
-				// For weight=1, weight / -ln(u) is strictly increasing in u, so comparing the raw
-				// hash chooses exactly the same endpoint while avoiding an f64 conversion and ln()
-				// for every candidate. A whole candidate set uses one score representation.
-				let selected = endpoints
-					.iter()
-					.filter(|(_, ewi)| ewi.capacity > 0)
-					.filter_map(|(_, ewi)| {
-						let workload = viable(workloads, target_port, svc_port, &ewi.endpoint)?;
-						let score = if unit_weights {
-							RendezvousScore::Unweighted(rendezvous_hash(affinity_key, ewi.endpoint_hash))
-						} else {
-							RendezvousScore::Weighted(weighted_rendezvous_score(
-								affinity_key,
-								ewi.endpoint_hash,
-								ewi.capacity,
-							))
-						};
-						Some((score, ewi, workload))
-					})
-					.max_by(|a, b| a.0.total_cmp(b.0))
-					.map(|(_, ewi, workload)| Candidate {
-						endpoint: ewi.endpoint.clone(),
-						info: ewi.info.clone(),
-						workload: workload.clone(),
-					});
-				if selected.is_some() {
-					return selected;
-				}
-			}
-		}
-		None
+	) -> bool {
+		let Some(&target_port) = svc.ports.get(&svc_port) else {
+			return false;
+		};
+		self.buckets.iter().any(|bucket| {
+			let group = bucket.load();
+			!group.sampler.is_drained()
+				&& group.rejected.values().any(|ewi| {
+					ewi.capacity > 0 && viable(workloads, target_port, svc_port, &ewi.endpoint).is_some()
+				})
+		})
 	}
 
 	/// Explicit destination bypasses bucketing and health — search every endpoint
@@ -381,88 +344,9 @@ impl EndpointSet<Endpoint> {
 			})
 		})
 	}
-
-	/// P2C: pick two random endpoints from the best non-empty bucket, return the
-	/// higher-scored one. Sampling with replacement (vs `rand::seq::index::sample`)
-	/// keeps the worst endpoint reachable instead of starving it of traffic.
-	///
-	/// sets of endpoints that define non-uniform capacity will use weighted sampling
-	/// when making the random picks.
-	fn select_p2c(
-		&self,
-		workloads: &store::WorkloadStore,
-		svc: &Service,
-		svc_port: u16,
-		target_port: u16,
-	) -> Option<Candidate> {
-		let iter = svc.endpoints.iter();
-		let index = iter.index();
-		if index.is_empty() {
-			return None;
-		}
-		let mut rng = rand::rng();
-		let (a, b) = match iter.sampler() {
-			Some(Sampler::Drained) => return None,
-			Some(Sampler::Weighted(dist)) => (dist.sample(&mut rng), dist.sample(&mut rng)),
-			Some(Sampler::Uniform) | None => {
-				let len = index.len();
-				(rng.random_range(0..len), rng.random_range(0..len))
-			},
-		};
-		[a, b]
-			.into_iter()
-			.filter_map(|idx| {
-				let (_, ewi) = index.get_index(idx).expect("index already checked");
-				let wl = viable(workloads, target_port, svc_port, &ewi.endpoint)?;
-				Some(Candidate {
-					endpoint: ewi.endpoint.clone(),
-					info: ewi.info.clone(),
-					workload: wl.clone(),
-				})
-			})
-			.max_by(|a, b| a.info.score().total_cmp(&b.info.score()))
-	}
-
-	/// Slow fallback when P2C finds nothing viable: take the best-scored viable active endpoint
-	/// in the first bucket that has one, then likewise for rejected endpoints.
-	/// Fully-drained buckets (`sampler.is_drained()` — every active endpoint at
-	/// capacity=0) are skipped entirely: the operator's drain signal supersedes
-	/// the rejected-set fallback. Partially-drained buckets are scanned, but
-	/// individual cap=0 endpoints are filtered out.
-	fn select_fallback(
-		&self,
-		workloads: &store::WorkloadStore,
-		svc_port: u16,
-		target_port: u16,
-	) -> Option<Candidate> {
-		[true, false].into_iter().find_map(|active_phase| {
-			self.buckets.iter().find_map(|bucket| {
-				let group = bucket.load_full();
-				if group.sampler.is_drained() {
-					return None;
-				}
-				let map = if active_phase {
-					&group.active
-				} else {
-					&group.rejected
-				};
-				map
-					.iter()
-					.filter_map(|(_, ewi)| {
-						let wl = viable(workloads, target_port, svc_port, &ewi.endpoint)?;
-						Some(Candidate {
-							endpoint: ewi.endpoint.clone(),
-							info: ewi.info.clone(),
-							workload: wl.clone(),
-						})
-					})
-					.max_by(|a, b| a.info.score().total_cmp(&b.info.score()))
-			})
-		})
-	}
 }
 
-/// Comparable score representations for the two HRW paths. `select_affinity` chooses one path for
+/// Comparable score representations for the two HRW paths. `select` chooses one path for
 /// the entire candidate set, so comparing different variants would indicate an implementation bug.
 #[derive(Clone, Copy)]
 enum RendezvousScore {
@@ -487,7 +371,7 @@ impl RendezvousScore {
 /// The hashes use separate seeds; with either fixed, XOR is a one-to-one translation of the other
 /// and loses no entropy. SplitMix64 then avalanches the combined value.
 #[inline]
-pub(crate) fn rendezvous_hash(affinity_key: u64, endpoint_hash: u64) -> u64 {
+fn rendezvous_hash(affinity_key: u64, endpoint_hash: u64) -> u64 {
 	let mut value = affinity_key ^ endpoint_hash;
 	// Constants and algorithm from https://rosettacode.org/wiki/Pseudo-random_numbers/Splitmix64
 	value = (value ^ (value >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
@@ -801,9 +685,127 @@ impl<T: Clone + Sync + Send + 'static> EndpointSet<T> {
 		ActiveEndpointsIter(self.best_bucket())
 	}
 
-	/// Each bucket, in priority order.
-	pub fn buckets(&self) -> Vec<Arc<EndpointGroup<T>>> {
-		self.buckets.iter().map(|b| b.load_full()).collect()
+	/// The number of endpoints, active or rejected.
+	pub fn endpoint_count(&self) -> usize {
+		self
+			.buckets
+			.iter()
+			.map(|b| {
+				let group = b.load();
+				group.active.len() + group.rejected.len()
+			})
+			.sum()
+	}
+
+	/// Selects an endpoint accepted by `usable`, which returns the endpoint's score. Its second
+	/// argument is set for the last-resort scan.
+	///
+	/// Without an affinity key, two random endpoints are sampled from the best bucket (weighted by
+	/// capacity) and the higher-scored usable one wins. Sampling with replacement (vs
+	/// `rand::seq::index::sample`) keeps the worst endpoint reachable instead of starving it of
+	/// traffic. Otherwise, the first bucket with a usable active endpoint wins, taking the
+	/// higher-scored of two random usable endpoints or, with an affinity key, the rendezvous hash
+	/// winner. Failing that, the last-resort scan does the same over every endpoint, including
+	/// rejected ones.
+	///
+	/// Fully-drained buckets (`sampler.is_drained()` — every active endpoint at capacity=0) are
+	/// skipped entirely: the operator's drain signal supersedes the rejected-set fallback.
+	/// Partially-drained buckets are scanned, but individual cap=0 endpoints are filtered out.
+	pub fn select<C>(
+		&self,
+		affinity_key: Option<u64>,
+		usable: impl Fn(&EndpointWithInfo<T>, bool) -> Option<(f64, C)>,
+	) -> Option<(Arc<T>, Arc<EndpointInfo>, C)> {
+		if affinity_key.is_none() {
+			let iter = self.iter();
+			let index = iter.index();
+			if !index.is_empty() {
+				let mut rng = rand::rng();
+				let picks = match iter.sampler() {
+					Some(Sampler::Drained) => None,
+					Some(Sampler::Weighted(dist)) => Some((dist.sample(&mut rng), dist.sample(&mut rng))),
+					Some(Sampler::Uniform) | None => {
+						let len = index.len();
+						Some((rng.random_range(0..len), rng.random_range(0..len)))
+					},
+				};
+				if let Some((a, b)) = picks {
+					let last_resort = !iter.is_active_phase();
+					let pick = |idx: usize| {
+						let (_, ewi) = index.get_index(idx).expect("index already checked");
+						let (score, c) = usable(ewi, last_resort)?;
+						Some((ewi, score, c))
+					};
+					let found = [Some(a), (a != b).then_some(b)]
+						.into_iter()
+						.flatten()
+						.filter_map(pick)
+						.max_by(|x, y| x.1.total_cmp(&y.1));
+					if let Some((ewi, _, c)) = found {
+						return Some((ewi.endpoint.clone(), ewi.info.clone(), c));
+					}
+				}
+			}
+		}
+
+		[false, true].into_iter().find_map(|last_resort| {
+			self.buckets.iter().find_map(|bucket| {
+				let group = bucket.load_full();
+				if group.sampler.is_drained() {
+					return None;
+				}
+				let endpoints = || {
+					let rejected = last_resort.then(|| group.rejected.values());
+					group.active.values().chain(rejected.into_iter().flatten())
+				};
+				let candidates = endpoints()
+					.filter(|ewi| ewi.capacity > 0)
+					.filter_map(|ewi| {
+						let (score, c) = usable(ewi, last_resort)?;
+						Some((ewi, score, c))
+					});
+				let (ewi, c) = match affinity_key {
+					None => {
+						let mut candidates = candidates.collect::<Vec<_>>();
+						if candidates.is_empty() {
+							return None;
+						}
+						let mut rng = rand::rng();
+						let a = rng.random_range(0..candidates.len());
+						let b = rng.random_range(0..candidates.len());
+						let best = if candidates[a].1 >= candidates[b].1 {
+							a
+						} else {
+							b
+						};
+						let (ewi, _, c) = candidates.swap_remove(best);
+						(ewi, c)
+					},
+					Some(key) => {
+						// For weight=1, weight / -ln(u) is strictly increasing in u, so comparing the raw
+						// hash chooses exactly the same endpoint while avoiding an f64 conversion and ln()
+						// for every candidate. A whole candidate set uses one score representation.
+						let unit_weights = endpoints().all(|ewi| ewi.capacity == 1);
+						candidates
+							.map(|(ewi, _, c)| {
+								let score = if unit_weights {
+									RendezvousScore::Unweighted(rendezvous_hash(key, ewi.endpoint_hash))
+								} else {
+									RendezvousScore::Weighted(weighted_rendezvous_score(
+										key,
+										ewi.endpoint_hash,
+										ewi.capacity,
+									))
+								};
+								(ewi, score, c)
+							})
+							.max_by(|x, y| x.1.total_cmp(y.1))
+							.map(|(ewi, _, c)| (ewi, c))?
+					},
+				};
+				Some((ewi.endpoint.clone(), ewi.info.clone(), c))
+			})
+		})
 	}
 
 	/// Visit every endpoint, returning the first `Some` produced by `f`. Active
@@ -1312,7 +1314,10 @@ mod benches {
 		let affinity_key = hash_affinity_key(b"affinity-benchmark-client");
 
 		b.bench_local(|| {
-			black_box(endpoints.select_affinity(&discovery.workloads, 80, 8080, black_box(affinity_key)))
+			black_box(endpoints.select(Some(black_box(affinity_key)), |ewi, _| {
+				let workload = viable(&discovery.workloads, 8080, 80, &ewi.endpoint)?;
+				Some((ewi.info.score(), workload.clone()))
+			}))
 		});
 	}
 
@@ -1323,7 +1328,10 @@ mod benches {
 		let affinity_key = hash_affinity_key(b"affinity-benchmark-client");
 
 		b.bench_local(|| {
-			black_box(endpoints.select_affinity(&discovery.workloads, 80, 8080, black_box(affinity_key)))
+			black_box(endpoints.select(Some(black_box(affinity_key)), |ewi, _| {
+				let workload = viable(&discovery.workloads, 8080, 80, &ewi.endpoint)?;
+				Some((ewi.info.score(), workload.clone()))
+			}))
 		});
 	}
 }
@@ -2081,7 +2089,7 @@ mod tests {
 		// Setup: one cap=0 endpoint → sampler is Drained.
 		// Action: remove that endpoint.
 		// Expect: sampler must NOT stay Drained. A drained sampler tells
-		// select_fallback to skip the whole bucket, which would also skip
+		// select to skip the whole bucket, which would also skip
 		// the rejected pool — the wrong behavior when active is empty.
 		let mut group = EndpointGroup::<()>::default();
 		add_with_capacity(&mut group, "a", 0);
@@ -2091,7 +2099,7 @@ mod tests {
 		assert!(
 			!group.sampler.is_drained(),
 			"sampler stayed drained after removing the last cap=0 endpoint; \
-			 select_fallback would now skip this bucket's rejected pool"
+			 select would now skip this bucket's rejected pool"
 		);
 	}
 

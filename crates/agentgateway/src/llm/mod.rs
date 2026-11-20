@@ -17,7 +17,6 @@ pub use agent_llm::{
 use axum_extra::headers::authorization::Bearer;
 use headers::{ContentEncoding, HeaderMapExt};
 pub use policy::Policy;
-use rand::RngExt;
 use serde::de::DeserializeOwned;
 
 use crate::http::auth::{
@@ -29,7 +28,7 @@ use crate::proxy::httpproxy::PolicyClient;
 use crate::store::{BackendPolicies, LLMResponsePolicies};
 use crate::telemetry::log::{AsyncLog, GuardrailLog, RequestLog};
 use crate::types::agent::{BackendTrafficPolicy, SimpleBackendReference, Target};
-use crate::types::loadbalancer::{ActiveHandle, EndpointWithInfo};
+use crate::types::loadbalancer::ActiveHandle;
 use crate::*;
 pub mod model_list;
 pub mod model_router;
@@ -98,78 +97,53 @@ impl AIBackend {
 		}
 	}
 
-	/// Selects a provider the way service endpoints are selected: power of two choices in the
-	/// best bucket, falling back to a scan of every bucket in priority order.
+	/// Selects a provider the same way service endpoints are selected. `health` is told whether a
+	/// derived score is needed; without it, any positive score will do. The value `health` returns
+	/// alongside the selected provider's health is returned with it.
 	/// A handle is returned only for providers scored by their own requests.
-	pub fn select_provider(
+	pub fn select_provider<R>(
 		&self,
 		affinity_key: Option<u64>,
-		health: impl Fn(&NamedAIProvider) -> ProviderHealth,
-	) -> Option<(Arc<NamedAIProvider>, Option<ActiveHandle>)> {
-		// (tier, score, own): lower tiers are preferred over any higher tier.
-		let rank = |e: &EndpointWithInfo<NamedAIProvider>, active: bool| match health(&e.endpoint) {
-			ProviderHealth::Own => (if active { 0 } else { 1 }, e.info.score(), true),
-			ProviderHealth::Derived(score) => (0, score, false),
-			ProviderHealth::Evicted => (1, e.info.score(), false),
-			ProviderHealth::Unavailable => (2, e.info.score(), false),
-		};
-		let start = |e: &EndpointWithInfo<NamedAIProvider>, own: bool| {
-			let handle = own.then(|| {
-				self
-					.providers
-					.start_request(e.endpoint.name.clone(), &e.info)
-			});
-			Some((e.endpoint.clone(), handle))
-		};
-
-		if affinity_key.is_none() {
-			let iter = self.providers.iter();
-			let index = iter.index();
-			if iter.is_active_phase() {
-				// Intentionally allow `rand::seq::index::sample` so we can pick the same element twice
-				// This avoids starvation where the worst endpoint gets 0 traffic
-				let a = rand::rng().random_range(0..index.len());
-				let b = rand::rng().random_range(0..index.len());
-				let ra = rank(&index[a], true);
-				let rb = if a == b { ra } else { rank(&index[b], true) };
-				let best = [(&index[a], ra), (&index[b], rb)]
-					.into_iter()
-					.filter(|(_, (tier, _, _))| *tier == 0)
-					.max_by(|(_, (_, x, _)), (_, (_, y, _))| x.total_cmp(y));
-				if let Some((e, (_, _, own))) = best {
-					return start(e, own);
-				}
-			}
-		}
-
-		// Slow path: rank every provider, then take the best of the lowest tier in the first
-		// bucket that has one.
-		let buckets = self.providers.buckets();
-		let ranked = buckets
-			.iter()
-			.enumerate()
-			.flat_map(|(bucket, g)| {
-				let active = g.active.values().map(move |e| (bucket, e, true));
-				let rejected = g.rejected.values().map(move |e| (bucket, e, false));
-				active.chain(rejected)
-			})
-			.map(|(bucket, e, active)| (bucket, e, rank(e, active)))
-			.collect::<Vec<_>>();
-		let (tier, bucket) = ranked.iter().map(|(b, _, (t, _, _))| (*t, *b)).min()?;
-		let candidates = ranked
-			.iter()
-			.filter(|(b, _, (t, _, _))| *t == tier && *b == bucket);
-		let (_, e, (_, _, own)) = match affinity_key {
-			Some(key) => candidates.max_by_key(|(_, e, _)| {
-				crate::types::loadbalancer::rendezvous_hash(key, e.endpoint_hash)
-			})?,
-			None => candidates.max_by(|(_, _, (_, x, _)), (_, _, (_, y, _))| x.total_cmp(y))?,
-		};
-		start(e, *own)
+		health: impl Fn(&NamedAIProvider, bool) -> (ProviderHealth, R),
+	) -> Option<(Arc<NamedAIProvider>, Option<ActiveHandle>, R)> {
+		// Scores only decide between providers. With a single provider, `health` only needs to
+		// report whether it is available, which skips averaging over every endpoint behind it.
+		let want_score = self.providers.endpoint_count() > 1;
+		// `select` may visit a provider more than once; `health` runs once per provider.
+		let seen = std::cell::RefCell::new(Vec::<(Strng, ProviderHealth, R)>::new());
+		let (provider, info, (own, seen_idx)) =
+			self.providers.select(affinity_key, |e, last_resort| {
+				let mut seen = seen.borrow_mut();
+				let idx = match seen
+					.iter()
+					.position(|(name, _, _)| *name == e.endpoint.name)
+				{
+					Some(idx) => idx,
+					None => {
+						let (health, resolved) = health(&e.endpoint, want_score);
+						seen.push((e.endpoint.name.clone(), health, resolved));
+						seen.len() - 1
+					},
+				};
+				let (score, own) = match seen[idx].1 {
+					ProviderHealth::Own => (e.info.score(), true),
+					ProviderHealth::Derived(score) => (score, false),
+					ProviderHealth::Evicted if last_resort => (e.info.score(), false),
+					ProviderHealth::Evicted | ProviderHealth::Unavailable => return None,
+				};
+				Some((score, (own, idx)))
+			})?;
+		let (_, _, resolved) = seen.into_inner().swap_remove(seen_idx);
+		// Only providers scored by their own requests get a handle. A provider whose health is
+		// derived from its endpoints has no state of its own; the endpoint selected behind it is
+		// scored instead.
+		let handle = own.then(|| self.providers.start_request(provider.name.clone(), &info));
+		Some((provider, handle, resolved))
 	}
 }
 
 /// How a provider's health is determined.
+#[derive(Clone, Copy)]
 pub enum ProviderHealth {
 	/// Scored by the provider's own requests.
 	Own,
