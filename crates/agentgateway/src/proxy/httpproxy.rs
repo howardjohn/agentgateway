@@ -2723,6 +2723,12 @@ async fn make_backend_call(
 					.merge(policies.as_ref().clone())
 					.merge(sub_backend_policies)
 					.merge(provider_backend_policies);
+				// The provider handle is scored with this policy if the request fails before an
+				// endpoint is selected, e.g. when the inference picker errors.
+				log.add(|l| {
+					l.health_policy = effective_policies.health.clone();
+					effective_policies.register_cel_expressions(l.cel.ctx());
+				});
 
 				build_simple_backend_call(
 					&inputs,

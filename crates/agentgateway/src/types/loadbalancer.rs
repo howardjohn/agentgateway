@@ -640,16 +640,24 @@ impl<T: Clone + Sync + Send + 'static> EndpointSet<T> {
 		ActiveEndpointsIter(self.best_bucket())
 	}
 
-	/// The mean health of the endpoints in the first bucket with an endpoint that is not evicted,
-	/// counting evicted endpoints as 0, or `None` when every endpoint is evicted.
+	/// The mean health of the endpoints in the first bucket with an endpoint that is not evicted or
+	/// drained, counting evicted endpoints as 0, or `None` when there is no such endpoint. Drained
+	/// endpoints are excluded, matching `select`.
 	pub fn mean_health(&self) -> Option<f64> {
 		self.buckets.iter().find_map(|b| {
 			let group = b.load();
-			if group.active.is_empty() {
+			if group.sampler.is_drained() {
 				return None;
 			}
-			let total: f64 = group.active.values().map(|e| e.info.health_score()).sum();
-			Some(total / (group.active.len() + group.rejected.len()) as f64)
+			let (active, total) = group
+				.active
+				.values()
+				.filter(|e| e.capacity > 0)
+				.fold((0usize, 0.0), |(n, sum), e| {
+					(n + 1, sum + e.info.health_score())
+				});
+			let rejected = group.rejected.values().filter(|e| e.capacity > 0).count();
+			(active > 0).then(|| total / (active + rejected) as f64)
 		})
 	}
 
