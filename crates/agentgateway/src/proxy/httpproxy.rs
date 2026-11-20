@@ -36,8 +36,7 @@ use crate::http::{
 	merge_in_headers, retry,
 };
 use crate::llm::{
-	InputFormat, LLMInfo, LLMRequest, LLMResponse, ProviderHealth, RequestResult, RouteType,
-	model_router,
+	InputFormat, LLMInfo, LLMRequest, LLMResponse, RequestResult, RouteType, model_router,
 };
 use crate::proxy::tcpproxy::TCPProxy;
 use crate::proxy::{
@@ -2679,48 +2678,20 @@ async fn make_backend_call(
 				.session_affinity
 				.as_ref()
 				.and_then(|policy| policy.affinity_key(&req));
-			// A provider backed by a Service is scored by the Service's endpoints, unless an
-			// inference picker selects the endpoint.
-			let (provider, handle, resolved) = ai
-				.select_provider(affinity_key, |p, want_score| {
-					let Some(provider_backend) = &p.provider_backend else {
-						return (ProviderHealth::Own, None);
-					};
-					let Ok(resolved) = super::resolve_simple_backend(provider_backend, inputs.as_ref())
-					else {
-						return (ProviderHealth::Unavailable, None);
-					};
-					// Use backend_policies (not sub_backend_policies) so policies indexed without a
-					// port -- like the InferenceRouting policy the controller attaches to an
-					// InferencePool's synthesized service -- are found for the provider backend.
-					let backend_policies = inputs.stores.read_binds().backend_policies(
-						resolved.backend.target(),
-						&[&resolved.inline_policies],
-						None,
-					);
-					let health = match &resolved.backend {
-						SimpleBackend::Service(svc, port) if backend_policies.inference_routing.is_none() => {
-							let discovery = inputs.stores.read_discovery();
-							let workloads = &discovery.workloads;
-							match svc
-								.endpoints
-								.active_score(workloads, svc, *port, want_score)
-							{
-								Some(score) => ProviderHealth::Derived(score),
-								None if svc.endpoints.has_viable_rejected(workloads, svc, *port) => {
-									ProviderHealth::Evicted
-								},
-								None => ProviderHealth::Unavailable,
-							}
-						},
-						_ => ProviderHealth::Own,
-					};
-					(health, Some((resolved, backend_policies)))
+			// A provider backed by a Service is available only while the Service has an endpoint
+			// that is not evicted.
+			let (provider, handle) = {
+				let discovery = inputs.stores.read_discovery();
+				ai.select_provider(affinity_key, |p| match &p.provider_backend {
+					Some(SimpleBackendReference::Service { name, .. }) => discovery
+						.services
+						.get_by_namespaced_host(name)
+						.is_some_and(|svc| svc.endpoints.has_active()),
+					_ => true,
 				})
-				.ok_or(ProxyError::NoHealthyEndpoints)?;
-			if let Some(handle) = handle {
-				log.add(move |l| l.request_handle = Some(handle));
 			}
+			.ok_or(ProxyError::NoHealthyEndpoints)?;
+			log.add(move |l| l.request_handle = Some(handle));
 			let sub_backend_name = BackendTargetRef::Backend {
 				name: n.name.as_ref(),
 				namespace: n.namespace.as_ref(),
@@ -2737,17 +2708,21 @@ async fn make_backend_call(
 				llm_provider: Some(provider.clone()),
 				..Default::default()
 			};
-			if let Some((provider_backend, provider_backend_policies)) = resolved {
-				let provider_policies = provider_defaults
+			if let Some(provider_backend) = &provider.provider_backend {
+				let provider_backend =
+					super::resolve_simple_backend_with_policies(provider_backend, inputs.as_ref())?;
+				// Use backend_policies (not sub_backend_policies) so policies indexed without a
+				// port -- like the InferenceRouting policy the controller attaches to an
+				// InferencePool's synthesized service -- are found for the provider backend.
+				let provider_backend_policies = inputs.stores.read_binds().backend_policies(
+					provider_backend.backend.target(),
+					&[&provider_backend.inline_policies],
+					None,
+				);
+				let effective_policies = provider_defaults
 					.merge(policies.as_ref().clone())
-					.merge(sub_backend_policies);
-				let effective_policies = provider_policies.merge(provider_backend_policies);
-				// The provider handle, if any, is scored with this policy when the request fails
-				// before an endpoint is selected.
-				log.add(|l| {
-					l.health_policy = effective_policies.health.clone();
-					effective_policies.register_cel_expressions(l.cel.ctx());
-				});
+					.merge(sub_backend_policies)
+					.merge(provider_backend_policies);
 
 				build_simple_backend_call(
 					&inputs,
@@ -3585,14 +3560,7 @@ pub fn build_service_call(
 	)
 	.ok_or(ProxyError::NoHealthyEndpoints)?;
 
-	// When an inference picker routes the request, an existing handle (e.g. for the AI provider
-	// that delegated to this service) is scored instead.
-	let picked = service_override.destination.is_some() || service_override.inference_failed_open;
-	log.add(move |l| {
-		if !picked || l.request_handle.is_none() {
-			l.request_handle = Some(handle)
-		}
-	});
+	log.add(move |l| l.request_handle = Some(handle));
 
 	// Check if we need double hbone (workload on remote network with gateway)
 	let mut network_gateway = if wl.network != inputs.cfg.network {

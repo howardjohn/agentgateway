@@ -97,62 +97,19 @@ impl AIBackend {
 		}
 	}
 
-	/// Selects a provider the same way service endpoints are selected. `health` is told whether a
-	/// derived score is needed; without it, any positive score will do. The value `health` returns
-	/// alongside the selected provider's health is returned with it.
-	/// A handle is returned only for providers scored by their own requests.
-	pub fn select_provider<R>(
+	/// Selects a provider the same way service endpoints are selected. Providers rejected by
+	/// `available` are used only when no available provider exists.
+	pub fn select_provider(
 		&self,
 		affinity_key: Option<u64>,
-		health: impl Fn(&NamedAIProvider, bool) -> (ProviderHealth, R),
-	) -> Option<(Arc<NamedAIProvider>, Option<ActiveHandle>, R)> {
-		// Scores only decide between providers. With a single provider, `health` only needs to
-		// report whether it is available, which skips averaging over every endpoint behind it.
-		let want_score = self.providers.endpoint_count() > 1;
-		// `select` may visit a provider more than once; `health` runs once per provider.
-		let seen = std::cell::RefCell::new(Vec::<(Strng, ProviderHealth, R)>::new());
-		let (provider, info, (own, seen_idx)) =
-			self.providers.select(affinity_key, |e, last_resort| {
-				let mut seen = seen.borrow_mut();
-				let idx = match seen
-					.iter()
-					.position(|(name, _, _)| *name == e.endpoint.name)
-				{
-					Some(idx) => idx,
-					None => {
-						let (health, resolved) = health(&e.endpoint, want_score);
-						seen.push((e.endpoint.name.clone(), health, resolved));
-						seen.len() - 1
-					},
-				};
-				let (score, own) = match seen[idx].1 {
-					ProviderHealth::Own => (e.info.score(), true),
-					ProviderHealth::Derived(score) => (score, false),
-					ProviderHealth::Evicted if last_resort => (e.info.score(), false),
-					ProviderHealth::Evicted | ProviderHealth::Unavailable => return None,
-				};
-				Some((score, (own, idx)))
-			})?;
-		let (_, _, resolved) = seen.into_inner().swap_remove(seen_idx);
-		// Only providers scored by their own requests get a handle. A provider whose health is
-		// derived from its endpoints has no state of its own; the endpoint selected behind it is
-		// scored instead.
-		let handle = own.then(|| self.providers.start_request(provider.name.clone(), &info));
-		Some((provider, handle, resolved))
+		available: impl Fn(&NamedAIProvider) -> bool,
+	) -> Option<(Arc<NamedAIProvider>, ActiveHandle)> {
+		let (provider, info, ()) = self.providers.select(affinity_key, |e, last_resort| {
+			(last_resort || available(&e.endpoint)).then(|| (e.info.score(), ()))
+		})?;
+		let handle = self.providers.start_request(provider.name.clone(), &info);
+		Some((provider, handle))
 	}
-}
-
-/// How a provider's health is determined.
-#[derive(Clone, Copy)]
-pub enum ProviderHealth {
-	/// Scored by the provider's own requests.
-	Own,
-	/// Scored by the endpoints the gateway selects behind the provider.
-	Derived(f64),
-	/// Every endpoint behind the provider is evicted.
-	Evicted,
-	/// No endpoint is behind the provider.
-	Unavailable,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

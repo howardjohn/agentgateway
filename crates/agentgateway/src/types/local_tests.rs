@@ -245,8 +245,8 @@ fn selected_ai_provider(normalized: &NormalizedLocalConfig) -> Arc<NamedAIProvid
 	let Backend::AI(_, ai) = &backend.backend else {
 		panic!("expected generated AI backend");
 	};
-	let (provider, _handle, _) = ai
-		.select_provider(None, |_, _| (crate::llm::ProviderHealth::Own, ()))
+	let (provider, _handle) = ai
+		.select_provider(None, |_| true)
 		.expect("expected selected provider");
 	provider
 }

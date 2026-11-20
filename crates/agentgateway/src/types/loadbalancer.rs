@@ -278,51 +278,6 @@ impl EndpointSet<Endpoint> {
 		Some((c.endpoint, handle, c.workload))
 	}
 
-	/// Score of the first bucket with a viable active endpoint for `svc_port`: the mean of its
-	/// endpoints' scores, counting rejected and non-viable endpoints as 0. Without `mean`, 1.0 is
-	/// returned as soon as a viable active endpoint is found. `None` when no bucket has one.
-	pub fn active_score(
-		&self,
-		workloads: &store::WorkloadStore,
-		svc: &Service,
-		svc_port: u16,
-		mean: bool,
-	) -> Option<f64> {
-		let target_port = *svc.ports.get(&svc_port)?;
-		self.buckets.iter().find_map(|bucket| {
-			let group = bucket.load();
-			let mut viable_active = group.active.values().filter(|ewi| {
-				ewi.capacity > 0 && viable(workloads, target_port, svc_port, &ewi.endpoint).is_some()
-			});
-			if !mean {
-				return viable_active.next().map(|_| 1.0);
-			}
-			let (count, total) = viable_active.fold((0usize, 0.0), |(n, sum), ewi| {
-				(n + 1, sum + ewi.info.score())
-			});
-			(count > 0).then(|| total / (group.active.len() + group.rejected.len()) as f64)
-		})
-	}
-
-	/// Whether any rejected endpoint is viable for `svc_port`.
-	pub fn has_viable_rejected(
-		&self,
-		workloads: &store::WorkloadStore,
-		svc: &Service,
-		svc_port: u16,
-	) -> bool {
-		let Some(&target_port) = svc.ports.get(&svc_port) else {
-			return false;
-		};
-		self.buckets.iter().any(|bucket| {
-			let group = bucket.load();
-			!group.sampler.is_drained()
-				&& group.rejected.values().any(|ewi| {
-					ewi.capacity > 0 && viable(workloads, target_port, svc_port, &ewi.endpoint).is_some()
-				})
-		})
-	}
-
 	/// Explicit destination bypasses bucketing and health — search every endpoint
 	/// (active + rejected) so an evicted-but-explicitly-targeted backend is still reachable.
 	fn select_override(&self, workloads: &store::WorkloadStore, o: SocketAddr) -> Option<Candidate> {
@@ -685,16 +640,9 @@ impl<T: Clone + Sync + Send + 'static> EndpointSet<T> {
 		ActiveEndpointsIter(self.best_bucket())
 	}
 
-	/// The number of endpoints, active or rejected.
-	pub fn endpoint_count(&self) -> usize {
-		self
-			.buckets
-			.iter()
-			.map(|b| {
-				let group = b.load();
-				group.active.len() + group.rejected.len()
-			})
-			.sum()
+	/// Whether any bucket has an endpoint that is not evicted.
+	pub fn has_active(&self) -> bool {
+		self.buckets.iter().any(|b| !b.load().active.is_empty())
 	}
 
 	/// Selects an endpoint accepted by `usable`, which returns the endpoint's score. Its second
