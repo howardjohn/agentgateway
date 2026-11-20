@@ -97,15 +97,17 @@ impl AIBackend {
 		}
 	}
 
-	/// Selects a provider the same way service endpoints are selected. Providers rejected by
-	/// `available` are used only when no available provider exists.
+	/// Selects a provider the same way service endpoints are selected. `availability` scales a
+	/// provider's score; providers it returns `None` for are used only when no other provider is
+	/// available.
 	pub fn select_provider(
 		&self,
 		affinity_key: Option<u64>,
-		available: impl Fn(&NamedAIProvider) -> bool,
+		availability: impl Fn(&NamedAIProvider) -> Option<f64>,
 	) -> Option<(Arc<NamedAIProvider>, ActiveHandle)> {
 		let (provider, info, ()) = self.providers.select(affinity_key, |e, last_resort| {
-			(last_resort || available(&e.endpoint)).then(|| (e.info.score(), ()))
+			let availability = availability(&e.endpoint).or(last_resort.then_some(1.0))?;
+			Some((e.info.score() * availability, ()))
 		})?;
 		let handle = self.providers.start_request(provider.name.clone(), &info);
 		Some((provider, handle))

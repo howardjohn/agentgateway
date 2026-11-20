@@ -640,9 +640,17 @@ impl<T: Clone + Sync + Send + 'static> EndpointSet<T> {
 		ActiveEndpointsIter(self.best_bucket())
 	}
 
-	/// Whether any bucket has an endpoint that is not evicted.
-	pub fn has_active(&self) -> bool {
-		self.buckets.iter().any(|b| !b.load().active.is_empty())
+	/// The mean health of the endpoints in the first bucket with an endpoint that is not evicted,
+	/// counting evicted endpoints as 0, or `None` when every endpoint is evicted.
+	pub fn mean_health(&self) -> Option<f64> {
+		self.buckets.iter().find_map(|b| {
+			let group = b.load();
+			if group.active.is_empty() {
+				return None;
+			}
+			let total: f64 = group.active.values().map(|e| e.info.health_score()).sum();
+			Some(total / (group.active.len() + group.rejected.len()) as f64)
+		})
 	}
 
 	/// Selects an endpoint accepted by `usable`, which returns the endpoint's score. Its second
@@ -655,10 +663,6 @@ impl<T: Clone + Sync + Send + 'static> EndpointSet<T> {
 	/// higher-scored of two random usable endpoints or, with an affinity key, the rendezvous hash
 	/// winner. Failing that, the last-resort scan does the same over every endpoint, including
 	/// rejected ones.
-	///
-	/// Fully-drained buckets (`sampler.is_drained()` — every active endpoint at capacity=0) are
-	/// skipped entirely: the operator's drain signal supersedes the rejected-set fallback.
-	/// Partially-drained buckets are scanned, but individual cap=0 endpoints are filtered out.
 	pub fn select<C>(
 		&self,
 		affinity_key: Option<u64>,

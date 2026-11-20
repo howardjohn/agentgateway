@@ -2678,16 +2678,16 @@ async fn make_backend_call(
 				.session_affinity
 				.as_ref()
 				.and_then(|policy| policy.affinity_key(&req));
-			// A provider backed by a Service is available only while the Service has an endpoint
-			// that is not evicted.
+			// A provider backed by a Service is scaled by the mean health of the Service's endpoints,
+			// and is unavailable when all of them are evicted.
 			let (provider, handle) = {
 				let discovery = inputs.stores.read_discovery();
 				ai.select_provider(affinity_key, |p| match &p.provider_backend {
 					Some(SimpleBackendReference::Service { name, .. }) => discovery
 						.services
 						.get_by_namespaced_host(name)
-						.is_some_and(|svc| svc.endpoints.has_active()),
-					_ => true,
+						.and_then(|svc| svc.endpoints.mean_health()),
+					_ => Some(1.0),
 				})
 			}
 			.ok_or(ProxyError::NoHealthyEndpoints)?;
