@@ -98,36 +98,87 @@ impl AIBackend {
 		}
 	}
 
+	/// Selects a provider the way service endpoints are selected: power of two choices in the
+	/// best bucket, falling back to a scan of every bucket in priority order.
+	/// A handle is returned only for providers scored by their own requests.
 	pub fn select_provider(
 		&self,
 		affinity_key: Option<u64>,
-	) -> Option<(Arc<NamedAIProvider>, ActiveHandle)> {
-		if let Some(affinity_key) = affinity_key {
-			let (provider, info) = self.providers.select_by_affinity(affinity_key)?;
-			let handle = self.providers.start_request(provider.name.clone(), &info);
-			return Some((provider, handle));
+		health: impl Fn(&NamedAIProvider) -> ProviderHealth,
+	) -> Option<(Arc<NamedAIProvider>, Option<ActiveHandle>)> {
+		// (tier, score, own): lower tiers are preferred over any higher tier.
+		let rank = |e: &EndpointWithInfo<NamedAIProvider>, active: bool| match health(&e.endpoint) {
+			ProviderHealth::Own => (if active { 0 } else { 1 }, e.info.score(), true),
+			ProviderHealth::Derived(score) => (0, score, false),
+			ProviderHealth::Evicted => (1, e.info.score(), false),
+			ProviderHealth::Unavailable => (2, e.info.score(), false),
+		};
+		let start = |e: &EndpointWithInfo<NamedAIProvider>, own: bool| {
+			let handle = own.then(|| {
+				self
+					.providers
+					.start_request(e.endpoint.name.clone(), &e.info)
+			});
+			Some((e.endpoint.clone(), handle))
+		};
+
+		if affinity_key.is_none() {
+			let iter = self.providers.iter();
+			let index = iter.index();
+			if iter.is_active_phase() {
+				// Intentionally allow `rand::seq::index::sample` so we can pick the same element twice
+				// This avoids starvation where the worst endpoint gets 0 traffic
+				let a = rand::rng().random_range(0..index.len());
+				let b = rand::rng().random_range(0..index.len());
+				let ra = rank(&index[a], true);
+				let rb = if a == b { ra } else { rank(&index[b], true) };
+				let best = [(&index[a], ra), (&index[b], rb)]
+					.into_iter()
+					.filter(|(_, (tier, _, _))| *tier == 0)
+					.max_by(|(_, (_, x, _)), (_, (_, y, _))| x.total_cmp(y));
+				if let Some((e, (_, _, own))) = best {
+					return start(e, own);
+				}
+			}
 		}
-		let iter = self.providers.iter();
-		let index = iter.index();
-		if index.is_empty() {
-			return None;
-		}
-		// Intentionally allow `rand::seq::index::sample` so we can pick the same element twice
-		// This avoids starvation where the worst endpoint gets 0 traffic
-		let a = rand::rng().random_range(0..index.len());
-		let b = rand::rng().random_range(0..index.len());
-		let best = [a, b]
-			.into_iter()
-			.map(|idx| {
-				let (_, EndpointWithInfo { endpoint, info, .. }) =
-					index.get_index(idx).expect("index already checked");
-				(endpoint.clone(), info)
+
+		// Slow path: rank every provider, then take the best of the lowest tier in the first
+		// bucket that has one.
+		let buckets = self.providers.buckets();
+		let ranked = buckets
+			.iter()
+			.enumerate()
+			.flat_map(|(bucket, g)| {
+				let active = g.active.values().map(move |e| (bucket, e, true));
+				let rejected = g.rejected.values().map(move |e| (bucket, e, false));
+				active.chain(rejected)
 			})
-			.max_by(|(_, a), (_, b)| a.score().total_cmp(&b.score()));
-		let (ep, ep_info) = best?;
-		let handle = self.providers.start_request(ep.name.clone(), ep_info);
-		Some((ep, handle))
+			.map(|(bucket, e, active)| (bucket, e, rank(e, active)))
+			.collect::<Vec<_>>();
+		let (tier, bucket) = ranked.iter().map(|(b, _, (t, _, _))| (*t, *b)).min()?;
+		let candidates = ranked
+			.iter()
+			.filter(|(b, _, (t, _, _))| *t == tier && *b == bucket);
+		let (_, e, (_, _, own)) = match affinity_key {
+			Some(key) => candidates.max_by_key(|(_, e, _)| {
+				crate::types::loadbalancer::rendezvous_hash(key, e.endpoint_hash)
+			})?,
+			None => candidates.max_by(|(_, _, (_, x, _)), (_, _, (_, y, _))| x.total_cmp(y))?,
+		};
+		start(e, *own)
 	}
+}
+
+/// How a provider's health is determined.
+pub enum ProviderHealth {
+	/// Scored by the provider's own requests.
+	Own,
+	/// Scored by the endpoints the gateway selects behind the provider.
+	Derived(f64),
+	/// Every endpoint behind the provider is evicted.
+	Evicted,
+	/// No endpoint is behind the provider.
+	Unavailable,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

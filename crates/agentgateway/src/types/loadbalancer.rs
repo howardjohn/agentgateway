@@ -48,7 +48,7 @@ pub struct EndpointWithInfo<T> {
 	/// Hash of the endpoint's stable key, computed with the endpoint so there is no uninitialized
 	/// state. Affinity selection therefore needs only an integer mix per candidate.
 	#[serde(skip)]
-	endpoint_hash: u64,
+	pub(crate) endpoint_hash: u64,
 }
 
 impl<T> EndpointWithInfo<T> {
@@ -115,8 +115,8 @@ fn build_sampler<T>(active: &IndexMap<EndpointKey, EndpointWithInfo<T>>) -> Samp
 
 #[derive(Debug, Clone, Serialize)]
 pub struct EndpointGroup<T> {
-	active: IndexMap<EndpointKey, EndpointWithInfo<T>>,
-	rejected: IndexMap<EndpointKey, EndpointWithInfo<T>>,
+	pub(crate) active: IndexMap<EndpointKey, EndpointWithInfo<T>>,
+	pub(crate) rejected: IndexMap<EndpointKey, EndpointWithInfo<T>>,
 	#[serde(skip)]
 	sampler: Sampler,
 }
@@ -271,6 +271,31 @@ impl EndpointSet<Endpoint> {
 			.endpoints
 			.start_request(c.endpoint.workload_uid.clone(), &c.info);
 		Some((c.endpoint, handle, c.workload))
+	}
+
+	/// Mean score of the endpoints in the first bucket with a viable active endpoint for `svc_port`.
+	/// Rejected and non-viable endpoints count as 0. `None` when no bucket has a viable active
+	/// endpoint.
+	pub fn mean_score(
+		&self,
+		workloads: &store::WorkloadStore,
+		svc: &Service,
+		svc_port: u16,
+	) -> Option<f64> {
+		let target_port = *svc.ports.get(&svc_port)?;
+		self.buckets.iter().find_map(|bucket| {
+			let group = bucket.load();
+			let (viable_count, total) = group
+				.active
+				.values()
+				.filter(|ewi| {
+					ewi.capacity > 0 && viable(workloads, target_port, svc_port, &ewi.endpoint).is_some()
+				})
+				.fold((0usize, 0.0), |(n, sum), ewi| {
+					(n + 1, sum + ewi.info.score())
+				});
+			(viable_count > 0).then(|| total / (group.active.len() + group.rejected.len()) as f64)
+		})
 	}
 
 	/// Selects one endpoint using weighted rendezvous hashing. Locality and health semantics match
@@ -461,7 +486,7 @@ impl RendezvousScore {
 /// The hashes use separate seeds; with either fixed, XOR is a one-to-one translation of the other
 /// and loses no entropy. SplitMix64 then avalanches the combined value.
 #[inline]
-fn rendezvous_hash(affinity_key: u64, endpoint_hash: u64) -> u64 {
+pub(crate) fn rendezvous_hash(affinity_key: u64, endpoint_hash: u64) -> u64 {
 	let mut value = affinity_key ^ endpoint_hash;
 	// Constants and algorithm from https://rosettacode.org/wiki/Pseudo-random_numbers/Splitmix64
 	value = (value ^ (value >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
@@ -775,19 +800,9 @@ impl<T: Clone + Sync + Send + 'static> EndpointSet<T> {
 		ActiveEndpointsIter(self.best_bucket())
 	}
 
-	/// Selects an unweighted rendezvous winner from the same highest-priority healthy bucket used by
-	/// normal iteration. If no active endpoint exists there, `iter` exposes its rejected fallback.
-	/// This generic form is used for AI providers, whose stable provider names are EndpointKeys.
-	pub(crate) fn select_by_affinity(
-		&self,
-		affinity_key: u64,
-	) -> Option<(Arc<T>, Arc<EndpointInfo>)> {
-		let iter = self.iter();
-		let endpoint = iter
-			.index()
-			.values()
-			.max_by_key(|endpoint| rendezvous_hash(affinity_key, endpoint.endpoint_hash))?;
-		Some((endpoint.endpoint.clone(), endpoint.info.clone()))
+	/// Each bucket, in priority order.
+	pub fn buckets(&self) -> Vec<Arc<EndpointGroup<T>>> {
+		self.buckets.iter().map(|b| b.load_full()).collect()
 	}
 
 	/// Visit every endpoint, returning the first `Some` produced by `f`. Active

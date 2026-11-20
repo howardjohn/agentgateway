@@ -36,7 +36,8 @@ use crate::http::{
 	merge_in_headers, retry,
 };
 use crate::llm::{
-	InputFormat, LLMInfo, LLMRequest, LLMResponse, RequestResult, RouteType, model_router,
+	InputFormat, LLMInfo, LLMRequest, LLMResponse, ProviderHealth, RequestResult, RouteType,
+	model_router,
 };
 use crate::proxy::tcpproxy::TCPProxy;
 use crate::proxy::{
@@ -2678,12 +2679,44 @@ async fn make_backend_call(
 				.session_affinity
 				.as_ref()
 				.and_then(|policy| policy.affinity_key(&req));
+			// A provider backed by a Service is scored by the Service's endpoints, unless an
+			// inference picker selects the endpoint.
 			let (provider, handle) = ai
-				.select_provider(affinity_key)
+				.select_provider(affinity_key, |p| {
+					let Some(provider_backend) = &p.provider_backend else {
+						return ProviderHealth::Own;
+					};
+					let Ok(resolved) = super::resolve_simple_backend(provider_backend, inputs.as_ref())
+					else {
+						return ProviderHealth::Unavailable;
+					};
+					let SimpleBackend::Service(svc, port) = &resolved.backend else {
+						return ProviderHealth::Own;
+					};
+					let picker = inputs
+						.stores
+						.read_binds()
+						.backend_policies(
+							resolved.backend.target(),
+							&[&resolved.inline_policies],
+							None,
+						)
+						.inference_routing
+						.is_some();
+					if picker {
+						return ProviderHealth::Own;
+					}
+					match svc
+						.endpoints
+						.mean_score(&inputs.stores.read_discovery().workloads, svc, *port)
+					{
+						Some(score) => ProviderHealth::Derived(score),
+						None if svc.endpoints.any(|_| true) => ProviderHealth::Evicted,
+						None => ProviderHealth::Unavailable,
+					}
+				})
 				.ok_or(ProxyError::NoHealthyEndpoints)?;
-			if provider.provider_backend.is_some() {
-				log.add(move |l| l.delegated_provider_request_handle = Some(handle));
-			} else {
+			if let Some(handle) = handle {
 				log.add(move |l| l.request_handle = Some(handle));
 			}
 			let sub_backend_name = BackendTargetRef::Backend {
@@ -2703,15 +2736,9 @@ async fn make_backend_call(
 				..Default::default()
 			};
 			if let Some(provider_backend) = &provider.provider_backend {
-				// A delegated backend may fail before a Service endpoint is selected. Record
-				// its provider policy now so these failures can evict the provider.
 				let provider_policies = provider_defaults
 					.merge(policies.as_ref().clone())
 					.merge(sub_backend_policies);
-				log.add(|l| {
-					l.delegated_provider_health_policy = provider_policies.health.clone();
-					provider_policies.register_cel_expressions(l.cel.ctx());
-				});
 				let provider_backend =
 					super::resolve_simple_backend_with_policies(provider_backend, inputs.as_ref())?;
 				// Use backend_policies (not sub_backend_policies) so policies indexed without a
@@ -2723,6 +2750,12 @@ async fn make_backend_call(
 					None,
 				);
 				let effective_policies = provider_policies.merge(provider_backend_policies);
+				// The provider handle, if any, is scored with this policy when the request fails
+				// before an endpoint is selected.
+				log.add(|l| {
+					l.health_policy = effective_policies.health.clone();
+					effective_policies.register_cel_expressions(l.cel.ctx());
+				});
 
 				build_simple_backend_call(
 					&inputs,
@@ -3560,7 +3593,14 @@ pub fn build_service_call(
 	)
 	.ok_or(ProxyError::NoHealthyEndpoints)?;
 
-	log.add(move |l| l.request_handle = Some(handle));
+	// When an inference picker routes the request, an existing handle (e.g. for the AI provider
+	// that delegated to this service) is scored instead.
+	let picked = service_override.destination.is_some() || service_override.inference_failed_open;
+	log.add(move |l| {
+		if !picked || l.request_handle.is_none() {
+			l.request_handle = Some(handle)
+		}
+	});
 
 	// Check if we need double hbone (workload on remote network with gateway)
 	let mut network_gateway = if wl.network != inputs.cfg.network {
